@@ -1,0 +1,11 @@
+{
+  "name": "hris-system",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:mobile": "pnpm --filter mobile start",
+    "lint": "pnpm -r lint",
+    "format": "pnpm -r format"
+  }
+}
