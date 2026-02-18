@@ -1,16 +1,12 @@
-# HRIS System
+# Enterprise Full-Stack Monorepo System
 
-HRIS (Human Resource Information System) full-stack application developed during OJT.
-
-This repository uses a monorepo structure that contains the web client, mobile client, and backend API in a single codebase to maintain consistency, structure, and organized team development.
+Full-stack enterprise application developed during an internship. The repository follows a monorepo structure that consolidates the web client, mobile client, and backend API into a single codebase to maintain consistency, structure, and organized team development.
 
 ---
 
 ## Overview
 
-The system is designed to handle core human resource processes such as employee records, attendance, leave processing, payroll, compliance tracking, and related administrative workflows.
-
-The repository structure allows:
+The system is designed to support common enterprise workflows and administrative processes. The monorepo structure enables:
 
 - Centralized development
 - Shared code between web and mobile applications
@@ -24,29 +20,29 @@ The repository structure allows:
 ```
 hris-system/ 
 ├── apps/ 
-│ ├── web/ # React web application 
-│ ├── mobile/ # React Native mobile application 
-│ ├── api/ # ASP.NET Core Web API 
+│ ├── web/ # Web client application 
+│ ├── mobile/ # Mobile client application 
+│ ├── api/ # Backend API service
 │ 
 ├── packages/ 
-│ └── shared/ # Shared code used by Web and Mobile
+│ └── shared/ # Shared code across clients
 │ 
-├── docs/ # Project documentation and references
+├── docs/ # Project documentation
 ```
 
 ### Application Responsibilities
 
 - **apps/web**  
-  Web client responsible for administrative and management interfaces.
+  Web client for administrative and management interfaces.
 
 - **apps/mobile**  
-  Mobile client for employee-facing functionality.
+  Mobile client application for end-user interactions.
 
 - **apps/api**  
-  Responsible for business logic and database operations.
+  Backend service handling business logic, data processing, and integrations.
 
 - **packages/shared**  
-  Shared code used by both web and mobile applications.
+  Reusable code shared across web and mobile applications to maintain consistency and reduce duplication.
 
 ---
 
@@ -55,7 +51,7 @@ hris-system/
 | Layer     | Technology |
 |-----------|------------|
 | Web       | React + TypeScript + Vite |
-| Mobile    | React Native + TypeScript |
+| Mobile    | React Native + TypeScript + Expo|
 | Backend   | ASP.NET Core Web API |
 | Database  | MySQL |
 | Tooling   | pnpm workspaces |
@@ -81,6 +77,8 @@ Install pnpm if not yet available:
 ### 1. Clone the repository
 
 `git clone https://github.com/Zekiroh/hris-system.git`
+
+`cd hris-system`
 
 ### 2. Install dependencies
 
@@ -163,5 +161,4 @@ This keeps feature work isolated and reduces merge conflicts during collaboratio
 
 ## Project Status
 
-The system is currently under active development as part of internship program. 
-The repository structure and core architecture have been established. Feature implementation and module integration are ongoing.
+The project is currently under active development as part of an internship program. Core architecture and repository structure have been established, with ongoing feature development and module integration.
