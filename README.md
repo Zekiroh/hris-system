@@ -2,51 +2,51 @@
 
 HRIS (Human Resource Information System) full-stack application developed during OJT.
 
-This repository follows a monorepo structure that contains the web client, mobile client, and backend API in a single codebase to support organized and scalable team development.
+This repository uses a monorepo structure that contains the web client, mobile client, and backend API in a single codebase to maintain consistency, structure, and organized team development.
 
 ---
 
 ## Overview
 
-The system is designed to handle core human resource processes such as employee management, authentication, and administrative operations.
+The system is designed to handle core human resource processes such as employee records, attendance, leave processing, payroll, compliance tracking, and related administrative workflows.
 
 The repository structure allows:
 
 - Centralized development
-- Shared TypeScript modules between web and mobile
-- Backend versioned alongside client applications
-- Consistent collaboration workflow across the team
+- Shared code between web and mobile applications
+- Clear separation between frontend and backend layers
+- Structured collaboration across the team
 
 ---
 
 ## Architecture
 
 ```
-HRIS-SYSTEM/ 
+hris-system/ 
 ├── apps/ 
 │ ├── web/ # React web application 
 │ ├── mobile/ # React Native mobile application 
 │ ├── api/ # ASP.NET Core Web API 
 │ 
 ├── packages/ 
-│ └── shared/ # Shared TypeScript modules (web + mobile)
+│ └── shared/ # Shared code used by Web and Mobile
 │ 
-├── docs/ # Documentation and references
+├── docs/ # Project documentation and references
 ```
 
 ### Application Responsibilities
 
 - **apps/web**  
-  React + TypeScript web client.
+  Web client responsible for administrative and management interfaces.
 
 - **apps/mobile**  
-  React Native + TypeScript mobile client.
+  Mobile client for employee-facing functionality.
 
 - **apps/api**  
-  ASP.NET Core Web API connected to MySQL.
+  Responsible for business logic and database operations.
 
 - **packages/shared**  
-  Shared TypeScript modules consumed by both web and mobile applications.
+  Shared code used by both web and mobile applications.
 
 ---
 
@@ -64,38 +64,52 @@ HRIS-SYSTEM/
 
 ## Development Setup
 
+### Prerequisites
+
+Ensure the following tools are installed before running the project:
+
+- Node.js (LTS recommended)
+- pnpm
+- .NET SDK
+- MySQL
+
+
+Install pnpm if not yet available:
+
+`npm install -g pnpm`
+
 ### 1. Clone the repository
 
-git clone https://github.com/Zekiroh/hris-system.git
+`git clone https://github.com/Zekiroh/hris-system.git`
 
 ### 2. Install dependencies
 
 Install workspace dependencies for web, mobile, and shared packages:
 
-pnpm install
+`pnpm install`
 
 ### 3. Run Web Application
 
-cd apps/web
+`cd apps/web`
 
-pnpm dev
+`pnpm dev`
 
 ### 4. Run Mobile Application
 
-cd apps/mobile
+`cd apps/mobile`
 
-pnpm start
+`pnpm start`
 
 ### 5. Run Backend API
 
-cd apps/api
+`cd apps/api`
 
-dotnet restore
+`dotnet restore`
 
-dotnet run
+`dotnet run`
 
 
-Ensure the database connection string is properly configured before running the API.
+Ensure the database connection string is properly configured in `apps/api/appsettings.json` before running the API.
 
 ---
 
@@ -104,7 +118,7 @@ Ensure the database connection string is properly configured before running the 
 Each application manages its own environment configuration:
 
 - `apps/web` → `.env`
-- `apps/mobile` → environment configuration based on project setup
+- `apps/mobile` → environment configuration based on its setup
 - `apps/api` → `appsettings.json`
 
 Sensitive credentials such as database connection strings must not be committed to the repository.
@@ -113,16 +127,15 @@ Sensitive credentials such as database connection strings must not be committed 
 
 ## Branching Strategy
 
-We follow a simple and structured branching approach to keep development organized.
+The repository maintains two primary branches:
 
 - `main`  
-  Contains stable and production-ready code.
-
+  Stable branch containing production-ready code.
+  
 - `dev`  
-  Serves as the active development branch where completed features are merged and tested together.
+  Active development branch where completed features are merged and tested together.
 
-- `feature/<short-description>`  
-  Used for individual tasks or modules. Examples:
+- `feature/<short-description>` Used for individual tasks or modules. Examples:
   - `feature/authentication`
   - `feature/employee-management`
   - `feature/mobile-dashboard`
@@ -131,7 +144,7 @@ We follow a simple and structured branching approach to keep development organiz
 
 1. Create a feature branch from `dev`
 2. Implement changes and commit regularly
-3. Push the branch and open a pull request to `dev`
+3. Push the branch and open a pull request(PR) to `dev`
 4. Merge to `main` once the changes are stable and reviewed
 
 This keeps feature work isolated and reduces merge conflicts during collaboration.
@@ -140,17 +153,15 @@ This keeps feature work isolated and reduces merge conflicts during collaboratio
 
 ## Collaboration Guidelines
 
-- Keep commits clear and descriptive.
-- Avoid direct pushes to `main`.
-- Submit pull requests for review before merging.
+- Use clear and meaningful commit messages.
+- Do not push directly to `main`.
+- Merge changes through pull requests(PR).
+- Keep changes focused on a specific task or module.
 - Maintain consistency in structure and naming conventions.
 
 ---
 
 ## Project Status
 
-The system is currently under active development as part of internship training. 
+The system is currently under active development as part of internship program. 
 The repository structure and core architecture have been established. Feature implementation and module integration are ongoing.
-
-
-
