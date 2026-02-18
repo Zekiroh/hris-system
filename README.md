@@ -153,7 +153,7 @@ This keeps feature work isolated and reduces merge conflicts during collaboratio
 
 - Use clear and meaningful commit messages.
 - Do not push directly to `main`.
-- Merge changes through pull requests(PR).
+- Merge changes through pull requests.
 - Keep changes focused on a specific task or module.
 - Maintain consistency in structure and naming conventions.
 
