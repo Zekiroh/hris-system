@@ -1,12 +1,38 @@
+using HRIS.Api.Data;
+using Microsoft.EntityFrameworkCore;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
+
 var builder = WebApplication.CreateBuilder(args);
 
+// =====================
 // Services
+// =====================
+
+// Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Database
+var connectionString = builder.Configuration.GetConnectionString("Default");
+// Hard fail if connection string is missing
+if (string.IsNullOrWhiteSpace(connectionString))
+    throw new InvalidOperationException("ConnectionStrings:Default is missing. Set it via user-secrets.");
+
+
+var serverVersion = new MySqlServerVersion(new Version(8, 0, 45));
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    options.UseMySql(connectionString, serverVersion);
+});
+
 var app = builder.Build();
 
-// Swagger in Development
+// =====================
+// Middleware
+// =====================
+
+// Enable Swagger in development environment
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -15,26 +41,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// =====================
+// Test Endpoints
+// =====================
+
 app.MapGet("/", () => Results.Ok("HRIS API is running."));
-
-app.MapGet("/weatherforecast", () =>
-{
-    var summaries = new[]
-    {
-        "Freezing", "Bracing", "Chilly", "Cool", "Mild",
-        "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-    };
-
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new
-        {
-            Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            TemperatureC = Random.Shared.Next(-20, 55),
-            Summary = summaries[Random.Shared.Next(summaries.Length)]
-        });
-
-    return forecast;
-})
-.WithName("GetWeatherForecast");
 
 app.Run();
