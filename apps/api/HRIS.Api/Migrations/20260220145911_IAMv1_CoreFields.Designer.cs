@@ -4,6 +4,7 @@ using HRIS.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRIS.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260220145911_IAMv1_CoreFields")]
+    partial class IAMv1_CoreFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -49,29 +52,6 @@ namespace HRIS.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("roles", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            IsSystem = true,
-                            Name = "Super Admin",
-                            NormalizedName = "SUPER_ADMIN"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            IsSystem = true,
-                            Name = "Admin",
-                            NormalizedName = "ADMIN"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            IsSystem = true,
-                            Name = "User",
-                            NormalizedName = "USER"
-                        });
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.User", b =>
