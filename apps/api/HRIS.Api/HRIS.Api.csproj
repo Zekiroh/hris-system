@@ -9,14 +9,18 @@
 
   <ItemGroup>
     <!-- EF Core packages -->
+    <PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.3" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.16.0" />
 
     <!-- MySQL provider for EF Core -->
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
 
     <!-- Swagger/OpenAPI support -->
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.16.0" />
   </ItemGroup>
 
 </Project>
