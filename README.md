@@ -18,16 +18,19 @@ The system is designed to support common enterprise workflows and administrative
 ## Architecture
 
 ```
-hris-system/ 
-├── apps/ 
-│ ├── web/ # Web client application 
-│ ├── mobile/ # Mobile client application 
-│ ├── api/ # Backend API service
-│ 
-├── packages/ 
-│ └── shared/ # Shared code across clients
-│ 
-├── docs/ # Project documentation
+hris-system/
+├── apps/
+│   ├── web/        # Web client application
+│   ├── mobile/     # Mobile client application
+│   ├── api/        # Backend API service
+│
+├── packages/
+│   └── shared/     # Shared code across clients
+│
+├── infra/
+│   └── docker/     # Docker infrastructure (MySQL)
+│
+├── docs/           # Project documentation
 ```
 
 ### Application Responsibilities
@@ -51,9 +54,9 @@ hris-system/
 | Layer     | Technology |
 |-----------|------------|
 | Web       | React + TypeScript + Vite |
-| Mobile    | React Native + TypeScript + Expo|
+| Mobile    | React Native + TypeScript + Expo |
 | Backend   | ASP.NET Core Web API |
-| Database  | MySQL |
+| Database  | MySQL 8 (Docker) |
 | Tooling   | pnpm workspaces |
 
 ---
@@ -67,7 +70,7 @@ Ensure the following tools are installed before running the project:
 - Node.js (LTS recommended)
 - pnpm
 - .NET SDK
-- MySQL
+- Docker Desktop
 
 
 Install pnpm if not yet available:
@@ -107,7 +110,45 @@ Install workspace dependencies for web, mobile, and shared packages:
 `dotnet run`
 
 
-Ensure the database connection string is properly configured in `apps/api/appsettings.json` before running the API.
+Note: Ensure the MySQL container has been started via Docker and the connection string has been configured using .NET user-secrets before running the API.
+
+---
+
+## Database Setup (Docker)
+
+The backend uses a Dockerized MySQL instance for local development to ensure consistency across environments.
+
+Start the database:
+
+`cd infra/docker`
+
+`docker compose up -d`
+
+MySQL will be available at:
+
+`localhost:3307`
+
+Port 3307 is used to avoid conflicts with local MySQL installations that typically run on port 3306.
+
+---
+
+## Configure Connection String (Local Development)
+
+The API uses .NET user-secrets for managing local database credentials.
+
+Navigate to the API project:
+
+`cd apps/api/HRIS.Api`
+
+Set your local connection string:
+
+`dotnet user-secrets set "ConnectionStrings:Default" "Server=127.0.0.1;Port=3307;Database=hris_db;User=<your-user>;Password=<your-password>;"`
+
+Apply database migrations:
+
+`dotnet ef database update`
+
+Do not commit connection strings or credentials to the repository.
 
 ---
 
@@ -117,7 +158,7 @@ Each application manages its own environment configuration:
 
 - `apps/web` → `.env`
 - `apps/mobile` → environment configuration based on its setup
-- `apps/api` → `appsettings.json`
+- `apps/api` → `appsettings.json + .NET user-secrets`
 
 Sensitive credentials such as database connection strings must not be committed to the repository.
 
@@ -133,7 +174,8 @@ The repository maintains two primary branches:
 - `dev`  
   Active development branch where completed features are merged and tested together.
 
-- `feature/<short-description>` Used for individual tasks or modules. Examples:
+- `feature/<short-description>`
+  Used for individual tasks or modules. Examples:
   - `feature/authentication`
   - `feature/employee-management`
   - `feature/mobile-dashboard`
