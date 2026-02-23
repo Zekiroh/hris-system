@@ -4,6 +4,7 @@ using HRIS.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRIS.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260223073450_IAMv1_Permissions")]
+    partial class IAMv1_Permissions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,73 +24,6 @@ namespace HRIS.Api.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
-
-            modelBuilder.Entity("HRIS.Api.Models.ActivityLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<string>("ActorEmail")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("ActorRole")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<int>("ActorUserId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("IpAddress")
-                        .HasMaxLength(45)
-                        .HasColumnType("varchar(45)");
-
-                    b.Property<string>("MetadataJson")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Module")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<string>("Summary")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("TargetId")
-                        .HasMaxLength(64)
-                        .HasColumnType("varchar(64)");
-
-                    b.Property<string>("TargetType")
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<string>("UserAgent")
-                        .HasMaxLength(512)
-                        .HasColumnType("varchar(512)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ActorUserId");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.HasIndex("Module", "CreatedAt");
-
-                    b.ToTable("activity_logs", (string)null);
-                });
 
             modelBuilder.Entity("HRIS.Api.Models.Permission", b =>
                 {
@@ -129,63 +65,6 @@ namespace HRIS.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("permissions", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            CanArchive = true,
-                            CanCreate = true,
-                            CanUpdate = true,
-                            CanView = true,
-                            CreatedAt = new DateTime(2026, 2, 23, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Module = "IAM",
-                            RoleId = 1
-                        },
-                        new
-                        {
-                            Id = 2,
-                            CanArchive = true,
-                            CanCreate = true,
-                            CanUpdate = true,
-                            CanView = true,
-                            CreatedAt = new DateTime(2026, 2, 23, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Module = "EMPLOYEE",
-                            RoleId = 1
-                        },
-                        new
-                        {
-                            Id = 3,
-                            CanArchive = true,
-                            CanCreate = true,
-                            CanUpdate = true,
-                            CanView = true,
-                            CreatedAt = new DateTime(2026, 2, 23, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Module = "IAM",
-                            RoleId = 2
-                        },
-                        new
-                        {
-                            Id = 4,
-                            CanArchive = true,
-                            CanCreate = true,
-                            CanUpdate = true,
-                            CanView = true,
-                            CreatedAt = new DateTime(2026, 2, 23, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Module = "EMPLOYEE",
-                            RoleId = 2
-                        },
-                        new
-                        {
-                            Id = 5,
-                            CanArchive = false,
-                            CanCreate = false,
-                            CanUpdate = false,
-                            CanView = true,
-                            CreatedAt = new DateTime(2026, 2, 23, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Module = "EMPLOYEE",
-                            RoleId = 3
-                        });
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.Role", b =>

@@ -1,8 +1,9 @@
 using HRIS.Api.Data;
+using HRIS.Api.Features.IAM.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace HRIS.Api.Auth;
+namespace HRIS.Api.Features.IAM.Controllers;
 
 [ApiController]
 [Route("auth")]

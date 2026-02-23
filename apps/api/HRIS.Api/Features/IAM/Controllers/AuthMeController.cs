@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
-namespace HRIS.Api.Auth;
+namespace HRIS.Api.Features.IAM.Controllers;
 
 [ApiController]
 [Route("auth")]
