@@ -1,5 +1,5 @@
-using HRIS.Api.Auth;
 using HRIS.Api.Data;
+using HRIS.Api.Features.IAM.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -66,8 +66,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connectionString, serverVersion);
 });
 
-// JWT Services
+// =====================
+// IAM Services
+// =====================
+
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<IActivityLogger, ActivityLogger>();
 
 // JWT Auth (locked)
 var jwtKey = builder.Configuration["Jwt:Key"];
