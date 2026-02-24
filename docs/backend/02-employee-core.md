@@ -147,12 +147,17 @@ This module feeds:
 
 ## 6. Implementation Status
 
-Current Status:
-- Database schema not yet implemented
-- Endpoints not yet developed
-- Document structure drafted
+Phase 1 (MVP) – Completed
+- employees table created via EF migration
+- Employee entity + DbSet added
+- CRUD endpoints implemented (GET /employees, GET /employees/{id}, POST, PUT, archive)
+- RBAC enforced via PermissionAuthorize for module EMPLOYEES
+- Permission module key normalized (EMPLOYEES) and legacy values cleaned
+- Unique index enforced on EmployeeNumber
+- DTO validation corrected for DateHired (nullable DTO pattern)
 
-Next Step:
-- Design ERD (Phase 1)
-- Create `Employee` entity + migration
-- Implement Phase 1 CRUD endpoints
+Phase 2 (Next)
+
+- Add pagination + filtering + search for GET /employees
+- Add dedicated status endpoint (PATCH /employees/{id}/status) if needed by UI
+- Expand schema (employment details split or additional tables) based on C1–C4 screens
