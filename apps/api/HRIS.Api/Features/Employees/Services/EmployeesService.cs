@@ -14,14 +14,57 @@ public class EmployeesService
         _db = db;
     }
 
-    public async Task<List<EmployeeDto>> GetAllAsync(CancellationToken ct = default)
+    public async Task<PagedEmployeesResponse> GetAllAsync(GetEmployeesQuery query, CancellationToken ct = default)
     {
-        return await _db.Employees
+        // Guard rails
+        var page = query.Page <= 0 ? 1 : query.Page;
+        var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
+        if (pageSize > 100) pageSize = 100;
+
+        var q = _db.Employees
             .AsNoTracking()
+            .AsQueryable();
+
+        // Filter: active/archived
+        if (query.IsActive.HasValue)
+        {
+            q = q.Where(e => e.IsActive == query.IsActive.Value);
+        }
+
+        // Search: EmployeeNumber, names, department, position
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var search = query.Search.Trim();
+
+            q = q.Where(e =>
+                e.EmployeeNumber.Contains(search) ||
+                e.FirstName.Contains(search) ||
+                (e.MiddleName != null && e.MiddleName.Contains(search)) ||
+                e.LastName.Contains(search) ||
+                (e.Department != null && e.Department.Contains(search)) ||
+                (e.Position != null && e.Position.Contains(search))
+            );
+        }
+
+        var totalCount = await q.CountAsync(ct);
+
+        var skip = (page - 1) * pageSize;
+
+        var items = await q
             .OrderBy(e => e.LastName)
             .ThenBy(e => e.FirstName)
+            .Skip(skip)
+            .Take(pageSize)
             .Select(ToDto())
             .ToListAsync(ct);
+
+        return new PagedEmployeesResponse
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<EmployeeDto?> GetByIdAsync(Guid id, CancellationToken ct = default)

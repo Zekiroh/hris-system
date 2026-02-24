@@ -20,9 +20,11 @@ public class EmployeesController : ControllerBase
 
     [HttpGet]
     [PermissionAuthorize("EMPLOYEES", "View")]
-    public async Task<ActionResult<List<EmployeeDto>>> GetAll(CancellationToken ct)
+    public async Task<ActionResult<List<EmployeeDto>>> GetAll([FromQuery] GetEmployeesQuery query, CancellationToken ct)
     {
-        var list = await _employees.GetAllAsync(ct);
+        // Phase 2 groundwork: endpoint now accepts paging/filter/search inputs via query params.
+        // Logic will be implemented in the next step (service-level query).
+        var list = await _employees.GetAllAsync(query, ct);
         return Ok(list);
     }
 
