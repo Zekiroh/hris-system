@@ -38,6 +38,7 @@ public class CreateEmployeeRequest
     [MaxLength(20)]
     public string? ContactNumber { get; set; }
 
+    [EmailAddress]
     [MaxLength(150)]
     public string? Email { get; set; }
 
