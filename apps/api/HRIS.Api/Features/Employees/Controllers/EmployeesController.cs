@@ -20,12 +20,10 @@ public class EmployeesController : ControllerBase
 
     [HttpGet]
     [PermissionAuthorize("EMPLOYEES", "View")]
-    public async Task<ActionResult<List<EmployeeDto>>> GetAll([FromQuery] GetEmployeesQuery query, CancellationToken ct)
+    public async Task<ActionResult<PagedEmployeesResponse>> GetAll([FromQuery] GetEmployeesQuery query, CancellationToken ct)
     {
-        // Phase 2 groundwork: endpoint now accepts paging/filter/search inputs via query params.
-        // Logic will be implemented in the next step (service-level query).
-        var list = await _employees.GetAllAsync(query, ct);
-        return Ok(list);
+        var result = await _employees.GetAllAsync(query, ct);
+        return Ok(result);
     }
 
     [HttpGet("{id:guid}")]
@@ -53,6 +51,23 @@ public class EmployeesController : ControllerBase
     public async Task<ActionResult<EmployeeDto>> Update(Guid id, [FromBody] UpdateEmployeeRequest req, CancellationToken ct)
     {
         var (ok, error, employee) = await _employees.UpdateAsync(id, req, ct);
+        if (!ok)
+        {
+            if (error == "Employee not found.") return NotFound();
+            return BadRequest(new { message = error });
+        }
+
+        return Ok(employee);
+    }
+
+    [HttpPatch("{id:guid}/status")]
+    [PermissionAuthorize("EMPLOYEES", "Update")]
+    public async Task<ActionResult<EmployeeDto>> UpdateStatus(
+        Guid id,
+        [FromBody] UpdateEmployeeStatusRequest req,
+        CancellationToken ct)
+    {
+        var (ok, error, employee) = await _employees.UpdateStatusAsync(id, req, ct);
         if (!ok)
         {
             if (error == "Employee not found.") return NotFound();

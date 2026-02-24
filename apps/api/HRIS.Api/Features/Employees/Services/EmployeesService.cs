@@ -127,6 +127,22 @@ public class EmployeesService
         return (true, null, ToDto(entity));
     }
 
+    public async Task<(bool ok, string? error, EmployeeDto? employee)> UpdateStatusAsync(
+        Guid id,
+        UpdateEmployeeStatusRequest req,
+        CancellationToken ct = default)
+    {
+        var entity = await _db.Employees.FirstOrDefaultAsync(e => e.Id == id, ct);
+        if (entity is null) return (false, "Employee not found.", null);
+
+        entity.IsActive = req.IsActive;
+        entity.UpdatedAtUtc = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+
+        return (true, null, ToDto(entity));
+    }
+
     public async Task<(bool ok, string? error)> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         var entity = await _db.Employees.FirstOrDefaultAsync(e => e.Id == id, ct);
