@@ -19,7 +19,7 @@ If this module fails structurally, dependent modules will be affected.
 
 ## 2. Scope
 
-This module will manage:
+This module manages:
 
 - Employee basic profile
 - Employment status
@@ -61,79 +61,100 @@ Proposed entities:
 - GovernmentIdentifiers
 - EmployeeDocument
 
-Final schema to be confirmed during database design phase.
+Final schema to be confirmed during Phase 3+ database design.
 
 ---
 
-## 4A. Phase 1 MVP Schema (Initial ERD Target)
+## 4A. Phase 1 MVP Schema (Implemented)
 
 This Phase 1 schema defines the minimum employee master record required to unblock other modules.
 
-### Table: `employees` (Phase 1)
+### Table: `employees`
 
 Core identity:
-- `id` (PK, bigint/int)
-- `employeeNo` (unique)
-- `firstName`
-- `middleName` (nullable)
-- `lastName`
-- `suffix` (nullable)
 
-Basic contact:
-- `email` (nullable, unique if present)
-- `mobileNo` (nullable)
+- `Id` (GUID, PK)
+- `EmployeeNumber` (unique)
+- `FirstName`
+- `MiddleName` (nullable)
+- `LastName`
 
-Personal profile (minimal, expand later):
-- `birthDate` (nullable)
-- `sex` (nullable)
-- `civilStatus` (nullable)
+Personal profile:
+- `BirthDate` (nullable)
+- `Sex` (nullable)
+- `CivilStatus` (nullable)
 
-Address (minimal, expand later):
-- `addressLine1` (nullable)
-- `addressLine2` (nullable)
-- `city` (nullable)
-- `province` (nullable)
-- `zipCode` (nullable)
-
-Employment snapshot (minimal; normalization may come in Phase 2):
-- `employmentStatus` (e.g., Active/Resigned/Separated)
-- `hireDate` (nullable)
-- `departmentId` (nullable, reference later)
-- `positionId` (nullable, reference later)
+Employment snapshot:
+- `DateHired`
+- `Department` (nullable)
+- `Position` (nullable)
 
 System fields:
-- `isActive` (bool)
-- `createdAt`
-- `updatedAt` (nullable)
+- `IsActive` (bool)
+- `CreatedAtUtc`
+- `UpdatedAtUtc` (nullable)
 
 ### Notes (Phase 1)
-- Phase 1 intentionally keeps most sub-records (family, education, work exp, etc.) for Phase 2+.
-- Once the `employees` table exists, ERD should be generated/validated via DBeaver.
+
+- Implemented via EF Core migration.
+- Unique index enforced on `EmployeeNumber`.
+- DateOnly binding handled using nullable DTO pattern.
+- RBAC enforced using PermissionAuthorize with module key `EMPLOYEES`.
 
 ---
 
-## 4B. Phase 1 Endpoints (Draft)
+## 4B. Phase 2 Enhancements (Completed)
 
-These endpoints cover the minimum CRUD required by admin-facing screens.
+Phase 2 extended the core module to support UI-ready list operations and C1 basic information.
 
-- `GET /employees`  
-  List employees (paging/filtering to be added when UI requires it)
+### API Enhancements
 
-- `GET /employees/{id}`  
-  Get employee profile (Phase 1 fields)
+- Pagination implemented for `GET /employees`
+- Search implemented across:
+  - EmployeeNumber
+  - FirstName
+  - MiddleName
+  - LastName
+  - Department
+  - Position
+  - Filtering via `IsActive`
+- `PagedEmployeesResponse` introduced:
+  - `Items`
+  - `TotalCount`
+  - `Page`
+  - `PageSize`
+- Dedicated status endpoint implemented:
+  - `PATCH /employees/{id}/status`
 
-- `POST /employees`  
-  Create employee profile (Phase 1 fields)
+### C1 Basic Information Fields Added
 
-- `PUT /employees/{id}`  
-  Update employee profile (Phase 1 fields)
+- `ContactNumber`
+- `Email`
+- `AddressLine1`
+- `AddressLine2`
+- `City`
+- `Province`
+- `ZipCode`
 
-- `PATCH /employees/{id}/status`  
-  Activate/deactivate employee record
+Implemented via:
+
+- EF migration: `Employee_C1_BasicInfoFields`
+- DTO updates (Create + Update)
+- Write mapping in `EmployeesService`
+- Swagger verification (POST, PUT, PATCH)
+
+Validation Improvements
+
+- [EmailAddress] applied to Email fields
+- [Range] validation applied to pagination parameters
+- [MaxLength] applied to Search
+- [BindRequired] enforced for status PATCH request
+
+All changes verified via Swagger and database inspection.
 
 ---
 
-## 5. Dependency Map
+## 5. Dependancy Map
 
 This module feeds:
 
@@ -141,13 +162,14 @@ This module feeds:
 - Leave (employee balance and eligibility)
 - Attendance (employee reference)
 - Clearance (exit validation)
-- Reports (classification and headcount)
+- Reports (classfication and headcount)
 
 ---
 
 ## 6. Implementation Status
 
-Phase 1 (MVP) – Completed
+### Phase 1 (MVP) – Completed
+
 - employees table created via EF migration
 - Employee entity + DbSet added
 - CRUD endpoints implemented (GET /employees, GET /employees/{id}, POST, PUT, archive)
@@ -156,8 +178,42 @@ Phase 1 (MVP) – Completed
 - Unique index enforced on EmployeeNumber
 - DTO validation corrected for DateHired (nullable DTO pattern)
 
-Phase 2 (Next)
+### Phase 2 – Completed
 
-- Add pagination + filtering + search for GET /employees
-- Add dedicated status endpoint (PATCH /employees/{id}/status) if needed by UI
-- Expand schema (employment details split or additional tables) based on C1–C4 screens
+API Enhancements:
+
+- Pagination implemented for GET /employees
+- Filtering by IsActive supported
+- Search implemented across:
+  - EmployeeNumber
+  - FirstName
+  - MiddleName
+  - LastName
+  - Department
+  - Position
+- PagedEmployeesResponse introduced (items, totalCount, page, pageSize)
+- Dedicated status endpoint implemented (PATCH /employees/{id}/status)
+
+Schema Expansion (C1 Basic Info):
+
+- Added ContactNumber
+- Added Email
+- Added AddressLine1
+- Added AddressLine2
+- Added City
+- Added Province
+- Added ZipCode
+- EF migration created and applied (Employee_C1_BasicInfoFields)
+
+Validation Improvements:
+
+- EmailAddress validation added to Create and Update DTOs
+- Range validation added to pagination parameters
+- MaxLength validation added to Search
+- BindRequired enforced for PATCH status payload
+
+Verification:
+
+- Swagger tested (POST, PUT, PATCH)
+- Build succeeded with no regressions
+- Database schema verified via DBeaver
