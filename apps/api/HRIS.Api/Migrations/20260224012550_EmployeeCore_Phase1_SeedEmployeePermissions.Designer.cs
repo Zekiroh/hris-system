@@ -4,6 +4,7 @@ using HRIS.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRIS.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260224012550_EmployeeCore_Phase1_SeedEmployeePermissions")]
+    partial class EmployeeCore_Phase1_SeedEmployeePermissions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -147,9 +150,6 @@ namespace HRIS.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EmployeeNumber")
-                        .IsUnique();
-
                     b.ToTable("Employees");
                 });
 
@@ -214,7 +214,7 @@ namespace HRIS.Api.Migrations
                             CanUpdate = true,
                             CanView = true,
                             CreatedAt = new DateTime(2026, 2, 23, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Module = "EMPLOYEES",
+                            Module = "EMPLOYEE",
                             RoleId = 1
                         },
                         new
@@ -236,7 +236,7 @@ namespace HRIS.Api.Migrations
                             CanUpdate = true,
                             CanView = true,
                             CreatedAt = new DateTime(2026, 2, 23, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Module = "EMPLOYEES",
+                            Module = "EMPLOYEE",
                             RoleId = 2
                         },
                         new
@@ -247,7 +247,7 @@ namespace HRIS.Api.Migrations
                             CanUpdate = false,
                             CanView = true,
                             CreatedAt = new DateTime(2026, 2, 23, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Module = "EMPLOYEES",
+                            Module = "EMPLOYEE",
                             RoleId = 3
                         });
                 });

@@ -49,7 +49,7 @@ public class PermissionConfiguration : IEntityTypeConfiguration<Permission>
             {
                 Id = 2,
                 RoleId = 1,
-                Module = "EMPLOYEE",
+                Module = "EMPLOYEES",
                 CanView = true,
                 CanCreate = true,
                 CanUpdate = true,
@@ -73,7 +73,7 @@ public class PermissionConfiguration : IEntityTypeConfiguration<Permission>
             {
                 Id = 4,
                 RoleId = 2,
-                Module = "EMPLOYEE",
+                Module = "EMPLOYEES",
                 CanView = true,
                 CanCreate = true,
                 CanUpdate = true,
@@ -86,7 +86,7 @@ public class PermissionConfiguration : IEntityTypeConfiguration<Permission>
             {
                 Id = 5,
                 RoleId = 3,
-                Module = "EMPLOYEE",
+                Module = "EMPLOYEES",
                 CanView = true,
                 CanCreate = false,
                 CanUpdate = false,

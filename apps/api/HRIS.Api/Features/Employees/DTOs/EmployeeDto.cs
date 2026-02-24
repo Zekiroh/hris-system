@@ -1,0 +1,19 @@
+namespace HRIS.Api.Features.Employees.DTOs;
+
+public class EmployeeDto
+{
+    public Guid Id { get; set; }
+    public string EmployeeNumber { get; set; } = default!;
+    public string FirstName { get; set; } = default!;
+    public string? MiddleName { get; set; }
+    public string LastName { get; set; } = default!;
+    public DateOnly? BirthDate { get; set; }
+    public string? Sex { get; set; }
+    public string? CivilStatus { get; set; }
+    public DateOnly DateHired { get; set; }
+    public string? Department { get; set; }
+    public string? Position { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime? UpdatedAtUtc { get; set; }
+}
