@@ -48,7 +48,7 @@ public class EmployeesService
             BirthDate = req.BirthDate,
             Sex = string.IsNullOrWhiteSpace(req.Sex) ? null : req.Sex.Trim(),
             CivilStatus = string.IsNullOrWhiteSpace(req.CivilStatus) ? null : req.CivilStatus.Trim(),
-            DateHired = req.DateHired,
+            DateHired = req.DateHired!.Value,
             Department = string.IsNullOrWhiteSpace(req.Department) ? null : req.Department.Trim(),
             Position = string.IsNullOrWhiteSpace(req.Position) ? null : req.Position.Trim(),
             IsActive = true,
@@ -73,7 +73,7 @@ public class EmployeesService
         entity.BirthDate = req.BirthDate;
         entity.Sex = string.IsNullOrWhiteSpace(req.Sex) ? null : req.Sex.Trim();
         entity.CivilStatus = string.IsNullOrWhiteSpace(req.CivilStatus) ? null : req.CivilStatus.Trim();
-        entity.DateHired = req.DateHired;
+        entity.DateHired = req.DateHired!.Value;
         entity.Department = string.IsNullOrWhiteSpace(req.Department) ? null : req.Department.Trim();
         entity.Position = string.IsNullOrWhiteSpace(req.Position) ? null : req.Position.Trim();
         entity.IsActive = req.IsActive;

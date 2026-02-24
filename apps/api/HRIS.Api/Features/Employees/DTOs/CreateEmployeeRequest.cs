@@ -25,7 +25,7 @@ public class CreateEmployeeRequest
     public string? CivilStatus { get; set; }
 
     [Required]
-    public DateOnly DateHired { get; set; }
+    public DateOnly? DateHired { get; set; }
 
     [MaxLength(100)]
     public string? Department { get; set; }

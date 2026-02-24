@@ -20,5 +20,9 @@ public class AppDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+
+        modelBuilder.Entity<Employee>()
+            .HasIndex(e => e.EmployeeNumber)
+            .IsUnique();
     }
 }
