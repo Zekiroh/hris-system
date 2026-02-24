@@ -78,13 +78,15 @@ public class EmployeesService
 
     public async Task<(bool ok, string? error, EmployeeDto? employee)> CreateAsync(CreateEmployeeRequest req, CancellationToken ct = default)
     {
-        var exists = await _db.Employees.AnyAsync(e => e.EmployeeNumber == req.EmployeeNumber, ct);
+        var employeeNumber = req.EmployeeNumber.Trim();
+
+        var exists = await _db.Employees.AnyAsync(e => e.EmployeeNumber == employeeNumber, ct);
         if (exists) return (false, "EmployeeNumber already exists.", null);
 
         var entity = new Employee
         {
             Id = Guid.NewGuid(),
-            EmployeeNumber = req.EmployeeNumber.Trim(),
+            EmployeeNumber = employeeNumber,
             FirstName = req.FirstName.Trim(),
             MiddleName = string.IsNullOrWhiteSpace(req.MiddleName) ? null : req.MiddleName.Trim(),
             LastName = req.LastName.Trim(),
@@ -94,6 +96,15 @@ public class EmployeesService
             DateHired = req.DateHired!.Value,
             Department = string.IsNullOrWhiteSpace(req.Department) ? null : req.Department.Trim(),
             Position = string.IsNullOrWhiteSpace(req.Position) ? null : req.Position.Trim(),
+
+            ContactNumber = string.IsNullOrWhiteSpace(req.ContactNumber) ? null : req.ContactNumber.Trim(),
+            Email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim(),
+            AddressLine1 = string.IsNullOrWhiteSpace(req.AddressLine1) ? null : req.AddressLine1.Trim(),
+            AddressLine2 = string.IsNullOrWhiteSpace(req.AddressLine2) ? null : req.AddressLine2.Trim(),
+            City = string.IsNullOrWhiteSpace(req.City) ? null : req.City.Trim(),
+            Province = string.IsNullOrWhiteSpace(req.Province) ? null : req.Province.Trim(),
+            ZipCode = string.IsNullOrWhiteSpace(req.ZipCode) ? null : req.ZipCode.Trim(),
+
             IsActive = true,
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = null
@@ -119,6 +130,15 @@ public class EmployeesService
         entity.DateHired = req.DateHired!.Value;
         entity.Department = string.IsNullOrWhiteSpace(req.Department) ? null : req.Department.Trim();
         entity.Position = string.IsNullOrWhiteSpace(req.Position) ? null : req.Position.Trim();
+
+        entity.ContactNumber = string.IsNullOrWhiteSpace(req.ContactNumber) ? null : req.ContactNumber.Trim();
+        entity.Email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim();
+        entity.AddressLine1 = string.IsNullOrWhiteSpace(req.AddressLine1) ? null : req.AddressLine1.Trim();
+        entity.AddressLine2 = string.IsNullOrWhiteSpace(req.AddressLine2) ? null : req.AddressLine2.Trim();
+        entity.City = string.IsNullOrWhiteSpace(req.City) ? null : req.City.Trim();
+        entity.Province = string.IsNullOrWhiteSpace(req.Province) ? null : req.Province.Trim();
+        entity.ZipCode = string.IsNullOrWhiteSpace(req.ZipCode) ? null : req.ZipCode.Trim();
+
         entity.IsActive = req.IsActive;
         entity.UpdatedAtUtc = DateTime.UtcNow;
 
@@ -167,6 +187,15 @@ public class EmployeesService
         DateHired = e.DateHired,
         Department = e.Department,
         Position = e.Position,
+
+        ContactNumber = e.ContactNumber,
+        Email = e.Email,
+        AddressLine1 = e.AddressLine1,
+        AddressLine2 = e.AddressLine2,
+        City = e.City,
+        Province = e.Province,
+        ZipCode = e.ZipCode,
+
         IsActive = e.IsActive,
         CreatedAtUtc = e.CreatedAtUtc,
         UpdatedAtUtc = e.UpdatedAtUtc
@@ -186,6 +215,15 @@ public class EmployeesService
             DateHired = e.DateHired,
             Department = e.Department,
             Position = e.Position,
+
+            ContactNumber = e.ContactNumber,
+            Email = e.Email,
+            AddressLine1 = e.AddressLine1,
+            AddressLine2 = e.AddressLine2,
+            City = e.City,
+            Province = e.Province,
+            ZipCode = e.ZipCode,
+
             IsActive = e.IsActive,
             CreatedAtUtc = e.CreatedAtUtc,
             UpdatedAtUtc = e.UpdatedAtUtc

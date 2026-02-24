@@ -30,5 +30,28 @@ public class UpdateEmployeeRequest
     [MaxLength(100)]
     public string? Position { get; set; }
 
+    // ---- C1 Basic Info Fields ----
+
+    [MaxLength(20)]
+    public string? ContactNumber { get; set; }
+
+    [MaxLength(150)]
+    public string? Email { get; set; }
+
+    [MaxLength(150)]
+    public string? AddressLine1 { get; set; }
+
+    [MaxLength(150)]
+    public string? AddressLine2 { get; set; }
+
+    [MaxLength(100)]
+    public string? City { get; set; }
+
+    [MaxLength(100)]
+    public string? Province { get; set; }
+
+    [MaxLength(20)]
+    public string? ZipCode { get; set; }
+
     public bool IsActive { get; set; }
 }
