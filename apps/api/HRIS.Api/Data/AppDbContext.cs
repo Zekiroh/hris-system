@@ -12,6 +12,9 @@ public class AppDbContext : DbContext
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
 
+    // Employee Core (Phase 1 MVP)
+    public DbSet<Employee> Employees => Set<Employee>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

@@ -1,4 +1,5 @@
 using HRIS.Api.Data;
+using HRIS.Api.Features.Employees.Services;
 using HRIS.Api.Features.IAM.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
-// Swagger/OpenAPI + Bearer support
+// Swagger/OpenAPI, Bearer support
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
 {
@@ -72,6 +73,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IActivityLogger, ActivityLogger>();
+
+// =====================
+// Employee Core Services
+// =====================
+
+builder.Services.AddScoped<EmployeesService>();
 
 // JWT Auth (locked)
 var jwtKey = builder.Configuration["Jwt:Key"];
