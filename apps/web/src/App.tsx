@@ -1,35 +1,187 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from "react";
+import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "./context/AuthContext";
+import Login from "./pages/Login";
+import Layout from "./components/layout/Layout";
+import Dashboard from "./pages/Dashboard";
 
-function App() {
-  const [count, setCount] = useState(0)
+// Personal Records
+import EmployeeList from "./pages/personal-records/EmployeeList";
+import EmployeeProfile from "./pages/personal-records/EmployeeProfile";
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+// Attendance
+import AttendanceTable from "./pages/attendance/AttendanceTable";
+
+// Leave Management
+import LeaveManagement from "./pages/leave/LeaveManagement";
+
+// Payroll
+import Payroll from "./pages/payroll/Payroll";
+
+// Government Compliance
+import GovernmentCompliance from "./pages/compliance/GovernmentCompliance";
+
+// Employee Self-Service
+import EmployeeSelfService from "./pages/self-service/EmployeeSelfService";
+import MyAttendance from "./pages/self-service/MyAttendance";
+
+// Asset Management
+import AssetManagement from "./pages/assets/AssetManagement";
+
+// Clearance
+import ClearanceList from "./pages/clearance/ClearanceList";
+import ClearanceForm from "./pages/clearance/ClearanceForm";
+
+// HRIS System
+import HRISSystem from "./pages/HRISSystem";
+
+// Admin Settings
+import AdminSettings from "./pages/admin/AdminSettings";
+
+import "./App.css";
+
+/**
+ * Blocks unauthenticated users from accessing protected routes.
+ * Redirects to /login and preserves the intended destination in state.
+ */
+function RequireAuth() {
+  const { isLoggedIn } = useAuth();
+  const location = useLocation();
+
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  return <Outlet />;
 }
 
-export default App
+/**
+ * Blocks authenticated users from visiting /login.
+ * If already logged in, send them to /dashboard.
+ */
+function GuestOnly({ children }: { children: React.ReactNode }) {
+  const { isLoggedIn } = useAuth();
+  if (isLoggedIn) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
+/**
+ * Blocks non-admin roles from accessing admin-only routes.
+ */
+function AdminOnly({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const role = user?.role; // "SUPER_ADMIN" | "ADMIN" | "USER"
+  const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
+
+  if (!isAdmin) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
+export default function App() {
+  return (
+    <Routes>
+      {/* Guest routes */}
+      <Route
+        path="/login"
+        element={
+          <GuestOnly>
+            <Login />
+          </GuestOnly>
+        }
+      />
+
+      {/* Protected routes */}
+      <Route element={<RequireAuth />}>
+        <Route path="/dashboard" element={<Layout />}>
+          <Route index element={<Dashboard />} />
+
+          {/* Admin-only */}
+          <Route
+            path="personal-records"
+            element={
+              <AdminOnly>
+                <EmployeeList />
+              </AdminOnly>
+            }
+          />
+          <Route
+            path="employee/:id"
+            element={
+              <AdminOnly>
+                <EmployeeProfile />
+              </AdminOnly>
+            }
+          />
+          <Route
+            path="attendance"
+            element={
+              <AdminOnly>
+                <AttendanceTable />
+              </AdminOnly>
+            }
+          />
+          <Route
+            path="payroll"
+            element={
+              <AdminOnly>
+                <Payroll />
+              </AdminOnly>
+            }
+          />
+          <Route
+            path="assets"
+            element={
+              <AdminOnly>
+                <AssetManagement />
+              </AdminOnly>
+            }
+          />
+          <Route
+            path="clearance"
+            element={
+              <AdminOnly>
+                <ClearanceList />
+              </AdminOnly>
+            }
+          />
+          <Route
+            path="clearance/:id"
+            element={
+              <AdminOnly>
+                <ClearanceForm />
+              </AdminOnly>
+            }
+          />
+          <Route
+            path="hris"
+            element={
+              <AdminOnly>
+                <HRISSystem />
+              </AdminOnly>
+            }
+          />
+          <Route
+            path="settings"
+            element={
+              <AdminOnly>
+                <AdminSettings />
+              </AdminOnly>
+            }
+          />
+
+          {/* Shared routes */}
+          <Route path="compliance" element={<GovernmentCompliance />} />
+          <Route path="leave" element={<LeaveManagement />} />
+          <Route path="my-attendance" element={<MyAttendance />} />
+          <Route path="self-service" element={<EmployeeSelfService />} />
+        </Route>
+      </Route>
+
+      {/* Default */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
+
+      {/* Catch-all */}
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
+  );
+}

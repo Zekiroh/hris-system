@@ -1,5 +1,4 @@
 using HRIS.Api.Data;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -27,23 +26,9 @@ public class PermissionAuthorizeAttribute : Attribute, IAsyncAuthorizationFilter
             return;
         }
 
-        var roleClaim = http.User.FindFirstValue(ClaimTypes.Role);
-        if (string.IsNullOrWhiteSpace(roleClaim))
-        {
-            context.Result = new Microsoft.AspNetCore.Mvc.ForbidResult();
-            return;
-        }
-
-        // Map Role name -> RoleId (your seeded IDs)
-        var roleId = roleClaim switch
-        {
-            "SUPER_ADMIN" => 1,
-            "ADMIN" => 2,
-            "USER" => 3,
-            _ => 0
-        };
-
-        if (roleId == 0)
+        // NEW: read roleId from JWT instead of hardcoding role->id mapping
+        var roleIdRaw = http.User.FindFirstValue("roleId");
+        if (string.IsNullOrWhiteSpace(roleIdRaw) || !int.TryParse(roleIdRaw, out var roleId) || roleId <= 0)
         {
             context.Result = new Microsoft.AspNetCore.Mvc.ForbidResult();
             return;

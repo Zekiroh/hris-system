@@ -1,4 +1,5 @@
 using HRIS.Api.Data;
+using HRIS.Api.Features.Employees.Services;
 using HRIS.Api.Features.IAM.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
-// Swagger/OpenAPI + Bearer support
+// Swagger/OpenAPI, Bearer support
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
 {
@@ -42,16 +43,18 @@ builder.Services.AddSwaggerGen(o =>
     });
 });
 
-// CORS (tighten later)
+// CORS (dev)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ClientCors", policy =>
     {
         policy
+            .WithOrigins(
+                "http://localhost:5173",
+                "http://localhost:5174"
+            )
             .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials()
-            .SetIsOriginAllowed(_ => true);
+            .AllowAnyMethod();
     });
 });
 
@@ -72,6 +75,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IActivityLogger, ActivityLogger>();
+
+// =====================
+// Employee Core Services
+// =====================
+
+builder.Services.AddScoped<EmployeesService>();
 
 // JWT Auth (locked)
 var jwtKey = builder.Configuration["Jwt:Key"];

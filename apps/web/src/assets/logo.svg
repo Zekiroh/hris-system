@@ -1,0 +1,29 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF9800;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F57C00;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2E7d32;stop-opacity:1" />
+    </linearGradient>
+    <filter id="dropshadow" height="130%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/> <!-- stdDeviation is how much to blur -->
+      <feOffset dx="2" dy="2" result="offsetblur"/> <!-- how much to offset -->
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/> <!-- slope is the opacity of the shadow -->
+      </feComponentTransfer>
+      <feMerge> 
+        <feMergeNode/> <!-- this contains the offset blurred image -->
+        <feMergeNode in="SourceGraphic"/> <!-- this contains the element that the filter is applied to -->
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Orange Rectangle -->
+  <rect x="50" y="40" width="80" height="100" rx="10" stroke="url(#grad1)" stroke-width="12" fill="none" filter="url(#dropshadow)" />
+  
+  <!-- Green Rectangle (Interlocking effect simulated by layering) -->
+  <rect x="80" y="70" width="80" height="100" rx="10" stroke="url(#grad2)" stroke-width="12" fill="none" filter="url(#dropshadow)" />
+</svg>

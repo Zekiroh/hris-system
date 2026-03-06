@@ -36,7 +36,11 @@ public sealed class JwtTokenService : IJwtTokenService
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email),
             new("fullName", user.FullName),
+
+            // IMPORTANT: role + roleId (avoid hardcoded mapping in PermissionAuthorize)
             new(ClaimTypes.Role, user.Role.NormalizedName),
+            new("roleId", user.RoleId.ToString()),
+
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
@@ -44,8 +48,8 @@ public sealed class JwtTokenService : IJwtTokenService
         var creds = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"],     // optional
-            audience: _config["Jwt:Audience"], // optional
+            issuer: _config["Jwt:Issuer"],
+            audience: _config["Jwt:Audience"],
             claims: claims,
             expires: DateTime.UtcNow.AddMinutes(expiryMinutes),
             signingCredentials: creds

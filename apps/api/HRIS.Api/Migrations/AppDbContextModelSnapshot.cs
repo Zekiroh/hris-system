@@ -89,6 +89,98 @@ namespace HRIS.Api.Migrations
                     b.ToTable("activity_logs", (string)null);
                 });
 
+            modelBuilder.Entity("HRIS.Api.Models.Employee", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("AddressLine1")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("AddressLine2")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<DateOnly?>("BirthDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("CivilStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("ContactNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateOnly>("DateHired")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Department")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("EmployeeNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("MiddleName")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Position")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Province")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Sex")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("ZipCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeNumber")
+                        .IsUnique();
+
+                    b.ToTable("Employees");
+                });
+
             modelBuilder.Entity("HRIS.Api.Models.Permission", b =>
                 {
                     b.Property<int>("Id")
@@ -150,7 +242,7 @@ namespace HRIS.Api.Migrations
                             CanUpdate = true,
                             CanView = true,
                             CreatedAt = new DateTime(2026, 2, 23, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Module = "EMPLOYEE",
+                            Module = "EMPLOYEES",
                             RoleId = 1
                         },
                         new
@@ -172,7 +264,7 @@ namespace HRIS.Api.Migrations
                             CanUpdate = true,
                             CanView = true,
                             CreatedAt = new DateTime(2026, 2, 23, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Module = "EMPLOYEE",
+                            Module = "EMPLOYEES",
                             RoleId = 2
                         },
                         new
@@ -183,7 +275,7 @@ namespace HRIS.Api.Migrations
                             CanUpdate = false,
                             CanView = true,
                             CreatedAt = new DateTime(2026, 2, 23, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Module = "EMPLOYEE",
+                            Module = "EMPLOYEES",
                             RoleId = 3
                         });
                 });
