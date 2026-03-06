@@ -20,7 +20,9 @@ public class EmployeesController : ControllerBase
 
     [HttpGet]
     [PermissionAuthorize("EMPLOYEES", "View")]
-    public async Task<ActionResult<PagedEmployeesResponse>> GetAll([FromQuery] GetEmployeesQuery query, CancellationToken ct)
+    public async Task<ActionResult<PagedEmployeesResponse>> GetAll(
+        [FromQuery] GetEmployeesQuery query,
+        CancellationToken ct)
     {
         var result = await _employees.GetAllAsync(query, ct);
         return Ok(result);
@@ -38,7 +40,9 @@ public class EmployeesController : ControllerBase
 
     [HttpPost]
     [PermissionAuthorize("EMPLOYEES", "Create")]
-    public async Task<ActionResult<EmployeeDto>> Create([FromBody] CreateEmployeeRequest req, CancellationToken ct)
+    public async Task<ActionResult<EmployeeDto>> Create(
+        [FromBody] CreateEmployeeRequest req,
+        CancellationToken ct)
     {
         var (ok, error, employee) = await _employees.CreateAsync(req, ct);
         if (!ok) return BadRequest(new { message = error });
@@ -48,7 +52,10 @@ public class EmployeesController : ControllerBase
 
     [HttpPut("{id:guid}")]
     [PermissionAuthorize("EMPLOYEES", "Update")]
-    public async Task<ActionResult<EmployeeDto>> Update(Guid id, [FromBody] UpdateEmployeeRequest req, CancellationToken ct)
+    public async Task<ActionResult<EmployeeDto>> Update(
+        Guid id,
+        [FromBody] UpdateEmployeeRequest req,
+        CancellationToken ct)
     {
         var (ok, error, employee) = await _employees.UpdateAsync(id, req, ct);
         if (!ok)
@@ -77,9 +84,10 @@ public class EmployeesController : ControllerBase
         return Ok(employee);
     }
 
+    // Soft-delete = Archive (IsActive = false)
     [HttpDelete("{id:guid}")]
     [PermissionAuthorize("EMPLOYEES", "Archive")]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    public async Task<IActionResult> Archive(Guid id, CancellationToken ct)
     {
         var (ok, error) = await _employees.DeleteAsync(id, ct);
         if (!ok)
@@ -88,6 +96,7 @@ public class EmployeesController : ControllerBase
             return BadRequest(new { message = error });
         }
 
+        // Idempotent: return 204 even if already archived
         return NoContent();
     }
 }

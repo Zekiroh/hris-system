@@ -1,4 +1,4 @@
-# Enterprise Full-Stack Monorepo System
+# Full-Stack Enterprise System
 
 Full-stack enterprise application developed during an internship. The repository follows a monorepo structure that consolidates the web client, mobile client, and backend API into a single codebase to maintain consistency, structure, and organized team development.
 
