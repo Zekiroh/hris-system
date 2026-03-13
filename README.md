@@ -149,7 +149,7 @@ Open a new terminal and navigate to the web app:
 
 `cd apps\web`
 
-Create the local environm file if needed.
+Create the local environment file if needed.
 
 Start the development server:
 
