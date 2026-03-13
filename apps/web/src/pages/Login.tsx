@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FC, type FormEvent } from "react";
 import { User, Lock, Eye, EyeOff, ArrowRight, Shield } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import logo from "../assets/logo.svg";
 
@@ -108,7 +108,7 @@ const Login: FC = () => {
         <div className="flex-1 w-full max-w-md">
           <div className="bg-white/10 backdrop-blur-2xl rounded-3xl p-8 border border-white/20 shadow-2xl">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-orange-400 mb-1">
+              <h2 className="text-2xl font-bold text-white mb-1">
                 Welcome Back
               </h2>
               <p className="text-emerald-200/60 text-sm">
@@ -234,12 +234,9 @@ const Login: FC = () => {
                   </span>
                 </label>
 
-                <a
-                  href="#"
-                  className="text-xs font-medium text-emerald-300/70 hover:text-emerald-200 transition-colors"
-                >
-                  Forgot Password?
-                </a>
+                <Link to="/forgot-password" className="text-xs font-medium text-emerald-300/70 hover:text-emerald-200 transition-colors">
+                    Forgot Password?
+                </Link>
               </div>
 
               {/* Login Button */}
@@ -260,7 +257,7 @@ const Login: FC = () => {
             </form>
 
             <p className="text-center text-[10px] text-emerald-300/30 mt-6">
-              Powered by SimpleVia Technologies, Inc. © 2026
+              Powered by Simplevia Technologies, Inc. © 2026
             </p>
           </div>
         </div>

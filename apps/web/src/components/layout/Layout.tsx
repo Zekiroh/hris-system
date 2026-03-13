@@ -1,21 +1,53 @@
-import { Outlet } from 'react-router-dom';
-import Sidebar from './Sidebar';
-import TopBar from './TopBar';
+import { useState, useEffect } from "react";
+import { Outlet } from "react-router-dom";
+import Sidebar from "./Sidebar";
+import TopBar from "./TopBar";
 
 const Layout = () => {
-    return (
-        <div className="flex h-screen bg-[#f1f5f9]">
-            <Sidebar />
-            <div className="flex-1 ml-[260px] flex flex-col h-screen overflow-hidden transition-all duration-300">
-                <TopBar />
-                <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
-                    <div className="container mx-auto max-w-7xl">
-                        <Outlet />
-                    </div>
-                </main>
-            </div>
-        </div>
-    );
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => {
+      setIsDesktop(e.matches);
+    };
+
+    handler(mq);
+    mq.addEventListener("change", handler as (e: MediaQueryListEvent) => void);
+
+    return () => {
+      mq.removeEventListener("change", handler as (e: MediaQueryListEvent) => void);
+    };
+  }, []);
+
+  return (
+    <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
+      <Sidebar
+        isMobileOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+      />
+
+      <div
+        className="flex-1 flex flex-col h-screen overflow-hidden transition-all duration-300"
+        style={{
+          paddingLeft: isDesktop ? (sidebarCollapsed ? "72px" : "260px") : "0px",
+        }}
+      >
+        <TopBar onMenuClick={() => setIsMobileMenuOpen(true)} />
+
+        <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6">
+          <div className="container mx-auto max-w-7xl">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
 };
 
 export default Layout;

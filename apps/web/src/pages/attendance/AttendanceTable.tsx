@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CheckCircle, AlertTriangle, XCircle, Clock, Upload, X, Plus, Check, Edit, Eye } from 'lucide-react';
 
 type Tab = 'dtr' | 'overtime' | 'setup';
@@ -15,7 +15,7 @@ const AttendanceTable = () => {
     const tabs = [
         { id: 'dtr' as Tab, label: 'Daily Time Record', icon: Clock },
         { id: 'overtime' as Tab, label: 'Overtime', icon: AlertTriangle },
-        { id: 'setup' as Tab, label: 'DTR Setup', icon: CheckCircle },
+        { id: 'setup' as Tab, label: 'Shift Setup', icon: CheckCircle },
     ];
 
     const statCards = [
@@ -330,7 +330,7 @@ const AttendanceTable = () => {
                         </div>
                     )}
 
-                    {/* DTR Setup Tab */}
+                    {/* Shift Setup Tab */}
                     {activeTab === 'setup' && (
                         <div className="space-y-5">
                             <div className="flex justify-between items-center">
