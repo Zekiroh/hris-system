@@ -2,6 +2,7 @@ import React from "react";
 import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
 import Layout from "./components/layout/Layout";
 import Dashboard from "./pages/Dashboard";
 
@@ -24,6 +25,13 @@ import GovernmentCompliance from "./pages/compliance/GovernmentCompliance";
 // Employee Self-Service
 import EmployeeSelfService from "./pages/self-service/EmployeeSelfService";
 import MyAttendance from "./pages/self-service/MyAttendance";
+
+// User Pages
+import MyPaySlips from "./pages/user/MyPaySlips";
+import CompanyDirectory from "./pages/user/CompanyDirectory";
+import MyPerformance from "./pages/user/MyPerformance";
+import CompanyNews from "./pages/user/CompanyNews";
+import HelpSupport from "./pages/user/HelpSupport";
 
 // Asset Management
 import AssetManagement from "./pages/assets/AssetManagement";
@@ -56,12 +64,16 @@ function RequireAuth() {
 }
 
 /**
- * Blocks authenticated users from visiting /login.
+ * Blocks authenticated users from visiting guest-only routes.
  * If already logged in, send them to /dashboard.
  */
 function GuestOnly({ children }: { children: React.ReactNode }) {
   const { isLoggedIn } = useAuth();
-  if (isLoggedIn) return <Navigate to="/dashboard" replace />;
+
+  if (isLoggedIn) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return <>{children}</>;
 }
 
@@ -73,7 +85,10 @@ function AdminOnly({ children }: { children: React.ReactNode }) {
   const role = user?.role; // "SUPER_ADMIN" | "ADMIN" | "USER"
   const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
 
-  if (!isAdmin) return <Navigate to="/dashboard" replace />;
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return <>{children}</>;
 }
 
@@ -89,13 +104,21 @@ export default function App() {
           </GuestOnly>
         }
       />
+      <Route
+        path="/forgot-password"
+        element={
+          <GuestOnly>
+            <ForgotPassword />
+          </GuestOnly>
+        }
+      />
 
       {/* Protected routes */}
       <Route element={<RequireAuth />}>
         <Route path="/dashboard" element={<Layout />}>
           <Route index element={<Dashboard />} />
 
-          {/* Admin-only */}
+          {/* Admin-only routes */}
           <Route
             path="personal-records"
             element={
@@ -174,6 +197,13 @@ export default function App() {
           <Route path="leave" element={<LeaveManagement />} />
           <Route path="my-attendance" element={<MyAttendance />} />
           <Route path="self-service" element={<EmployeeSelfService />} />
+
+          {/* User Pages */}
+          <Route path="my-payslips" element={<MyPaySlips />} />
+          <Route path="company-directory" element={<CompanyDirectory />} />
+          <Route path="my-performance" element={<MyPerformance />} />
+          <Route path="company-news" element={<CompanyNews />} />
+          <Route path="help-support" element={<HelpSupport />} />
         </Route>
       </Route>
 

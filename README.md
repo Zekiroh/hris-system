@@ -2,8 +2,6 @@
 
 Full-stack enterprise application developed during an internship. The repository follows a monorepo structure that consolidates the web client, mobile client, and backend API into a single codebase to maintain consistency, structure, and organized team development.
 
----
-
 ## Overview
 
 The system is designed to support common enterprise workflows and administrative processes. The monorepo structure enables:
@@ -12,8 +10,6 @@ The system is designed to support common enterprise workflows and administrative
 - Shared code between web and mobile applications
 - Clear separation between frontend and backend layers
 - Structured collaboration across the team
-
----
 
 ## Architecture
 
@@ -44,6 +40,9 @@ hris-system/
 - **apps/api**  
   Backend service handling business logic, data processing, and integrations.
 
+- **infra/docker**
+  Local development infrastructure, currently used for the dockerized database.
+
 - **packages/shared**  
   Reusable code shared across web and mobile applications to maintain consistency and reduce duplication.
 
@@ -72,83 +71,101 @@ Ensure the following tools are installed before running the project:
 - .NET SDK
 - Docker Desktop
 
-
 Install pnpm if not yet available:
 
 `npm install -g pnpm`
 
-### 1. Clone the repository
+### Clone the repository
 
 `git clone https://github.com/Zekiroh/hris-system.git`
 
 `cd hris-system`
 
-### 2. Install dependencies
+### Install dependencies
 
-Install workspace dependencies for web, mobile, and shared packages:
+Install dependencies **once from the root of the repository**.
 
 `pnpm install`
 
-### 3. Run Web Application
+---
 
-`cd apps/web`
+## Local Development Setup
 
-`pnpm dev`
+**Follow this order exactly for first-time setup**
 
-### 4. Run Mobile Application
 
-`cd apps/mobile`
+### 1. Start the database (Docker)
 
-`pnpm start`
+Navigate to the docker infrastructure:
 
-### 5. Run Backend API
+`cd infra\docker`
 
-`cd apps/api`
+Start the MySQL container:
+
+`docker compose up -d`
+
+MySQL will be available at port 3307. 
+
+
+### 2. Configure backend secrets
+
+Navigate to the API project:
+
+`cd apps\api\HRIS.Api`
+
+Set the local database connection string:
+
+`dotnet user-secrets set "ConnectionStrings:Default" "Server=127.0.0.1;Port=3307;Database=hris_db;User=hris-user;Password=hris-password;"`
+
+Set the JWT key:
+
+`dotnet user-secrets set "Jwt:Key" "REPLACE_WITH_YOUR_LOCAL_DEVELOPMENT_JWT_KEY"`
+
+Verify the stored secrets:
+
+`dotnet user-secrets list`
+
+### 3. Apply database migrations
+
+Run EF Core migrations:
+
+`dotnet ef database update`
+
+This will create the required tables in the database.
+
+### 4. Run the Backend API
+
+Still inside the API project:
 
 `dotnet restore`
 
 `dotnet run`
 
+The API will run on port 5169. Swagger will be available at 5169/swagger
 
-Note: Ensure the MySQL container has been started via Docker and the connection string has been configured using .NET user-secrets before running the API.
+### 5. Run the Web Application
 
----
+Open a new terminal and navigate to the web app:
 
-## Database Setup (Docker)
+`cd apps\web`
 
-The backend uses a Dockerized MySQL instance for local development to ensure consistency across environments.
+Create the local environm file if needed.
 
-Start the database:
+Start the development server:
 
-`cd infra/docker`
+`pnpm dev`
 
-`docker compose up -d`
+The web application will run on port 5173 or 5174 if in use.
 
-MySQL will be available at:
+### 6. Run the Mobile Application
 
-`localhost:3307`
+Open another terminal:
 
-Port 3307 is used to avoid conflicts with local MySQL installations that typically run on port 3306.
+`cd apps\mobile`
 
----
+Start the Expo development server:
 
-## Configure Connection String (Local Development)
-
-The API uses .NET user-secrets for managing local database credentials.
-
-Navigate to the API project:
-
-`cd apps/api/HRIS.Api`
-
-Set your local connection string:
-
-`dotnet user-secrets set "ConnectionStrings:Default" "Server=127.0.0.1;Port=3307;Database=hris_db;User=<your-user>;Password=<your-password>;"`
-
-Apply database migrations:
-
-`dotnet ef database update`
-
-Do not commit connection strings or credentials to the repository.
+`pnpm start`
 
 ---
 
@@ -189,9 +206,7 @@ The repository maintains two primary branches:
 
 This keeps feature work isolated and reduces merge conflicts during collaboration.
 
----
-
-## Collaboration Guidelines
+### Collaboration Guidelines
 
 - Use clear and meaningful commit messages.
 - Do not push directly to `main`.

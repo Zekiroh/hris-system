@@ -91,7 +91,7 @@ const MyAttendance = () => {
     return (
         <div className="space-y-6">
             <div className="page-header animate-fade-in-up">
-                <h1>Attendance Log</h1>
+                <h1>Time & Attendance</h1>
                 <p>Record your daily time in and time out with real-time tracking</p>
             </div>
 
