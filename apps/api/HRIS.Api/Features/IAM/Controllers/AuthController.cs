@@ -14,11 +14,13 @@ public class AuthController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IJwtTokenService _jwt;
+    private readonly IHostEnvironment _env;
 
-    public AuthController(AppDbContext db, IJwtTokenService jwt)
+    public AuthController(AppDbContext db, IJwtTokenService jwt, IHostEnvironment env)
     {
         _db = db;
         _jwt = jwt;
+        _env = env;
     }
 
     public sealed record LoginRequest(string Email, string Password);
@@ -31,6 +33,8 @@ public class AuthController : ControllerBase
         string Role,
         string Token
     );
+
+    public sealed record ForgotPasswordResponse(string? ResetToken = null);
 
     [HttpPost("login")]
     public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest req)
@@ -71,7 +75,12 @@ public class AuthController : ControllerBase
             .FirstOrDefaultAsync(u => u.NormalizedEmail == normalizedEmail);
 
         if (user is null || !user.IsActive)
+        {
+            if (_env.IsDevelopment())
+                return Ok(new ForgotPasswordResponse());
+
             return Ok();
+        }
 
         var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         var tokenHash = Convert.ToHexString(
@@ -83,6 +92,9 @@ public class AuthController : ControllerBase
         user.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
+
+        if (_env.IsDevelopment())
+            return Ok(new ForgotPasswordResponse(token));
 
         return Ok();
     }
