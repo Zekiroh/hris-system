@@ -21,4 +21,9 @@ public class User
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAt { get; set; }
+
+    // Forgot Password fields
+    public string? PasswordResetToken { get; set; }
+
+    public DateTime? PasswordResetTokenExpiresAt { get; set; }
 }

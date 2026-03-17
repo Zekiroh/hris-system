@@ -1,4 +1,7 @@
+using System.Security.Cryptography;
+using System.Text;
 using HRIS.Api.Data;
+using HRIS.Api.Features.IAM.DTOs;
 using HRIS.Api.Features.IAM.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -56,5 +59,65 @@ public class AuthController : ControllerBase
             user.Role.NormalizedName,
             token
         ));
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req)
+    {
+        var email = (req.Email ?? string.Empty).Trim();
+        var normalizedEmail = email.ToUpperInvariant();
+
+        var user = await _db.Users
+            .FirstOrDefaultAsync(u => u.NormalizedEmail == normalizedEmail);
+
+        if (user is null || !user.IsActive)
+            return Ok();
+
+        var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+        var tokenHash = Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(token))
+        );
+
+        user.PasswordResetToken = tokenHash;
+        user.PasswordResetTokenExpiresAt = DateTime.UtcNow.AddMinutes(15);
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        return Ok();
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req)
+    {
+        var token = (req.Token ?? string.Empty).Trim();
+        var newPassword = req.NewPassword ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(newPassword))
+            return BadRequest("Token and new password are required.");
+
+        var tokenHash = Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(token))
+        );
+
+        var now = DateTime.UtcNow;
+        var passwordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+
+        var affectedRows = await _db.Users
+            .Where(u =>
+                u.IsActive &&
+                u.PasswordResetToken == tokenHash &&
+                u.PasswordResetTokenExpiresAt != null &&
+                u.PasswordResetTokenExpiresAt > now)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(u => u.PasswordHash, passwordHash)
+                .SetProperty(u => u.PasswordResetToken, (string?)null)
+                .SetProperty(u => u.PasswordResetTokenExpiresAt, (DateTime?)null)
+                .SetProperty(u => u.UpdatedAt, now));
+
+        if (affectedRows == 0)
+            return BadRequest("Invalid or expired reset token.");
+
+        return Ok();
     }
 }
