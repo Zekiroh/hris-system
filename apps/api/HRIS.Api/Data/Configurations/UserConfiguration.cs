@@ -44,6 +44,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         e.Property(u => u.PasswordResetTokenExpiresAt);
 
+        // Index for reset token lookup
+        e.HasIndex(u => u.PasswordResetToken);
+
         e.HasOne(u => u.Role)
             .WithMany(r => r.Users)
             .HasForeignKey(u => u.RoleId)
