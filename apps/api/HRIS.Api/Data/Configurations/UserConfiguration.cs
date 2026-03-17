@@ -38,6 +38,12 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         e.Property(u => u.UpdatedAt);
 
+        // Forgot Password fields
+        e.Property(u => u.PasswordResetToken)
+            .HasMaxLength(255);
+
+        e.Property(u => u.PasswordResetTokenExpiresAt);
+
         e.HasOne(u => u.Role)
             .WithMany(r => r.Users)
             .HasForeignKey(u => u.RoleId)

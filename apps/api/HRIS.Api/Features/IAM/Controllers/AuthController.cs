@@ -1,4 +1,6 @@
+using System.Security.Cryptography;
 using HRIS.Api.Data;
+using HRIS.Api.Features.IAM.DTOs;
 using HRIS.Api.Features.IAM.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -56,5 +58,57 @@ public class AuthController : ControllerBase
             user.Role.NormalizedName,
             token
         ));
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req)
+    {
+        var email = (req.Email ?? string.Empty).Trim();
+        var normalizedEmail = email.ToUpperInvariant();
+
+        var user = await _db.Users
+            .FirstOrDefaultAsync(u => u.NormalizedEmail == normalizedEmail);
+
+        if (user is null || !user.IsActive)
+            return Ok();
+
+        var tokenBytes = RandomNumberGenerator.GetBytes(32);
+        var token = Convert.ToBase64String(tokenBytes);
+
+        user.PasswordResetToken = token;
+        user.PasswordResetTokenExpiresAt = DateTime.UtcNow.AddMinutes(15);
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        return Ok();
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req)
+    {
+        var token = (req.Token ?? string.Empty).Trim();
+        var newPassword = (req.NewPassword ?? string.Empty).Trim();
+
+        if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(newPassword))
+            return BadRequest("Token and new password are required.");
+
+        var user = await _db.Users
+            .FirstOrDefaultAsync(u =>
+                u.PasswordResetToken == token &&
+                u.PasswordResetTokenExpiresAt != null &&
+                u.PasswordResetTokenExpiresAt > DateTime.UtcNow);
+
+        if (user is null || !user.IsActive)
+            return BadRequest("Invalid or expired reset token.");
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        user.PasswordResetToken = null;
+        user.PasswordResetTokenExpiresAt = null;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        return Ok();
     }
 }
