@@ -77,8 +77,15 @@ public class AuthController : ControllerBase
 
             if (failedLog is not null)
             {
-                _db.ActivityLogs.Add(failedLog);
-                await _db.SaveChangesAsync();
+                try
+                {
+                    _db.ActivityLogs.Add(failedLog);
+                    await _db.SaveChangesAsync();
+                }
+                catch
+                {
+                    // do not break auth flow if audit logging fails
+                }
             }
 
             return Unauthorized("Your account is inactive. Please contact an administrator.");
@@ -103,8 +110,15 @@ public class AuthController : ControllerBase
 
             if (failedLog is not null)
             {
-                _db.ActivityLogs.Add(failedLog);
-                await _db.SaveChangesAsync();
+                try
+                {
+                    _db.ActivityLogs.Add(failedLog);
+                    await _db.SaveChangesAsync();
+                }
+                catch
+                {
+                    // do not break auth flow if audit logging fails
+                }
             }
 
             return Unauthorized("Invalid credentials.");
@@ -128,8 +142,15 @@ public class AuthController : ControllerBase
 
         if (log is not null)
         {
-            _db.ActivityLogs.Add(log);
-            await _db.SaveChangesAsync();
+            try
+            {
+                _db.ActivityLogs.Add(log);
+                await _db.SaveChangesAsync();
+            }
+            catch
+            {
+                // do not break auth flow if audit logging fails
+            }
         }
 
         return Ok(new LoginResponse(
@@ -176,8 +197,15 @@ public class AuthController : ControllerBase
 
         if (log is not null)
         {
-            _db.ActivityLogs.Add(log);
-            await _db.SaveChangesAsync();
+            try
+            {
+                _db.ActivityLogs.Add(log);
+                await _db.SaveChangesAsync();
+            }
+            catch
+            {
+                // do not break logout flow if audit logging fails
+            }
         }
 
         return Ok();
