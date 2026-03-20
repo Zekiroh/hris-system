@@ -96,7 +96,7 @@ public class AdminUsersService : IAdminUsersService
         };
     }
 
-    // UPDATE STATUS
+    // UPDATE USER STATUS
     public async Task<bool> UpdateUserStatusAsync(long id, UpdateUserStatusRequest request)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
@@ -109,13 +109,15 @@ public class AdminUsersService : IAdminUsersService
         return true;
     }
 
-    // RESET PASSWORD
+    // RESET USER PASSWORD
     public async Task<bool> ResetUserPasswordAsync(long id, string newPassword)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return false;
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        user.PasswordResetToken = null;
+        user.PasswordResetTokenExpiresAt = null;
         user.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();

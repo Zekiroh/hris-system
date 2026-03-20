@@ -56,6 +56,30 @@ public class AuthController : ControllerBase
 
         if (user is null)
         {
+            var failedLog = _logger.Build(
+                user: User,
+                action: "LOGIN_FAILED",
+                module: "IAM",
+                targetType: "User",
+                targetId: null,
+                summary: $"Failed login attempt for unknown account {email}",
+                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
+                userAgent: Request.Headers["User-Agent"].ToString()
+            );
+
+            if (failedLog is not null)
+            {
+                try
+                {
+                    _db.ActivityLogs.Add(failedLog);
+                    await _db.SaveChangesAsync();
+                }
+                catch
+                {
+                    // do not break auth flow if audit logging fails
+                }
+            }
+
             return Unauthorized("Invalid credentials.");
         }
 
