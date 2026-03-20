@@ -1,9 +1,8 @@
 import { Calendar, Download, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
     buildUserNameByEmail,
     formatActionLabel,
-    formatDateFilterPart,
     formatDatePart,
     formatTimePart,
     getBadgeClassName,
@@ -13,8 +12,6 @@ import {
 import { useActivityLogs } from './hooks/useActivityLogs';
 
 const ActivityLog = () => {
-    const [isTodayFilterActive, setIsTodayFilterActive] = useState(false);
-
     const {
         PAGE_SIZE,
         searchTerm,
@@ -27,39 +24,23 @@ const ActivityLog = () => {
         isLoading,
         error,
         handleExport,
+        isTodayFilterActive,
+        setIsTodayFilterActive,
     } = useActivityLogs();
-
-    const getTodayString = () => {
-        const d = new Date();
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    };
-
-    const todayStr = getTodayString();
 
     const userNameByEmail = useMemo(() => buildUserNameByEmail(users), [users]);
 
-    const filteredLogs = useMemo(() => {
-        return logs.filter((log) => {
-            const dateFilterPart = formatDateFilterPart(log.createdAt);
-            const dateMatch = isTodayFilterActive ? dateFilterPart === todayStr : true;
-            return dateMatch;
-        });
-    }, [logs, isTodayFilterActive, todayStr]);
-
     const displayRows = useMemo(() => {
-        if (filteredLogs.length >= PAGE_SIZE) return filteredLogs;
+        if (logs.length >= PAGE_SIZE) return logs;
 
-        const placeholdersNeeded = PAGE_SIZE - filteredLogs.length;
+        const placeholdersNeeded = PAGE_SIZE - logs.length;
         const placeholders = Array.from({ length: placeholdersNeeded }, (_, index) => ({
             __placeholder: true as const,
             id: `placeholder-${index}`,
         }));
 
-        return [...filteredLogs, ...placeholders];
-    }, [filteredLogs, PAGE_SIZE]);
+        return [...logs, ...placeholders];
+    }, [logs, PAGE_SIZE]);
 
     const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
     const canGoPrev = page > 1;
@@ -81,7 +62,7 @@ const ActivityLog = () => {
 
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={() => setIsTodayFilterActive(!isTodayFilterActive)}
+                        onClick={() => setIsTodayFilterActive((prev) => !prev)}
                         className={`flex items-center gap-2 px-3 py-1.5 border rounded-lg text-sm shadow-sm transition-colors ${
                             isTodayFilterActive
                                 ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
@@ -132,7 +113,7 @@ const ActivityLog = () => {
                             </tr>
                         ) : (
                             <>
-                                {filteredLogs.length === 0 && (
+                                {logs.length === 0 && (
                                     <tr>
                                         <td colSpan={5} className="text-center py-4 text-gray-700 italic">
                                             No activity logs match your search criteria.
