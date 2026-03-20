@@ -49,13 +49,16 @@ public class AdminUsersService : IAdminUsersService
     // CREATE USER
     public async Task<AdminUserListItemDto> CreateUserAsync(CreateUserRequest request)
     {
+        var email = (request.Email ?? string.Empty).Trim();
+
         var user = new User
         {
             FullName = (request.FullName ?? string.Empty).Trim(),
-            Email = (request.Email ?? string.Empty).Trim(),
+            Email = email,
+            NormalizedEmail = email.ToUpperInvariant(),
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             RoleId = request.RoleId,
-            IsActive = true,
+            IsActive = request.IsActive,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -78,9 +81,13 @@ public class AdminUsersService : IAdminUsersService
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return null;
 
+        var email = (request.Email ?? string.Empty).Trim();
+
         user.FullName = (request.FullName ?? string.Empty).Trim();
-        user.Email = (request.Email ?? string.Empty).Trim();
+        user.Email = email;
+        user.NormalizedEmail = email.ToUpperInvariant();
         user.RoleId = request.RoleId;
+        user.IsActive = request.IsActive;
         user.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
