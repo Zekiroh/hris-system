@@ -47,7 +47,8 @@ const FLAG_BY_PERMISSION_LABEL = {
   Archive: 'canArchive',
 } as const;
 
-type PermissionFlag = (typeof FLAG_BY_PERMISSION_LABEL)[keyof typeof FLAG_BY_PERMISSION_LABEL];
+type PermissionFlag =
+  (typeof FLAG_BY_PERMISSION_LABEL)[keyof typeof FLAG_BY_PERMISSION_LABEL];
 
 const modules = [
   // Super Admin & Admin modules
@@ -59,7 +60,7 @@ const modules = [
   { name: 'Government Compliance', permissions: ['View'] },
   { name: 'Asset Management', permissions: ['View', 'Create', 'Update', 'Archive'] },
   { name: 'Settings', permissions: ['View'] },
-  // User-side modules 
+  // User-side modules
   { name: 'Company News', permissions: ['View'] },
   { name: 'My Pay Slips', permissions: ['View'] },
   { name: 'My Performance', permissions: ['View'] },
@@ -90,12 +91,14 @@ const AccessManagement = ({
 }: AccessManagementProps) => {
   const { user } = useAuth();
 
-  const [roles, setRoles] = useState(['Super Admin', 'Admin', 'User']);
+  const [roles] = useState(['Super Admin', 'Admin', 'User']);
   const [permissions, setPermissions] = useState<Record<string, boolean>>(() =>
     buildInitialPermissionState(['Super Admin', 'Admin', 'User'])
   );
   const [backendPermissions, setBackendPermissions] = useState<PermissionDto[]>([]);
   const [newRole, setNewRole] = useState('');
+  const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   const getRoleNameById = (roleId: number) =>
     Object.keys(ROLE_ID_MAP).find((roleName) => ROLE_ID_MAP[roleName] === roleId);
@@ -114,6 +117,8 @@ const AccessManagement = ({
 
   useEffect(() => {
     const loadPermissions = async () => {
+      setIsLoadingPermissions(true);
+
       try {
         const data = await getPermissions();
         setBackendPermissions(data);
@@ -137,6 +142,9 @@ const AccessManagement = ({
         });
       } catch (error) {
         console.error('Failed to load permissions.', error);
+        setBackendPermissions([]);
+      } finally {
+        setIsLoadingPermissions(false);
       }
     };
 
@@ -160,7 +168,14 @@ const AccessManagement = ({
   };
 
   const handleSaveChanges = async () => {
+    if (isLoadingPermissions || backendPermissions.length === 0) {
+      alert('Permissions not ready yet.');
+      return;
+    }
+
     try {
+      setIsSaving(true);
+
       const updates = backendPermissions.map((row) => {
         const roleName = getRoleNameById(row.roleId);
         const uiModuleName = getUiModuleNameFromBackend(row.module);
@@ -170,7 +185,10 @@ const AccessManagement = ({
         const uiModule = modules.find((module) => module.name === uiModuleName);
         if (!uiModule) return null;
 
-        const payload = {
+        const payload: Pick<
+          PermissionDto,
+          'canView' | 'canCreate' | 'canUpdate' | 'canArchive'
+        > = {
           canView: row.canView,
           canCreate: row.canCreate,
           canUpdate: row.canUpdate,
@@ -194,57 +212,17 @@ const AccessManagement = ({
       onSaveSuccess();
     } catch (error) {
       console.error('Failed to update permissions.', error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleAddRole = () => {
-    if (!newRole.trim()) return;
-
-    if (roles.includes(newRole.trim())) {
-      alert('This role already exists!');
-      return;
-    }
-
-    const addedRole = newRole.trim();
-    const updatedRoles = [...roles, addedRole];
-    setRoles(updatedRoles);
-
-    setPermissions((prev) => {
-      const next = { ...prev };
-
-      modules.forEach((mod) => {
-        mod.permissions.forEach((perm) => {
-          next[`${mod.name}-${perm}-${addedRole}`] = false;
-        });
-      });
-
-      return next;
-    });
-
-    setNewRole('');
+    alert('Role management not available yet.');
   };
 
-  const handleDeleteRole = (roleToDelete: string) => {
-    if (roleToDelete === 'Super Admin') {
-      alert('You cannot delete the Super Admin role.');
-      return;
-    }
-
-    if (window.confirm(`Are you sure you want to delete the ${roleToDelete} role?`)) {
-      setRoles((prev) => prev.filter((role) => role !== roleToDelete));
-
-      setPermissions((prev) => {
-        const next = { ...prev };
-
-        Object.keys(next).forEach((key) => {
-          if (key.endsWith(`-${roleToDelete}`)) {
-            delete next[key];
-          }
-        });
-
-        return next;
-      });
-    }
+  const handleDeleteRole = () => {
+    alert('Role management not available yet.');
   };
 
   return (
@@ -284,7 +262,7 @@ const AccessManagement = ({
                             className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 cursor-pointer"
                             checked={permissions[key] || false}
                             onChange={() => handleTogglePermission(module.name, perm, role)}
-                            disabled={role === 'Super Admin'}
+                            disabled={role === 'Super Admin' || isLoadingPermissions || isSaving}
                           />
                         </td>
                       );
@@ -302,6 +280,7 @@ const AccessManagement = ({
           onClick={handleSaveChanges}
           className="btn btn-primary shadow-sm flex items-center gap-2"
           type="button"
+          disabled={isLoadingPermissions || backendPermissions.length === 0 || isSaving}
         >
           Save Changes
         </button>
@@ -348,7 +327,7 @@ const AccessManagement = ({
                         <span className="text-sm font-medium text-gray-700">{role}</span>
                         {role !== 'Super Admin' && (
                           <button
-                            onClick={() => handleDeleteRole(role)}
+                            onClick={() => handleDeleteRole()}
                             className="p-1.5 text-rose-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors"
                             type="button"
                           >
