@@ -14,9 +14,7 @@ public class AdminUsersService : IAdminUsersService
         _db = db;
     }
 
-    // =========================
     // GET USERS
-    // =========================
     public async Task<List<AdminUserListItemDto>> GetAdminUsersAsync()
     {
         var rawUsers = await _db.Users
@@ -31,7 +29,7 @@ public class AdminUsersService : IAdminUsersService
                 u.IsActive,
                 u.UpdatedAt,
                 LastActive = _db.ActivityLogs
-                    .Where(a => a.ActorUserId == (int)u.Id)
+                    .Where(a => (long)a.ActorUserId == u.Id)
                     .Max(a => (DateTime?)a.CreatedAt)
             })
             .ToListAsync();
@@ -48,9 +46,7 @@ public class AdminUsersService : IAdminUsersService
         }).ToList();
     }
 
-    // =========================
     // CREATE USER
-    // =========================
     public async Task<AdminUserListItemDto> CreateUserAsync(CreateUserRequest request)
     {
         var user = new User
@@ -76,10 +72,8 @@ public class AdminUsersService : IAdminUsersService
         };
     }
 
-    // =========================
     // UPDATE USER
-    // =========================
-    public async Task<AdminUserListItemDto?> UpdateUserAsync(int id, UpdateUserRequest request)
+    public async Task<AdminUserListItemDto?> UpdateUserAsync(long id, UpdateUserRequest request)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return null;
@@ -102,10 +96,8 @@ public class AdminUsersService : IAdminUsersService
         };
     }
 
-    // =========================
     // UPDATE STATUS
-    // =========================
-    public async Task<bool> UpdateUserStatusAsync(int id, UpdateUserStatusRequest request)
+    public async Task<bool> UpdateUserStatusAsync(long id, UpdateUserStatusRequest request)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return false;
@@ -117,10 +109,8 @@ public class AdminUsersService : IAdminUsersService
         return true;
     }
 
-    // =========================
     // RESET PASSWORD
-    // =========================
-    public async Task<bool> ResetUserPasswordAsync(int id, string newPassword)
+    public async Task<bool> ResetUserPasswordAsync(long id, string newPassword)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return false;
