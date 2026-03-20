@@ -47,9 +47,6 @@ const FLAG_BY_PERMISSION_LABEL = {
   Archive: 'canArchive',
 } as const;
 
-type PermissionFlag =
-  (typeof FLAG_BY_PERMISSION_LABEL)[keyof typeof FLAG_BY_PERMISSION_LABEL];
-
 const modules = [
   // Super Admin & Admin modules
   { name: 'Dashboard', permissions: ['View'] },
@@ -96,9 +93,10 @@ const AccessManagement = ({
     buildInitialPermissionState(['Super Admin', 'Admin', 'User'])
   );
   const [backendPermissions, setBackendPermissions] = useState<PermissionDto[]>([]);
-  const [newRole, setNewRole] = useState('');
   const [isLoadingPermissions, setIsLoadingPermissions] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  const newRole = '';
 
   const getRoleNameById = (roleId: number) =>
     Object.keys(ROLE_ID_MAP).find((roleName) => ROLE_ID_MAP[roleName] === roleId);
@@ -182,9 +180,6 @@ const AccessManagement = ({
 
         if (!roleName || !uiModuleName) return null;
 
-        const uiModule = modules.find((module) => module.name === uiModuleName);
-        if (!uiModule) return null;
-
         const payload: Pick<
           PermissionDto,
           'canView' | 'canCreate' | 'canUpdate' | 'canArchive'
@@ -195,14 +190,12 @@ const AccessManagement = ({
           canArchive: row.canArchive,
         };
 
-        uiModule.permissions.forEach((permissionLabel) => {
-          const flag = FLAG_BY_PERMISSION_LABEL[
-            permissionLabel as keyof typeof FLAG_BY_PERMISSION_LABEL
-          ] as PermissionFlag | undefined;
+        Object.entries(FLAG_BY_PERMISSION_LABEL).forEach(([label, flag]) => {
+          const key = `${uiModuleName}-${label}-${roleName}`;
 
-          if (!flag) return;
-
-          payload[flag] = !!permissions[`${uiModuleName}-${permissionLabel}-${roleName}`];
+          if (Object.prototype.hasOwnProperty.call(permissions, key)) {
+            payload[flag] = !!permissions[key];
+          }
         });
 
         return updatePermission(row.id, payload);
@@ -215,14 +208,6 @@ const AccessManagement = ({
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleAddRole = () => {
-    alert('Role management not available yet.');
-  };
-
-  const handleDeleteRole = () => {
-    alert('Role management not available yet.');
   };
 
   return (
@@ -289,13 +274,12 @@ const AccessManagement = ({
       {showRoleModal &&
         createPortal(
           <div className="pro-modal-overlay z-[200]">
-            <div className="pro-modal max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="pro-modal max-w-md">
               <div className="pro-modal-header border-b border-gray-100 pb-4">
                 <h3>Manage Roles</h3>
                 <button
                   onClick={() => setShowRoleModal(false)}
                   className="btn-ghost btn-icon"
-                  type="button"
                 >
                   <X className="w-5 h-5 text-gray-400" />
                 </button>
@@ -308,12 +292,12 @@ const AccessManagement = ({
                     <input
                       type="text"
                       className="pro-input flex-1"
-                      placeholder="e.g. Finance Manager"
+                      placeholder="Role management not available yet"
                       value={newRole}
-                      onChange={(e) => setNewRole(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddRole()}
+                      disabled
+                      readOnly
                     />
-                    <button onClick={handleAddRole} className="btn btn-primary px-3" type="button">
+                    <button className="btn btn-primary px-3" disabled>
                       <Plus className="w-5 h-5" />
                     </button>
                   </div>
@@ -323,13 +307,15 @@ const AccessManagement = ({
                   <label className="pro-label mb-2">Existing Roles</label>
                   <div className="bg-gray-50 border border-gray-100 rounded-xl overflow-hidden divide-y divide-gray-100">
                     {roles.map((role) => (
-                      <div key={role} className="flex items-center justify-between px-4 py-3 bg-white">
+                      <div
+                        key={role}
+                        className="flex items-center justify-between px-4 py-3 bg-white"
+                      >
                         <span className="text-sm font-medium text-gray-700">{role}</span>
                         {role !== 'Super Admin' && (
                           <button
-                            onClick={() => handleDeleteRole()}
-                            className="p-1.5 text-rose-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors"
-                            type="button"
+                            className="p-1.5 text-rose-400 rounded-lg disabled:opacity-50"
+                            disabled
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -344,7 +330,6 @@ const AccessManagement = ({
                 <button
                   onClick={() => setShowRoleModal(false)}
                   className="btn btn-secondary w-full"
-                  type="button"
                 >
                   Done
                 </button>
