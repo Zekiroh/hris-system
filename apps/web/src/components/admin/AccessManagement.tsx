@@ -1,231 +1,381 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus, Trash2, Check, ShieldCheck } from 'lucide-react';
+import { Navigate } from 'react-router-dom';
+import { X, Plus, Trash2 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import {
+  getPermissions,
+  updatePermission,
+  type PermissionDto,
+} from '../../lib/permissions';
 
-const AccessManagement = () => {
-    // Modules Configuration (Static layout)
-    const modules = [
-        { name: 'Dashboard', permissions: ['View'] },
-        { name: 'Personal Records', permissions: ['View', 'Create', 'Update', 'Archive'] },
-        { name: 'Attendance', permissions: ['View', 'Update', 'Approve'] },
-        { name: 'Clearance', permissions: ['View', 'Create', 'Approve'] },
-        { name: 'Regional Offices', permissions: ['View'] },
-        { name: 'Admin Settings', permissions: ['View', 'Manage Users'] },
-    ];
+type AccessManagementProps = {
+  showRoleModal: boolean;
+  setShowRoleModal: React.Dispatch<React.SetStateAction<boolean>>;
+  onSaveSuccess: () => void;
+};
 
-    // 1. Manage Roles State
-    const [roles, setRoles] = useState(['Administrator', 'HR Manager', 'Regional Director', 'Staff']);
-    
-    // 2. Manage Permissions State
-    // We store permissions in a Record dictionary using a key like "Dashboard-View-Staff"
-    const [permissions, setPermissions] = useState<Record<string, boolean>>(() => {
-        const initialState: Record<string, boolean> = {};
-        modules.forEach(mod => {
-            mod.permissions.forEach(perm => {
-                roles.forEach(role => {
-                    const key = `${mod.name}-${perm}-${role}`;
-                    // Default logic: Admin gets everything, HR gets everything except Manage Users
-                    initialState[key] = role === 'Administrator' || (role === 'HR Manager' && perm !== 'Manage Users');
-                });
-            });
-        });
-        return initialState;
+const ROLE_ID_MAP: Record<string, number> = {
+  'Super Admin': 1,
+  Admin: 2,
+  User: 3,
+};
+
+const normalizeKey = (value: string) =>
+  value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+const MODULE_ALIASES: Record<string, string[]> = {
+  Dashboard: ['DASHBOARD'],
+  'Employee Management': ['PERSONALRECORDS', 'EMPLOYEES'],
+  'Attendance Log': ['ATTENDANCE', 'TIMEATTENDANCE', 'TIMEANDATTENDANCE'],
+  'Leave Management': ['LEAVE', 'LEAVEMANAGEMENT'],
+  Payroll: ['PAYROLL'],
+  'Government Compliance': ['COMPLIANCE', 'GOVERNMENTCOMPLIANCE'],
+  'Asset Management': ['ASSET', 'ASSETS', 'ASSETMANAGEMENT'],
+  Settings: ['ADMINSETTINGS', 'IAM'],
+  'Company News': ['NEWS'],
+  'My Pay Slips': ['PAYSLIPS'],
+  'My Performance': ['PERFORMANCE'],
+  'Company Directory': ['DIRECTORY'],
+  'Help & Support': ['SUPPORT', 'HELP'],
+};
+
+const FLAG_BY_PERMISSION_LABEL = {
+  View: 'canView',
+  Create: 'canCreate',
+  Update: 'canUpdate',
+  Archive: 'canArchive',
+} as const;
+
+type PermissionFlag = (typeof FLAG_BY_PERMISSION_LABEL)[keyof typeof FLAG_BY_PERMISSION_LABEL];
+
+const modules = [
+  // Super Admin & Admin modules
+  { name: 'Dashboard', permissions: ['View'] },
+  { name: 'Employee Management', permissions: ['View', 'Create', 'Update', 'Archive'] },
+  { name: 'Attendance Log', permissions: ['View', 'Update'] },
+  { name: 'Leave Management', permissions: ['View', 'Create', 'Update', 'Archive'] },
+  { name: 'Payroll', permissions: ['View'] },
+  { name: 'Government Compliance', permissions: ['View'] },
+  { name: 'Asset Management', permissions: ['View', 'Create', 'Update', 'Archive'] },
+  { name: 'Settings', permissions: ['View'] },
+  // User-side modules 
+  { name: 'Company News', permissions: ['View'] },
+  { name: 'My Pay Slips', permissions: ['View'] },
+  { name: 'My Performance', permissions: ['View'] },
+  { name: 'Company Directory', permissions: ['View'] },
+  { name: 'Help & Support', permissions: ['View', 'Create'] },
+];
+
+const buildInitialPermissionState = (roleList: string[]) => {
+  const initialState: Record<string, boolean> = {};
+
+  modules.forEach((mod) => {
+    mod.permissions.forEach((perm) => {
+      roleList.forEach((role) => {
+        const key = `${mod.name}-${perm}-${role}`;
+        initialState[key] =
+          role === 'Super Admin' || (role === 'Admin' && perm !== 'Manage Users');
+      });
     });
+  });
 
-    // Modal States
-    const [showRoleModal, setShowRoleModal] = useState(false);
-    const [newRole, setNewRole] = useState('');
-    const [saveSuccess, setSaveSuccess] = useState(false);
+  return initialState;
+};
 
-    // --- Action Handlers ---
+const AccessManagement = ({
+  showRoleModal,
+  setShowRoleModal,
+  onSaveSuccess,
+}: AccessManagementProps) => {
+  const { user } = useAuth();
 
-    // Toggle a specific permission checkbox
-    const handleTogglePermission = (moduleName: string, permName: string, roleName: string) => {
-        const key = `${moduleName}-${permName}-${roleName}`;
-        setPermissions(prev => ({
-            ...prev,
-            [key]: !prev[key]
-        }));
-    };
+  const [roles, setRoles] = useState(['Super Admin', 'Admin', 'User']);
+  const [permissions, setPermissions] = useState<Record<string, boolean>>(() =>
+    buildInitialPermissionState(['Super Admin', 'Admin', 'User'])
+  );
+  const [backendPermissions, setBackendPermissions] = useState<PermissionDto[]>([]);
+  const [newRole, setNewRole] = useState('');
 
-    // Save changes notification
-    const handleSaveChanges = () => {
-        // In a real app, you would make an API call here with the `permissions` object.
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
-    };
+  const getRoleNameById = (roleId: number) =>
+    Object.keys(ROLE_ID_MAP).find((roleName) => ROLE_ID_MAP[roleName] === roleId);
 
-    // Add a new role
-    const handleAddRole = () => {
-        if (!newRole.trim()) return;
-        if (roles.includes(newRole.trim())) {
-            alert("This role already exists!");
-            return;
-        }
-        
-        const updatedRoles = [...roles, newRole.trim()];
-        setRoles(updatedRoles);
-        
-        // Initialize permissions for the new role as false
-        const newPerms = { ...permissions };
-        modules.forEach(mod => {
-            mod.permissions.forEach(perm => {
-                newPerms[`${mod.name}-${perm}-${newRole.trim()}`] = false;
-            });
-        });
-        setPermissions(newPerms);
-        setNewRole('');
-    };
-
-    // Delete a role
-    const handleDeleteRole = (roleToDelete: string) => {
-        if (roleToDelete === 'Administrator') {
-            alert("You cannot delete the Administrator role.");
-            return;
-        }
-        if (window.confirm(`Are you sure you want to delete the ${roleToDelete} role?`)) {
-            setRoles(roles.filter(r => r !== roleToDelete));
-            
-            // Clean up permissions map
-            const newPerms = { ...permissions };
-            Object.keys(newPerms).forEach(key => {
-                if (key.endsWith(`-${roleToDelete}`)) {
-                    delete newPerms[key];
-                }
-            });
-            setPermissions(newPerms);
-        }
-    };
+  const getUiModuleNameFromBackend = (backendModule: string) => {
+    const normalizedBackendModule = normalizeKey(backendModule);
 
     return (
-        <div className="space-y-6 relative">
-            {/* Header Actions */}
-            <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold text-gray-800">Access Management</h2>
-                <div className="flex items-center gap-3">
-                    {saveSuccess && (
-                        <span className="text-sm font-bold text-emerald-600 flex items-center gap-1 animate-in fade-in slide-in-from-right-4">
-                            <Check className="w-4 h-4" /> Saved Successfully!
-                        </span>
-                    )}
-                    <button onClick={() => setShowRoleModal(true)} className="btn btn-secondary flex items-center gap-2">
-                        <ShieldCheck className="w-4 h-4" /> Manage Roles
-                    </button>
-                </div>
-            </div>
-
-            {/* Matrix Table */}
-            <div className="overflow-x-auto rounded-xl border border-gray-100">
-                <table className="pro-table min-w-full">
-                    <thead>
-                        <tr>
-                            <th className="text-left w-64">Module / Permission</th>
-                            {roles.map(role => (
-                                <th key={role} className="text-center whitespace-nowrap px-4">{role}</th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {modules.map((module) => (
-                            <Fragment key={module.name}>
-                                <tr className="bg-gray-50/80">
-                                    <td className="!font-bold !text-gray-800 uppercase text-xs tracking-wider" colSpan={roles.length + 1}>
-                                        {module.name}
-                                    </td>
-                                </tr>
-                                {module.permissions.map(perm => (
-                                    <tr key={`${module.name}-${perm}`}>
-                                        <td className="pl-10 text-gray-600">
-                                            {perm}
-                                        </td>
-                                        {roles.map(role => {
-                                            const key = `${module.name}-${perm}-${role}`;
-                                            return (
-                                                <td key={key} className="text-center">
-                                                    <input
-                                                        type="checkbox"
-                                                        className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 cursor-pointer"
-                                                        checked={permissions[key] || false}
-                                                        onChange={() => handleTogglePermission(module.name, perm, role)}
-                                                        disabled={role === 'Administrator'} // Admins usually can't have permissions revoked
-                                                    />
-                                                </td>
-                                            );
-                                        })}
-                                    </tr>
-                                ))}
-                            </Fragment>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Save Button Container */}
-            <div className="flex justify-end pt-4">
-                <button onClick={handleSaveChanges} className="btn btn-primary shadow-sm flex items-center gap-2">
-                    <Check className="w-4 h-4" /> Save Changes
-                </button>
-            </div>
-
-            {/* Manage Roles Modal - Teleported to Body */}
-            {showRoleModal && createPortal(
-                <div className="pro-modal-overlay z-[200]">
-                    <div className="pro-modal max-w-md" onClick={e => e.stopPropagation()}>
-                        <div className="pro-modal-header border-b border-gray-100 pb-4">
-                            <h3>Manage Roles</h3>
-                            <button onClick={() => setShowRoleModal(false)} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button>
-                        </div>
-                        <div className="pro-modal-body space-y-4 pt-4">
-                            
-                            {/* Add New Role Input */}
-                            <div>
-                                <label className="pro-label">Add New Role</label>
-                                <div className="flex gap-2">
-                                    <input 
-                                        type="text" 
-                                        className="pro-input flex-1" 
-                                        placeholder="e.g. Finance Manager"
-                                        value={newRole}
-                                        onChange={e => setNewRole(e.target.value)}
-                                        onKeyDown={e => e.key === 'Enter' && handleAddRole()}
-                                    />
-                                    <button onClick={handleAddRole} className="btn btn-primary px-3">
-                                        <Plus className="w-5 h-5" />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Existing Roles List */}
-                            <div className="mt-6">
-                                <label className="pro-label mb-2">Existing Roles</label>
-                                <div className="bg-gray-50 border border-gray-100 rounded-xl overflow-hidden divide-y divide-gray-100">
-                                    {roles.map((role) => (
-                                        <div key={role} className="flex items-center justify-between px-4 py-3 bg-white">
-                                            <span className="text-sm font-medium text-gray-700">{role}</span>
-                                            {role !== 'Administrator' && (
-                                                <button 
-                                                    onClick={() => handleDeleteRole(role)}
-                                                    className="p-1.5 text-rose-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors"
-                                                    title="Delete Role"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            
-                        </div>
-                        <div className="pro-modal-footer mt-2">
-                            <button onClick={() => setShowRoleModal(false)} className="btn btn-secondary w-full">Done</button>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
-        </div>
+      modules.find((module) =>
+        (MODULE_ALIASES[module.name] ?? [module.name]).some(
+          (alias) => normalizeKey(alias) === normalizedBackendModule
+        )
+      )?.name ?? null
     );
+  };
+
+  useEffect(() => {
+    const loadPermissions = async () => {
+      try {
+        const data = await getPermissions();
+        setBackendPermissions(data);
+
+        setPermissions((prev) => {
+          const next = { ...prev };
+
+          data.forEach((row) => {
+            const roleName = getRoleNameById(row.roleId);
+            const uiModuleName = getUiModuleNameFromBackend(row.module);
+
+            if (!roleName || !uiModuleName) return;
+
+            next[`${uiModuleName}-View-${roleName}`] = row.canView;
+            next[`${uiModuleName}-Create-${roleName}`] = row.canCreate;
+            next[`${uiModuleName}-Update-${roleName}`] = row.canUpdate;
+            next[`${uiModuleName}-Archive-${roleName}`] = row.canArchive;
+          });
+
+          return next;
+        });
+      } catch (error) {
+        console.error('Failed to load permissions.', error);
+      }
+    };
+
+    void loadPermissions();
+  }, []);
+
+  if (user?.role !== 'SUPER_ADMIN') {
+    return <Navigate to="/dashboard/settings" replace />;
+  }
+
+  const handleTogglePermission = (
+    moduleName: string,
+    permName: string,
+    roleName: string
+  ) => {
+    const key = `${moduleName}-${permName}-${roleName}`;
+    setPermissions((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const handleSaveChanges = async () => {
+    try {
+      const updates = backendPermissions.map((row) => {
+        const roleName = getRoleNameById(row.roleId);
+        const uiModuleName = getUiModuleNameFromBackend(row.module);
+
+        if (!roleName || !uiModuleName) return null;
+
+        const uiModule = modules.find((module) => module.name === uiModuleName);
+        if (!uiModule) return null;
+
+        const payload = {
+          canView: row.canView,
+          canCreate: row.canCreate,
+          canUpdate: row.canUpdate,
+          canArchive: row.canArchive,
+        };
+
+        uiModule.permissions.forEach((permissionLabel) => {
+          const flag = FLAG_BY_PERMISSION_LABEL[
+            permissionLabel as keyof typeof FLAG_BY_PERMISSION_LABEL
+          ] as PermissionFlag | undefined;
+
+          if (!flag) return;
+
+          payload[flag] = !!permissions[`${uiModuleName}-${permissionLabel}-${roleName}`];
+        });
+
+        return updatePermission(row.id, payload);
+      });
+
+      await Promise.all(updates.filter(Boolean) as Promise<PermissionDto>[]);
+      onSaveSuccess();
+    } catch (error) {
+      console.error('Failed to update permissions.', error);
+    }
+  };
+
+  const handleAddRole = () => {
+    if (!newRole.trim()) return;
+
+    if (roles.includes(newRole.trim())) {
+      alert('This role already exists!');
+      return;
+    }
+
+    const addedRole = newRole.trim();
+    const updatedRoles = [...roles, addedRole];
+    setRoles(updatedRoles);
+
+    setPermissions((prev) => {
+      const next = { ...prev };
+
+      modules.forEach((mod) => {
+        mod.permissions.forEach((perm) => {
+          next[`${mod.name}-${perm}-${addedRole}`] = false;
+        });
+      });
+
+      return next;
+    });
+
+    setNewRole('');
+  };
+
+  const handleDeleteRole = (roleToDelete: string) => {
+    if (roleToDelete === 'Super Admin') {
+      alert('You cannot delete the Super Admin role.');
+      return;
+    }
+
+    if (window.confirm(`Are you sure you want to delete the ${roleToDelete} role?`)) {
+      setRoles((prev) => prev.filter((role) => role !== roleToDelete));
+
+      setPermissions((prev) => {
+        const next = { ...prev };
+
+        Object.keys(next).forEach((key) => {
+          if (key.endsWith(`-${roleToDelete}`)) {
+            delete next[key];
+          }
+        });
+
+        return next;
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-6 relative">
+      <div className="overflow-x-auto rounded-xl border border-gray-100">
+        <table className="pro-table min-w-full">
+          <thead>
+            <tr>
+              <th className="text-left w-64">Module / Permission</th>
+              {roles.map((role) => (
+                <th key={role} className="text-center whitespace-nowrap px-4">
+                  {role}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {modules.map((module) => (
+              <Fragment key={module.name}>
+                <tr className="bg-gray-50/80">
+                  <td
+                    className="!font-bold !text-gray-800 uppercase text-xs tracking-wider"
+                    colSpan={roles.length + 1}
+                  >
+                    {module.name}
+                  </td>
+                </tr>
+                {module.permissions.map((perm) => (
+                  <tr key={`${module.name}-${perm}`}>
+                    <td className="pl-10 text-gray-600">{perm}</td>
+                    {roles.map((role) => {
+                      const key = `${module.name}-${perm}-${role}`;
+                      return (
+                        <td key={key} className="text-center">
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 cursor-pointer"
+                            checked={permissions[key] || false}
+                            onChange={() => handleTogglePermission(module.name, perm, role)}
+                            disabled={role === 'Super Admin'}
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex justify-end pt-4">
+        <button
+          onClick={handleSaveChanges}
+          className="btn btn-primary shadow-sm flex items-center gap-2"
+          type="button"
+        >
+          Save Changes
+        </button>
+      </div>
+
+      {showRoleModal &&
+        createPortal(
+          <div className="pro-modal-overlay z-[200]">
+            <div className="pro-modal max-w-md" onClick={(e) => e.stopPropagation()}>
+              <div className="pro-modal-header border-b border-gray-100 pb-4">
+                <h3>Manage Roles</h3>
+                <button
+                  onClick={() => setShowRoleModal(false)}
+                  className="btn-ghost btn-icon"
+                  type="button"
+                >
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="pro-modal-body space-y-4 pt-4">
+                <div>
+                  <label className="pro-label">Add New Role</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      className="pro-input flex-1"
+                      placeholder="e.g. Finance Manager"
+                      value={newRole}
+                      onChange={(e) => setNewRole(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddRole()}
+                    />
+                    <button onClick={handleAddRole} className="btn btn-primary px-3" type="button">
+                      <Plus className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <label className="pro-label mb-2">Existing Roles</label>
+                  <div className="bg-gray-50 border border-gray-100 rounded-xl overflow-hidden divide-y divide-gray-100">
+                    {roles.map((role) => (
+                      <div key={role} className="flex items-center justify-between px-4 py-3 bg-white">
+                        <span className="text-sm font-medium text-gray-700">{role}</span>
+                        {role !== 'Super Admin' && (
+                          <button
+                            onClick={() => handleDeleteRole(role)}
+                            className="p-1.5 text-rose-400 hover:bg-rose-50 hover:text-rose-600 rounded-lg transition-colors"
+                            type="button"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="pro-modal-footer mt-2">
+                <button
+                  onClick={() => setShowRoleModal(false)}
+                  className="btn btn-secondary w-full"
+                  type="button"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+    </div>
+  );
 };
 
 export default AccessManagement;

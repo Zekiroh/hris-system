@@ -9,7 +9,7 @@ namespace HRIS.Api.Features.IAM.Controllers;
 
 [ApiController]
 [Route("admin/permissions")]
-[Authorize(Roles = "SUPER_ADMIN,ADMIN")]
+[Authorize(Roles = "SUPER_ADMIN")]
 public class AdminPermissionsController : ControllerBase
 {
     private readonly AppDbContext _db;

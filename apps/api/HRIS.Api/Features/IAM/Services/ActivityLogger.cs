@@ -13,7 +13,10 @@ public interface IActivityLogger
         string? targetId,
         string? summary,
         string? ipAddress,
-        string? userAgent
+        string? userAgent,
+        int? overrideUserId = null,
+        string? overrideEmail = null,
+        string? overrideRole = null
     );
 }
 
@@ -27,18 +30,23 @@ public class ActivityLogger : IActivityLogger
         string? targetId,
         string? summary,
         string? ipAddress,
-        string? userAgent
+        string? userAgent,
+        int? overrideUserId = null,
+        string? overrideEmail = null,
+        string? overrideRole = null
     )
     {
-        var actorUserId = TryGetActorUserId(user);
+        var actorUserId = overrideUserId ?? TryGetActorUserId(user);
         if (actorUserId is null) return null;
 
         var email =
+            overrideEmail ??
             user.FindFirst("email")?.Value ??
             user.FindFirst(ClaimTypes.Email)?.Value ??
             "unknown";
 
         var role =
+            overrideRole ??
             user.FindFirst("role")?.Value ??
             user.FindFirst(ClaimTypes.Role)?.Value ??
             "unknown";

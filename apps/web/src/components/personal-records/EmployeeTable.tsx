@@ -25,7 +25,7 @@ type Props = {
   page: number;
   totalPages: number;
   totalCount: number;
-  pageSize: number; // to pad blank rows
+  pageSize: number; 
   onPageChange: (nextPage: number) => void;
   loading?: boolean;
 };
@@ -43,7 +43,6 @@ export function EmployeeTable({
   const safeTotalPages = Math.max(1, totalPages || 1);
   const safePage = Math.min(Math.max(1, page || 1), safeTotalPages);
 
-  // pad rows so table always shows exactly `pageSize` rows
   const missing = Math.max(0, pageSize - rows.length);
   const paddedRows: Array<EmployeeRow | null> = [...rows, ...Array.from({ length: missing }, () => null)];
 
@@ -68,7 +67,6 @@ export function EmployeeTable({
           <tbody>
             {paddedRows.map((emp, idx) => {
               if (!emp) {
-                // blank filler row (keeps table height consistent)
                 return (
                   <tr key={`blank-${idx}`} className="opacity-60">
                     <td className="font-mono text-xs text-gray-300">--</td>
@@ -143,7 +141,7 @@ export function EmployeeTable({
         </table>
       </div>
 
-      {/* Simple pagination (matches your expected UI) */}
+      {/* Pagination */}
       <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
         <button
           type="button"

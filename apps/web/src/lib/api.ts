@@ -1,7 +1,33 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
 function getAuthToken(): string | null {
-  return localStorage.getItem("auth.token") ?? sessionStorage.getItem("auth.token");
+  const directLocalToken = localStorage.getItem("auth.token");
+  if (directLocalToken) return directLocalToken;
+
+  const directSessionToken = sessionStorage.getItem("auth.token");
+  if (directSessionToken) return directSessionToken;
+
+  const localAuthRaw = localStorage.getItem("auth");
+  if (localAuthRaw) {
+    try {
+      const parsed = JSON.parse(localAuthRaw) as { token?: string };
+      if (parsed?.token) return parsed.token;
+    } catch {
+      // ignore malformed local auth payload
+    }
+  }
+
+  const sessionAuthRaw = sessionStorage.getItem("auth");
+  if (sessionAuthRaw) {
+    try {
+      const parsed = JSON.parse(sessionAuthRaw) as { token?: string };
+      if (parsed?.token) return parsed.token;
+    } catch {
+      // ignore malformed session auth payload
+    }
+  }
+
+  return null;
 }
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -9,7 +35,6 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 
   const headers = new Headers(options.headers);
 
-  // Only set JSON header if caller didn't set it (prevents breaking FormData later)
   if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
@@ -28,7 +53,6 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     throw new Error(`Request failed (${res.status})${text ? `: ${text}` : ""}`);
   }
 
-  // If no content
   if (res.status === 204) return undefined as T;
 
   return (await res.json()) as T;

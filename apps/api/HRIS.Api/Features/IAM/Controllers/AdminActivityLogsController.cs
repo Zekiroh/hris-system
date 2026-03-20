@@ -22,6 +22,7 @@ public class AdminActivityLogsController : ControllerBase
     public async Task<IActionResult> List(
         [FromQuery] string? module,
         [FromQuery] string? action,
+        [FromQuery] string? search,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
@@ -35,6 +36,17 @@ public class AdminActivityLogsController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(action))
             query = query.Where(a => a.Action == action);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var trimmedSearch = search.Trim().ToLower();
+
+            query = query.Where(a =>
+                (a.ActorEmail != null && a.ActorEmail.ToLower().Contains(trimmedSearch)) ||
+                (a.Action != null && a.Action.ToLower().Contains(trimmedSearch)) ||
+                (a.Summary != null && a.Summary.ToLower().Contains(trimmedSearch))
+            );
+        }
 
         var totalCount = await query.CountAsync();
 
@@ -69,7 +81,8 @@ public class AdminActivityLogsController : ControllerBase
     [HttpGet("export")]
     public async Task<IActionResult> Export(
         [FromQuery] string? module,
-        [FromQuery] string? action)
+        [FromQuery] string? action,
+        [FromQuery] string? search)
     {
         var query = _db.ActivityLogs.AsNoTracking().AsQueryable();
 
@@ -79,12 +92,35 @@ public class AdminActivityLogsController : ControllerBase
         if (!string.IsNullOrWhiteSpace(action))
             query = query.Where(a => a.Action == action);
 
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var trimmedSearch = search.Trim().ToLower();
+
+            query = query.Where(a =>
+                (a.ActorEmail != null && a.ActorEmail.ToLower().Contains(trimmedSearch)) ||
+                (a.Action != null && a.Action.ToLower().Contains(trimmedSearch)) ||
+                (a.Summary != null && a.Summary.ToLower().Contains(trimmedSearch))
+            );
+        }
+
+        var usersByEmail = await _db.Users
+            .AsNoTracking()
+            .Where(u => u.Email != null && u.Email != "")
+            .Select(u => new
+            {
+                Email = u.Email,
+                FullName = u.FullName
+            })
+            .ToDictionaryAsync(
+                u => u.Email.ToLower(),
+                u => u.FullName
+            );
+
         var rows = await query
             .OrderByDescending(a => a.Id)
-            .Take(5000) // safety cap
+            .Take(5000)
             .Select(a => new
             {
-                a.Id,
                 a.ActorUserId,
                 a.ActorEmail,
                 a.ActorRole,
@@ -93,8 +129,6 @@ public class AdminActivityLogsController : ControllerBase
                 a.TargetType,
                 a.TargetId,
                 a.Summary,
-                a.IpAddress,
-                a.UserAgent,
                 a.CreatedAt
             })
             .ToListAsync();
@@ -106,23 +140,255 @@ public class AdminActivityLogsController : ControllerBase
             return $"\"{s}\"";
         }
 
-        var sb = new StringBuilder();
-        sb.AppendLine("Id,ActorUserId,ActorEmail,ActorRole,Action,Module,TargetType,TargetId,Summary,IpAddress,UserAgent,CreatedAt");
-
-        foreach (var r in rows)
+        static string FormatActionLabel(string action)
         {
-            sb.Append(r.Id).Append(',');
-            sb.Append(r.ActorUserId).Append(',');
-            sb.Append(Esc(r.ActorEmail)).Append(',');
-            sb.Append(Esc(r.ActorRole)).Append(',');
-            sb.Append(Esc(r.Action)).Append(',');
-            sb.Append(Esc(r.Module)).Append(',');
-            sb.Append(Esc(r.TargetType)).Append(',');
-            sb.Append(Esc(r.TargetId)).Append(',');
-            sb.Append(Esc(r.Summary)).Append(',');
-            sb.Append(Esc(r.IpAddress)).Append(',');
-            sb.Append(Esc(r.UserAgent)).Append(',');
-            sb.Append(Esc(r.CreatedAt.ToString("O")));
+            return action switch
+            {
+                "LOGIN" => "Logged in",
+                "LOGIN_FAILED" => "Login Failed",
+                "LOGOUT" => "Logged out",
+                "USER_CREATE" => "Created User",
+                "USER_UPDATE" => "Updated User",
+                "USER_STATUS_UPDATE" => "Updated Status",
+                "USER_PASSWORD_RESET" => "Reset Password",
+                "PERMISSION_UPDATE" => "Updated Permission",
+                _ => string.Join(
+                    " ",
+                    action
+                        .ToLower()
+                        .Split('_', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(word => char.ToUpper(word[0]) + word[1..])
+                )
+            };
+        }
+
+        static string FormatRoleLabel(string? role)
+        {
+            if (string.IsNullOrWhiteSpace(role)) return "—";
+
+            var normalized = role.Trim().ToUpperInvariant();
+
+            return normalized switch
+            {
+                "SUPER_ADMIN" => "Super Admin",
+                "ADMIN" => "Admin",
+                "USER" => "User",
+                _ => string.Join(
+                    " ",
+                    normalized
+                        .ToLower()
+                        .Split('_', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(word => char.ToUpper(word[0]) + word[1..])
+                )
+            };
+        }
+
+        string ResolveUserLabel(string? actorEmail, int actorUserId)
+        {
+            if (!string.IsNullOrWhiteSpace(actorEmail))
+            {
+                var normalizedEmail = actorEmail.Trim().ToLower();
+                if (usersByEmail.TryGetValue(normalizedEmail, out var fullName) &&
+                    !string.IsNullOrWhiteSpace(fullName))
+                {
+                    return fullName.Trim();
+                }
+
+                return actorEmail.Trim();
+            }
+
+            return $"User #{actorUserId}";
+        }
+
+        string PrettifyDetails(dynamic row)
+        {
+            var summary = (row.Summary as string)?.Trim();
+
+            if (string.IsNullOrWhiteSpace(summary))
+            {
+                if (row.TargetType != null && row.TargetId != null)
+                    return $"{row.TargetType} #{row.TargetId}";
+
+                if (row.TargetType != null)
+                    return row.TargetType.ToString() ?? "—";
+
+                return "—";
+            }
+
+            var actorName = ResolveUserLabel(row.ActorEmail, row.ActorUserId);
+
+            if (row.Action == "LOGIN")
+                return $"{actorName} signed in successfully";
+
+            if (row.Action == "LOGIN_FAILED")
+            {
+                var marker = "Failed login attempt for ";
+                var index = summary.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+
+                if (index >= 0)
+                {
+                    var rawEmail = summary[(index + marker.Length)..].Trim();
+                    if (!string.IsNullOrWhiteSpace(rawEmail))
+                    {
+                        var normalizedEmail = rawEmail.ToLower();
+                        if (usersByEmail.TryGetValue(normalizedEmail, out var fullName) &&
+                            !string.IsNullOrWhiteSpace(fullName))
+                        {
+                            return $"Failed login attempt for {fullName.Trim()}";
+                        }
+
+                        return $"Failed login attempt for {rawEmail}";
+                    }
+                }
+
+                return "Failed login attempt";
+            }
+
+            if (row.Action == "LOGOUT")
+                return $"{actorName} logged out";
+
+            if (row.Action == "USER_PASSWORD_RESET")
+            {
+                var marker = "Reset password for user ";
+                var index = summary.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+
+                if (index >= 0)
+                {
+                    var rawEmail = summary[(index + marker.Length)..].Trim();
+                    if (!string.IsNullOrWhiteSpace(rawEmail))
+                    {
+                        var normalizedEmail = rawEmail.ToLower();
+                        if (usersByEmail.TryGetValue(normalizedEmail, out var fullName) &&
+                            !string.IsNullOrWhiteSpace(fullName))
+                        {
+                            return $"Password was reset for {fullName.Trim()}";
+                        }
+
+                        return $"Password was reset for {rawEmail}";
+                    }
+                }
+
+                return "Password was reset";
+            }
+
+            if (row.Action == "USER_STATUS_UPDATE")
+            {
+                var setUserPrefix = "Set user ";
+                var isActiveTrue = " IsActive=True";
+                var isActiveFalse = " IsActive=False";
+
+                var startIndex = summary.IndexOf(setUserPrefix, StringComparison.OrdinalIgnoreCase);
+                if (startIndex >= 0)
+                {
+                    var afterPrefix = summary[(startIndex + setUserPrefix.Length)..];
+
+                    if (afterPrefix.Contains(isActiveTrue, StringComparison.OrdinalIgnoreCase) ||
+                        afterPrefix.Contains(isActiveFalse, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var splitToken = afterPrefix.Contains(isActiveTrue, StringComparison.OrdinalIgnoreCase)
+                            ? isActiveTrue
+                            : isActiveFalse;
+
+                        var emailPart = afterPrefix.Split(splitToken, StringSplitOptions.None)[0].Trim();
+                        var normalizedEmail = emailPart.ToLower();
+                        var resolvedName = usersByEmail.TryGetValue(normalizedEmail, out var fullName) &&
+                                           !string.IsNullOrWhiteSpace(fullName)
+                            ? fullName.Trim()
+                            : emailPart;
+
+                        var isActive = splitToken.Equals(isActiveTrue, StringComparison.OrdinalIgnoreCase);
+
+                        return isActive
+                            ? $"{resolvedName} was activated"
+                            : $"{resolvedName} was deactivated";
+                    }
+                }
+
+                return "User status was updated";
+            }
+
+            if (row.Action == "USER_UPDATE")
+            {
+                var marker = "Updated user ";
+                var roleMarker = " (RoleId=";
+                var startIndex = summary.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+
+                if (startIndex >= 0)
+                {
+                    var afterMarker = summary[(startIndex + marker.Length)..];
+                    var roleIndex = afterMarker.IndexOf(roleMarker, StringComparison.OrdinalIgnoreCase);
+
+                    if (roleIndex >= 0)
+                    {
+                        var emailPart = afterMarker[..roleIndex].Trim();
+                        var normalizedEmail = emailPart.ToLower();
+                        var resolvedName = usersByEmail.TryGetValue(normalizedEmail, out var fullName) &&
+                                           !string.IsNullOrWhiteSpace(fullName)
+                            ? fullName.Trim()
+                            : emailPart;
+
+                        return $"{resolvedName}'s account details were updated";
+                    }
+                }
+
+                return "User account details were updated";
+            }
+
+            if (row.Action == "USER_CREATE")
+            {
+                var marker = "Created user ";
+                var roleMarker = " (RoleId=";
+                var startIndex = summary.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+
+                if (startIndex >= 0)
+                {
+                    var afterMarker = summary[(startIndex + marker.Length)..];
+                    var roleIndex = afterMarker.IndexOf(roleMarker, StringComparison.OrdinalIgnoreCase);
+
+                    if (roleIndex >= 0)
+                    {
+                        var emailPart = afterMarker[..roleIndex].Trim();
+                        var normalizedEmail = emailPart.ToLower();
+                        var resolvedName = usersByEmail.TryGetValue(normalizedEmail, out var fullName) &&
+                                           !string.IsNullOrWhiteSpace(fullName)
+                            ? fullName.Trim()
+                            : emailPart;
+
+                        return $"{resolvedName} account was created";
+                    }
+                }
+
+                return "A new user account was created";
+            }
+
+            if (row.Action == "PERMISSION_UPDATE")
+                return "Access permissions were updated";
+
+            return summary
+                .Replace("RoleId=", "", StringComparison.OrdinalIgnoreCase)
+                .Replace("()", "", StringComparison.OrdinalIgnoreCase)
+                .Trim();
+        }
+
+        var manilaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila");
+
+        var sb = new StringBuilder();
+        sb.AppendLine("Date,Time,User,Role,Action,Details");
+
+        foreach (var row in rows)
+        {
+            var manilaDateTime = TimeZoneInfo.ConvertTimeFromUtc(row.CreatedAt, manilaTimeZone);
+            var userLabel = ResolveUserLabel(row.ActorEmail, row.ActorUserId);
+            var roleLabel = FormatRoleLabel(row.ActorRole);
+            var actionLabel = FormatActionLabel(row.Action);
+            var details = PrettifyDetails(row);
+
+            sb.Append(Esc(manilaDateTime.ToString("MMMM d, yyyy"))).Append(',');
+            sb.Append(Esc(manilaDateTime.ToString("hh:mm tt"))).Append(',');
+            sb.Append(Esc(userLabel)).Append(',');
+            sb.Append(Esc(roleLabel)).Append(',');
+            sb.Append(Esc(actionLabel)).Append(',');
+            sb.Append(Esc(details));
             sb.AppendLine();
         }
 

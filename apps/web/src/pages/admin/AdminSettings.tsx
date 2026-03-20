@@ -1,17 +1,33 @@
-import { useState } from 'react';
-import { Users, Shield, Activity } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Users, Shield, Activity, Check, ShieldCheck } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import UserManagement from '../../components/admin/UserManagement';
 import AccessManagement from '../../components/admin/AccessManagement';
 import ActivityLog from '../../components/admin/ActivityLog';
 
-const AdminSettings = () => {
-    const [activeTab, setActiveTab] = useState<'users' | 'access' | 'logs'>('users');
+type AdminSettingsTab = 'users' | 'access' | 'logs';
 
-    const tabs = [
-        { id: 'users' as const, label: 'User Management', icon: Users },
-        { id: 'access' as const, label: 'Access Management', icon: Shield },
-        { id: 'logs' as const, label: 'Activity Log', icon: Activity },
-    ];
+const AdminSettings = () => {
+    const { user } = useAuth();
+    const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+
+    const tabs = useMemo(
+        () => [
+            { id: 'users' as const, label: 'User Management', icon: Users },
+            ...(isSuperAdmin
+                ? [{ id: 'access' as const, label: 'Access Management', icon: Shield }]
+                : []),
+            { id: 'logs' as const, label: 'Activity Log', icon: Activity },
+        ],
+        [isSuperAdmin]
+    );
+
+    const [activeTab, setActiveTab] = useState<AdminSettingsTab>('users');
+    const [accessRoleModalOpen, setAccessRoleModalOpen] = useState(false);
+    const [accessSaveSuccess, setAccessSaveSuccess] = useState(false);
+
+    const safeActiveTab: AdminSettingsTab =
+        !isSuperAdmin && activeTab === 'access' ? 'users' : activeTab;
 
     return (
         <div className="space-y-6">
@@ -22,20 +38,53 @@ const AdminSettings = () => {
 
             <div className="pro-card animate-fade-in-up" style={{ animationDelay: '0.1s', opacity: 0 }}>
                 <div className="px-6 pt-4">
-                    <div className="pro-tabs">
-                        {tabs.map(tab => (
-                            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                                className={`pro-tab flex items-center gap-2 ${activeTab === tab.id ? 'active' : ''}`}>
-                                <tab.icon className="w-4 h-4" />
-                                {tab.label}
-                            </button>
-                        ))}
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="pro-tabs">
+                            {tabs.map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`pro-tab flex items-center gap-2 ${safeActiveTab === tab.id ? 'active' : ''}`}
+                                >
+                                    <tab.icon className="w-4 h-4" />
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {safeActiveTab === 'access' && isSuperAdmin && (
+                            <div className="flex items-center gap-3 shrink-0">
+                                {accessSaveSuccess && (
+                                    <span className="text-sm font-bold text-emerald-600 flex items-center gap-1 animate-in fade-in slide-in-from-right-4">
+                                        <Check className="w-4 h-4" /> Saved Successfully!
+                                    </span>
+                                )}
+
+                                <button
+                                    onClick={() => setAccessRoleModalOpen(true)}
+                                    className="btn btn-secondary flex items-center gap-2"
+                                    type="button"
+                                >
+                                    <ShieldCheck className="w-4 h-4" /> Manage Roles
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
+
                 <div className="p-6">
-                    {activeTab === 'users' && <UserManagement />}
-                    {activeTab === 'access' && <AccessManagement />}
-                    {activeTab === 'logs' && <ActivityLog />}
+                    {safeActiveTab === 'users' && <UserManagement />}
+                    {safeActiveTab === 'access' && isSuperAdmin && (
+                        <AccessManagement
+                            showRoleModal={accessRoleModalOpen}
+                            setShowRoleModal={setAccessRoleModalOpen}
+                            onSaveSuccess={() => {
+                                setAccessSaveSuccess(true);
+                                window.setTimeout(() => setAccessSaveSuccess(false), 3000);
+                            }}
+                        />
+                    )}
+                    {safeActiveTab === 'logs' && <ActivityLog />}
                 </div>
             </div>
         </div>

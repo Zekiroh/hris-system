@@ -1,11 +1,34 @@
-import { Calendar, Clock, Download, Search } from 'lucide-react';
-import { useState } from 'react';
+import { Calendar, Download, Search } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import {
+    buildUserNameByEmail,
+    formatActionLabel,
+    formatDateFilterPart,
+    formatDatePart,
+    formatTimePart,
+    getBadgeClassName,
+    getUserLabel,
+    prettifyDetails,
+} from '../../lib/activityLog.utils';
+import { useActivityLogs } from './hooks/useActivityLogs';
 
 const ActivityLog = () => {
-    const [searchTerm, setSearchTerm] = useState('');
     const [isTodayFilterActive, setIsTodayFilterActive] = useState(false);
 
-    // Get today's date formatted as YYYY-MM-DD
+    const {
+        PAGE_SIZE,
+        searchTerm,
+        setSearchTerm,
+        logs,
+        users,
+        page,
+        setPage,
+        totalCount,
+        isLoading,
+        error,
+        handleExport,
+    } = useActivityLogs();
+
     const getTodayString = () => {
         const d = new Date();
         const year = d.getFullYear();
@@ -13,70 +36,71 @@ const ActivityLog = () => {
         const day = String(d.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
     };
+
     const todayStr = getTodayString();
 
-    // Mock logs (first two are set to 'today' so the filter has data to show)
-    const logs = [
-        { id: 1, user: 'Juan Dela Cruz', action: 'Logged in', details: 'Successful login', time: `${todayStr} 08:00 AM` },
-        { id: 2, user: 'Maria Santos', action: 'Approved Clearance', details: 'Clearance ID #1023', time: `${todayStr} 09:15 AM` },
-        { id: 3, user: 'Juan Dela Cruz', action: 'Updated Profile', details: 'Changed address', time: '2024-09-14 10:30 AM' },
-        { id: 4, user: 'System', action: 'Backup', details: 'Automated daily backup', time: '2024-09-14 12:00 PM' },
-        { id: 5, user: 'Ana Garcia', action: 'Failed Login', details: 'Invalid password attempt', time: '2024-09-14 01:45 PM' },
-    ];
+    const userNameByEmail = useMemo(() => buildUserNameByEmail(users), [users]);
 
-    const getBadgeStyle = (action: string) => {
-        if (action.includes('Failed')) return 'badge-danger';
-        if (action.includes('Approved')) return 'badge-success';
-        if (action.includes('Login')) return 'bg-blue-50 text-blue-700 border border-blue-100'; 
-        return 'badge-neutral';
-    };
+    const filteredLogs = useMemo(() => {
+        return logs.filter((log) => {
+            const dateFilterPart = formatDateFilterPart(log.createdAt);
+            const dateMatch = isTodayFilterActive ? dateFilterPart === todayStr : true;
+            return dateMatch;
+        });
+    }, [logs, isTodayFilterActive, todayStr]);
 
-    // --- Filter Logic ---
-    const filteredLogs = logs.filter(log => {
-        // 1. Search Filter
-        const searchMatch = 
-            log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            log.details.toLowerCase().includes(searchTerm.toLowerCase());
-        
-        // 2. Date Filter
-        const dateMatch = isTodayFilterActive ? log.time.startsWith(todayStr) : true;
+    const displayRows = useMemo(() => {
+        if (filteredLogs.length >= PAGE_SIZE) return filteredLogs;
 
-        return searchMatch && dateMatch;
-    });
+        const placeholdersNeeded = PAGE_SIZE - filteredLogs.length;
+        const placeholders = Array.from({ length: placeholdersNeeded }, (_, index) => ({
+            __placeholder: true as const,
+            id: `placeholder-${index}`,
+        }));
+
+        return [...filteredLogs, ...placeholders];
+    }, [filteredLogs, PAGE_SIZE]);
+
+    const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+    const canGoPrev = page > 1;
+    const canGoNext = page < totalPages;
 
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <h2 className="text-xl font-bold text-gray-800">Activity Logs</h2>
+                <div className="relative w-full md:w-72">
+                    <input
+                        type="text"
+                        placeholder="Search logs..."
+                        className="pro-input !pl-9 !py-1.5 w-full"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                </div>
+
                 <div className="flex items-center gap-2">
-                    {/* Search Input */}
-                    <div className="relative">
-                        <input
-                            type="text"
-                            placeholder="Search logs..."
-                            className="pro-input !pl-9 !py-1.5 w-64"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    </div>
-                    
-                    {/* Today Filter Toggle */}
-                    <button 
+                    <button
                         onClick={() => setIsTodayFilterActive(!isTodayFilterActive)}
                         className={`flex items-center gap-2 px-3 py-1.5 border rounded-lg text-sm shadow-sm transition-colors ${
-                            isTodayFilterActive 
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
-                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                            isTodayFilterActive
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
                         }`}
                     >
-                        <Calendar size={16} className={isTodayFilterActive ? 'text-emerald-500' : 'text-gray-400'} />
-                        <span className="font-medium">{isTodayFilterActive ? 'Today Only' : 'All Time'}</span>
+                        <Calendar
+                            size={16}
+                            className={isTodayFilterActive ? 'text-emerald-500' : 'text-gray-400'}
+                        />
+                        <span className="font-medium">
+                            {isTodayFilterActive ? 'Today Only' : 'All Time'}
+                        </span>
                     </button>
-                    
-                    {/* Export Button (Reverted to visual only) */}
-                    <button className="btn btn-secondary py-1.5 flex items-center gap-2">
+
+                    <button
+                        onClick={handleExport}
+                        className="btn btn-secondary py-1.5 flex items-center gap-2"
+                    >
                         <Download size={16} /> Export
                     </button>
                 </div>
@@ -86,6 +110,7 @@ const ActivityLog = () => {
                 <table className="pro-table min-w-full">
                     <thead>
                         <tr>
+                            <th>Date</th>
                             <th>Time</th>
                             <th>User</th>
                             <th>Action</th>
@@ -93,37 +118,102 @@ const ActivityLog = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredLogs.length > 0 ? (
-                            filteredLogs.map((log) => (
-                                <tr key={log.id}>
-                                    <td className="whitespace-nowrap">
-                                        <div className="flex items-center gap-2 text-gray-500">
-                                            <Clock size={14} className="text-gray-400" />
-                                            {log.time}
-                                        </div>
-                                    </td>
-                                    <td className="!font-medium !text-gray-900">
-                                        {log.user}
-                                    </td>
-                                    <td>
-                                        <span className={`badge ${getBadgeStyle(log.action)}`}>
-                                            <span className="badge-dot" />{log.action}
-                                        </span>
-                                    </td>
-                                    <td className="text-gray-500">
-                                        {log.details}
-                                    </td>
-                                </tr>
-                            ))
-                        ) : (
+                        {isLoading ? (
                             <tr>
-                                <td colSpan={4} className="text-center py-8 text-gray-500 italic">
-                                    No activity logs match your search criteria.
+                                <td colSpan={5} className="text-center py-8 text-gray-500 italic">
+                                    Loading activity logs...
                                 </td>
                             </tr>
+                        ) : error ? (
+                            <tr>
+                                <td colSpan={5} className="text-center py-8 text-red-500 italic">
+                                    {error}
+                                </td>
+                            </tr>
+                        ) : (
+                            <>
+                                {filteredLogs.length === 0 && (
+                                    <tr>
+                                        <td colSpan={5} className="text-center py-4 text-gray-700 italic">
+                                            No activity logs match your search criteria.
+                                        </td>
+                                    </tr>
+                                )}
+
+                                {displayRows.map((row) => {
+                                    if ('__placeholder' in row) {
+                                        return (
+                                            <tr key={row.id}>
+                                                <td className="text-gray-300">--</td>
+                                                <td className="text-gray-300">--</td>
+                                                <td className="text-gray-300">--</td>
+                                                <td className="text-gray-300">--</td>
+                                                <td className="text-gray-300">--</td>
+                                            </tr>
+                                        );
+                                    }
+
+                                    const actionLabel = formatActionLabel(row.action);
+
+                                    return (
+                                        <tr key={row.id}>
+                                            <td className="whitespace-nowrap !font-medium !text-gray-900">
+                                                {formatDatePart(row.createdAt)}
+                                            </td>
+                                            <td className="whitespace-nowrap !font-medium !text-gray-900">
+                                                {formatTimePart(row.createdAt)}
+                                            </td>
+                                            <td className="!font-medium !text-gray-900">
+                                                {getUserLabel(row, userNameByEmail)}
+                                            </td>
+                                            <td>
+                                                <span
+                                                    className={`
+                                                        inline-flex items-center justify-center
+                                                        px-2.5 py-0.5 rounded-full text-xs font-medium
+                                                        whitespace-nowrap
+                                                        ${getBadgeClassName(row.action)}
+                                                    `}
+                                                >
+                                                    {actionLabel}
+                                                </span>
+                                            </td>
+                                            <td className="text-gray-500">
+                                                {prettifyDetails(row, userNameByEmail)}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </>
                         )}
                     </tbody>
                 </table>
+
+                {!isLoading && !error && totalPages > 0 && (
+                    <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+                        <button
+                            type="button"
+                            onClick={() => canGoPrev && setPage((prev) => prev - 1)}
+                            disabled={!canGoPrev}
+                            className="px-5 py-2 rounded-xl border border-gray-200 text-gray-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Prev
+                        </button>
+
+                        <span className="text-gray-500 font-medium">
+                            Page {page} / {totalPages}
+                        </span>
+
+                        <button
+                            type="button"
+                            onClick={() => canGoNext && setPage((prev) => prev + 1)}
+                            disabled={!canGoNext}
+                            className="px-5 py-2 rounded-xl border border-gray-200 text-gray-600 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Next
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );

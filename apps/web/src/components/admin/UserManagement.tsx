@@ -1,381 +1,465 @@
-import { Search, UserPlus, Shield, Filter, Download, Edit, EyeOff, Ban, MoreVertical, X, Check, CheckCircle } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import {
+  Search,
+  UserPlus,
+  Shield,
+  Filter,
+  Download,
+  Edit,
+  Ban,
+  CheckCircle,
+  KeyRound,
+} from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+
+import { useAuth } from '../../context/AuthContext';
+import { useUserManagement } from './hooks/useUserManagement';
+import { ROLE_OPTIONS } from './userManagement.shared';
+
+import AddUserModal from './modals/AddUserModal';
+import EditUserModal from './modals/EditUserModal';
+import ResetPasswordModal from './modals/ResetPasswordModal';
+import UserStatusModal from './modals/UserStatusModal';
+
+const SUPER_ADMIN_ROLE_ID = 1;
 
 const UserManagement = () => {
-    const [activeMenu, setActiveMenu] = useState<number | null>(null);
-    const [searchTerm, setSearchTerm] = useState(''); // Added search state
+  const { user: authUser } = useAuth();
+  const isAdminCaller = authUser?.role === 'ADMIN';
+  const isSuperAdminCaller = authUser?.role === 'SUPER_ADMIN';
 
-    // 1. Move users to state to allow modifications
-    const [users, setUsers] = useState([
-        { id: 1, name: 'Juan Dela Cruz', email: 'juan.delacruz@pdea.gov.ph', role: 'Administrator', status: 'Active', lastActive: '2 mins ago', hidden: false },
-        { id: 2, name: 'Maria Santos', email: 'maria.santos@pdea.gov.ph', role: 'HR Manager', status: 'Active', lastActive: '1 hour ago', hidden: false },
-        { id: 3, name: 'Jose Reyes', email: 'jose.reyes@pdea.gov.ph', role: 'Regional Director', status: 'Inactive', lastActive: '2 days ago', hidden: false },
-        { id: 4, name: 'Ana Garcia', email: 'ana.garcia@pdea.gov.ph', role: 'Staff', status: 'Active', lastActive: '5 mins ago', hidden: false },
-    ]);
+  const {
+    searchTerm,
+    selectedRole,
+    selectedStatus,
+    isLoading,
+    isSubmitting,
+    bannerMessage,
+    bannerType,
+    showAddModal,
+    showEditModal,
+    showResetPasswordModal,
+    showStatusConfirmModal,
+    formData,
+    passwordResetData,
+    statusConfirmData,
+    filteredUsers,
+    totalPages,
+    safePage,
+    pagedUsers,
 
-    // Modal States
-    const [showAddModal, setShowAddModal] = useState(false);
-    const [showEditModal, setShowEditModal] = useState(false);
-    
-    // Form State
-    const [formData, setFormData] = useState({
-        id: 0,
-        name: '',
-        email: '',
-        role: 'Staff',
-        status: 'Active'
-    });
+    setSearchTerm,
+    setSelectedRole,
+    setSelectedStatus,
+    setPage,
+    setFormData,
+    setPasswordResetData,
 
-    // Handle clicking outside the 3-dots menu to close it reliably
-    useEffect(() => {
-        const handleClickOutside = () => setActiveMenu(null);
-        document.addEventListener('click', handleClickOutside);
-        return () => document.removeEventListener('click', handleClickOutside);
-    }, []);
+    closeAddModal,
+    closeEditModal,
+    closeResetPasswordModal,
+    closeStatusConfirmModal,
+    openAddModal,
+    openEditModal,
+    openResetPasswordModal,
+    openStatusConfirmModal,
 
-    const toggleMenu = (e: React.MouseEvent, id: number) => {
-        e.stopPropagation(); // Prevents the document click listener from firing immediately
-        setActiveMenu(activeMenu === id ? null : id);
+    handleCreateUser,
+    handleSaveEdit,
+    handleToggleStatus,
+    handleResetPassword,
+    handleExportCsv,
+  } = useUserManagement();
+
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const filterMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        filterMenuRef.current &&
+        !filterMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowFilterMenu(false);
+      }
     };
 
-    // --- Action Handlers ---
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-    const handleAddClick = () => {
-        setFormData({ id: 0, name: '', email: '', role: 'Staff', status: 'Active' });
-        setShowAddModal(true);
-    };
+  const roleOptions = useMemo(() => {
+    if (!isAdminCaller) return ROLE_OPTIONS;
+    return ROLE_OPTIONS.filter((role) => role.id !== SUPER_ADMIN_ROLE_ID);
+  }, [isAdminCaller]);
 
-    const handleSaveAdd = () => {
-        if (!formData.name || !formData.email) {
-            alert("Name and email are required.");
-            return;
-        }
-        const newUser = {
-            ...formData,
-            id: Date.now(),
-            lastActive: 'Just now',
-            hidden: false
-        };
-        setUsers([newUser, ...users]);
-        setShowAddModal(false);
-    };
+  const filterRoleOptions = useMemo(() => {
+    return ['ALL', 'Super Admin', 'Admin', 'User'];
+  }, []);
 
-    const handleEditClick = (user: any) => {
-        setFormData({ ...user });
-        setShowEditModal(true);
-        setActiveMenu(null);
-    };
+  const filterStatusOptions = useMemo(() => {
+    return ['ALL', 'Active', 'Inactive'];
+  }, []);
 
-    const handleSaveEdit = () => {
-        setUsers(users.map(u => u.id === formData.id ? { ...u, ...formData } : u));
-        setShowEditModal(false);
-    };
+  const hasActiveFilters =
+    selectedRole !== 'ALL' || selectedStatus !== 'ALL';
 
-    const handleHide = (id: number) => {
-        if (window.confirm("Are you sure you want to hide this user from the list?")) {
-            setUsers(users.map(u => u.id === id ? { ...u, hidden: true } : u));
-        }
-        setActiveMenu(null);
-    };
+  const paddedUsers = useMemo(() => {
+    const missing = Math.max(0, 10 - pagedUsers.length);
+    return [...pagedUsers, ...Array.from({ length: missing }, () => null)];
+  }, [pagedUsers]);
 
-    const handleBlock = (id: number) => {
-        if (window.confirm("Are you sure you want to block this user?")) {
-            setUsers(users.map(u => u.id === id ? { ...u, status: 'Blocked' } : u));
-        }
-        setActiveMenu(null);
-    };
+  const emptyPlaceholderRows = useMemo(() => {
+    return Array.from({ length: 9 }, (_, index) => index);
+  }, []);
 
-    const handleUnblock = (id: number) => {
-        if (window.confirm("Are you sure you want to unblock this user?")) {
-            setUsers(users.map(u => u.id === id ? { ...u, status: 'Active' } : u));
-        }
-        setActiveMenu(null);
-    };
+  const emptyMessage = useMemo(() => {
+    if (searchTerm.trim() || hasActiveFilters) {
+      return 'No users match your filters.';
+    }
 
-    // Helper for matching status badges
-    const getStatusBadge = (status: string) => {
-        if (status === 'Active') return 'badge-success';
-        if (status === 'Blocked') return 'badge-danger';
-        return 'badge-neutral';
-    };
+    return 'No users available.';
+  }, [searchTerm, hasActiveFilters]);
 
-    // --- Search Filter Logic ---
-    const filteredUsers = users.filter(user => {
-        // Skip hidden users
-        if (user.hidden) return false;
-        
-        // If no search term, show all
-        if (!searchTerm) return true;
-
-        const lowerSearch = searchTerm.toLowerCase();
-        return (
-            user.name.toLowerCase().includes(lowerSearch) ||
-            user.email.toLowerCase().includes(lowerSearch) ||
-            user.role.toLowerCase().includes(lowerSearch) ||
-            user.status.toLowerCase().includes(lowerSearch)
-        );
-    });
-
-    return (
-        <div className="space-y-6">
-            {/* Header Actions */}
-            <div className="flex justify-between items-center">
-                <div className="relative w-full max-w-sm hidden sm:block">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="Search users by name, email, or role..."
-                        className="pro-input !pl-9"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-                <div className="flex gap-2">
-                    <button className="btn btn-secondary flex items-center gap-2">
-                        <Filter className="w-4 h-4" /> Filter
-                    </button>
-                    <button className="btn btn-secondary flex items-center gap-2">
-                        <Download className="w-4 h-4" /> Export
-                    </button>
-                    <button onClick={handleAddClick} className="btn btn-primary flex items-center gap-2">
-                        <UserPlus className="w-4 h-4" /> Add User
-                    </button>
-                </div>
-            </div>
-
-            <div className="overflow-visible rounded-xl border border-gray-100 min-h-[300px]">
-                <table className="pro-table min-w-full">
-                    <thead>
-                        <tr>
-                            <th>User</th>
-                            <th>Role</th>
-                            <th>Status</th>
-                            <th>Last Active</th>
-                            <th className="text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredUsers.length > 0 ? (
-                            filteredUsers.map((user) => (
-                                <tr key={user.id}>
-                                    <td className="!font-medium !text-gray-800">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-600 shadow-sm">
-                                                {user.name.charAt(0)}
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-bold text-gray-900 leading-tight">{user.name}</p>
-                                                <p className="text-[10px] text-gray-500 leading-tight">{user.email}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                                            <Shield className="w-3.5 h-3.5 text-gray-400" />
-                                            {user.role}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span className={`badge ${getStatusBadge(user.status)}`}>
-                                            <span className="badge-dot" />{user.status}
-                                        </span>
-                                    </td>
-                                    <td>{user.lastActive}</td>
-                                    <td className="!pr-6">
-                                        <div className="relative flex justify-end">
-                                            <button
-                                                onClick={(e) => toggleMenu(e, user.id)}
-                                                className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                                            >
-                                                <MoreVertical className="w-4 h-4" />
-                                            </button>
-
-                                            {/* Dropdown Menu */}
-                                            {activeMenu === user.id && (
-                                                <div
-                                                    onClick={(e) => e.stopPropagation()} 
-                                                    className="absolute right-0 top-8 mt-1 w-36 bg-white rounded-xl shadow-xl z-[100] border border-gray-100 py-1 overflow-hidden animate-in fade-in zoom-in duration-200"
-                                                >
-                                                    <button
-                                                        className="w-full text-left px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
-                                                        onClick={() => handleEditClick(user)}
-                                                    >
-                                                        <Edit className="w-3.5 h-3.5" /> Edit
-                                                    </button>
-                                                    <button
-                                                        className="w-full text-left px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
-                                                        onClick={() => handleHide(user.id)}
-                                                    >
-                                                        <EyeOff className="w-3.5 h-3.5" /> Hide
-                                                    </button>
-                                                    
-                                                    {user.status === 'Blocked' ? (
-                                                        <button
-                                                            className="w-full text-left px-4 py-2 text-xs font-semibold text-emerald-600 hover:bg-emerald-50 flex items-center gap-2 transition-colors border-t border-gray-50"
-                                                            onClick={() => handleUnblock(user.id)}
-                                                        >
-                                                            <CheckCircle className="w-3.5 h-3.5" /> Unblock
-                                                        </button>
-                                                    ) : (
-                                                        <button
-                                                            className="w-full text-left px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2 transition-colors border-t border-gray-50"
-                                                            onClick={() => handleBlock(user.id)}
-                                                        >
-                                                            <Ban className="w-3.5 h-3.5" /> Block
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan={5} className="text-center py-8 text-gray-500 italic">
-                                    {searchTerm ? 'No users match your search.' : 'No users available.'}
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Add User Modal - Teleported to document.body */}
-            {showAddModal && createPortal(
-                <div className="pro-modal-overlay z-[200]">
-                    <div className="pro-modal max-w-md" onClick={e => e.stopPropagation()}>
-                        <div className="pro-modal-header border-b border-gray-100 pb-4">
-                            <h3>Add New User</h3>
-                            <button onClick={() => setShowAddModal(false)} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button>
-                        </div>
-                        <div className="pro-modal-body space-y-4 pt-4">
-                            <div>
-                                <label className="pro-label">Full Name</label>
-                                <input 
-                                    type="text" 
-                                    className="pro-input" 
-                                    placeholder="e.g. Juan Dela Cruz"
-                                    value={formData.name}
-                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="pro-label">Email Address</label>
-                                <input 
-                                    type="email" 
-                                    className="pro-input" 
-                                    placeholder="e.g. email@pdea.gov.ph"
-                                    value={formData.email}
-                                    onChange={e => setFormData({ ...formData, email: e.target.value })}
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="pro-label">Role</label>
-                                    <select 
-                                        className="pro-select"
-                                        value={formData.role}
-                                        onChange={e => setFormData({ ...formData, role: e.target.value })}
-                                    >
-                                        <option value="Staff">Staff</option>
-                                        <option value="HR Manager">HR Manager</option>
-                                        <option value="Regional Director">Regional Director</option>
-                                        <option value="Administrator">Administrator</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="pro-label">Status</label>
-                                    <select 
-                                        className="pro-select"
-                                        value={formData.status}
-                                        onChange={e => setFormData({ ...formData, status: e.target.value })}
-                                    >
-                                        <option value="Active">Active</option>
-                                        <option value="Inactive">Inactive</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="pro-modal-footer">
-                            <button onClick={() => setShowAddModal(false)} className="btn btn-secondary">Cancel</button>
-                            <button onClick={handleSaveAdd} className="btn btn-primary flex items-center gap-2">
-                                <UserPlus className="w-4 h-4" /> Create User
-                            </button>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
-
-            {/* Edit User Modal - Teleported to document.body */}
-            {showEditModal && createPortal(
-                <div className="pro-modal-overlay z-[200]">
-                    <div className="pro-modal max-w-md" onClick={e => e.stopPropagation()}>
-                        <div className="pro-modal-header border-b border-gray-100 pb-4">
-                            <h3>Edit User</h3>
-                            <button onClick={() => setShowEditModal(false)} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button>
-                        </div>
-                        <div className="pro-modal-body space-y-4 pt-4">
-                            <div>
-                                <label className="pro-label">Full Name</label>
-                                <input 
-                                    type="text" 
-                                    className="pro-input" 
-                                    value={formData.name}
-                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="pro-label">Email Address</label>
-                                <input 
-                                    type="email" 
-                                    className="pro-input" 
-                                    value={formData.email}
-                                    onChange={e => setFormData({ ...formData, email: e.target.value })}
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="pro-label">Role</label>
-                                    <select 
-                                        className="pro-select"
-                                        value={formData.role}
-                                        onChange={e => setFormData({ ...formData, role: e.target.value })}
-                                    >
-                                        <option value="Staff">Staff</option>
-                                        <option value="HR Manager">HR Manager</option>
-                                        <option value="Regional Director">Regional Director</option>
-                                        <option value="Administrator">Administrator</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="pro-label">Status</label>
-                                    <select 
-                                        className="pro-select"
-                                        value={formData.status}
-                                        onChange={e => setFormData({ ...formData, status: e.target.value })}
-                                    >
-                                        <option value="Active">Active</option>
-                                        <option value="Inactive">Inactive</option>
-                                        <option value="Blocked">Blocked</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="pro-modal-footer">
-                            <button onClick={() => setShowEditModal(false)} className="btn btn-secondary">Cancel</button>
-                            <button onClick={handleSaveEdit} className="btn btn-primary flex items-center gap-2">
-                                <Check className="w-4 h-4" /> Save Changes
-                            </button>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="relative w-full max-w-sm hidden sm:block">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            autoComplete="off"
+            placeholder="Search users by name, email, or role..."
+            className="pro-input !pl-9"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
-    );
+
+        <div className="flex flex-wrap gap-2">
+          <div className="relative" ref={filterMenuRef}>
+            <button
+              className="btn btn-secondary flex items-center gap-2"
+              type="button"
+              onClick={() => setShowFilterMenu((prev) => !prev)}
+            >
+              <Filter className="w-4 h-4" />
+              Filter
+            </button>
+
+            {showFilterMenu && (
+              <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-gray-200 bg-white p-4 shadow-lg">
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Role
+                    </label>
+                    <select
+                      className="pro-input"
+                      value={selectedRole}
+                      onChange={(e) => setSelectedRole(e.target.value)}
+                    >
+                      {filterRoleOptions.map((role) => (
+                        <option key={role} value={role}>
+                          {role === 'ALL' ? 'All Roles' : role}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Status
+                    </label>
+                    <select
+                      className="pro-input"
+                      value={selectedStatus}
+                      onChange={(e) => setSelectedStatus(e.target.value)}
+                    >
+                      {filterStatusOptions.map((status) => (
+                        <option key={status} value={status}>
+                          {status === 'ALL' ? 'All Statuses' : status}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        setSelectedRole('ALL');
+                        setSelectedStatus('ALL');
+                      }}
+                      disabled={!hasActiveFilters}
+                    >
+                      Clear
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => setShowFilterMenu(false)}
+                    >
+                      Apply
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button
+            className="btn btn-secondary flex items-center gap-2"
+            type="button"
+            onClick={handleExportCsv}
+          >
+            <Download className="w-4 h-4" />
+            Export
+          </button>
+
+          <button
+            onClick={openAddModal}
+            className="btn btn-primary flex items-center gap-2"
+            type="button"
+          >
+            <UserPlus className="w-4 h-4" />
+            Add User
+          </button>
+        </div>
+      </div>
+
+      {bannerMessage && bannerType && (
+        <div
+          className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+            bannerType === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-rose-200 bg-rose-50 text-rose-700'
+          }`}
+        >
+          {bannerMessage}
+        </div>
+      )}
+
+      <div className="overflow-visible rounded-xl border border-gray-100">
+        <table className="pro-table min-w-full">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Last Active</th>
+              <th className="text-center">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {isLoading ? (
+              <tr>
+                <td colSpan={5} className="text-center py-8 text-gray-500 italic">
+                  Loading users...
+                </td>
+              </tr>
+            ) : filteredUsers.length > 0 ? (
+              paddedUsers.map((user, index) => {
+                if (!user) {
+                  return (
+                    <tr key={`blank-${index}`} className="opacity-60">
+                      <td className="!text-gray-300">--</td>
+                      <td className="text-gray-300">--</td>
+                      <td className="text-gray-300">--</td>
+                      <td className="text-gray-300">--</td>
+                      <td className="text-center text-gray-300">--</td>
+                    </tr>
+                  );
+                }
+
+                const statusActionLabel = user.isActive ? 'Deactivate User' : 'Activate User';
+                const isProtectedSuperAdminRow =
+                  isAdminCaller && user.roleId === SUPER_ADMIN_ROLE_ID;
+                const canToggleStatus = isSuperAdminCaller;
+
+                return (
+                  <tr key={user.id}>
+                    <td className="!font-medium !text-gray-800">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-600 shadow-sm">
+                          {user.fullName.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-900 leading-tight">
+                            {user.fullName}
+                          </p>
+                          <p className="text-[10px] text-gray-500 leading-tight">
+                            {user.email}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td>
+                      <div className="flex items-center gap-1.5 text-sm text-gray-700">
+                        <Shield className="w-3.5 h-3.5 text-gray-400" />
+                        {user.roleLabel}
+                      </div>
+                    </td>
+
+                    <td>
+                      <span className={`badge ${user.isActive ? 'badge-success' : 'badge-neutral'}`}>
+                        <span className="badge-dot" />
+                        {user.statusLabel}
+                      </span>
+                    </td>
+
+                    <td>{user.lastActiveLabel}</td>
+
+                    <td className="text-center">
+                      <div className="flex items-center justify-center gap-3">
+                        <button
+                          onClick={() => openEditModal(user)}
+                          className={`p-1.5 rounded-md transition ${
+                            isProtectedSuperAdminRow
+                              ? 'text-gray-300 cursor-not-allowed'
+                              : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50'
+                          }`}
+                          type="button"
+                          title={isProtectedSuperAdminRow ? 'Only Super Admin can edit this user' : 'Edit User'}
+                          aria-label="Edit User"
+                          disabled={isProtectedSuperAdminRow}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          onClick={() => openResetPasswordModal(user)}
+                          className={`p-1.5 rounded-md transition ${
+                            isProtectedSuperAdminRow
+                              ? 'text-gray-300 cursor-not-allowed'
+                              : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'
+                          }`}
+                          type="button"
+                          title={isProtectedSuperAdminRow ? 'Only Super Admin can reset this password' : 'Reset Password'}
+                          aria-label="Reset Password"
+                          disabled={isProtectedSuperAdminRow}
+                        >
+                          <KeyRound className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          onClick={() => openStatusConfirmModal(user)}
+                          className={`p-1.5 rounded-md transition ${
+                            !canToggleStatus || isProtectedSuperAdminRow
+                              ? 'text-gray-300 cursor-not-allowed'
+                              : user.isActive
+                                ? 'text-slate-500 hover:text-rose-600 hover:bg-rose-50'
+                                : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50'
+                          }`}
+                          type="button"
+                          title={
+                            !canToggleStatus
+                              ? 'Only Super Admin can change user status'
+                              : isProtectedSuperAdminRow
+                                ? 'Only Super Admin can change this user status'
+                                : statusActionLabel
+                          }
+                          aria-label={statusActionLabel}
+                          disabled={!canToggleStatus || isProtectedSuperAdminRow}
+                        >
+                          {user.isActive ? (
+                            <Ban className="w-4 h-4" />
+                          ) : (
+                            <CheckCircle className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <>
+                <tr>
+                  <td colSpan={5} className="text-center py-8 text-gray-500 italic">
+                    {emptyMessage}
+                  </td>
+                </tr>
+
+                {emptyPlaceholderRows.map((index) => (
+                  <tr key={`empty-placeholder-${index}`} className="opacity-60">
+                    <td className="!text-gray-300">--</td>
+                    <td className="text-gray-300">--</td>
+                    <td className="text-gray-300">--</td>
+                    <td className="text-gray-300">--</td>
+                    <td className="text-center text-gray-300">--</td>
+                  </tr>
+                ))}
+              </>
+            )}
+          </tbody>
+        </table>
+
+        {!isLoading && filteredUsers.length > 0 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+            <button
+              className="btn btn-secondary"
+              onClick={() => setPage((prev) => prev - 1)}
+              disabled={safePage === 1}
+            >
+              Prev
+            </button>
+
+            <div className="text-sm text-gray-500">
+              Page {safePage} / {totalPages}
+            </div>
+
+            <button
+              className="btn btn-secondary"
+              onClick={() => setPage((prev) => prev + 1)}
+              disabled={safePage === totalPages}
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </div>
+
+      <AddUserModal
+        isOpen={showAddModal}
+        isSubmitting={isSubmitting}
+        formData={formData}
+        roleOptions={roleOptions}
+        onClose={closeAddModal}
+        onChange={setFormData}
+        onSubmit={handleCreateUser}
+      />
+
+      <EditUserModal
+        isOpen={showEditModal}
+        isSubmitting={isSubmitting}
+        formData={formData}
+        roleOptions={roleOptions}
+        onClose={closeEditModal}
+        onChange={setFormData}
+        onSubmit={handleSaveEdit}
+      />
+
+      <ResetPasswordModal
+        isOpen={showResetPasswordModal}
+        isSubmitting={isSubmitting}
+        data={passwordResetData}
+        onClose={closeResetPasswordModal}
+        onChange={setPasswordResetData}
+        onSubmit={handleResetPassword}
+      />
+
+      <UserStatusModal
+        isOpen={showStatusConfirmModal}
+        isSubmitting={isSubmitting}
+        data={statusConfirmData}
+        onClose={closeStatusConfirmModal}
+        onSubmit={handleToggleStatus}
+      />
+    </div>
+  );
 };
 
 export default UserManagement;

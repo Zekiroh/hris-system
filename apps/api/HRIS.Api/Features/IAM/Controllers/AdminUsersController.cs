@@ -14,22 +14,53 @@ namespace HRIS.Api.Features.IAM.Controllers;
 [Authorize(Roles = "SUPER_ADMIN,ADMIN")]
 public class AdminUsersController : ControllerBase
 {
+    private const int SuperAdminRoleId = 1;
+
     private readonly AppDbContext _db;
     private readonly IActivityLogger _logger;
+    private readonly IAdminUsersService _adminUsersService;
 
-    public AdminUsersController(AppDbContext db, IActivityLogger logger)
+    public AdminUsersController(
+        AppDbContext db,
+        IActivityLogger logger,
+        IAdminUsersService adminUsersService)
     {
         _db = db;
         _logger = logger;
+        _adminUsersService = adminUsersService;
+    }
+
+    private string? GetCallerRole()
+    {
+        return
+            User.FindFirst("role")?.Value ??
+            User.FindFirst(ClaimTypes.Role)?.Value;
     }
 
     private bool IsAdminCaller()
     {
-        var role =
-            User.FindFirst("role")?.Value ??
-            User.FindFirst(ClaimTypes.Role)?.Value;
+        return string.Equals(GetCallerRole(), "ADMIN", StringComparison.OrdinalIgnoreCase);
+    }
 
-        return string.Equals(role, "ADMIN", StringComparison.OrdinalIgnoreCase);
+    private int? GetCallerUserId()
+    {
+        var raw =
+            User.FindFirst("userId")?.Value ??
+            User.FindFirst("id")?.Value ??
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+            User.FindFirst("sub")?.Value;
+
+        return int.TryParse(raw, out var id) ? id : null;
+    }
+
+    private bool IsAdminTryingToAssignSuperAdmin(int requestedRoleId)
+    {
+        return IsAdminCaller() && requestedRoleId == SuperAdminRoleId;
+    }
+
+    private bool IsAdminTryingToModifySuperAdmin(User targetUser)
+    {
+        return IsAdminCaller() && targetUser.RoleId == SuperAdminRoleId;
     }
 
     private void AddAudit(string action, string? targetType, string? targetId, string? summary)
@@ -52,20 +83,7 @@ public class AdminUsersController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> List()
     {
-        var users = await _db.Users
-            .AsNoTracking()
-            .OrderBy(u => u.Id)
-            .Select(u => new
-            {
-                id = u.Id,
-                fullName = u.FullName,
-                email = u.Email,
-                roleId = u.RoleId,
-                isActive = u.IsActive,
-                updatedAt = u.UpdatedAt
-            })
-            .ToListAsync();
-
+        var users = await _adminUsersService.GetAdminUsersAsync();
         return Ok(users);
     }
 
@@ -77,6 +95,9 @@ public class AdminUsersController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
             return BadRequest("Email and Password are required.");
         if (request.Password.Length < 8) return BadRequest("Password must be at least 8 characters.");
+
+        if (IsAdminTryingToAssignSuperAdmin(request.RoleId))
+            return Forbid();
 
         var fullName = request.FullName.Trim();
         var email = request.Email.Trim();
@@ -101,6 +122,7 @@ public class AdminUsersController : ControllerBase
         };
 
         _db.Users.Add(user);
+        await _db.SaveChangesAsync();
 
         AddAudit(
             action: "USER_CREATE",
@@ -128,8 +150,8 @@ public class AdminUsersController : ControllerBase
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user is null) return NotFound("User not found.");
 
-        // ADMIN cannot modify SUPER_ADMIN
-        if (IsAdminCaller() && user.RoleId == 1) return Forbid();
+        if (IsAdminTryingToModifySuperAdmin(user))
+            return Forbid();
 
         user.IsActive = request.IsActive;
         user.UpdatedAt = DateTime.UtcNow;
@@ -164,8 +186,11 @@ public class AdminUsersController : ControllerBase
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user is null) return NotFound("User not found.");
 
-        // ADMIN cannot modify SUPER_ADMIN
-        if (IsAdminCaller() && user.RoleId == 1) return Forbid();
+        if (IsAdminTryingToModifySuperAdmin(user))
+            return Forbid();
+
+        if (IsAdminTryingToAssignSuperAdmin(request.RoleId))
+            return Forbid();
 
         var email = request.Email.Trim();
         var normalizedEmail = email.ToUpperInvariant();
@@ -203,7 +228,7 @@ public class AdminUsersController : ControllerBase
     }
 
     [HttpPatch("{id:int}/password")]
-    public async Task<IActionResult> ResetPassword(int id, [FromBody] ResetPasswordRequest request)
+    public async Task<IActionResult> ResetPassword(int id, [FromBody] AdminResetUserPasswordRequest request)
     {
         if (request is null) return BadRequest("Request body is required.");
         if (string.IsNullOrWhiteSpace(request.NewPassword)) return BadRequest("New password is required.");
@@ -212,8 +237,8 @@ public class AdminUsersController : ControllerBase
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user is null) return NotFound("User not found.");
 
-        // ADMIN cannot modify SUPER_ADMIN
-        if (IsAdminCaller() && user.RoleId == 1) return Forbid();
+        if (IsAdminTryingToModifySuperAdmin(user))
+            return Forbid();
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
         user.UpdatedAt = DateTime.UtcNow;

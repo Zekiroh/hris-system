@@ -82,7 +82,7 @@ function GuestOnly({ children }: { children: React.ReactNode }) {
  */
 function AdminOnly({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const role = user?.role; // "SUPER_ADMIN" | "ADMIN" | "USER"
+  const role = user?.role;
   const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
 
   if (!isAdmin) {
