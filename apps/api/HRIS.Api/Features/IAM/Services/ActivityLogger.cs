@@ -14,7 +14,7 @@ public interface IActivityLogger
         string? summary,
         string? ipAddress,
         string? userAgent,
-        int? overrideUserId = null,
+        long? overrideUserId = null,
         string? overrideEmail = null,
         string? overrideRole = null
     );
@@ -31,7 +31,7 @@ public class ActivityLogger : IActivityLogger
         string? summary,
         string? ipAddress,
         string? userAgent,
-        int? overrideUserId = null,
+        long? overrideUserId = null,
         string? overrideEmail = null,
         string? overrideRole = null
     )
@@ -43,6 +43,11 @@ public class ActivityLogger : IActivityLogger
             : TryGetActorUserId(user);
 
         if (actorUserId is null) return null;
+
+        if (actorUserId.Value > int.MaxValue)
+        {
+            return null;
+        }
 
         var email = hasActorOverride
             ? (overrideEmail ?? "unknown")
@@ -58,7 +63,7 @@ public class ActivityLogger : IActivityLogger
 
         return new ActivityLog
         {
-            ActorUserId = actorUserId.Value,
+            ActorUserId = (int)actorUserId.Value,
             ActorEmail = email,
             ActorRole = role,
             Action = action,
@@ -72,7 +77,7 @@ public class ActivityLogger : IActivityLogger
         };
     }
 
-    private static int? TryGetActorUserId(ClaimsPrincipal user)
+    private static long? TryGetActorUserId(ClaimsPrincipal user)
     {
         var raw =
             user.FindFirst("userId")?.Value ??
@@ -80,6 +85,6 @@ public class ActivityLogger : IActivityLogger
             user.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
             user.FindFirst("sub")?.Value;
 
-        return int.TryParse(raw, out var id) ? id : null;
+        return long.TryParse(raw, out var id) ? id : null;
     }
 }

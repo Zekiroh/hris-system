@@ -70,7 +70,7 @@ public class AuthController : ControllerBase
                 summary: $"Inactive account login attempt for {email}",
                 ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
                 userAgent: Request.Headers["User-Agent"].ToString(),
-                overrideUserId: (int)user.Id,
+                overrideUserId: user.Id,
                 overrideEmail: user.Email,
                 overrideRole: user.Role?.NormalizedName ?? "UNKNOWN"
             );
@@ -103,7 +103,7 @@ public class AuthController : ControllerBase
                 summary: $"Failed login attempt for {user.Email}",
                 ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
                 userAgent: Request.Headers["User-Agent"].ToString(),
-                overrideUserId: (int)user.Id,
+                overrideUserId: user.Id,
                 overrideEmail: user.Email,
                 overrideRole: user.Role.NormalizedName
             );
@@ -135,7 +135,7 @@ public class AuthController : ControllerBase
             summary: $"User {user.Email} logged in",
             ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
             userAgent: Request.Headers["User-Agent"].ToString(),
-            overrideUserId: (int)user.Id,
+            overrideUserId: user.Id,
             overrideEmail: user.Email,
             overrideRole: user.Role.NormalizedName
         );
@@ -174,25 +174,28 @@ public class AuthController : ControllerBase
         if (string.IsNullOrWhiteSpace(userIdValue) || !long.TryParse(userIdValue, out var userId))
             return Ok();
 
-        var user = await _db.Users
-            .Include(u => u.Role)
-            .FirstOrDefaultAsync(u => u.Id == userId);
+        var email =
+            User.FindFirst("email")?.Value ??
+            User.FindFirst(ClaimTypes.Email)?.Value ??
+            "unknown";
 
-        if (user is null)
-            return Ok();
+        var role =
+            User.FindFirst("role")?.Value ??
+            User.FindFirst(ClaimTypes.Role)?.Value ??
+            "UNKNOWN";
 
         var log = _logger.Build(
             user: User,
             action: "LOGOUT",
             module: "IAM",
             targetType: "User",
-            targetId: user.Id.ToString(),
-            summary: $"User {user.Email} logged out",
+            targetId: userId.ToString(),
+            summary: $"User {email} logged out",
             ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
             userAgent: Request.Headers["User-Agent"].ToString(),
-            overrideUserId: (int)user.Id,
-            overrideEmail: user.Email,
-            overrideRole: user.Role.NormalizedName
+            overrideUserId: userId,
+            overrideEmail: email,
+            overrideRole: role
         );
 
         if (log is not null)
