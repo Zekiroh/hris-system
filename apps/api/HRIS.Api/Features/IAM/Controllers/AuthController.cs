@@ -129,7 +129,7 @@ public class AuthController : ControllerBase
                 userAgent: Request.Headers["User-Agent"].ToString(),
                 overrideUserId: user.Id,
                 overrideEmail: user.Email,
-                overrideRole: user.Role.NormalizedName
+                overrideRole: user.Role?.NormalizedName ?? "UNKNOWN"
             );
 
             if (failedLog is not null)
@@ -161,7 +161,7 @@ public class AuthController : ControllerBase
             userAgent: Request.Headers["User-Agent"].ToString(),
             overrideUserId: user.Id,
             overrideEmail: user.Email,
-            overrideRole: user.Role.NormalizedName
+            overrideRole: user.Role?.NormalizedName ?? "UNKNOWN"
         );
 
         if (log is not null)
@@ -182,7 +182,7 @@ public class AuthController : ControllerBase
             user.Email,
             user.FullName,
             user.RoleId,
-            user.Role.NormalizedName,
+            user.Role?.NormalizedName ?? "UNKNOWN",
             token
         ));
     }

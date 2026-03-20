@@ -51,8 +51,8 @@ public class AdminUsersService : IAdminUsersService
     {
         var user = new User
         {
-            FullName = request.FullName.Trim(),
-            Email = request.Email.Trim(),
+            FullName = (request.FullName ?? string.Empty).Trim(),
+            Email = (request.Email ?? string.Empty).Trim(),
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             RoleId = request.RoleId,
             IsActive = true,
@@ -78,8 +78,8 @@ public class AdminUsersService : IAdminUsersService
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null) return null;
 
-        user.FullName = request.FullName.Trim();
-        user.Email = request.Email.Trim();
+        user.FullName = (request.FullName ?? string.Empty).Trim();
+        user.Email = (request.Email ?? string.Empty).Trim();
         user.RoleId = request.RoleId;
         user.UpdatedAt = DateTime.UtcNow;
 
