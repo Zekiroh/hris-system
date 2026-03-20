@@ -14,6 +14,8 @@ namespace HRIS.Api.Features.IAM.Controllers;
 [Route("auth")]
 public class AuthController : ControllerBase
 {
+    private const long AnonymousActorUserId = 0;
+
     private readonly AppDbContext _db;
     private readonly IJwtTokenService _jwt;
     private readonly IHostEnvironment _env;
@@ -64,7 +66,10 @@ public class AuthController : ControllerBase
                 targetId: null,
                 summary: $"Failed login attempt for unknown account {email}",
                 ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
-                userAgent: Request.Headers["User-Agent"].ToString()
+                userAgent: Request.Headers["User-Agent"].ToString(),
+                overrideUserId: AnonymousActorUserId,
+                overrideEmail: email,
+                overrideRole: "ANONYMOUS"
             );
 
             if (failedLog is not null)
