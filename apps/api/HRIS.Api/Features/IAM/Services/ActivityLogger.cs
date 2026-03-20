@@ -36,20 +36,25 @@ public class ActivityLogger : IActivityLogger
         string? overrideRole = null
     )
     {
-        var actorUserId = overrideUserId ?? TryGetActorUserId(user);
+        var hasActorOverride = overrideUserId.HasValue;
+
+        var actorUserId = hasActorOverride
+            ? overrideUserId
+            : TryGetActorUserId(user);
+
         if (actorUserId is null) return null;
 
-        var email =
-            overrideEmail ??
-            user.FindFirst("email")?.Value ??
-            user.FindFirst(ClaimTypes.Email)?.Value ??
-            "unknown";
+        var email = hasActorOverride
+            ? (overrideEmail ?? "unknown")
+            : (user.FindFirst("email")?.Value ??
+               user.FindFirst(ClaimTypes.Email)?.Value ??
+               "unknown");
 
-        var role =
-            overrideRole ??
-            user.FindFirst("role")?.Value ??
-            user.FindFirst(ClaimTypes.Role)?.Value ??
-            "unknown";
+        var role = hasActorOverride
+            ? (overrideRole ?? "unknown")
+            : (user.FindFirst("role")?.Value ??
+               user.FindFirst(ClaimTypes.Role)?.Value ??
+               "unknown");
 
         return new ActivityLog
         {
