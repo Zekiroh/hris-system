@@ -1,3 +1,4 @@
+using System.Data;
 using System.Security.Claims;
 using HRIS.Api.Data;
 using HRIS.Api.Features.IAM.DTOs;
@@ -61,12 +62,6 @@ public class AdminUsersController : ControllerBase
     private bool IsAdminTryingToModifySuperAdmin(User targetUser)
     {
         return IsAdminCaller() && targetUser.RoleId == SuperAdminRoleId;
-    }
-
-    private async Task<bool> IsLastSuperAdminAsync(long userId)
-    {
-        var superAdminCount = await _db.Users.CountAsync(u => u.RoleId == SuperAdminRoleId);
-        return superAdminCount == 1 && userId > 0;
     }
 
     private void AddAudit(string action, string? targetType, string? targetId, string? summary)
@@ -202,6 +197,8 @@ public class AdminUsersController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Email))
             return BadRequest("Email is required.");
 
+        await using var tx = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user is null) return NotFound("User not found.");
 
@@ -213,8 +210,8 @@ public class AdminUsersController : ControllerBase
 
         if (user.RoleId == SuperAdminRoleId && request.RoleId != SuperAdminRoleId)
         {
-            var isLastSuperAdmin = await IsLastSuperAdminAsync(user.Id);
-            if (isLastSuperAdmin)
+            var superAdminCount = await _db.Users.CountAsync(u => u.RoleId == SuperAdminRoleId);
+            if (superAdminCount <= 1)
                 return BadRequest("Cannot demote the last super admin.");
         }
 
@@ -251,6 +248,7 @@ public class AdminUsersController : ControllerBase
         );
 
         await _db.SaveChangesAsync();
+        await tx.CommitAsync();
 
         return Ok(new
         {
