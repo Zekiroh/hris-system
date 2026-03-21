@@ -1004,7 +1004,7 @@ textarea {
   padding: 0 var(--spacing-md);
 }
 
-/* Password autofill */
+/* Login password autofill */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
@@ -1012,4 +1012,13 @@ input:-webkit-autofill:focus {
   caret-color: #ffffff;
   box-shadow: 0 0 0px 1000px rgba(255, 255, 255, 0.10) inset;
   transition: background-color 9999s ease-in-out 0s;
+}
+
+/* Override autofill styles for password field in Admin Settings */
+.pro-input:-webkit-autofill,
+.pro-input:-webkit-autofill:hover,
+.pro-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--color-text);
+  caret-color: var(--color-text);
+  box-shadow: 0 0 0px 1000px var(--color-surface) inset;
 }

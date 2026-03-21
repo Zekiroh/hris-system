@@ -1,8 +1,10 @@
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using HRIS.Api.Data;
 using HRIS.Api.Features.IAM.DTOs;
 using HRIS.Api.Features.IAM.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,15 +14,23 @@ namespace HRIS.Api.Features.IAM.Controllers;
 [Route("auth")]
 public class AuthController : ControllerBase
 {
+    private const long AnonymousActorUserId = 0;
+
     private readonly AppDbContext _db;
     private readonly IJwtTokenService _jwt;
     private readonly IHostEnvironment _env;
+    private readonly IActivityLogger _logger;
 
-    public AuthController(AppDbContext db, IJwtTokenService jwt, IHostEnvironment env)
+    public AuthController(
+        AppDbContext db,
+        IJwtTokenService jwt,
+        IHostEnvironment env,
+        IActivityLogger logger)
     {
         _db = db;
         _jwt = jwt;
         _env = env;
+        _logger = logger;
     }
 
     public sealed record LoginRequest(string Email, string Password);
@@ -46,23 +56,191 @@ public class AuthController : ControllerBase
             .Include(u => u.Role)
             .FirstOrDefaultAsync(u => u.NormalizedEmail == normalizedEmail);
 
-        if (user is null || !user.IsActive)
+        if (user is null)
+        {
+            var failedLog = _logger.Build(
+                user: User,
+                action: "LOGIN_FAILED",
+                module: "IAM",
+                targetType: "User",
+                targetId: null,
+                summary: $"Failed login attempt for unknown account {email}",
+                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
+                userAgent: Request.Headers["User-Agent"].ToString(),
+                overrideUserId: AnonymousActorUserId,
+                overrideEmail: email,
+                overrideRole: "ANONYMOUS"
+            );
+
+            if (failedLog is not null)
+            {
+                try
+                {
+                    _db.ActivityLogs.Add(failedLog);
+                    await _db.SaveChangesAsync();
+                }
+                catch
+                {
+                    // do not break auth flow if audit logging fails
+                }
+            }
+
             return Unauthorized("Invalid credentials.");
+        }
+
+        if (!user.IsActive)
+        {
+            var failedLog = _logger.Build(
+                user: User,
+                action: "LOGIN_FAILED",
+                module: "IAM",
+                targetType: "User",
+                targetId: user.Id.ToString(),
+                summary: $"Inactive account login attempt for {email}",
+                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
+                userAgent: Request.Headers["User-Agent"].ToString(),
+                overrideUserId: user.Id,
+                overrideEmail: user.Email,
+                overrideRole: user.Role?.NormalizedName ?? "UNKNOWN"
+            );
+
+            if (failedLog is not null)
+            {
+                try
+                {
+                    _db.ActivityLogs.Add(failedLog);
+                    await _db.SaveChangesAsync();
+                }
+                catch
+                {
+                    // do not break auth flow if audit logging fails
+                }
+            }
+
+            return Unauthorized("Your account is inactive. Please contact an administrator.");
+        }
 
         var ok = BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash);
         if (!ok)
+        {
+            var failedLog = _logger.Build(
+                user: User,
+                action: "LOGIN_FAILED",
+                module: "IAM",
+                targetType: "User",
+                targetId: user.Id.ToString(),
+                summary: $"Failed login attempt for {user.Email}",
+                ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
+                userAgent: Request.Headers["User-Agent"].ToString(),
+                overrideUserId: user.Id,
+                overrideEmail: user.Email,
+                overrideRole: user.Role?.NormalizedName ?? "UNKNOWN"
+            );
+
+            if (failedLog is not null)
+            {
+                try
+                {
+                    _db.ActivityLogs.Add(failedLog);
+                    await _db.SaveChangesAsync();
+                }
+                catch
+                {
+                    // do not break auth flow if audit logging fails
+                }
+            }
+
             return Unauthorized("Invalid credentials.");
+        }
 
         var token = _jwt.CreateToken(user);
+
+        var log = _logger.Build(
+            user: User,
+            action: "LOGIN",
+            module: "IAM",
+            targetType: "User",
+            targetId: user.Id.ToString(),
+            summary: $"User {user.Email} logged in",
+            ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
+            userAgent: Request.Headers["User-Agent"].ToString(),
+            overrideUserId: user.Id,
+            overrideEmail: user.Email,
+            overrideRole: user.Role?.NormalizedName ?? "UNKNOWN"
+        );
+
+        if (log is not null)
+        {
+            try
+            {
+                _db.ActivityLogs.Add(log);
+                await _db.SaveChangesAsync();
+            }
+            catch
+            {
+                // do not break auth flow if audit logging fails
+            }
+        }
 
         return Ok(new LoginResponse(
             user.Id,
             user.Email,
             user.FullName,
             user.RoleId,
-            user.Role.NormalizedName,
+            user.Role?.NormalizedName ?? "UNKNOWN",
             token
         ));
+    }
+
+    [Authorize]
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout()
+    {
+        var userIdValue =
+            User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+            User.FindFirstValue("sub");
+
+        if (string.IsNullOrWhiteSpace(userIdValue) || !long.TryParse(userIdValue, out var userId))
+            return Ok();
+
+        var email =
+            User.FindFirst("email")?.Value ??
+            User.FindFirst(ClaimTypes.Email)?.Value ??
+            "unknown";
+
+        var role =
+            User.FindFirst("role")?.Value ??
+            User.FindFirst(ClaimTypes.Role)?.Value ??
+            "UNKNOWN";
+
+        var log = _logger.Build(
+            user: User,
+            action: "LOGOUT",
+            module: "IAM",
+            targetType: "User",
+            targetId: userId.ToString(),
+            summary: $"User {email} logged out",
+            ipAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
+            userAgent: Request.Headers["User-Agent"].ToString(),
+            overrideUserId: userId,
+            overrideEmail: email,
+            overrideRole: role
+        );
+
+        if (log is not null)
+        {
+            try
+            {
+                _db.ActivityLogs.Add(log);
+                await _db.SaveChangesAsync();
+            }
+            catch
+            {
+                // do not break logout flow if audit logging fails
+            }
+        }
+
+        return Ok();
     }
 
     [HttpPost("forgot-password")]
