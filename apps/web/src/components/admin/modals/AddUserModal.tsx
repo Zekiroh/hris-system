@@ -135,9 +135,7 @@ const AddUserModal = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="pro-label">
-                Role <span className="text-red-500">*</span>
-              </label>
+              <label className="pro-label">Role</label>
               <select
                 className="pro-select"
                 value={formData.roleId}
@@ -155,9 +153,7 @@ const AddUserModal = ({
             </div>
 
             <div>
-              <label className="pro-label">
-                Status <span className="text-red-500">*</span>
-              </label>
+              <label className="pro-label">Status</label>
               <select
                 className="pro-select"
                 value={formData.isActive ? 'active' : 'inactive'}

@@ -100,7 +100,9 @@ const EditUserModal = ({
           </div>
 
           <div>
-            <label className="pro-label">Email Address</label>
+            <label className="pro-label">
+              Email Address <span className="text-red-500">*</span>
+            </label>
             <input
               type="email"
               name="admin-edit-email"
