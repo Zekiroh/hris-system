@@ -95,7 +95,9 @@ const AddUserModal = ({
           </div>
 
           <div>
-            <label className="pro-label">Email Address</label>
+            <label className="pro-label">
+              Email Address <span className="text-red-500">*</span>
+            </label>
             <input
               type="email"
               name="admin-create-email"
@@ -110,7 +112,9 @@ const AddUserModal = ({
           </div>
 
           <div>
-            <label className="pro-label">Password</label>
+            <label className="pro-label">
+              Password <span className="text-red-500">*</span>
+            </label>
             <input
               type="password"
               name="admin-create-password"
@@ -126,13 +130,16 @@ const AddUserModal = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="pro-label">Role</label>
+              <label className="pro-label">
+                Role <span className="text-red-500">*</span>
+              </label>
               <select
                 className="pro-select"
                 value={formData.roleId}
-                onChange={(e) =>
-                  onChange((prev) => ({ ...prev, roleId: Number(e.target.value) }))
-                }
+                onChange={(e) => {
+                  onClearError();
+                  onChange((prev) => ({ ...prev, roleId: Number(e.target.value) }));
+                }}
               >
                 {roleOptions.map((role) => (
                   <option key={role.id} value={role.id}>
@@ -143,16 +150,19 @@ const AddUserModal = ({
             </div>
 
             <div>
-              <label className="pro-label">Status</label>
+              <label className="pro-label">
+                Status <span className="text-red-500">*</span>
+              </label>
               <select
                 className="pro-select"
                 value={formData.isActive ? 'active' : 'inactive'}
-                onChange={(e) =>
+                onChange={(e) => {
+                  onClearError();
                   onChange((prev) => ({
                     ...prev,
                     isActive: e.target.value === 'active',
-                  }))
-                }
+                  }));
+                }}
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>

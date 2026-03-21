@@ -104,10 +104,38 @@ export function validateStrongPassword(password: string) {
   return null;
 }
 
+function hasInvalidNameCharacters(value: string) {
+  return !/^[A-Za-zÀ-ÿ' -]+$/.test(value);
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 export function validateUserForm(form: UserFormState) {
-  if (!form.firstName.trim()) return 'First name is required.';
-  if (!form.lastName.trim()) return 'Last name is required.';
-  if (!form.email.trim()) return 'Email is required.';
+  const firstName = form.firstName.trim();
+  const lastName = form.lastName.trim();
+  const email = form.email.trim();
+
+  if (!firstName) return 'First name is required.';
+  if (firstName.length < 2) return 'First name must be at least 2 characters.';
+  if (hasInvalidNameCharacters(firstName)) {
+    return 'First name contains invalid characters.';
+  }
+
+  if (!lastName) return 'Last name is required.';
+  if (lastName.length < 2) return 'Last name must be at least 2 characters.';
+  if (hasInvalidNameCharacters(lastName)) {
+    return 'Last name contains invalid characters.';
+  }
+
+  if (!email) return 'Email address is required.';
+  if (!isValidEmail(email)) return 'Enter a valid email address.';
+
+  if (!ROLE_OPTIONS.some((role) => role.id === form.roleId)) {
+    return 'Please select a valid role.';
+  }
+
   return null;
 }
 

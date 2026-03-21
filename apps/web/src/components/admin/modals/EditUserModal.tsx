@@ -100,7 +100,9 @@ const EditUserModal = ({
           </div>
 
           <div>
-            <label className="pro-label">Email Address</label>
+            <label className="pro-label">
+              Email Address <span className="text-red-500">*</span>
+            </label>
             <input
               type="email"
               name="admin-edit-email"
@@ -116,7 +118,9 @@ const EditUserModal = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="pro-label">Role</label>
+              <label className="pro-label">
+                Role <span className="text-red-500">*</span>
+              </label>
               <select
                 className="pro-select"
                 value={formData.roleId}
@@ -137,7 +141,9 @@ const EditUserModal = ({
             </div>
 
             <div>
-              <label className="pro-label">Status</label>
+              <label className="pro-label">
+                Status <span className="text-red-500">*</span>
+              </label>
               <select
                 className="pro-select"
                 value={formData.isActive ? 'active' : 'inactive'}
