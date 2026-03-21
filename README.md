@@ -1,10 +1,10 @@
-# Full-Stack Enterprise System
+# HRIS System
 
-Full-stack enterprise application developed during an internship. The repository follows a monorepo structure that consolidates the web client, mobile client, and backend API into a single codebase to maintain consistency, structure, and organized team development.
+Full-stack enterprise application developed during an internship. The repository follows a structure that consolidates the web client, mobile client, and backend API into a single codebase to maintain consistency, structure, and organized team development.
 
 ## Overview
 
-The system is designed to support common enterprise workflows and administrative processes. The monorepo structure enables:
+The system is designed to support common enterprise workflows and administrative processes. The structure enables:
 
 - Centralized development
 - Shared code between web and mobile applications
