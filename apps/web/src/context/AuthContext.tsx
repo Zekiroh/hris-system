@@ -21,32 +21,38 @@ export type AuthUser = {
 
 type LoginResponse = AuthUser & { token: string };
 
-// UI-only: login tab selection (NOT the backend role)
 type LoginRole = "USER" | "ADMIN";
 
 type AuthContextType = {
   user: AuthUser | null;
   token: string | null;
   isLoggedIn: boolean;
-
   loginRole: LoginRole;
   setLoginRole: (role: LoginRole) => void;
-
   login: (email: string, password: string, remember: boolean) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
+};
+
+type SharedSessionAuthPayload = {
+  user: AuthUser;
+  token: string;
+  ts: number;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
-// Storage keys (single source of truth)
 const AUTH_USER_KEY = "auth.user";
 const AUTH_TOKEN_KEY = "auth.token";
 const AUTH_LOGIN_ROLE_KEY = "auth.loginRole";
+const AUTH_REMEMBER_KEY = "auth.remember";
 
-// Legacy keys from old attempts (we will cleanup)
 const LEGACY_KEYS = ["token", "ui.loginRole"] as const;
+
+const SESSION_AUTH_REQUEST_KEY = "auth.session.request";
+const SESSION_AUTH_RESPONSE_KEY = "auth.session.response";
+const SESSION_AUTH_LOGOUT_KEY = "auth.session.logout";
 
 function safeJsonParse<T>(raw: string | null): T | null {
   if (!raw) return null;
@@ -64,16 +70,54 @@ function cleanupLegacyKeys() {
   }
 }
 
+function clearStoredAuth() {
+  localStorage.removeItem(AUTH_USER_KEY);
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem(AUTH_REMEMBER_KEY);
+
+  sessionStorage.removeItem(AUTH_USER_KEY);
+  sessionStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+function writePersistentAuth(user: AuthUser, token: string) {
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  localStorage.setItem(AUTH_TOKEN_KEY, token);
+  localStorage.setItem(AUTH_REMEMBER_KEY, "true");
+
+  sessionStorage.removeItem(AUTH_USER_KEY);
+  sessionStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+function writeSessionAuth(user: AuthUser, token: string) {
+  sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+
+  localStorage.removeItem(AUTH_USER_KEY);
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.setItem(AUTH_REMEMBER_KEY, "false");
+}
+
 function loadInitialAuth(): { user: AuthUser | null; token: string | null } {
-  // Prefer localStorage first (remembered), then sessionStorage (temporary)
-  const rawUser = localStorage.getItem(AUTH_USER_KEY) ?? sessionStorage.getItem(AUTH_USER_KEY);
-  const rawToken = localStorage.getItem(AUTH_TOKEN_KEY) ?? sessionStorage.getItem(AUTH_TOKEN_KEY);
+  const remembered = localStorage.getItem(AUTH_REMEMBER_KEY) === "true";
 
-  const user = safeJsonParse<AuthUser>(rawUser);
-  const token = rawToken ?? null;
+  if (remembered) {
+    const user = safeJsonParse<AuthUser>(localStorage.getItem(AUTH_USER_KEY));
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
-  // if one is missing, treat as logged out
-  if (!user || !token) return { user: null, token: null };
+    if (!user || !token) {
+      clearStoredAuth();
+      return { user: null, token: null };
+    }
+
+    return { user, token };
+  }
+
+  const user = safeJsonParse<AuthUser>(sessionStorage.getItem(AUTH_USER_KEY));
+  const token = sessionStorage.getItem(AUTH_TOKEN_KEY);
+
+  if (!user || !token) {
+    return { user: null, token: null };
+  }
 
   return { user, token };
 }
@@ -84,7 +128,6 @@ function loadInitialLoginRole(): LoginRole {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // cleanup legacy keys once (in effect, not during render)
   useEffect(() => {
     cleanupLegacyKeys();
   }, []);
@@ -93,35 +136,69 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const [user, setUser] = useState<AuthUser | null>(initial.user);
   const [token, setToken] = useState<string | null>(initial.token);
-
   const [loginRole, setLoginRoleState] = useState<LoginRole>(() => loadInitialLoginRole());
 
   const isLoggedIn = !!token && !!user;
-
-  // prevent accidental duplicate login calls (StrictMode / double click / fast refresh quirks)
   const loginInFlightRef = useRef(false);
+  const sessionRequestIdRef = useRef<string | null>(null);
+
+  const setAuthState = useCallback((nextUser: AuthUser | null, nextToken: string | null) => {
+    setUser(nextUser);
+    setToken(nextToken);
+  }, []);
 
   const setLoginRole = useCallback((role: LoginRole) => {
     setLoginRoleState(role);
     localStorage.setItem(AUTH_LOGIN_ROLE_KEY, role);
 
-    // ensure no old duplicate keys exist
     localStorage.removeItem("ui.loginRole");
     sessionStorage.removeItem("ui.loginRole");
   }, []);
 
-  const logout = useCallback(() => {
-    setUser(null);
-    setToken(null);
+  const applyLoginStorage = useCallback((nextUser: AuthUser, nextToken: string, remember: boolean) => {
+    if (remember) {
+      writePersistentAuth(nextUser, nextToken);
+    } else {
+      writeSessionAuth(nextUser, nextToken);
+    }
 
-    // clear both persistent and session
-    localStorage.removeItem(AUTH_USER_KEY);
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    sessionStorage.removeItem(AUTH_USER_KEY);
-    sessionStorage.removeItem(AUTH_TOKEN_KEY);
-
+    setAuthState(nextUser, nextToken);
     cleanupLegacyKeys();
-  }, []);
+  }, [setAuthState]);
+
+  const clearAuthStateAndStorage = useCallback(() => {
+    clearStoredAuth();
+    setAuthState(null, null);
+    cleanupLegacyKeys();
+  }, [setAuthState]);
+
+  const logout = useCallback(async () => {
+    try {
+      const remembered = localStorage.getItem(AUTH_REMEMBER_KEY) === "true";
+      const currentToken = remembered
+        ? localStorage.getItem(AUTH_TOKEN_KEY)
+        : sessionStorage.getItem(AUTH_TOKEN_KEY);
+
+      if (currentToken) {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${currentToken}`,
+          },
+        });
+      }
+    } catch {
+      // ignore logout logging failure and continue clearing local auth
+    }
+
+    clearAuthStateAndStorage();
+
+    localStorage.setItem(
+      SESSION_AUTH_LOGOUT_KEY,
+      JSON.stringify({ ts: Date.now() })
+    );
+    localStorage.removeItem(SESSION_AUTH_LOGOUT_KEY);
+  }, [clearAuthStateAndStorage]);
 
   const login = useCallback(
     async (email: string, password: string, remember: boolean) => {
@@ -142,16 +219,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const data = (await res.json()) as LoginResponse;
 
-        // Enforce tab selection vs backend role
         const isBackendAdmin = data.role === "SUPER_ADMIN" || data.role === "ADMIN";
         const isBackendUser = data.role === "USER";
 
         const validForTab =
-          (loginRole === "ADMIN" && isBackendAdmin) || (loginRole === "USER" && isBackendUser);
+          (loginRole === "ADMIN" && isBackendAdmin) ||
+          (loginRole === "USER" && isBackendUser);
 
         if (!validForTab) {
-          // kill any existing session
-          logout();
+          await logout();
           throw new Error(
             loginRole === "ADMIN"
               ? "This account is not an admin. Please use User Login."
@@ -167,34 +243,93 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           role: data.role,
         };
 
-        // Store based on remember
-        if (remember) {
-          localStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser));
-          localStorage.setItem(AUTH_TOKEN_KEY, data.token);
-
-          // clear session copy to avoid confusion
-          sessionStorage.removeItem(AUTH_USER_KEY);
-          sessionStorage.removeItem(AUTH_TOKEN_KEY);
-        } else {
-          sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser));
-          sessionStorage.setItem(AUTH_TOKEN_KEY, data.token);
-
-          // clear persistent copy to avoid sticky login
-          localStorage.removeItem(AUTH_USER_KEY);
-          localStorage.removeItem(AUTH_TOKEN_KEY);
-        }
-
-        // update state
-        setUser(nextUser);
-        setToken(data.token);
-
-        cleanupLegacyKeys();
+        applyLoginStorage(nextUser, data.token, remember);
       } finally {
         loginInFlightRef.current = false;
       }
     },
-    [loginRole, logout]
+    [applyLoginStorage, loginRole, logout]
   );
+
+  useEffect(() => {
+    const remembered = localStorage.getItem(AUTH_REMEMBER_KEY) === "true";
+    if (remembered) return;
+    if (sessionStorage.getItem(AUTH_TOKEN_KEY)) return;
+
+    const requestId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random()}`;
+
+    sessionRequestIdRef.current = requestId;
+
+    localStorage.setItem(
+      SESSION_AUTH_REQUEST_KEY,
+      JSON.stringify({ requestId, ts: Date.now() })
+    );
+    localStorage.removeItem(SESSION_AUTH_REQUEST_KEY);
+
+    const timer = window.setTimeout(() => {
+      if (sessionRequestIdRef.current === requestId) {
+        sessionRequestIdRef.current = null;
+      }
+    }, 1200);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (!event.key || !event.newValue) return;
+
+      if (event.key === SESSION_AUTH_REQUEST_KEY) {
+        const remembered = localStorage.getItem(AUTH_REMEMBER_KEY) === "true";
+
+        if (remembered) return;
+        if (!user || !token) return;
+
+        const currentSessionToken = sessionStorage.getItem(AUTH_TOKEN_KEY);
+        const currentSessionUser = sessionStorage.getItem(AUTH_USER_KEY);
+
+        if (!currentSessionToken || !currentSessionUser) return;
+
+        const request = safeJsonParse<{ requestId: string; ts: number }>(event.newValue);
+        if (!request?.requestId) return;
+
+        const payload: SharedSessionAuthPayload & { requestId: string } = {
+          requestId: request.requestId,
+          user,
+          token,
+          ts: Date.now(),
+        };
+
+        localStorage.setItem(SESSION_AUTH_RESPONSE_KEY, JSON.stringify(payload));
+        localStorage.removeItem(SESSION_AUTH_RESPONSE_KEY);
+        return;
+      }
+
+      if (event.key === SESSION_AUTH_RESPONSE_KEY) {
+        const response = safeJsonParse<
+          SharedSessionAuthPayload & { requestId: string }
+        >(event.newValue);
+
+        if (!response?.requestId) return;
+        if (sessionRequestIdRef.current !== response.requestId) return;
+
+        sessionRequestIdRef.current = null;
+        writeSessionAuth(response.user, response.token);
+        setAuthState(response.user, response.token);
+        return;
+      }
+
+      if (event.key === SESSION_AUTH_LOGOUT_KEY) {
+        clearAuthStateAndStorage();
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [clearAuthStateAndStorage, setAuthState, token, user]);
 
   const value = useMemo(
     () => ({

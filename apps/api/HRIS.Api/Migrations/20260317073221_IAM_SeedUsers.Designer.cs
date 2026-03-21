@@ -4,6 +4,7 @@ using HRIS.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRIS.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260317073221_IAM_SeedUsers")]
+    partial class IAM_SeedUsers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -348,9 +351,6 @@ namespace HRIS.Api.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("varchar(120)");
 
-                    b.Property<string>("FirstName")
-                        .HasColumnType("longtext");
-
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -358,12 +358,6 @@ namespace HRIS.Api.Migrations
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("LastName")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("MiddleName")
-                        .HasColumnType("longtext");
 
                     b.Property<string>("NormalizedEmail")
                         .IsRequired()

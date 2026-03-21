@@ -4,6 +4,7 @@ using HRIS.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRIS.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260317054415_IAM_AddPasswordResetFields")]
+    partial class IAM_AddPasswordResetFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -348,9 +351,6 @@ namespace HRIS.Api.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("varchar(120)");
 
-                    b.Property<string>("FirstName")
-                        .HasColumnType("longtext");
-
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -358,12 +358,6 @@ namespace HRIS.Api.Migrations
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("LastName")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("MiddleName")
-                        .HasColumnType("longtext");
 
                     b.Property<string>("NormalizedEmail")
                         .IsRequired()
@@ -393,46 +387,9 @@ namespace HRIS.Api.Migrations
                     b.HasIndex("NormalizedEmail")
                         .IsUnique();
 
-                    b.HasIndex("PasswordResetToken");
-
                     b.HasIndex("RoleId");
 
                     b.ToTable("users", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 101L,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Email = "superadmin@simplevia.com",
-                            FullName = "Super Admin",
-                            IsActive = true,
-                            NormalizedEmail = "SUPERADMIN@SIMPLEVIA.COM",
-                            PasswordHash = "$2a$11$K4TnWy1Wt/NB5n3e2FxEk.dwwOLwp5j0/ChgeOeookyl8ApuV8yim",
-                            RoleId = 1
-                        },
-                        new
-                        {
-                            Id = 102L,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Email = "admin@simplevia.com",
-                            FullName = "Admin User",
-                            IsActive = true,
-                            NormalizedEmail = "ADMIN@SIMPLEVIA.COM",
-                            PasswordHash = "$2a$11$4.lJCnxOfMgrWWJ//6bRCOvH.5XGyyExoyx.bPOsEdRcXCTm6rCi2",
-                            RoleId = 2
-                        },
-                        new
-                        {
-                            Id = 103L,
-                            CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
-                            Email = "user@simplevia.com",
-                            FullName = "Regular User",
-                            IsActive = true,
-                            NormalizedEmail = "USER@SIMPLEVIA.COM",
-                            PasswordHash = "$2a$11$3w9FJ6ypCA1HkYL0J.z2AeoSJLavuSJRbXE3N3IZhD3pSZ4r86RsG",
-                            RoleId = 3
-                        });
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.Permission", b =>

@@ -75,6 +75,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IActivityLogger, ActivityLogger>();
+builder.Services.AddScoped<IAdminUsersService, AdminUsersService>();
 
 // =====================
 // Employee Core Services

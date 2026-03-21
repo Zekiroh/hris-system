@@ -13,7 +13,10 @@ public interface IActivityLogger
         string? targetId,
         string? summary,
         string? ipAddress,
-        string? userAgent
+        string? userAgent,
+        long? overrideUserId = null,
+        string? overrideEmail = null,
+        string? overrideRole = null
     );
 }
 
@@ -27,25 +30,40 @@ public class ActivityLogger : IActivityLogger
         string? targetId,
         string? summary,
         string? ipAddress,
-        string? userAgent
+        string? userAgent,
+        long? overrideUserId = null,
+        string? overrideEmail = null,
+        string? overrideRole = null
     )
     {
-        var actorUserId = TryGetActorUserId(user);
+        var hasActorOverride = overrideUserId.HasValue;
+
+        var actorUserId = hasActorOverride
+            ? overrideUserId
+            : TryGetActorUserId(user);
+
         if (actorUserId is null) return null;
 
-        var email =
-            user.FindFirst("email")?.Value ??
-            user.FindFirst(ClaimTypes.Email)?.Value ??
-            "unknown";
+        if (actorUserId.Value > int.MaxValue)
+        {
+            return null;
+        }
 
-        var role =
-            user.FindFirst("role")?.Value ??
+        var email = hasActorOverride
+            ? (overrideEmail ?? "system@unknown.local")
+            : (user.FindFirst("email")?.Value ??
+            user.FindFirst(ClaimTypes.Email)?.Value ??
+            "system@unknown.local");
+
+        var role = hasActorOverride
+            ? (overrideRole ?? "SYSTEM")
+            : (user.FindFirst("role")?.Value ??
             user.FindFirst(ClaimTypes.Role)?.Value ??
-            "unknown";
+            "SYSTEM");
 
         return new ActivityLog
         {
-            ActorUserId = actorUserId.Value,
+            ActorUserId = (int)actorUserId.Value,
             ActorEmail = email,
             ActorRole = role,
             Action = action,
@@ -59,7 +77,7 @@ public class ActivityLogger : IActivityLogger
         };
     }
 
-    private static int? TryGetActorUserId(ClaimsPrincipal user)
+    private static long? TryGetActorUserId(ClaimsPrincipal user)
     {
         var raw =
             user.FindFirst("userId")?.Value ??
@@ -67,6 +85,6 @@ public class ActivityLogger : IActivityLogger
             user.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
             user.FindFirst("sub")?.Value;
 
-        return int.TryParse(raw, out var id) ? id : null;
+        return long.TryParse(raw, out var id) ? id : null;
     }
 }

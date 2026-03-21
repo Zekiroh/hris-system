@@ -45,6 +45,16 @@ const Login: FC = () => {
     sessionStorage.removeItem("token");
   }, []);
 
+  useEffect(() => {
+    if (!error) return;
+
+    const timer = window.setTimeout(() => {
+      setError(null);
+    }, 3000);
+
+    return () => window.clearTimeout(timer);
+  }, [error]);
+
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -235,7 +245,7 @@ const Login: FC = () => {
                 </label>
 
                 <Link to="/forgot-password" className="text-xs font-medium text-emerald-300/70 hover:text-emerald-200 transition-colors">
-                    Forgot Password?
+                  Forgot Password?
                 </Link>
               </div>
 
