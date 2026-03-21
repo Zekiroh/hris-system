@@ -27,6 +27,11 @@ const AddUserModal = ({
 }: Props) => {
   if (!isOpen) return null;
 
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    onSubmit();
+  };
+
   return createPortal(
     <div className="pro-modal-overlay z-[200]">
       <div className="pro-modal max-w-md" onClick={(e) => e.stopPropagation()}>
@@ -39,7 +44,7 @@ const AddUserModal = ({
 
         <form
           autoComplete="off"
-          onSubmit={(e) => e.preventDefault()}
+          onSubmit={handleSubmit}
           className="pro-modal-body space-y-4 pt-4"
         >
           {error && (
@@ -169,22 +174,21 @@ const AddUserModal = ({
               </select>
             </div>
           </div>
-        </form>
 
-        <div className="pro-modal-footer">
-          <button onClick={onClose} className="btn btn-secondary" type="button" disabled={isSubmitting}>
-            Cancel
-          </button>
-          <button
-            onClick={onSubmit}
-            className="btn btn-primary flex items-center gap-2"
-            type="button"
-            disabled={isSubmitting}
-          >
-            <UserPlus className="w-4 h-4" />
-            {isSubmitting ? 'Creating...' : 'Create User'}
-          </button>
-        </div>
+          <div className="pro-modal-footer">
+            <button onClick={onClose} className="btn btn-secondary" type="button" disabled={isSubmitting}>
+              Cancel
+            </button>
+            <button
+              className="btn btn-primary flex items-center gap-2"
+              type="submit"
+              disabled={isSubmitting}
+            >
+              <UserPlus className="w-4 h-4" />
+              {isSubmitting ? 'Creating...' : 'Create User'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>,
     document.body
