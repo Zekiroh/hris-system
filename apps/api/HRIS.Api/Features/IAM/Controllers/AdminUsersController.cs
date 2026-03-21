@@ -63,6 +63,12 @@ public class AdminUsersController : ControllerBase
         return IsAdminCaller() && targetUser.RoleId == SuperAdminRoleId;
     }
 
+    private async Task<bool> IsLastSuperAdminAsync(long userId)
+    {
+        var superAdminCount = await _db.Users.CountAsync(u => u.RoleId == SuperAdminRoleId);
+        return superAdminCount == 1 && userId > 0;
+    }
+
     private void AddAudit(string action, string? targetType, string? targetId, string? summary)
     {
         var log = _logger.Build(
@@ -204,6 +210,13 @@ public class AdminUsersController : ControllerBase
 
         if (IsAdminTryingToAssignSuperAdmin(request.RoleId))
             return Forbid();
+
+        if (user.RoleId == SuperAdminRoleId && request.RoleId != SuperAdminRoleId)
+        {
+            var isLastSuperAdmin = await IsLastSuperAdminAsync(user.Id);
+            if (isLastSuperAdmin)
+                return BadRequest("Cannot demote the last super admin.");
+        }
 
         var firstName = request.FirstName.Trim();
         var middleName = string.IsNullOrWhiteSpace(request.MiddleName) ? null : request.MiddleName.Trim();
