@@ -91,15 +91,23 @@ public class AdminUsersController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateUserRequest request)
     {
         if (request is null) return BadRequest("Request body is required.");
-        if (string.IsNullOrWhiteSpace(request.FullName)) return BadRequest("FullName is required.");
+        if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
+            return BadRequest("FirstName and LastName are required.");
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
             return BadRequest("Email and Password are required.");
-        if (request.Password.Length < 8) return BadRequest("Password must be at least 8 characters.");
+        if (request.Password.Length < 8)
+            return BadRequest("Password must be at least 8 characters.");
 
         if (IsAdminTryingToAssignSuperAdmin(request.RoleId))
             return Forbid();
 
-        var fullName = request.FullName.Trim();
+        var firstName = request.FirstName.Trim();
+        var middleName = string.IsNullOrWhiteSpace(request.MiddleName) ? null : request.MiddleName.Trim();
+        var lastName = request.LastName.Trim();
+
+        var fullName = string.Join(" ", new[] { firstName, middleName, lastName }
+            .Where(x => !string.IsNullOrWhiteSpace(x)));
+
         var email = request.Email.Trim();
         var normalizedEmail = email.ToUpperInvariant();
 
@@ -111,6 +119,9 @@ public class AdminUsersController : ControllerBase
 
         var user = new User
         {
+            FirstName = firstName,
+            MiddleName = middleName,
+            LastName = lastName,
             FullName = fullName,
             Email = email,
             NormalizedEmail = normalizedEmail,
@@ -180,8 +191,10 @@ public class AdminUsersController : ControllerBase
     public async Task<IActionResult> Update(int id, [FromBody] UpdateUserRequest request)
     {
         if (request is null) return BadRequest("Request body is required.");
-        if (string.IsNullOrWhiteSpace(request.FullName)) return BadRequest("FullName is required.");
-        if (string.IsNullOrWhiteSpace(request.Email)) return BadRequest("Email is required.");
+        if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
+            return BadRequest("FirstName and LastName are required.");
+        if (string.IsNullOrWhiteSpace(request.Email))
+            return BadRequest("Email is required.");
 
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user is null) return NotFound("User not found.");
@@ -192,6 +205,13 @@ public class AdminUsersController : ControllerBase
         if (IsAdminTryingToAssignSuperAdmin(request.RoleId))
             return Forbid();
 
+        var firstName = request.FirstName.Trim();
+        var middleName = string.IsNullOrWhiteSpace(request.MiddleName) ? null : request.MiddleName.Trim();
+        var lastName = request.LastName.Trim();
+
+        var fullName = string.Join(" ", new[] { firstName, middleName, lastName }
+            .Where(x => !string.IsNullOrWhiteSpace(x)));
+
         var email = request.Email.Trim();
         var normalizedEmail = email.ToUpperInvariant();
 
@@ -201,7 +221,10 @@ public class AdminUsersController : ControllerBase
         var roleExists = await _db.Roles.AnyAsync(r => r.Id == request.RoleId);
         if (!roleExists) return BadRequest("Invalid role.");
 
-        user.FullName = request.FullName.Trim();
+        user.FirstName = firstName;
+        user.MiddleName = middleName;
+        user.LastName = lastName;
+        user.FullName = fullName;
         user.Email = email;
         user.NormalizedEmail = normalizedEmail;
         user.RoleId = request.RoleId;

@@ -35,6 +35,7 @@ const UserManagement = () => {
     isSubmitting,
     bannerMessage,
     bannerType,
+    modalError,
     showAddModal,
     showEditModal,
     showResetPasswordModal,
@@ -54,6 +55,7 @@ const UserManagement = () => {
     setFormData,
     setPasswordResetData,
 
+    clearModalError,
     closeAddModal,
     closeEditModal,
     closeResetPasswordModal,
@@ -276,7 +278,9 @@ const UserManagement = () => {
                 const statusActionLabel = user.isActive ? 'Deactivate User' : 'Activate User';
                 const isProtectedSuperAdminRow =
                   isAdminCaller && user.roleId === SUPER_ADMIN_ROLE_ID;
-                const canToggleStatus = isSuperAdminCaller;
+                const canToggleStatus =
+                  isSuperAdminCaller ||
+                  (isAdminCaller && user.roleId !== SUPER_ADMIN_ROLE_ID);
 
                 return (
                   <tr key={user.id}>
@@ -347,7 +351,7 @@ const UserManagement = () => {
                         <button
                           onClick={() => openStatusConfirmModal(user)}
                           className={`p-1.5 rounded-md transition ${
-                            !canToggleStatus || isProtectedSuperAdminRow
+                            !canToggleStatus
                               ? 'text-gray-300 cursor-not-allowed'
                               : user.isActive
                                 ? 'text-slate-500 hover:text-rose-600 hover:bg-rose-50'
@@ -356,13 +360,11 @@ const UserManagement = () => {
                           type="button"
                           title={
                             !canToggleStatus
-                              ? 'Only Super Admin can change user status'
-                              : isProtectedSuperAdminRow
-                                ? 'Only Super Admin can change this user status'
-                                : statusActionLabel
+                              ? 'You do not have permission to change this user status'
+                              : statusActionLabel
                           }
                           aria-label={statusActionLabel}
-                          disabled={!canToggleStatus || isProtectedSuperAdminRow}
+                          disabled={!canToggleStatus}
                         >
                           {user.isActive ? (
                             <Ban className="w-4 h-4" />
@@ -427,7 +429,9 @@ const UserManagement = () => {
         isSubmitting={isSubmitting}
         formData={formData}
         roleOptions={roleOptions}
+        error={modalError}
         onClose={closeAddModal}
+        onClearError={clearModalError}
         onChange={setFormData}
         onSubmit={handleCreateUser}
       />
@@ -437,7 +441,9 @@ const UserManagement = () => {
         isSubmitting={isSubmitting}
         formData={formData}
         roleOptions={roleOptions}
+        error={modalError}
         onClose={closeEditModal}
+        onClearError={clearModalError}
         onChange={setFormData}
         onSubmit={handleSaveEdit}
       />
@@ -446,7 +452,9 @@ const UserManagement = () => {
         isOpen={showResetPasswordModal}
         isSubmitting={isSubmitting}
         data={passwordResetData}
+        error={modalError}
         onClose={closeResetPasswordModal}
+        onClearError={clearModalError}
         onChange={setPasswordResetData}
         onSubmit={handleResetPassword}
       />

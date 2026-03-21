@@ -10,6 +10,10 @@ public class User
 
     public string FullName { get; set; } = default!;
 
+    public string? FirstName { get; set; }
+    public string? MiddleName { get; set; }
+    public string? LastName { get; set; }
+
     public string PasswordHash { get; set; } = default!;
 
     public int RoleId { get; set; }
@@ -22,7 +26,6 @@ public class User
 
     public DateTime? UpdatedAt { get; set; }
 
-    // Forgot Password fields
     public string? PasswordResetToken { get; set; }
 
     public DateTime? PasswordResetTokenExpiresAt { get; set; }

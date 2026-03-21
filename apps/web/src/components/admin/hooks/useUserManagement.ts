@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import {
   getAdminUsers,
   createAdminUser,
@@ -14,6 +14,7 @@ import {
   DEFAULT_STATUS_CONFIRM,
   mapAdminUsers,
   validateStrongPassword,
+  validateUserForm,
   type PasswordResetState,
   type StatusConfirmState,
   type UserFormState,
@@ -33,6 +34,9 @@ export const useUserManagement = () => {
 
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
   const [bannerType, setBannerType] = useState<'success' | 'error' | null>(null);
+  const bannerTimeoutRef = useRef<number | null>(null);
+
+  const [modalError, setModalError] = useState<string | null>(null);
 
   const [page, setPage] = useState(1);
 
@@ -51,11 +55,18 @@ export const useUserManagement = () => {
     setBannerType(type);
     setBannerMessage(message);
 
-    window.setTimeout(() => {
+    if (bannerTimeoutRef.current !== null) {
+      window.clearTimeout(bannerTimeoutRef.current);
+    }
+
+    bannerTimeoutRef.current = window.setTimeout(() => {
       setBannerMessage(null);
       setBannerType(null);
+      bannerTimeoutRef.current = null;
     }, 3500);
   };
+
+  const clearModalError = () => setModalError(null);
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -78,6 +89,14 @@ export const useUserManagement = () => {
     const closeMenu = () => setActiveMenu(null);
     document.addEventListener('click', closeMenu);
     return () => document.removeEventListener('click', closeMenu);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (bannerTimeoutRef.current !== null) {
+        window.clearTimeout(bannerTimeoutRef.current);
+      }
+    };
   }, []);
 
   const filteredUsers = useMemo(() => {
@@ -123,16 +142,19 @@ export const useUserManagement = () => {
   const closeAddModal = () => {
     setShowAddModal(false);
     setFormData(DEFAULT_FORM);
+    clearModalError();
   };
 
   const closeEditModal = () => {
     setShowEditModal(false);
     setFormData(DEFAULT_FORM);
+    clearModalError();
   };
 
   const closeResetPasswordModal = () => {
     setShowResetPasswordModal(false);
     setPasswordResetData(DEFAULT_PASSWORD_RESET);
+    clearModalError();
   };
 
   const closeStatusConfirmModal = () => {
@@ -143,18 +165,25 @@ export const useUserManagement = () => {
   const openAddModal = () => {
     setActiveMenu(null);
     setFormData(DEFAULT_FORM);
+    clearModalError();
     setShowAddModal(true);
   };
 
   const openEditModal = (user: UserRow) => {
+    const parts = user.fullName.trim().split(/\s+/);
+
     setFormData({
       id: user.id,
-      fullName: user.fullName,
+      firstName: parts[0] || '',
+      middleName: parts.length > 2 ? parts.slice(1, -1).join(' ') : '',
+      lastName: parts.length > 1 ? parts[parts.length - 1] : '',
       email: user.email,
       password: '',
       roleId: user.roleId,
       isActive: user.isActive,
     });
+
+    clearModalError();
     setShowEditModal(true);
     setActiveMenu(null);
   };
@@ -165,6 +194,7 @@ export const useUserManagement = () => {
       fullName: user.fullName,
       newPassword: '',
     });
+    clearModalError();
     setShowResetPasswordModal(true);
     setActiveMenu(null);
   };
@@ -180,60 +210,92 @@ export const useUserManagement = () => {
   };
 
   const handleCreateUser = async () => {
-    if (!formData.fullName.trim() || !formData.email.trim()) {
-      showBanner('error', 'Full name and email are required.');
+    const formError = validateUserForm(formData);
+    if (formError) {
+      setModalError(formError);
       return;
     }
 
-    const error = validateStrongPassword(formData.password);
-    if (error) {
-      showBanner('error', error);
+    const passwordError = validateStrongPassword(formData.password);
+    if (passwordError) {
+      setModalError(passwordError);
       return;
     }
 
     setIsSubmitting(true);
+    clearModalError();
+
     try {
+      const normalizedEmail = formData.email.trim().toLowerCase();
+
       await createAdminUser({
-        fullName: formData.fullName.trim(),
-        email: formData.email.trim(),
+        firstName: formData.firstName.trim(),
+        middleName: formData.middleName.trim() || null,
+        lastName: formData.lastName.trim(),
+        email: normalizedEmail,
         password: formData.password.trim(),
         roleId: formData.roleId,
+        isActive: formData.isActive,
       });
 
-      if (!formData.isActive) {
-        const refreshed = await getAdminUsers({ page: 1, pageSize: 100 });
-        const refreshedItems = Array.isArray(refreshed) ? refreshed : refreshed.items;
-        const createdUser = refreshedItems.find(
-          (user) => user.email.toLowerCase() === formData.email.trim().toLowerCase()
-        );
+      let postCreateIssue: string | null = null;
 
-        if (createdUser) {
-          await updateAdminUserStatus(createdUser.id, { isActive: false });
+      if (!formData.isActive) {
+        try {
+          const refreshed = await getAdminUsers({ page: 1, pageSize: 100 });
+          const refreshedItems = Array.isArray(refreshed) ? refreshed : refreshed.items;
+          const createdUser = refreshedItems.find(
+            (user) => user.email.toLowerCase() === normalizedEmail
+          );
+
+          if (createdUser) {
+            await updateAdminUserStatus(createdUser.id, { isActive: false });
+          } else {
+            postCreateIssue = 'User created, but inactive status could not be applied.';
+          }
+        } catch {
+          postCreateIssue = 'User created, but inactive status could not be applied.';
         }
       }
 
       closeAddModal();
-      await fetchUsers();
-      showBanner('success', 'User created successfully.');
+
+      try {
+        await fetchUsers();
+      } catch {
+        postCreateIssue =
+          postCreateIssue ?? 'User created, but the table could not be refreshed.';
+      }
+
+      showBanner(
+        postCreateIssue ? 'error' : 'success',
+        postCreateIssue ?? 'User created successfully.'
+      );
     } catch {
-      showBanner('error', 'Failed to create user.');
+      setModalError('Failed to create user.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleSaveEdit = async () => {
-    if (!formData.fullName.trim() || !formData.email.trim()) {
-      showBanner('error', 'Full name and email are required.');
+    const formError = validateUserForm(formData);
+    if (formError) {
+      setModalError(formError);
       return;
     }
 
     setIsSubmitting(true);
+    clearModalError();
+
     try {
       const updated = await updateAdminUser(formData.id, {
-        fullName: formData.fullName.trim(),
-        email: formData.email.trim(),
+        firstName: formData.firstName.trim(),
+        middleName: formData.middleName.trim() || null,
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim().toLowerCase(),
         roleId: formData.roleId,
+        isActive: formData.isActive,
       });
 
       if (updated.isActive !== formData.isActive) {
@@ -246,7 +308,7 @@ export const useUserManagement = () => {
       await fetchUsers();
       showBanner('success', 'User updated successfully.');
     } catch {
-      showBanner('error', 'Failed to update user.');
+      setModalError('Failed to update user.');
     } finally {
       setIsSubmitting(false);
     }
@@ -274,11 +336,13 @@ export const useUserManagement = () => {
   const handleResetPassword = async () => {
     const error = validateStrongPassword(passwordResetData.newPassword);
     if (error) {
-      showBanner('error', error);
+      setModalError(error);
       return;
     }
 
     setIsSubmitting(true);
+    clearModalError();
+
     try {
       await resetAdminUserPassword(passwordResetData.id, {
         newPassword: passwordResetData.newPassword.trim(),
@@ -288,7 +352,7 @@ export const useUserManagement = () => {
       await fetchUsers();
       showBanner('success', 'Password reset successful.');
     } catch {
-      showBanner('error', 'Failed to reset password.');
+      setModalError('Failed to reset password.');
     } finally {
       setIsSubmitting(false);
     }
@@ -305,7 +369,9 @@ export const useUserManagement = () => {
     ]);
 
     const csv = [headers, ...rows]
-      .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(','))
+      .map((row) =>
+        row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(',')
+      )
       .join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -328,6 +394,7 @@ export const useUserManagement = () => {
     isSubmitting,
     bannerMessage,
     bannerType,
+    modalError,
     page,
     showAddModal,
     showEditModal,
@@ -348,6 +415,7 @@ export const useUserManagement = () => {
     setFormData,
     setPasswordResetData,
 
+    clearModalError,
     toggleMenu,
     closeAddModal,
     closeEditModal,

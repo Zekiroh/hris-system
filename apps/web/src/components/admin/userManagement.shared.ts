@@ -10,7 +10,9 @@ export type UserRow = BackendUser & {
 
 export type UserFormState = {
   id: number;
-  fullName: string;
+  firstName: string;
+  middleName: string;
+  lastName: string;
   email: string;
   password: string;
   roleId: number;
@@ -37,7 +39,9 @@ export const ROLE_OPTIONS = [
 
 export const DEFAULT_FORM: UserFormState = {
   id: 0,
-  fullName: '',
+  firstName: '',
+  middleName: '',
+  lastName: '',
   email: '',
   password: '',
   roleId: 3,
@@ -98,6 +102,19 @@ export function validateStrongPassword(password: string) {
   }
 
   return null;
+}
+
+export function validateUserForm(form: UserFormState) {
+  if (!form.firstName.trim()) return 'First name is required.';
+  if (!form.lastName.trim()) return 'Last name is required.';
+  if (!form.email.trim()) return 'Email is required.';
+  return null;
+}
+
+export function buildFullName(first: string, middle: string, last: string) {
+  return [first, middle, last]
+    .filter((x) => x && x.trim())
+    .join(' ');
 }
 
 export function mapAdminUsers(

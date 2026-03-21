@@ -7,7 +7,9 @@ type Props = {
   isSubmitting: boolean;
   formData: UserFormState;
   roleOptions: readonly { id: number; label: string }[];
+  error: string | null;
   onClose: () => void;
+  onClearError: () => void;
   onChange: React.Dispatch<React.SetStateAction<UserFormState>>;
   onSubmit: () => void;
 };
@@ -17,7 +19,9 @@ const AddUserModal = ({
   isSubmitting,
   formData,
   roleOptions,
+  error,
   onClose,
+  onClearError,
   onChange,
   onSubmit,
 }: Props) => {
@@ -33,17 +37,60 @@ const AddUserModal = ({
           </button>
         </div>
 
-        <div className="pro-modal-body space-y-4 pt-4">
+        <form
+          autoComplete="off"
+          onSubmit={(e) => e.preventDefault()}
+          className="pro-modal-body space-y-4 pt-4"
+        >
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+              {error}
+            </div>
+          )}
+
           <div>
-            <label className="pro-label">Full Name</label>
+            <label className="pro-label">
+              First Name <span className="text-red-500">*</span>
+            </label>
             <input
-              type="text"
-              name="new-user-full-name"
+              name="admin-create-first-name"
               autoComplete="off"
               className="pro-input"
-              placeholder="e.g. Juan Dela Cruz"
-              value={formData.fullName}
-              onChange={(e) => onChange((prev) => ({ ...prev, fullName: e.target.value }))}
+              value={formData.firstName}
+              onChange={(e) => {
+                onClearError();
+                onChange((prev) => ({ ...prev, firstName: e.target.value }));
+              }}
+            />
+          </div>
+
+          <div>
+            <label className="pro-label">Middle Name</label>
+            <input
+              name="admin-create-middle-name"
+              autoComplete="off"
+              className="pro-input"
+              value={formData.middleName || ''}
+              onChange={(e) => {
+                onClearError();
+                onChange((prev) => ({ ...prev, middleName: e.target.value }));
+              }}
+            />
+          </div>
+
+          <div>
+            <label className="pro-label">
+              Last Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              name="admin-create-last-name"
+              autoComplete="off"
+              className="pro-input"
+              value={formData.lastName}
+              onChange={(e) => {
+                onClearError();
+                onChange((prev) => ({ ...prev, lastName: e.target.value }));
+              }}
             />
           </div>
 
@@ -51,12 +98,14 @@ const AddUserModal = ({
             <label className="pro-label">Email Address</label>
             <input
               type="email"
-              name="new-user-email"
+              name="admin-create-email"
               autoComplete="off"
               className="pro-input"
-              placeholder="e.g. user@simplevia.com"
               value={formData.email}
-              onChange={(e) => onChange((prev) => ({ ...prev, email: e.target.value }))}
+              onChange={(e) => {
+                onClearError();
+                onChange((prev) => ({ ...prev, email: e.target.value }));
+              }}
             />
           </div>
 
@@ -64,12 +113,14 @@ const AddUserModal = ({
             <label className="pro-label">Password</label>
             <input
               type="password"
-              name="new-user-password"
+              name="admin-create-password"
               autoComplete="new-password"
               className="pro-input"
-              placeholder="Minimum 8 characters"
               value={formData.password}
-              onChange={(e) => onChange((prev) => ({ ...prev, password: e.target.value }))}
+              onChange={(e) => {
+                onClearError();
+                onChange((prev) => ({ ...prev, password: e.target.value }));
+              }}
             />
           </div>
 
@@ -79,7 +130,9 @@ const AddUserModal = ({
               <select
                 className="pro-select"
                 value={formData.roleId}
-                onChange={(e) => onChange((prev) => ({ ...prev, roleId: Number(e.target.value) }))}
+                onChange={(e) =>
+                  onChange((prev) => ({ ...prev, roleId: Number(e.target.value) }))
+                }
               >
                 {roleOptions.map((role) => (
                   <option key={role.id} value={role.id}>
@@ -106,7 +159,7 @@ const AddUserModal = ({
               </select>
             </div>
           </div>
-        </div>
+        </form>
 
         <div className="pro-modal-footer">
           <button onClick={onClose} className="btn btn-secondary" type="button" disabled={isSubmitting}>

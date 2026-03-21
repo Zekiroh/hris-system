@@ -1,7 +1,9 @@
 namespace HRIS.Api.Features.IAM.DTOs;
 
 public record UpdateUserRequest(
-    string FullName,
+    string FirstName,
+    string? MiddleName,
+    string LastName,
     string Email,
     int RoleId,
     bool IsActive

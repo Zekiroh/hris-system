@@ -7,7 +7,7 @@ export type AdminUserDto = {
   roleId: number;
   isActive: boolean;
   updatedAt: string | null;
-  lastActive: string | null; 
+  lastActive: string | null;
 };
 
 export type GetAdminUsersQuery = {
@@ -26,16 +26,22 @@ export type PagedAdminUsersResponse = {
 };
 
 export type CreateAdminUserRequest = {
-  fullName: string;
+  firstName: string;
+  middleName?: string | null;
+  lastName: string;
   email: string;
   password: string;
   roleId: number;
+  isActive: boolean;
 };
 
 export type UpdateAdminUserRequest = {
-  fullName: string;
+  firstName: string;
+  middleName?: string | null;
+  lastName: string;
   email: string;
   roleId: number;
+  isActive: boolean;
 };
 
 export type UpdateAdminUserStatusRequest = {
@@ -69,10 +75,13 @@ export function createAdminUser(data: CreateAdminUserRequest) {
   return apiRequest<AdminUserDto>('/admin/users', {
     method: 'POST',
     body: JSON.stringify({
-      fullName: data.fullName.trim(),
+      firstName: data.firstName.trim(),
+      middleName: data.middleName?.trim() || null,
+      lastName: data.lastName.trim(),
       email: data.email.trim(),
       password: data.password,
       roleId: data.roleId,
+      isActive: data.isActive,
     }),
   });
 }
@@ -81,9 +90,12 @@ export function updateAdminUser(id: number, data: UpdateAdminUserRequest) {
   return apiRequest<AdminUserDto>(`/admin/users/${id}`, {
     method: 'PUT',
     body: JSON.stringify({
-      fullName: data.fullName.trim(),
+      firstName: data.firstName.trim(),
+      middleName: data.middleName?.trim() || null,
+      lastName: data.lastName.trim(),
       email: data.email.trim(),
       roleId: data.roleId,
+      isActive: data.isActive,
     }),
   });
 }

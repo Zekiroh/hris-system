@@ -8,5 +8,5 @@ public class AdminUserListItemDto
     public int RoleId { get; set; }
     public bool IsActive { get; set; }
     public DateTime? UpdatedAt { get; set; }
-    public DateTime? LastActive { get; set; }
+    public string? LastActive { get; set; }
 }

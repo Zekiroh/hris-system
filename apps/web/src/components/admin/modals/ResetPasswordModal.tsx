@@ -6,7 +6,9 @@ type Props = {
   isOpen: boolean;
   isSubmitting: boolean;
   data: PasswordResetState;
+  error: string | null;
   onClose: () => void;
+  onClearError: () => void;
   onChange: React.Dispatch<React.SetStateAction<PasswordResetState>>;
   onSubmit: () => void;
 };
@@ -15,7 +17,9 @@ const ResetPasswordModal = ({
   isOpen,
   isSubmitting,
   data,
+  error,
   onClose,
+  onClearError,
   onChange,
   onSubmit,
 }: Props) => {
@@ -31,29 +35,40 @@ const ResetPasswordModal = ({
           </button>
         </div>
 
-        <div className="pro-modal-body space-y-4 pt-4">
+        <form
+          autoComplete="off"
+          onSubmit={(e) => e.preventDefault()}
+          className="pro-modal-body space-y-4 pt-4"
+        >
           <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-600">
             Reset password for <span className="font-semibold text-gray-800">{data.fullName}</span>
           </div>
+
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+              {error}
+            </div>
+          )}
 
           <div>
             <label className="pro-label">New Password</label>
             <input
               type="password"
-              name="reset-user-password"
+              name="admin-reset-password"
               autoComplete="new-password"
               className="pro-input"
               placeholder="Minimum 8 characters"
               value={data.newPassword}
-              onChange={(e) =>
+              onChange={(e) => {
+                onClearError();
                 onChange((prev) => ({
                   ...prev,
                   newPassword: e.target.value,
-                }))
-              }
+                }));
+              }}
             />
           </div>
-        </div>
+        </form>
 
         <div className="pro-modal-footer">
           <button onClick={onClose} className="btn btn-secondary" type="button" disabled={isSubmitting}>

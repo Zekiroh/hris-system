@@ -42,7 +42,9 @@ public class AdminUsersService : IAdminUsersService
             RoleId = u.RoleId,
             IsActive = u.IsActive,
             UpdatedAt = u.UpdatedAt,
-            LastActive = u.LastActive
+            LastActive = u.LastActive.HasValue
+                ? DateTime.SpecifyKind(u.LastActive.Value, DateTimeKind.Utc).ToString("o")
+                : null
         }).ToList();
     }
 
@@ -51,9 +53,18 @@ public class AdminUsersService : IAdminUsersService
     {
         var email = (request.Email ?? string.Empty).Trim();
 
+        var firstName = (request.FirstName ?? string.Empty).Trim();
+        var middleName = string.IsNullOrWhiteSpace(request.MiddleName)
+            ? null
+            : request.MiddleName.Trim();
+        var lastName = (request.LastName ?? string.Empty).Trim();
+
         var user = new User
         {
-            FullName = (request.FullName ?? string.Empty).Trim(),
+            FirstName = firstName,
+            MiddleName = middleName,
+            LastName = lastName,
+            FullName = BuildFullName(firstName, middleName, lastName),
             Email = email,
             NormalizedEmail = email.ToUpperInvariant(),
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
@@ -83,7 +94,16 @@ public class AdminUsersService : IAdminUsersService
 
         var email = (request.Email ?? string.Empty).Trim();
 
-        user.FullName = (request.FullName ?? string.Empty).Trim();
+        var firstName = (request.FirstName ?? string.Empty).Trim();
+        var middleName = string.IsNullOrWhiteSpace(request.MiddleName)
+            ? null
+            : request.MiddleName.Trim();
+        var lastName = (request.LastName ?? string.Empty).Trim();
+
+        user.FirstName = firstName;
+        user.MiddleName = middleName;
+        user.LastName = lastName;
+        user.FullName = BuildFullName(firstName, middleName, lastName);
         user.Email = email;
         user.NormalizedEmail = email.ToUpperInvariant();
         user.RoleId = request.RoleId;
@@ -129,5 +149,21 @@ public class AdminUsersService : IAdminUsersService
 
         await _db.SaveChangesAsync();
         return true;
+    }
+
+    private static string BuildFullName(string firstName, string? middleName, string lastName)
+    {
+        var parts = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(firstName))
+            parts.Add(firstName.Trim());
+
+        if (!string.IsNullOrWhiteSpace(middleName))
+            parts.Add(middleName.Trim());
+
+        if (!string.IsNullOrWhiteSpace(lastName))
+            parts.Add(lastName.Trim());
+
+        return string.Join(" ", parts);
     }
 }

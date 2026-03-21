@@ -50,16 +50,16 @@ public class ActivityLogger : IActivityLogger
         }
 
         var email = hasActorOverride
-            ? (overrideEmail ?? "unknown")
+            ? (overrideEmail ?? "system@unknown.local")
             : (user.FindFirst("email")?.Value ??
-               user.FindFirst(ClaimTypes.Email)?.Value ??
-               "unknown");
+            user.FindFirst(ClaimTypes.Email)?.Value ??
+            "system@unknown.local");
 
         var role = hasActorOverride
-            ? (overrideRole ?? "unknown")
+            ? (overrideRole ?? "SYSTEM")
             : (user.FindFirst("role")?.Value ??
-               user.FindFirst(ClaimTypes.Role)?.Value ??
-               "unknown");
+            user.FindFirst(ClaimTypes.Role)?.Value ??
+            "SYSTEM");
 
         return new ActivityLog
         {
