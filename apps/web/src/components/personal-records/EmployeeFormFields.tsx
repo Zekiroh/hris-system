@@ -4,6 +4,8 @@ import type { EmployeeStatus } from "../../lib/employees";
 export type UserOption = {
   id: string;
   fullName: string;
+  email?: string;
+  contactNumber?: string;
 };
 
 export type FormData = {
@@ -54,10 +56,13 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
             onChange={(e) => {
               const id = e.target.value;
               const selected = users.find((u) => u.id === id);
+
               setFormData((p) => ({
                 ...p,
                 userId: id,
                 name: selected?.fullName ?? "",
+                email: selected?.email ?? "",
+                contact: selected?.contactNumber ?? "",
               }));
             }}
             className="pro-select"
@@ -111,6 +116,7 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
             value={formData.contact}
             onChange={(e) => setFormData((p) => ({ ...p, contact: e.target.value }))}
             className="pro-input"
+            readOnly={isAdd}
           />
         </div>
         <div>
@@ -120,6 +126,7 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
             value={formData.email}
             onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
             className="pro-input"
+            readOnly={isAdd}
           />
         </div>
       </div>

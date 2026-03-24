@@ -23,13 +23,11 @@ public class EmployeesService
 
         var q = _db.Employees.AsNoTracking().AsQueryable();
 
-        // Filter by active/inactive
         if (query.IsActive.HasValue)
         {
             q = q.Where(e => e.IsActive == query.IsActive.Value);
         }
 
-        // Search (null-safe)
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var search = query.Search.Trim();
@@ -75,28 +73,41 @@ public class EmployeesService
 
     public async Task<(bool ok, string? error, EmployeeDto? employee)> CreateAsync(CreateEmployeeRequest req, CancellationToken ct = default)
     {
-        var employeeNumber = req.EmployeeNumber.Trim();
-        if (string.IsNullOrWhiteSpace(employeeNumber))
-            return (false, "EmployeeNumber is required.", null);
-
         if (req.DateHired is null)
             return (false, "DateHired is required.", null);
 
-        var exists = await _db.Employees.AnyAsync(e => e.EmployeeNumber == employeeNumber, ct);
-        if (exists) return (false, "EmployeeNumber already exists.", null);
+        var user = await _db.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == req.UserId, ct);
+
+        if (user is null)
+            return (false, "Selected user not found.", null);
+
+        if (!user.IsActive)
+            return (false, "Selected user is inactive.", null);
+
+        if (user.RoleId != 3) // 3 = User
+            return (false, "Only user accounts can be linked as employees.", null);
+
+        var alreadyLinked = await _db.Employees.AnyAsync(e => e.UserId == req.UserId, ct);
+        if (alreadyLinked)
+            return (false, "This user is already linked to an employee.", null);
+
+        var nextEmployeeNumber = await GenerateNextEmployeeNumberAsync(ct);
+
+        var firstName = string.IsNullOrWhiteSpace(user.FirstName) ? ExtractFirstName(user.FullName) : user.FirstName!.Trim();
+        var middleName = string.IsNullOrWhiteSpace(user.MiddleName) ? null : user.MiddleName.Trim();
+        var lastName = string.IsNullOrWhiteSpace(user.LastName) ? ExtractLastName(user.FullName) : user.LastName!.Trim();
 
         var entity = new Employee
         {
             Id = Guid.NewGuid(),
-            EmployeeNumber = employeeNumber,
+            UserId = req.UserId,
+            EmployeeNumber = nextEmployeeNumber,
 
-            FirstName = req.FirstName.Trim(),
-            MiddleName = string.IsNullOrWhiteSpace(req.MiddleName) ? null : req.MiddleName.Trim(),
-            LastName = req.LastName.Trim(),
-
-            BirthDate = req.BirthDate,
-            Sex = string.IsNullOrWhiteSpace(req.Sex) ? null : req.Sex.Trim(),
-            CivilStatus = string.IsNullOrWhiteSpace(req.CivilStatus) ? null : req.CivilStatus.Trim(),
+            FirstName = firstName,
+            MiddleName = middleName,
+            LastName = lastName,
 
             DateHired = req.DateHired.Value,
 
@@ -104,7 +115,7 @@ public class EmployeesService
             Position = string.IsNullOrWhiteSpace(req.Position) ? null : req.Position.Trim(),
 
             ContactNumber = string.IsNullOrWhiteSpace(req.ContactNumber) ? null : req.ContactNumber.Trim(),
-            Email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim(),
+            Email = string.IsNullOrWhiteSpace(user.Email) ? null : user.Email.Trim(),
 
             AddressLine1 = string.IsNullOrWhiteSpace(req.AddressLine1) ? null : req.AddressLine1.Trim(),
             AddressLine2 = string.IsNullOrWhiteSpace(req.AddressLine2) ? null : req.AddressLine2.Trim(),
@@ -130,9 +141,6 @@ public class EmployeesService
 
         if (req.DateHired is null)
             return (false, "DateHired is required.", null);
-
-        // If employeeNumber can be edited in the future, add uniqueness check here.
-        // For now, your UpdateEmployeeRequest doesn't include employeeNumber, so skip.
 
         entity.FirstName = req.FirstName.Trim();
         entity.MiddleName = string.IsNullOrWhiteSpace(req.MiddleName) ? null : req.MiddleName.Trim();
@@ -180,20 +188,64 @@ public class EmployeesService
         return (true, null, ToDto(entity));
     }
 
-    // SOFT DELETE (Archive) - matches your permission "Archive"
     public async Task<(bool ok, string? error)> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         var entity = await _db.Employees.FirstOrDefaultAsync(e => e.Id == id, ct);
         if (entity is null) return (false, "Employee not found.");
 
         if (!entity.IsActive)
-            return (true, null); // already archived
+            return (true, null);
 
         entity.IsActive = false;
         entity.UpdatedAtUtc = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
         return (true, null);
+    }
+
+    private async Task<string> GenerateNextEmployeeNumberAsync(CancellationToken ct)
+    {
+        var existingNumbers = await _db.Employees
+            .AsNoTracking()
+            .Select(e => e.EmployeeNumber)
+            .ToListAsync(ct);
+
+        var max = 0;
+
+        foreach (var number in existingNumbers)
+        {
+            if (string.IsNullOrWhiteSpace(number)) continue;
+
+            var normalized = number.Trim();
+
+            if (!normalized.StartsWith("EMP-", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var suffix = normalized.Substring(4);
+
+            if (int.TryParse(suffix, out var parsed) && parsed > max)
+            {
+                max = parsed;
+            }
+        }
+
+        return $"EMP-{(max + 1):D3}";
+    }
+
+    private static string ExtractFirstName(string? fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName)) return "Unknown";
+
+        var parts = fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length > 0 ? parts[0] : "Unknown";
+    }
+
+    private static string ExtractLastName(string? fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName)) return "Unknown";
+
+        var parts = fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length > 1 ? parts[^1] : "Unknown";
     }
 
     private static EmployeeDto ToDto(Employee e) => new()

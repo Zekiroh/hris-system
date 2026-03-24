@@ -14,11 +14,11 @@ public class AdminUsersService : IAdminUsersService
         _db = db;
     }
 
-    // GET USERS
     public async Task<List<AdminUserListItemDto>> GetAdminUsersAsync()
     {
         var rawUsers = await _db.Users
             .AsNoTracking()
+            .Include(u => u.Role)
             .OrderBy(u => u.Id)
             .Select(u => new
             {
@@ -26,8 +26,10 @@ public class AdminUsersService : IAdminUsersService
                 u.FullName,
                 u.Email,
                 u.RoleId,
+                RoleName = u.Role.Name,
                 u.IsActive,
                 u.UpdatedAt,
+                HasEmployee = _db.Employees.Any(e => e.UserId == u.Id),
                 LastActive = _db.ActivityLogs
                     .Where(a => (long)a.ActorUserId == u.Id)
                     .Max(a => (DateTime?)a.CreatedAt)
@@ -40,7 +42,9 @@ public class AdminUsersService : IAdminUsersService
             FullName = u.FullName,
             Email = u.Email,
             RoleId = u.RoleId,
+            RoleName = u.RoleName,
             IsActive = u.IsActive,
+            HasEmployee = u.HasEmployee,
             UpdatedAt = u.UpdatedAt,
             LastActive = u.LastActive.HasValue
                 ? DateTime.SpecifyKind(u.LastActive.Value, DateTimeKind.Utc).ToString("o")
@@ -48,7 +52,32 @@ public class AdminUsersService : IAdminUsersService
         }).ToList();
     }
 
-    // CREATE USER
+    public async Task<List<AdminUserListItemDto>> GetAvailableUsersForEmployeeAsync()
+    {
+        return await _db.Users
+            .AsNoTracking()
+            .Include(u => u.Role)
+            .Where(u =>
+                u.Role.Name == "User" &&
+                u.IsActive &&
+                !_db.Employees.Any(e => e.UserId == u.Id)
+            )
+            .OrderBy(u => u.Id)
+            .Select(u => new AdminUserListItemDto
+            {
+                Id = u.Id,
+                FullName = u.FullName,
+                Email = u.Email,
+                RoleId = u.RoleId,
+                RoleName = u.Role.Name,
+                IsActive = u.IsActive,
+                HasEmployee = false,
+                UpdatedAt = u.UpdatedAt,
+                LastActive = null
+            })
+            .ToListAsync();
+    }
+
     public async Task<AdminUserListItemDto> CreateUserAsync(CreateUserRequest request)
     {
         var email = (request.Email ?? string.Empty).Trim();
@@ -76,17 +105,23 @@ public class AdminUsersService : IAdminUsersService
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 
+        var roleName = await _db.Roles
+            .Where(r => r.Id == user.RoleId)
+            .Select(r => r.Name)
+            .FirstOrDefaultAsync() ?? string.Empty;
+
         return new AdminUserListItemDto
         {
             Id = user.Id,
             FullName = user.FullName,
             Email = user.Email,
             RoleId = user.RoleId,
-            IsActive = user.IsActive
+            RoleName = roleName,
+            IsActive = user.IsActive,
+            HasEmployee = false
         };
     }
 
-    // UPDATE USER
     public async Task<AdminUserListItemDto?> UpdateUserAsync(long id, UpdateUserRequest request)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
@@ -112,18 +147,26 @@ public class AdminUsersService : IAdminUsersService
 
         await _db.SaveChangesAsync();
 
+        var roleName = await _db.Roles
+            .Where(r => r.Id == user.RoleId)
+            .Select(r => r.Name)
+            .FirstOrDefaultAsync() ?? string.Empty;
+
+        var hasEmployee = await _db.Employees.AnyAsync(e => e.UserId == user.Id);
+
         return new AdminUserListItemDto
         {
             Id = user.Id,
             FullName = user.FullName,
             Email = user.Email,
             RoleId = user.RoleId,
+            RoleName = roleName,
             IsActive = user.IsActive,
+            HasEmployee = hasEmployee,
             UpdatedAt = user.UpdatedAt
         };
     }
 
-    // UPDATE USER STATUS
     public async Task<bool> UpdateUserStatusAsync(long id, UpdateUserStatusRequest request)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
@@ -136,7 +179,6 @@ public class AdminUsersService : IAdminUsersService
         return true;
     }
 
-    // RESET USER PASSWORD
     public async Task<bool> ResetUserPasswordAsync(long id, string newPassword)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
