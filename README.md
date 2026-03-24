@@ -1,17 +1,5 @@
 # HRIS System
-
-Full-stack enterprise application developed during an internship. The repository follows a structure that consolidates the web client, mobile client, and backend API into a single codebase to maintain consistency, structure, and organized team development.
-
-## Overview
-
-The system is designed to support common enterprise workflows and administrative processes. The structure enables:
-
-- Centralized development
-- Shared code between web and mobile applications
-- Clear separation between frontend and backend layers
-- Structured collaboration across the team
-
-## Architecture
+<br>
 
 ```
 hris-system/
@@ -20,43 +8,20 @@ hris-system/
 │   ├── mobile/     # Mobile client application
 │   ├── api/        # Backend API service
 │
-├── packages/
-│   └── shared/     # Shared code across clients
-│
 ├── infra/
-│   └── docker/     # Docker infrastructure (MySQL)
-│
-├── docs/           # Project documentation
+│   └── docker/     # Docker setup
 ```
-
-### Application Responsibilities
-
-- **apps/web**  
-  Web client for administrative and management interfaces.
-
-- **apps/mobile**  
-  Mobile client application for end-user interactions.
-
-- **apps/api**  
-  Backend service handling business logic, data processing, and integrations.
-
-- **infra/docker**
-  Local development infrastructure, currently used for the dockerized database.
-
-- **packages/shared**  
-  Reusable code shared across web and mobile applications to maintain consistency and reduce duplication.
-
----
 
 ## Tech Stack
 
-| Layer     | Technology |
-|-----------|------------|
-| Web       | React + TypeScript + Vite |
-| Mobile    | React Native + TypeScript + Expo |
-| Backend   | ASP.NET Core Web API |
-| Database  | MySQL 8 (Docker) |
-| Tooling   | pnpm workspaces |
+| Layer | Technology |
+|-------|------------|
+| Web | React, TypeScript, Vite |
+| Mobile | React Native, TypeScript, Expo |
+| Backend | ASP.NET Core Web API (.NET 9) |
+| Data Access | Entity Framework Core (EF Core) |
+| Database | MySQL 8 |
+| Containerization | Docker, Docker Compose |
 
 ---
 
@@ -115,7 +80,7 @@ Navigate to the API project:
 
 Set the local database connection string:
 
-`dotnet user-secrets set "ConnectionStrings:Default" "Server=127.0.0.1;Port=3307;Database=hris_db;User=hris-user;Password=hris-password;"`
+`dotnet user-secrets set "ConnectionStrings:Default" "Server=127.0.0.1;Port=3307;Database=hris_db;User=hris_user;Password=hris_password;"`
 
 Set the JWT key:
 
@@ -169,18 +134,6 @@ Start the Expo development server:
 
 ---
 
-## Environment Configuration
-
-Each application manages its own environment configuration:
-
-- `apps/web` → `.env`
-- `apps/mobile` → environment configuration based on its setup
-- `apps/api` → `appsettings.json + .NET user-secrets`
-
-Sensitive credentials such as database connection strings must not be committed to the repository.
-
----
-
 ## Branching Strategy
 
 The repository maintains two primary branches:
@@ -191,11 +144,11 @@ The repository maintains two primary branches:
 - `dev`  
   Active development branch where completed features are merged and tested together.
 
-- `feature/<short-description>`
+- `feature/<module>`
   Used for individual tasks or modules. Examples:
-  - `feature/authentication`
   - `feature/employee-management`
-  - `feature/mobile-dashboard`
+  - `feature/attendance-log`
+  - `feature/leave-management`
 
 ### Workflow
 
