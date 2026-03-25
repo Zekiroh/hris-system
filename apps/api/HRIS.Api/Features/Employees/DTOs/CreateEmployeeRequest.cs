@@ -4,7 +4,7 @@ namespace HRIS.Api.Features.Employees.DTOs;
 
 public class CreateEmployeeRequest
 {
-    [Required]
+    [Range(1, long.MaxValue, ErrorMessage = "UserId must be a valid value.")]
     public long UserId { get; set; }
 
     [Required]
