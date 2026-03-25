@@ -26,6 +26,12 @@ export type FormData = {
   city: string;
   province: string;
   zipCode: string;
+
+  // ---- C2 Government Fields ----
+  sssNumber: string;
+  philHealthNumber: string;
+  pagIbigNumber: string;
+  tinNumber: string;
 };
 
 function ReadOnlyValue({
@@ -303,6 +309,72 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
           />
         </div>
       </div>
+
+      {!isAdd && (
+        <div className="border-t pt-4">
+          <h4 className="mb-2 text-sm font-semibold text-gray-700">
+            Government Information
+          </h4>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="pro-label">SSS Number</label>
+              <input
+                type="text"
+                value={formData.sssNumber}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, sssNumber: e.target.value }))
+                }
+                className="pro-input"
+              />
+            </div>
+
+            <div>
+              <label className="pro-label">PhilHealth Number</label>
+              <input
+                type="text"
+                value={formData.philHealthNumber}
+                onChange={(e) =>
+                  setFormData((p) => ({
+                    ...p,
+                    philHealthNumber: e.target.value,
+                  }))
+                }
+                className="pro-input"
+              />
+            </div>
+          </div>
+
+          <div className="mt-2 grid grid-cols-2 gap-4">
+            <div>
+              <label className="pro-label">Pag-IBIG Number</label>
+              <input
+                type="text"
+                value={formData.pagIbigNumber}
+                onChange={(e) =>
+                  setFormData((p) => ({
+                    ...p,
+                    pagIbigNumber: e.target.value,
+                  }))
+                }
+                className="pro-input"
+              />
+            </div>
+
+            <div>
+              <label className="pro-label">TIN Number</label>
+              <input
+                type="text"
+                value={formData.tinNumber}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, tinNumber: e.target.value }))
+                }
+                className="pro-input"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {apiError && (
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600">

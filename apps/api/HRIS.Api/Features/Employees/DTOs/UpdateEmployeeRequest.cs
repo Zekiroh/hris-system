@@ -54,5 +54,19 @@ public class UpdateEmployeeRequest
     [MaxLength(20)]
     public string? ZipCode { get; set; }
 
+    // ---- C2 Government Fields ----
+
+    [MaxLength(20)]
+    public string? SSSNumber { get; set; }
+
+    [MaxLength(20)]
+    public string? PhilHealthNumber { get; set; }
+
+    [MaxLength(20)]
+    public string? PagIbigNumber { get; set; }
+
+    [MaxLength(20)]
+    public string? TINNumber { get; set; }
+
     public bool IsActive { get; set; }
 }

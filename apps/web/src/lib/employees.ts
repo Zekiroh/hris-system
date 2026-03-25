@@ -30,6 +30,12 @@ export type EmployeeDto = {
   province: string | null;
   zipCode: string | null;
 
+  // ---- C2 Government Fields ----
+  sssNumber: string | null;
+  philHealthNumber: string | null;
+  pagIbigNumber: string | null;
+  tinNumber: string | null;
+
   isActive: boolean;
 
   createdAtUtc: string;
@@ -109,6 +115,12 @@ export type UpdateEmployeeRequest = {
   city?: string;
   province?: string;
   zipCode?: string;
+
+  // ---- C2 Government Fields ----
+  sssNumber?: string;
+  philHealthNumber?: string;
+  pagIbigNumber?: string;
+  tinNumber?: string;
 
   isActive: boolean;
 };
@@ -256,6 +268,12 @@ export function updateEmployee(
     city: normalizeOptional(data.city),
     province: normalizeOptional(data.province),
     zipCode: normalizeOptional(data.zipCode),
+
+    // ---- C2 Government Fields ----
+    sssNumber: normalizeOptional(data.sssNumber),
+    philHealthNumber: normalizeOptional(data.philHealthNumber),
+    pagIbigNumber: normalizeOptional(data.pagIbigNumber),
+    tinNumber: normalizeOptional(data.tinNumber),
 
     isActive: data.isActive,
     status,

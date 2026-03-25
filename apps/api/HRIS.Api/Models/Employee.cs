@@ -68,6 +68,22 @@ public class Employee
     [MaxLength(20)]
     public string? ZipCode { get; set; }
 
+    // =========================
+    // C2: Government Information
+    // =========================
+
+    [MaxLength(20)]
+    public string? SSSNumber { get; set; }
+
+    [MaxLength(20)]
+    public string? PhilHealthNumber { get; set; }
+
+    [MaxLength(20)]
+    public string? PagIbigNumber { get; set; }
+
+    [MaxLength(20)]
+    public string? TINNumber { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;

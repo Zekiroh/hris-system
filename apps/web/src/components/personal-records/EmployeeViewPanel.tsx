@@ -17,6 +17,10 @@ export type EmployeeView = {
   city: string;
   province: string;
   zipCode: string;
+  sssNumber?: string;
+  philHealthNumber?: string;
+  pagIbigNumber?: string;
+  tinNumber?: string;
 };
 
 const statusBadge: Record<EmployeeStatus, string> = {
@@ -79,6 +83,31 @@ export function EmployeeViewPanel({
               ["Email", employee.email],
               ["Hire Date", employee.hireDate],
               ["Address", fullAddress || "—"],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                className="flex items-center justify-between rounded-xl bg-gray-50 p-3"
+              >
+                <span className="text-xs font-medium uppercase tracking-wider text-gray-400">
+                  {label}
+                </span>
+                <span className="text-sm font-semibold text-gray-800 text-right max-w-[60%] break-words">
+                  {value}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-4 border-t border-gray-100 pt-6">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              Government Information
+            </h4>
+
+            {[
+              ["SSS Number", employee.sssNumber || "—"],
+              ["PhilHealth", employee.philHealthNumber || "—"],
+              ["Pag-IBIG", employee.pagIbigNumber || "—"],
+              ["TIN", employee.tinNumber || "—"],
             ].map(([label, value]) => (
               <div
                 key={label}

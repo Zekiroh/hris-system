@@ -177,6 +177,11 @@ public class EmployeesService
         entity.Province = string.IsNullOrWhiteSpace(req.Province) ? null : req.Province.Trim();
         entity.ZipCode = string.IsNullOrWhiteSpace(req.ZipCode) ? null : req.ZipCode.Trim();
 
+        entity.SSSNumber = string.IsNullOrWhiteSpace(req.SSSNumber) ? null : req.SSSNumber.Trim();
+        entity.PhilHealthNumber = string.IsNullOrWhiteSpace(req.PhilHealthNumber) ? null : req.PhilHealthNumber.Trim();
+        entity.PagIbigNumber = string.IsNullOrWhiteSpace(req.PagIbigNumber) ? null : req.PagIbigNumber.Trim();
+        entity.TINNumber = string.IsNullOrWhiteSpace(req.TINNumber) ? null : req.TINNumber.Trim();
+
         entity.IsActive = req.IsActive;
         entity.UpdatedAtUtc = DateTime.UtcNow;
 
@@ -288,6 +293,11 @@ public class EmployeesService
         Province = e.Province,
         ZipCode = e.ZipCode,
 
+        SSSNumber = e.SSSNumber,
+        PhilHealthNumber = e.PhilHealthNumber,
+        PagIbigNumber = e.PagIbigNumber,
+        TINNumber = e.TINNumber,
+
         IsActive = e.IsActive,
         CreatedAtUtc = e.CreatedAtUtc,
         UpdatedAtUtc = e.UpdatedAtUtc
@@ -320,6 +330,11 @@ public class EmployeesService
             City = e.City,
             Province = e.Province,
             ZipCode = e.ZipCode,
+
+            SSSNumber = e.SSSNumber,
+            PhilHealthNumber = e.PhilHealthNumber,
+            PagIbigNumber = e.PagIbigNumber,
+            TINNumber = e.TINNumber,
 
             IsActive = e.IsActive,
             CreatedAtUtc = e.CreatedAtUtc,
