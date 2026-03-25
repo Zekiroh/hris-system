@@ -21,14 +21,14 @@ public class UpdateEmployeeRequest
     [MaxLength(20)]
     public string? CivilStatus { get; set; }
 
-    [Required]
-    public DateOnly? DateHired { get; set; }
-
     [MaxLength(100)]
     public string? Department { get; set; }
 
     [MaxLength(100)]
     public string? Position { get; set; }
+
+    [Required, MaxLength(50)]
+    public string EmploymentType { get; set; } = default!;
 
     // ---- C1 Basic Info Fields ----
 

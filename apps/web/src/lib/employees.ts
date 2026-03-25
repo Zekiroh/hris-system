@@ -1,6 +1,7 @@
 import { apiRequest } from "./api";
 
 export type EmployeeStatus = "Active" | "On Leave" | "Inactive";
+export type EmploymentType = "Regular" | "Probationary" | "Project-based";
 
 export type EmployeeDto = {
   id: string;
@@ -15,6 +16,7 @@ export type EmployeeDto = {
   civilStatus: string | null;
 
   dateHired: string | null;
+  employmentType: string | null;
 
   department: string | null;
   position: string | null;
@@ -34,6 +36,24 @@ export type EmployeeDto = {
   updatedAtUtc: string | null;
 };
 
+export type Employee = {
+  id: string;
+  employeeId: string;
+  name: string;
+  position: string;
+  department: string;
+  status: EmployeeStatus;
+  employmentType: EmploymentType;
+  contact: string;
+  email: string;
+  hireDate: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  province: string;
+  zipCode: string;
+};
+
 export type PagedEmployeesResponse = {
   items: EmployeeDto[];
   totalCount: number;
@@ -48,9 +68,13 @@ export type GetEmployeesQuery = {
   isActive?: boolean;
 };
 
+export type NextEmployeeNumberResponse = {
+  employeeNumber: string;
+};
+
 export type CreateEmployeeRequest = {
   userId: number;
-  dateHired: string;
+  employmentType: EmploymentType;
 
   department?: string;
   position?: string;
@@ -73,10 +97,9 @@ export type UpdateEmployeeRequest = {
   sex?: string;
   civilStatus?: string;
 
-  dateHired?: string;
-
   department?: string;
   position?: string;
+  employmentType: EmploymentType;
 
   contactNumber?: string;
   email?: string;
@@ -117,6 +140,43 @@ function normalizeStatus(v: unknown): EmployeeStatus {
   return "Active";
 }
 
+function normalizeEmploymentType(v: unknown): EmploymentType {
+  if (v === "Regular" || v === "Probationary" || v === "Project-based") {
+    return v;
+  }
+  return "Regular";
+}
+
+function buildEmployeeName(dto: EmployeeDto): string {
+  const last = dto.lastName?.trim() ?? "";
+  const first = dto.firstName?.trim() ?? "";
+  const middle = dto.middleName?.trim() ?? "";
+
+  if (last && first && middle) return `${last}, ${first} ${middle}`;
+  if (last && first) return `${last}, ${first}`;
+  return [first, middle, last].filter(Boolean).join(" ") || "—";
+}
+
+export function mapEmployeeDtoToEmployee(dto: EmployeeDto): Employee {
+  return {
+    id: dto.id,
+    employeeId: dto.employeeNumber,
+    name: buildEmployeeName(dto),
+    position: dto.position ?? "",
+    department: dto.department ?? "",
+    status: dto.isActive ? "Active" : "Inactive",
+    employmentType: normalizeEmploymentType(dto.employmentType),
+    contact: dto.contactNumber ?? "",
+    email: dto.email ?? "",
+    hireDate: dto.dateHired ?? "",
+    addressLine1: dto.addressLine1 ?? "",
+    addressLine2: dto.addressLine2 ?? "",
+    city: dto.city ?? "",
+    province: dto.province ?? "",
+    zipCode: dto.zipCode ?? "",
+  };
+}
+
 export type EmployeeWriteExtras = {
   status?: EmployeeStatus;
 };
@@ -127,9 +187,11 @@ export function getEmployees(q: GetEmployeesQuery) {
   const params = new URLSearchParams();
 
   if (typeof q.page === "number") params.set("page", String(q.page));
-  if (typeof q.pageSize === "number") params.set("pageSize", String(q.pageSize));
+  if (typeof q.pageSize === "number")
+    params.set("pageSize", String(q.pageSize));
   if (q.search && q.search.trim()) params.set("search", q.search.trim());
-  if (typeof q.isActive === "boolean") params.set("isActive", String(q.isActive));
+  if (typeof q.isActive === "boolean")
+    params.set("isActive", String(q.isActive));
 
   const qs = params.toString();
 
@@ -140,10 +202,14 @@ export function getEmployeeById(id: string) {
   return apiRequest<EmployeeDto>(`/employees/${id}`);
 }
 
+export function getNextEmployeeNumber() {
+  return apiRequest<NextEmployeeNumberResponse>("/employees/next-number");
+}
+
 export function createEmployee(data: CreateEmployeeRequest) {
   const payload = {
     userId: data.userId,
-    dateHired: toDateOnly(data.dateHired) ?? toDateOnly(new Date().toISOString()),
+    employmentType: data.employmentType,
 
     department: normalizeOptional(data.department),
     position: normalizeOptional(data.position),
@@ -163,8 +229,10 @@ export function createEmployee(data: CreateEmployeeRequest) {
   });
 }
 
-export function updateEmployee(id: string, data: UpdateEmployeeRequest & EmployeeWriteExtras) {
-  const dateOnly = toDateOnly(data.dateHired);
+export function updateEmployee(
+  id: string,
+  data: UpdateEmployeeRequest & EmployeeWriteExtras
+) {
   const status = normalizeStatus((data as EmployeeWriteExtras).status);
 
   const payload = {
@@ -176,10 +244,9 @@ export function updateEmployee(id: string, data: UpdateEmployeeRequest & Employe
     sex: normalizeOptional(data.sex),
     civilStatus: normalizeOptional(data.civilStatus),
 
-    dateHired: dateOnly,
-
     department: normalizeOptional(data.department),
     position: normalizeOptional(data.position),
+    employmentType: data.employmentType,
 
     contactNumber: normalizeOptional(data.contactNumber),
     email: normalizeEmail(data.email),

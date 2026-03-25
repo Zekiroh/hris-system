@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import type { EmployeeStatus } from "../../lib/employees";
+import type { EmploymentType } from "./EmployeeFormFields";
 
 export type EmployeeView = {
   employeeId: string;
@@ -7,9 +8,15 @@ export type EmployeeView = {
   position: string;
   department: string;
   status: EmployeeStatus;
+  employmentType: EmploymentType;
   contact: string;
   email: string;
   hireDate: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  province: string;
+  zipCode: string;
 };
 
 const statusBadge: Record<EmployeeStatus, string> = {
@@ -29,25 +36,35 @@ export function EmployeeViewPanel({
 }) {
   if (!open || !employee) return null;
 
+  const fullAddress = [
+    employee.addressLine1,
+    employee.addressLine2,
+    employee.city,
+    employee.province,
+    employee.zipCode,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
   return (
     <div className="pro-modal-overlay !justify-end">
       <div className="absolute inset-0" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-white h-full overflow-y-auto shadow-2xl animate-slide-in-right z-10">
+      <div className="relative z-10 h-full w-full max-w-md overflow-y-auto bg-white shadow-2xl animate-slide-in-right">
         <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="mb-6 flex items-center justify-between">
             <h3 className="text-lg font-bold text-gray-900">Employee Details</h3>
             <button onClick={onClose} className="btn-ghost btn-icon" type="button">
-              <X className="w-5 h-5 text-gray-400" />
+              <X className="h-5 w-5 text-gray-400" />
             </button>
           </div>
 
-          <div className="flex flex-col items-center mb-6">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-3xl font-bold mb-4 shadow-lg">
+          <div className="mb-6 flex flex-col items-center">
+            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-3xl font-bold text-white shadow-lg">
               {employee.name.charAt(0)}
             </div>
             <h4 className="text-lg font-bold text-gray-900">{employee.name}</h4>
             <p className="text-sm text-gray-500">{employee.position}</p>
-            <span className={`mt-2 badge ${statusBadge[employee.status]}`}>
+            <span className={`badge mt-2 ${statusBadge[employee.status]}`}>
               <span className="badge-dot" />
               {employee.status}
             </span>
@@ -57,13 +74,22 @@ export function EmployeeViewPanel({
             {[
               ["Employee ID", employee.employeeId],
               ["Department", employee.department],
+              ["Employment Type", employee.employmentType],
               ["Contact", employee.contact],
               ["Email", employee.email],
               ["Hire Date", employee.hireDate],
+              ["Address", fullAddress || "—"],
             ].map(([label, value]) => (
-              <div key={label} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                <span className="text-xs text-gray-400 uppercase tracking-wider font-medium">{label}</span>
-                <span className="text-sm font-semibold text-gray-800">{value}</span>
+              <div
+                key={label}
+                className="flex items-center justify-between rounded-xl bg-gray-50 p-3"
+              >
+                <span className="text-xs font-medium uppercase tracking-wider text-gray-400">
+                  {label}
+                </span>
+                <span className="text-sm font-semibold text-gray-800 text-right max-w-[60%] break-words">
+                  {value}
+                </span>
               </div>
             ))}
           </div>

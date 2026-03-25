@@ -43,6 +43,10 @@ public class Employee
     [MaxLength(100)]
     public string? Position { get; set; }
 
+    [Required]
+    [MaxLength(50)]
+    public string EmploymentType { get; set; } = default!;
+
     [MaxLength(20)]
     public string? ContactNumber { get; set; }
 

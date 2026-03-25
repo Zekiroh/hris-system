@@ -15,13 +15,10 @@ public class EmployeeDto
     public string? CivilStatus { get; set; }
 
     public DateOnly DateHired { get; set; }
+    public string EmploymentType { get; set; } = default!;
 
     public string? Department { get; set; }
     public string? Position { get; set; }
-
-    // -----------------------------
-    // C1 Expansion (Basic Info)
-    // -----------------------------
 
     public string? ContactNumber { get; set; }
     public string? Email { get; set; }
@@ -31,8 +28,6 @@ public class EmployeeDto
     public string? City { get; set; }
     public string? Province { get; set; }
     public string? ZipCode { get; set; }
-
-    // -----------------------------
 
     public bool IsActive { get; set; }
 
