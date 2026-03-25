@@ -5,7 +5,6 @@ import {
   getEmployees,
   createEmployee,
   updateEmployee,
-  type CreateEmployeeRequest,
   type UpdateEmployeeRequest,
   type EmployeeDto,
   type EmployeeStatus,
@@ -180,11 +179,15 @@ const EmployeeList = () => {
       const items = Array.isArray(payload.items) ? payload.items : [];
       setEmployees(items.map(mapDtoToEmployee));
 
+      const payloadWithMaybeTotalItems = payload as Paged<EmployeeDto> & {
+        totalItems?: number;
+      };
+
       const tc =
         typeof payload.totalCount === "number"
           ? payload.totalCount
-          : typeof (payload as { totalItems?: number }).totalItems === "number"
-            ? (payload as { totalItems: number }).totalItems
+          : typeof payloadWithMaybeTotalItems.totalItems === "number"
+            ? payloadWithMaybeTotalItems.totalItems
             : items.length;
 
       setTotalCount(tc);
@@ -293,23 +296,23 @@ const EmployeeList = () => {
       return;
     }
 
-    const { firstName, middleName, lastName } = parseNameToParts(formData.name);
-    if (!firstName || !lastName) {
-      setFormError("Full Name is required.");
+    const numericUserId = Number(formData.userId);
+    if (!Number.isFinite(numericUserId) || numericUserId <= 0) {
+      setFormError("Selected user is invalid.");
       return;
     }
 
-    const payload: CreateEmployeeRequest & { status: EmployeeStatus } = {
-      employeeNumber: `EMP-${Date.now()}`,
-      firstName,
-      middleName,
-      lastName,
-      position: formData.position || undefined,
-      department: formData.department || undefined,
-      contactNumber: formData.contact || undefined,
-      email: formData.email || undefined,
+    const payload = {
+      userId: numericUserId,
       dateHired: toDateOnly(new Date().toISOString()),
-      status: formData.status,
+      department: formData.department || undefined,
+      position: formData.position || undefined,
+      contactNumber: formData.contact || undefined,
+      addressLine1: undefined,
+      addressLine2: undefined,
+      city: undefined,
+      province: undefined,
+      zipCode: undefined,
     };
 
     try {

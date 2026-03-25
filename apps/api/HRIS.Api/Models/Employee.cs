@@ -7,6 +7,10 @@ public class Employee
 {
     public Guid Id { get; set; }
 
+    public long? UserId { get; set; }
+
+    public User? User { get; set; }
+
     [Required]
     [MaxLength(50)]
     public string EmployeeNumber { get; set; } = default!;
@@ -39,10 +43,6 @@ public class Employee
     [MaxLength(100)]
     public string? Position { get; set; }
 
-    // -----------------------------
-    // C1 Expansion (Basic Info)
-    // -----------------------------
-
     [MaxLength(20)]
     public string? ContactNumber { get; set; }
 
@@ -63,8 +63,6 @@ public class Employee
 
     [MaxLength(20)]
     public string? ZipCode { get; set; }
-
-    // -----------------------------
 
     public bool IsActive { get; set; } = true;
 

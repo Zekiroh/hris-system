@@ -88,6 +88,13 @@ public class AdminUsersController : ControllerBase
         return Ok(users);
     }
 
+    [HttpGet("available-for-employee")]
+    public async Task<IActionResult> GetAvailableUsersForEmployee()
+    {
+        var users = await _adminUsersService.GetAvailableUsersForEmployeeAsync();
+        return Ok(users);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateUserRequest request)
     {
