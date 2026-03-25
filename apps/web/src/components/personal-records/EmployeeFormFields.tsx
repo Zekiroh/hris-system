@@ -8,15 +8,39 @@ export type UserOption = {
   contactNumber?: string;
 };
 
+export type EmploymentType = "Regular" | "Probationary" | "Project-based";
+
 export type FormData = {
   userId: string;
+  employeeId: string;
   name: string;
   position: string;
   department: string;
   status: EmployeeStatus;
+  employmentType: EmploymentType;
   contact: string;
   email: string;
+  hireDate: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  province: string;
+  zipCode: string;
 };
+
+function ReadOnlyValue({
+  value,
+  emptyFallback = "—",
+}: {
+  value?: string;
+  emptyFallback?: string;
+}) {
+  return (
+    <div className="min-h-[24px] pt-1 text-sm font-medium text-gray-600">
+      {value?.trim() ? value : emptyFallback}
+    </div>
+  );
+}
 
 export const EmployeeFormFields = memo(function EmployeeFormFields({
   mode,
@@ -29,6 +53,7 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
   submitLabel,
   userOptions,
   loadingUsers,
+  onLinkedUserChange,
 }: {
   mode: "add" | "edit";
   formData: FormData;
@@ -40,21 +65,31 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
   submitLabel: string;
   userOptions?: UserOption[];
   loadingUsers?: boolean;
+  onLinkedUserChange?: (userId: string) => void | Promise<void>;
 }) {
   const isAdd = mode === "add";
   const users = userOptions ?? [];
   const usersBusy = Boolean(loadingUsers);
+  const hasSelectedUser = !!formData.userId;
 
   return (
     <div className="space-y-4">
       <div>
-        <label className="pro-label">Full Name</label>
+        <label className="pro-label">
+          {isAdd ? "Linked User / System Account" : "Full Name"}
+        </label>
 
         {isAdd ? (
           <select
             value={formData.userId}
             onChange={(e) => {
               const id = e.target.value;
+
+              if (onLinkedUserChange) {
+                void onLinkedUserChange(id);
+                return;
+              }
+
               const selected = users.find((u) => u.id === id);
 
               setFormData((p) => ({
@@ -69,7 +104,11 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
             disabled={usersBusy}
           >
             <option value="">
-              {usersBusy ? "Loading users..." : users.length ? "Select a user..." : "No users found"}
+              {usersBusy
+                ? "Loading users..."
+                : users.length
+                  ? "Select a user..."
+                  : "No users found"}
             </option>
             {users.map((u) => (
               <option key={u.id} value={u.id}>
@@ -78,14 +117,25 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
             ))}
           </select>
         ) : (
-          <input
-            value={formData.name}
-            onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
-            className="pro-input"
-            placeholder="Dela Cruz, Juan"
-          />
+          <div className="min-h-[24px] pt-1 text-sm font-medium text-gray-600">
+            {formData.name || "—"}
+          </div>
         )}
       </div>
+
+      {isAdd && hasSelectedUser && (
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="pro-label">Employee ID</label>
+            <ReadOnlyValue value={formData.employeeId} />
+          </div>
+
+          <div>
+            <label className="pro-label">Hire Date</label>
+            <ReadOnlyValue value={formData.hireDate} />
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -93,20 +143,83 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
           <input
             type="text"
             value={formData.position}
-            onChange={(e) => setFormData((p) => ({ ...p, position: e.target.value }))}
+            onChange={(e) =>
+              setFormData((p) => ({ ...p, position: e.target.value }))
+            }
             className="pro-input"
           />
         </div>
+
         <div>
           <label className="pro-label">Department</label>
           <input
             type="text"
             value={formData.department}
-            onChange={(e) => setFormData((p) => ({ ...p, department: e.target.value }))}
+            onChange={(e) =>
+              setFormData((p) => ({ ...p, department: e.target.value }))
+            }
             className="pro-input"
           />
         </div>
       </div>
+
+      {isAdd ? (
+        <div>
+          <label className="pro-label">Employment Type</label>
+          <select
+            value={formData.employmentType}
+            onChange={(e) =>
+              setFormData((p) => ({
+                ...p,
+                employmentType: e.target.value as EmploymentType,
+              }))
+            }
+            className="pro-select"
+          >
+            <option value="Regular">Regular</option>
+            <option value="Probationary">Probationary</option>
+            <option value="Project-based">Project-based</option>
+          </select>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="pro-label">Employment Type</label>
+            <select
+              value={formData.employmentType}
+              onChange={(e) =>
+                setFormData((p) => ({
+                  ...p,
+                  employmentType: e.target.value as EmploymentType,
+                }))
+              }
+              className="pro-select"
+            >
+              <option value="Regular">Regular</option>
+              <option value="Probationary">Probationary</option>
+              <option value="Project-based">Project-based</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="pro-label">Employment Status</label>
+            <select
+              value={formData.status}
+              onChange={(e) =>
+                setFormData((p) => ({
+                  ...p,
+                  status: e.target.value as EmployeeStatus,
+                }))
+              }
+              className="pro-select"
+            >
+              <option value="Active">Active</option>
+              <option value="On Leave">On Leave</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -114,38 +227,84 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
           <input
             type="text"
             value={formData.contact}
-            onChange={(e) => setFormData((p) => ({ ...p, contact: e.target.value }))}
+            onChange={(e) =>
+              setFormData((p) => ({ ...p, contact: e.target.value }))
+            }
             className="pro-input"
-            readOnly={isAdd}
           />
         </div>
+
         <div>
           <label className="pro-label">Email</label>
+          <ReadOnlyValue value={formData.email} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="pro-label">Address Line 1</label>
           <input
             type="text"
-            value={formData.email}
-            onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
+            value={formData.addressLine1}
+            onChange={(e) =>
+              setFormData((p) => ({ ...p, addressLine1: e.target.value }))
+            }
             className="pro-input"
-            readOnly={isAdd}
+          />
+        </div>
+
+        <div>
+          <label className="pro-label">Address Line 2</label>
+          <input
+            type="text"
+            value={formData.addressLine2}
+            onChange={(e) =>
+              setFormData((p) => ({ ...p, addressLine2: e.target.value }))
+            }
+            className="pro-input"
           />
         </div>
       </div>
 
-      <div>
-        <label className="pro-label">Employment Status</label>
-        <select
-          value={formData.status}
-          onChange={(e) => setFormData((p) => ({ ...p, status: e.target.value as EmployeeStatus }))}
-          className="pro-select"
-        >
-          <option value="Active">Active</option>
-          <option value="On Leave">On Leave</option>
-          <option value="Inactive">Inactive</option>
-        </select>
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <label className="pro-label">City</label>
+          <input
+            type="text"
+            value={formData.city}
+            onChange={(e) =>
+              setFormData((p) => ({ ...p, city: e.target.value }))
+            }
+            className="pro-input"
+          />
+        </div>
+
+        <div>
+          <label className="pro-label">Province</label>
+          <input
+            type="text"
+            value={formData.province}
+            onChange={(e) =>
+              setFormData((p) => ({ ...p, province: e.target.value }))
+            }
+            className="pro-input"
+          />
+        </div>
+
+        <div>
+          <label className="pro-label">Zip Code</label>
+          <input
+            type="text"
+            value={formData.zipCode}
+            onChange={(e) =>
+              setFormData((p) => ({ ...p, zipCode: e.target.value }))
+            }
+            className="pro-input"
+          />
+        </div>
       </div>
 
-      {/* Only show dropdown/user-fetch errors inside Add modal */}
-      {isAdd && apiError && (
+      {apiError && (
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600">
           {apiError}
         </div>
@@ -155,7 +314,12 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
         <button onClick={onCancel} className="btn btn-secondary" type="button">
           Cancel
         </button>
-        <button onClick={onSubmit} className="btn btn-primary" disabled={loading} type="button">
+        <button
+          onClick={onSubmit}
+          className="btn btn-primary"
+          disabled={loading}
+          type="button"
+        >
           {submitLabel}
         </button>
       </div>

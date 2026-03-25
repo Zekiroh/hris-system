@@ -28,6 +28,15 @@ public class EmployeesController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("next-number")]
+    [PermissionAuthorize("EMPLOYEES", "Create")]
+    public async Task<ActionResult<NextEmployeeNumberResponse>> GetNextEmployeeNumber(
+        CancellationToken ct)
+    {
+        var result = await _employees.GetNextEmployeeNumberAsync(ct);
+        return Ok(result);
+    }
+
     [HttpGet("{id:guid}")]
     [PermissionAuthorize("EMPLOYEES", "View")]
     public async Task<ActionResult<EmployeeDto>> GetById(Guid id, CancellationToken ct)

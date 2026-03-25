@@ -5,6 +5,7 @@ import {
   getEmployees,
   createEmployee,
   updateEmployee,
+  getNextEmployeeNumber,
   type UpdateEmployeeRequest,
   type EmployeeDto,
   type EmployeeStatus,
@@ -16,6 +17,7 @@ import {
   EmployeeFormFields,
   type FormData,
   type UserOption,
+  type EmploymentType,
 } from "../../components/personal-records/EmployeeFormFields";
 import {
   EmployeeTable,
@@ -32,9 +34,15 @@ interface Employee {
   position: string;
   department: string;
   status: EmployeeStatus;
+  employmentType: EmploymentType;
   contact: string;
   email: string;
   hireDate: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  province: string;
+  zipCode: string;
 }
 
 function safeTrim(v: string | null | undefined) {
@@ -64,9 +72,19 @@ function mapDtoToEmployee(dto: EmployeeDto): Employee {
     position: safeTrim(dto.position) || "",
     department: safeTrim(dto.department) || "",
     status: dto.isActive ? "Active" : "Inactive",
+    employmentType:
+      dto.employmentType === "Probationary" ||
+      dto.employmentType === "Project-based"
+        ? dto.employmentType
+        : "Regular",
     contact: safeTrim(dto.contactNumber) || "",
     email: safeTrim(dto.email) || "",
     hireDate: safeTrim(dto.dateHired) || "",
+    addressLine1: safeTrim(dto.addressLine1) || "",
+    addressLine2: safeTrim(dto.addressLine2) || "",
+    city: safeTrim(dto.city) || "",
+    province: safeTrim(dto.province) || "",
+    zipCode: safeTrim(dto.zipCode) || "",
   };
 }
 
@@ -88,14 +106,6 @@ function parseNameToParts(fullName: string) {
   return { firstName, middleName: undefined, lastName };
 }
 
-function toDateOnly(value: string) {
-  if (!value) return "";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0, 10);
-}
-
 function unwrapData<T>(res: unknown): T {
   if (res && typeof res === "object" && "data" in res) {
     return (res as { data: T }).data;
@@ -112,6 +122,24 @@ type Paged<T> = {
 };
 
 const DEFAULT_PAGE_SIZE = 10;
+
+const emptyFormData = (): FormData => ({
+  userId: "",
+  employeeId: "",
+  name: "",
+  position: "",
+  department: "",
+  status: "Active",
+  employmentType: "Regular",
+  contact: "",
+  email: "",
+  hireDate: new Date().toISOString().slice(0, 10),
+  addressLine1: "",
+  addressLine2: "",
+  city: "",
+  province: "",
+  zipCode: "",
+});
 
 const EmployeeList = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -131,15 +159,7 @@ const EmployeeList = () => {
   const [userOptions, setUserOptions] = useState<UserOption[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  const [formData, setFormData] = useState<FormData>({
-    userId: "",
-    name: "",
-    position: "",
-    department: "",
-    status: "Active",
-    contact: "",
-    email: "",
-  });
+  const [formData, setFormData] = useState<FormData>(emptyFormData());
 
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -217,6 +237,50 @@ const EmployeeList = () => {
     }
   }
 
+  async function fetchNextEmployeeNumber() {
+    try {
+      const res = await getNextEmployeeNumber();
+      const payload = unwrapData<{ employeeNumber: string }>(res);
+
+      if (payload?.employeeNumber) {
+        setFormData((p) => ({
+          ...p,
+          employeeId: payload.employeeNumber,
+        }));
+      }
+    } catch {
+      setFormData((p) => ({
+        ...p,
+        employeeId: "",
+      }));
+    }
+  }
+
+  async function handleLinkedUserChange(userId: string) {
+    const selected = userOptions.find((u) => u.id === userId);
+
+    setFormData((p) => ({
+      ...p,
+      userId,
+      name: selected?.fullName ?? "",
+      email: selected?.email ?? "",
+      contact: selected?.contactNumber ?? "",
+      employeeId: userId ? p.employeeId : "",
+      hireDate: new Date().toISOString().slice(0, 10),
+    }));
+
+    if (userId) {
+      await fetchNextEmployeeNumber();
+      return;
+    }
+
+    setFormData((p) => ({
+      ...p,
+      employeeId: "",
+      hireDate: new Date().toISOString().slice(0, 10),
+    }));
+  }
+
   useEffect(() => {
     setPage(1);
   }, [searchTerm, isActiveQuery]);
@@ -227,8 +291,11 @@ const EmployeeList = () => {
   }, [page, searchTerm, isActiveQuery]);
 
   useEffect(() => {
-    if (showAddModal) fetchUsersForDropdown();
-    else setFormError(null);
+    if (showAddModal) {
+      fetchUsersForDropdown();
+    } else {
+      setFormError(null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAddModal]);
 
@@ -263,12 +330,20 @@ const EmployeeList = () => {
     setFormError(null);
     setFormData({
       userId: "",
+      employeeId: emp.employeeId,
       name: emp.name,
       position: emp.position,
       department: emp.department,
       status: emp.status,
+      employmentType: emp.employmentType,
       contact: emp.contact,
       email: emp.email,
+      hireDate: emp.hireDate,
+      addressLine1: emp.addressLine1,
+      addressLine2: emp.addressLine2,
+      city: emp.city,
+      province: emp.province,
+      zipCode: emp.zipCode,
     });
     setShowEditModal(true);
   };
@@ -292,7 +367,7 @@ const EmployeeList = () => {
     setFormError(null);
 
     if (!formData.userId) {
-      setFormError("Full Name is required.");
+      setFormError("Linked user is required.");
       return;
     }
 
@@ -302,31 +377,28 @@ const EmployeeList = () => {
       return;
     }
 
-    const payload = {
+    if (!formData.employmentType.trim()) {
+      setFormError("Employment type is required.");
+      return;
+    }
+
+    const payload: Parameters<typeof createEmployee>[0] = {
       userId: numericUserId,
-      dateHired: toDateOnly(new Date().toISOString()),
+      employmentType: formData.employmentType,
       department: formData.department || undefined,
       position: formData.position || undefined,
       contactNumber: formData.contact || undefined,
-      addressLine1: undefined,
-      addressLine2: undefined,
-      city: undefined,
-      province: undefined,
-      zipCode: undefined,
+      addressLine1: formData.addressLine1 || undefined,
+      addressLine2: formData.addressLine2 || undefined,
+      city: formData.city || undefined,
+      province: formData.province || undefined,
+      zipCode: formData.zipCode || undefined,
     };
 
     try {
       await createEmployee(payload);
       setShowAddModal(false);
-      setFormData({
-        userId: "",
-        name: "",
-        position: "",
-        department: "",
-        status: "Active",
-        contact: "",
-        email: "",
-      });
+      setFormData(emptyFormData());
       await fetchEmployees();
     } catch (e) {
       setFormError(e instanceof Error ? e.message : "Failed to create employee");
@@ -338,14 +410,12 @@ const EmployeeList = () => {
 
     setFormError(null);
 
-    if (!formData.name.trim()) {
-      setFormError("Full Name is required.");
-      return;
-    }
+    const { firstName, middleName, lastName } = parseNameToParts(
+      selectedEmployee.name
+    );
 
-    const { firstName, middleName, lastName } = parseNameToParts(formData.name);
     if (!firstName || !lastName) {
-      setFormError("Full Name is required.");
+      setFormError("Invalid employee name.");
       return;
     }
 
@@ -355,9 +425,14 @@ const EmployeeList = () => {
       lastName,
       position: formData.position || undefined,
       department: formData.department || undefined,
+      employmentType: formData.employmentType,
       contactNumber: formData.contact || undefined,
       email: formData.email || undefined,
-      dateHired: toDateOnly(selectedEmployee.hireDate) || undefined,
+      addressLine1: formData.addressLine1 || undefined,
+      addressLine2: formData.addressLine2 || undefined,
+      city: formData.city || undefined,
+      province: formData.province || undefined,
+      zipCode: formData.zipCode || undefined,
       isActive: formData.status !== "Inactive",
       status: formData.status,
     };
@@ -388,15 +463,7 @@ const EmployeeList = () => {
         <button
           onClick={() => {
             setFormError(null);
-            setFormData({
-              userId: "",
-              name: "",
-              position: "",
-              department: "",
-              status: "Active",
-              contact: "",
-              email: "",
-            });
+            setFormData(emptyFormData());
             setShowAddModal(true);
           }}
           className="btn btn-primary"
@@ -464,6 +531,7 @@ const EmployeeList = () => {
                 submitLabel="Add Employee"
                 userOptions={userOptions}
                 loadingUsers={loadingUsers}
+                onLinkedUserChange={handleLinkedUserChange}
               />
             </div>
           </div>

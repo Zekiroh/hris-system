@@ -38,7 +38,8 @@ public class EmployeesService
                 (e.MiddleName != null && e.MiddleName.Contains(search)) ||
                 e.LastName.Contains(search) ||
                 (e.Department != null && e.Department.Contains(search)) ||
-                (e.Position != null && e.Position.Contains(search))
+                (e.Position != null && e.Position.Contains(search)) ||
+                e.EmploymentType.Contains(search)
             );
         }
 
@@ -71,13 +72,16 @@ public class EmployeesService
             .FirstOrDefaultAsync(ct);
     }
 
+    public async Task<NextEmployeeNumberResponse> GetNextEmployeeNumberAsync(CancellationToken ct = default)
+    {
+        var nextEmployeeNumber = await GenerateNextEmployeeNumberAsync(ct);
+        return new NextEmployeeNumberResponse(nextEmployeeNumber);
+    }
+
     public async Task<(bool ok, string? error, EmployeeDto? employee)> CreateAsync(
         CreateEmployeeRequest req,
         CancellationToken ct = default)
     {
-        if (req.DateHired is null)
-            return (false, "DateHired is required.", null);
-
         var user = await _db.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == req.UserId, ct);
@@ -97,9 +101,17 @@ public class EmployeesService
 
         var nextEmployeeNumber = await GenerateNextEmployeeNumberAsync(ct);
 
-        var firstName = string.IsNullOrWhiteSpace(user.FirstName) ? ExtractFirstName(user.FullName) : user.FirstName!.Trim();
-        var middleName = string.IsNullOrWhiteSpace(user.MiddleName) ? null : user.MiddleName.Trim();
-        var lastName = string.IsNullOrWhiteSpace(user.LastName) ? ExtractLastName(user.FullName) : user.LastName!.Trim();
+        var firstName = string.IsNullOrWhiteSpace(user.FirstName)
+            ? ExtractFirstName(user.FullName)
+            : user.FirstName!.Trim();
+
+        var middleName = string.IsNullOrWhiteSpace(user.MiddleName)
+            ? null
+            : user.MiddleName.Trim();
+
+        var lastName = string.IsNullOrWhiteSpace(user.LastName)
+            ? ExtractLastName(user.FullName)
+            : user.LastName!.Trim();
 
         var entity = new Employee
         {
@@ -111,7 +123,8 @@ public class EmployeesService
             MiddleName = middleName,
             LastName = lastName,
 
-            DateHired = req.DateHired.Value,
+            DateHired = DateOnly.FromDateTime(DateTime.UtcNow),
+            EmploymentType = req.EmploymentType.Trim(),
 
             Department = string.IsNullOrWhiteSpace(req.Department) ? null : req.Department.Trim(),
             Position = string.IsNullOrWhiteSpace(req.Position) ? null : req.Position.Trim(),
@@ -135,13 +148,13 @@ public class EmployeesService
         return (true, null, ToDto(entity));
     }
 
-    public async Task<(bool ok, string? error, EmployeeDto? employee)> UpdateAsync(Guid id, UpdateEmployeeRequest req, CancellationToken ct = default)
+    public async Task<(bool ok, string? error, EmployeeDto? employee)> UpdateAsync(
+        Guid id,
+        UpdateEmployeeRequest req,
+        CancellationToken ct = default)
     {
         var entity = await _db.Employees.FirstOrDefaultAsync(e => e.Id == id, ct);
         if (entity is null) return (false, "Employee not found.", null);
-
-        if (req.DateHired is null)
-            return (false, "DateHired is required.", null);
 
         entity.FirstName = req.FirstName.Trim();
         entity.MiddleName = string.IsNullOrWhiteSpace(req.MiddleName) ? null : req.MiddleName.Trim();
@@ -151,10 +164,9 @@ public class EmployeesService
         entity.Sex = string.IsNullOrWhiteSpace(req.Sex) ? null : req.Sex.Trim();
         entity.CivilStatus = string.IsNullOrWhiteSpace(req.CivilStatus) ? null : req.CivilStatus.Trim();
 
-        entity.DateHired = req.DateHired.Value;
-
         entity.Department = string.IsNullOrWhiteSpace(req.Department) ? null : req.Department.Trim();
         entity.Position = string.IsNullOrWhiteSpace(req.Position) ? null : req.Position.Trim();
+        entity.EmploymentType = req.EmploymentType.Trim();
 
         entity.ContactNumber = string.IsNullOrWhiteSpace(req.ContactNumber) ? null : req.ContactNumber.Trim();
         entity.Email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim();
@@ -262,6 +274,7 @@ public class EmployeesService
         CivilStatus = e.CivilStatus,
 
         DateHired = e.DateHired,
+        EmploymentType = e.EmploymentType,
 
         Department = e.Department,
         Position = e.Position,
@@ -294,6 +307,7 @@ public class EmployeesService
             CivilStatus = e.CivilStatus,
 
             DateHired = e.DateHired,
+            EmploymentType = e.EmploymentType,
 
             Department = e.Department,
             Position = e.Position,
