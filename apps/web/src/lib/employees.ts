@@ -99,7 +99,7 @@ export type UpdateEmployeeRequest = {
 
   department?: string;
   position?: string;
-  employmentType?: EmploymentType;
+  employmentType: EmploymentType;
 
   contactNumber?: string;
   email?: string;

@@ -16,7 +16,7 @@ namespace HRIS.Api.Migrations
                 type: "varchar(50)",
                 maxLength: 50,
                 nullable: false,
-                defaultValue: "")
+                defaultValue: "Regular")
                 .Annotation("MySql:CharSet", "utf8mb4");
         }
 
