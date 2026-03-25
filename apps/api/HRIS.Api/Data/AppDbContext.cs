@@ -24,7 +24,8 @@ public class AppDbContext : DbContext
             .IsUnique();
 
         modelBuilder.Entity<Employee>()
-            .HasIndex(e => e.UserId);
+            .HasIndex(e => e.UserId)
+            .IsUnique();
 
         modelBuilder.Entity<Employee>()
             .HasOne(e => e.User)

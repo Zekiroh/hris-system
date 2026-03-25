@@ -71,11 +71,10 @@ public class EmployeesService
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task<(bool ok, string? error, EmployeeDto? employee)> CreateAsync(CreateEmployeeRequest req, CancellationToken ct = default)
+    public async Task<(bool ok, string? error, EmployeeDto? employee)> CreateAsync(
+        CreateEmployeeRequest req,
+        CancellationToken ct = default)
     {
-        if (req.DateHired is null)
-            return (false, "DateHired is required.", null);
-
         var user = await _db.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == req.UserId, ct);
@@ -109,7 +108,7 @@ public class EmployeesService
             MiddleName = middleName,
             LastName = lastName,
 
-            DateHired = req.DateHired.Value,
+            DateHired = req.DateHired,
 
             Department = string.IsNullOrWhiteSpace(req.Department) ? null : req.Department.Trim(),
             Position = string.IsNullOrWhiteSpace(req.Position) ? null : req.Position.Trim(),
@@ -124,8 +123,7 @@ public class EmployeesService
             ZipCode = string.IsNullOrWhiteSpace(req.ZipCode) ? null : req.ZipCode.Trim(),
 
             IsActive = true,
-            CreatedAtUtc = DateTime.UtcNow,
-            UpdatedAtUtc = null
+            CreatedAtUtc = DateTime.UtcNow
         };
 
         _db.Employees.Add(entity);
