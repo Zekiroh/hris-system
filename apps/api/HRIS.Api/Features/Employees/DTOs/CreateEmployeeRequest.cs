@@ -8,7 +8,7 @@ public class CreateEmployeeRequest
     public long UserId { get; set; }
 
     [Required]
-    public DateOnly DateHired { get; set; }
+    public DateOnly? DateHired { get; set; }
 
     [MaxLength(100)]
     public string? Department { get; set; }

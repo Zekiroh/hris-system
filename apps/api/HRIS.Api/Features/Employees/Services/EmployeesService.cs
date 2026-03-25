@@ -75,6 +75,9 @@ public class EmployeesService
         CreateEmployeeRequest req,
         CancellationToken ct = default)
     {
+        if (req.DateHired is null)
+            return (false, "DateHired is required.", null);
+
         var user = await _db.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == req.UserId, ct);
@@ -85,7 +88,7 @@ public class EmployeesService
         if (!user.IsActive)
             return (false, "Selected user is inactive.", null);
 
-        if (user.RoleId != 3) // 3 = User
+        if (user.RoleId != 3)
             return (false, "Only user accounts can be linked as employees.", null);
 
         var alreadyLinked = await _db.Employees.AnyAsync(e => e.UserId == req.UserId, ct);
@@ -108,7 +111,7 @@ public class EmployeesService
             MiddleName = middleName,
             LastName = lastName,
 
-            DateHired = req.DateHired,
+            DateHired = req.DateHired.Value,
 
             Department = string.IsNullOrWhiteSpace(req.Department) ? null : req.Department.Trim(),
             Position = string.IsNullOrWhiteSpace(req.Position) ? null : req.Position.Trim(),
