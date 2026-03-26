@@ -17,6 +17,10 @@ export type EmployeeView = {
   city: string;
   province: string;
   zipCode: string;
+  sssNumber?: string;
+  philHealthNumber?: string;
+  pagIbigNumber?: string;
+  tinNumber?: string;
 };
 
 const statusBadge: Record<EmployeeStatus, string> = {
@@ -24,6 +28,18 @@ const statusBadge: Record<EmployeeStatus, string> = {
   "On Leave": "badge-warning",
   Inactive: "badge-danger",
 };
+
+function maskGovernmentValue(value?: string) {
+  const raw = value?.trim() ?? "";
+  if (!raw) return "—";
+
+  const visibleChars = 4;
+  if (raw.length <= visibleChars) {
+    return "•".repeat(raw.length);
+  }
+
+  return `${"•".repeat(raw.length - visibleChars)}${raw.slice(-visibleChars)}`;
+}
 
 export function EmployeeViewPanel({
   open,
@@ -60,7 +76,7 @@ export function EmployeeViewPanel({
 
           <div className="mb-6 flex flex-col items-center">
             <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-3xl font-bold text-white shadow-lg">
-              {employee.name.charAt(0)}
+              {employee.name?.charAt(0) || "—"}
             </div>
             <h4 className="text-lg font-bold text-gray-900">{employee.name}</h4>
             <p className="text-sm text-gray-500">{employee.position}</p>
@@ -87,7 +103,32 @@ export function EmployeeViewPanel({
                 <span className="text-xs font-medium uppercase tracking-wider text-gray-400">
                   {label}
                 </span>
-                <span className="text-sm font-semibold text-gray-800 text-right max-w-[60%] break-words">
+                <span className="max-w-[60%] break-words text-right text-sm font-semibold text-gray-800">
+                  {value}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-4 border-t border-gray-100 pt-6">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              Government Information
+            </h4>
+
+            {[
+              ["SSS Number", maskGovernmentValue(employee.sssNumber)],
+              ["PhilHealth", maskGovernmentValue(employee.philHealthNumber)],
+              ["Pag-IBIG", maskGovernmentValue(employee.pagIbigNumber)],
+              ["TIN", maskGovernmentValue(employee.tinNumber)],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                className="flex items-center justify-between rounded-xl bg-gray-50 p-3"
+              >
+                <span className="text-xs font-medium uppercase tracking-wider text-gray-400">
+                  {label}
+                </span>
+                <span className="max-w-[60%] break-words text-right text-sm font-semibold text-gray-800">
                   {value}
                 </span>
               </div>

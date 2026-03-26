@@ -29,6 +29,13 @@ public class EmployeeDto
     public string? Province { get; set; }
     public string? ZipCode { get; set; }
 
+    // ---- C2 Government Fields ----
+
+    public string? SSSNumber { get; set; }
+    public string? PhilHealthNumber { get; set; }
+    public string? PagIbigNumber { get; set; }
+    public string? TINNumber { get; set; }
+
     public bool IsActive { get; set; }
 
     public DateTime CreatedAtUtc { get; set; }

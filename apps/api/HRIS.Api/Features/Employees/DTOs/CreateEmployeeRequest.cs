@@ -8,14 +8,16 @@ public class CreateEmployeeRequest
     public long UserId { get; set; }
 
     [Required]
+    [MaxLength(100)]
+    public string Position { get; set; } = default!;
+
+    [Required]
+    [MaxLength(100)]
+    public string Department { get; set; } = default!;
+
+    [Required]
     [MaxLength(50)]
     public string EmploymentType { get; set; } = default!;
-
-    [MaxLength(100)]
-    public string? Department { get; set; }
-
-    [MaxLength(100)]
-    public string? Position { get; set; }
 
     [MaxLength(20)]
     public string? ContactNumber { get; set; }
