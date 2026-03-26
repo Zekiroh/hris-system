@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 
 import {
@@ -41,6 +41,7 @@ const EmployeeList = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const [employeesError, setEmployeesError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -60,6 +61,8 @@ const EmployeeList = () => {
 
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+
+  const employeeNumberRequestRef = useRef(0);
 
   const isActiveQuery = useMemo(() => {
     if (filterStatus === "Active") return true;
@@ -103,6 +106,7 @@ const EmployeeList = () => {
     setSelectedEmployee(null);
     setFormData(emptyFormData());
     setFormError(null);
+    employeeNumberRequestRef.current += 1;
   }
 
   async function fetchEmployees() {
@@ -173,6 +177,7 @@ const EmployeeList = () => {
 
   async function handleLinkedUserChange(userId: string) {
     const selected = userOptions.find((u) => u.id === userId);
+    const requestId = ++employeeNumberRequestRef.current;
 
     const baseUpdate = {
       userId,
@@ -200,17 +205,29 @@ const EmployeeList = () => {
       const res = await getNextEmployeeNumber();
       const payload = unwrapData<{ employeeNumber: string }>(res);
 
+      if (requestId !== employeeNumberRequestRef.current) return;
+
       if (payload?.employeeNumber) {
-        setFormData((p) => ({
-          ...p,
-          employeeId: payload.employeeNumber,
-        }));
+        setFormData((p) => {
+          if (p.userId !== userId) return p;
+
+          return {
+            ...p,
+            employeeId: payload.employeeNumber,
+          };
+        });
       }
     } catch {
-      setFormData((p) => ({
-        ...p,
-        employeeId: "",
-      }));
+      if (requestId !== employeeNumberRequestRef.current) return;
+
+      setFormData((p) => {
+        if (p.userId !== userId) return p;
+
+        return {
+          ...p,
+          employeeId: "",
+        };
+      });
     }
   }
 
@@ -260,6 +277,7 @@ const EmployeeList = () => {
 
   const openEdit = async (id: string) => {
     setFormError(null);
+    setEmployeesError(null);
     setDetailsLoading(true);
 
     try {
@@ -270,9 +288,13 @@ const EmployeeList = () => {
       setFormData(mapDtoToFormData(dto));
       setShowEditModal(true);
     } catch (e) {
-      setFormError(
-        e instanceof Error ? e.message : "Failed to load employee details"
-      );
+      const message =
+        e instanceof Error ? e.message : "Failed to load employee details";
+
+      setFormError(message);
+      setEmployeesError(message);
+      setShowEditModal(false);
+      setSelectedEmployee(null);
     } finally {
       setDetailsLoading(false);
     }
@@ -306,6 +328,8 @@ const EmployeeList = () => {
   };
 
   const handleAdd = async () => {
+    if (submitting) return;
+
     setFormError(null);
 
     if (!formData.userId) {
@@ -347,6 +371,8 @@ const EmployeeList = () => {
       zipCode: formData.zipCode || undefined,
     };
 
+    setSubmitting(true);
+
     try {
       await createEmployee(payload);
       setShowAddModal(false);
@@ -354,11 +380,13 @@ const EmployeeList = () => {
       await fetchEmployees();
     } catch (e) {
       setFormError(e instanceof Error ? e.message : "Failed to create employee");
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleEdit = async () => {
-    if (!selectedEmployee) return;
+    if (!selectedEmployee || submitting) return;
 
     setFormError(null);
 
@@ -368,6 +396,9 @@ const EmployeeList = () => {
       setFormError("Invalid employee name.");
       return;
     }
+
+    const normalizedStatus: EmployeeStatus =
+      formData.status === "Inactive" ? "Inactive" : "Active";
 
     const updatePayload: UpdateEmployeeRequest & { status: EmployeeStatus } = {
       firstName,
@@ -387,9 +418,11 @@ const EmployeeList = () => {
       philHealthNumber: formData.philHealthNumber || undefined,
       pagIbigNumber: formData.pagIbigNumber || undefined,
       tinNumber: formData.tinNumber || undefined,
-      isActive: formData.status !== "Inactive",
-      status: formData.status,
+      isActive: normalizedStatus === "Active",
+      status: normalizedStatus,
     };
+
+    setSubmitting(true);
 
     try {
       await updateEmployee(selectedEmployee.id, updatePayload);
@@ -398,6 +431,8 @@ const EmployeeList = () => {
       await fetchEmployees();
     } catch (e) {
       setFormError(e instanceof Error ? e.message : "Failed to update employee");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -462,7 +497,7 @@ const EmployeeList = () => {
         formData={formData}
         setFormData={setFormData}
         apiError={formError}
-        loading={loading}
+        loading={submitting}
         loadingUsers={loadingUsers}
         userOptions={userOptions}
         onClose={() => {
@@ -478,7 +513,7 @@ const EmployeeList = () => {
         formData={formData}
         setFormData={setFormData}
         apiError={formError}
-        loading={loading || detailsLoading}
+        loading={submitting || detailsLoading}
         onClose={() => {
           setShowEditModal(false);
           resetModalState();
