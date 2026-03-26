@@ -392,11 +392,7 @@ const EmployeeList = () => {
     };
 
     try {
-      const res = await updateEmployee(selectedEmployee.id, updatePayload);
-      const dto = unwrapData<EmployeeDto>(res);
-      const updatedEmployee = mapDtoToEmployee(dto);
-
-      setSelectedEmployee(updatedEmployee);
+      await updateEmployee(selectedEmployee.id, updatePayload);
       setShowEditModal(false);
       resetModalState();
       await fetchEmployees();

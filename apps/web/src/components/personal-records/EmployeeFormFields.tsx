@@ -93,7 +93,7 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
 
               if (onLinkedUserChange) {
                 Promise.resolve(onLinkedUserChange(id)).catch(() => {
-                  // silent fail (handled upstream if needed)
+                  // handled upstream if needed
                 });
                 return;
               }
@@ -323,6 +323,7 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
               <label className="pro-label">SSS Number</label>
               <input
                 type="text"
+                maxLength={20}
                 value={formData.sssNumber}
                 onChange={(e) =>
                   setFormData((p) => ({ ...p, sssNumber: e.target.value }))
@@ -335,6 +336,7 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
               <label className="pro-label">PhilHealth Number</label>
               <input
                 type="text"
+                maxLength={20}
                 value={formData.philHealthNumber}
                 onChange={(e) =>
                   setFormData((p) => ({
@@ -352,6 +354,7 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
               <label className="pro-label">Pag-IBIG Number</label>
               <input
                 type="text"
+                maxLength={20}
                 value={formData.pagIbigNumber}
                 onChange={(e) =>
                   setFormData((p) => ({
@@ -367,6 +370,7 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
               <label className="pro-label">TIN Number</label>
               <input
                 type="text"
+                maxLength={20}
                 value={formData.tinNumber}
                 onChange={(e) =>
                   setFormData((p) => ({ ...p, tinNumber: e.target.value }))

@@ -29,6 +29,18 @@ const statusBadge: Record<EmployeeStatus, string> = {
   Inactive: "badge-danger",
 };
 
+function maskGovernmentValue(value?: string) {
+  const raw = value?.trim() ?? "";
+  if (!raw) return "—";
+
+  const visibleChars = 4;
+  if (raw.length <= visibleChars) {
+    return "•".repeat(raw.length);
+  }
+
+  return `${"•".repeat(raw.length - visibleChars)}${raw.slice(-visibleChars)}`;
+}
+
 export function EmployeeViewPanel({
   open,
   employee,
@@ -91,7 +103,7 @@ export function EmployeeViewPanel({
                 <span className="text-xs font-medium uppercase tracking-wider text-gray-400">
                   {label}
                 </span>
-                <span className="text-sm font-semibold text-gray-800 text-right max-w-[60%] break-words">
+                <span className="max-w-[60%] break-words text-right text-sm font-semibold text-gray-800">
                   {value}
                 </span>
               </div>
@@ -104,10 +116,10 @@ export function EmployeeViewPanel({
             </h4>
 
             {[
-              ["SSS Number", employee.sssNumber || "—"],
-              ["PhilHealth", employee.philHealthNumber || "—"],
-              ["Pag-IBIG", employee.pagIbigNumber || "—"],
-              ["TIN", employee.tinNumber || "—"],
+              ["SSS Number", maskGovernmentValue(employee.sssNumber)],
+              ["PhilHealth", maskGovernmentValue(employee.philHealthNumber)],
+              ["Pag-IBIG", maskGovernmentValue(employee.pagIbigNumber)],
+              ["TIN", maskGovernmentValue(employee.tinNumber)],
             ].map(([label, value]) => (
               <div
                 key={label}
@@ -116,7 +128,7 @@ export function EmployeeViewPanel({
                 <span className="text-xs font-medium uppercase tracking-wider text-gray-400">
                   {label}
                 </span>
-                <span className="text-sm font-semibold text-gray-800 text-right max-w-[60%] break-words">
+                <span className="max-w-[60%] break-words text-right text-sm font-semibold text-gray-800">
                   {value}
                 </span>
               </div>
