@@ -92,7 +92,9 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
               const id = e.target.value;
 
               if (onLinkedUserChange) {
-                void onLinkedUserChange(id);
+                Promise.resolve(onLinkedUserChange(id)).catch(() => {
+                  // silent fail (handled upstream if needed)
+                });
                 return;
               }
 

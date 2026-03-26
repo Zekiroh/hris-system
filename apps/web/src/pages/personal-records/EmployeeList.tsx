@@ -166,7 +166,36 @@ const EmployeeList = () => {
     }
   }
 
-  async function fetchNextEmployeeNumber() {
+  async function fetchEmployeeDtoById(id: string) {
+    const res = await getEmployeeById(id);
+    return unwrapData<EmployeeDto>(res);
+  }
+
+  async function handleLinkedUserChange(userId: string) {
+    const selected = userOptions.find((u) => u.id === userId);
+
+    const baseUpdate = {
+      userId,
+      name: selected?.fullName ?? "",
+      email: selected?.email ?? "",
+      contact: selected?.contactNumber ?? "",
+      hireDate: new Date().toISOString().slice(0, 10),
+    };
+
+    if (!userId) {
+      setFormData((p) => ({
+        ...p,
+        ...baseUpdate,
+        employeeId: "",
+      }));
+      return;
+    }
+
+    setFormData((p) => ({
+      ...p,
+      ...baseUpdate,
+    }));
+
     try {
       const res = await getNextEmployeeNumber();
       const payload = unwrapData<{ employeeNumber: string }>(res);
@@ -183,36 +212,6 @@ const EmployeeList = () => {
         employeeId: "",
       }));
     }
-  }
-
-  async function fetchEmployeeDtoById(id: string) {
-    const res = await getEmployeeById(id);
-    return unwrapData<EmployeeDto>(res);
-  }
-
-  async function handleLinkedUserChange(userId: string) {
-    const selected = userOptions.find((u) => u.id === userId);
-
-    setFormData((p) => ({
-      ...p,
-      userId,
-      name: selected?.fullName ?? "",
-      email: selected?.email ?? "",
-      contact: selected?.contactNumber ?? "",
-      employeeId: userId ? p.employeeId : "",
-      hireDate: new Date().toISOString().slice(0, 10),
-    }));
-
-    if (userId) {
-      await fetchNextEmployeeNumber();
-      return;
-    }
-
-    setFormData((p) => ({
-      ...p,
-      employeeId: "",
-      hireDate: new Date().toISOString().slice(0, 10),
-    }));
   }
 
   useEffect(() => {

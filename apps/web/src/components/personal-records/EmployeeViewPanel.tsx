@@ -64,7 +64,7 @@ export function EmployeeViewPanel({
 
           <div className="mb-6 flex flex-col items-center">
             <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-3xl font-bold text-white shadow-lg">
-              {employee.name.charAt(0)}
+              {employee.name?.charAt(0) || "—"}
             </div>
             <h4 className="text-lg font-bold text-gray-900">{employee.name}</h4>
             <p className="text-sm text-gray-500">{employee.position}</p>
