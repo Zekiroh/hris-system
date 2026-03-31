@@ -3,6 +3,19 @@ import { apiRequest } from "./api";
 export type EmployeeStatus = "Active" | "On Leave" | "Inactive";
 export type EmploymentType = "Regular" | "Probationary" | "Project-based";
 
+export const EMPLOYEE_DOCUMENT_TYPES = [
+  "SSS",
+  "PhilHealth",
+  "Pag-IBIG",
+  "TIN",
+  "Contract",
+  "Government ID",
+  "Resume",
+  "Other",
+] as const;
+
+export type EmployeeDocumentType = (typeof EMPLOYEE_DOCUMENT_TYPES)[number];
+
 export type EmployeeDto = {
   id: string;
   employeeNumber: string;
@@ -30,7 +43,6 @@ export type EmployeeDto = {
   province: string | null;
   zipCode: string | null;
 
-  // ---- C2 Government Fields ----
   sssNumber: string | null;
   philHealthNumber: string | null;
   pagIbigNumber: string | null;
@@ -84,14 +96,6 @@ export type CreateEmployeeRequest = {
 
   department?: string;
   position?: string;
-
-  contactNumber?: string;
-
-  addressLine1?: string;
-  addressLine2?: string;
-  city?: string;
-  province?: string;
-  zipCode?: string;
 };
 
 export type UpdateEmployeeRequest = {
@@ -116,7 +120,6 @@ export type UpdateEmployeeRequest = {
   province?: string;
   zipCode?: string;
 
-  // ---- C2 Government Fields ----
   sssNumber?: string;
   philHealthNumber?: string;
   pagIbigNumber?: string;
@@ -125,7 +128,32 @@ export type UpdateEmployeeRequest = {
   isActive: boolean;
 };
 
-// ---- helpers ----
+export type EmployeeDocumentDto = {
+  id: string;
+  fileName: string;
+  contentType: string;
+  uploadedAtUtc: string;
+  documentType?: string | null;
+  fileSizeBytes?: number | null;
+};
+
+type ApiEnvelope<T> = {
+  data?: T;
+  message?: string;
+};
+
+function unwrapApiData<T>(payload: T | ApiEnvelope<T>): T {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "data" in (payload as Record<string, unknown>)
+  ) {
+    const data = (payload as ApiEnvelope<T>).data;
+    return (data ?? payload) as T;
+  }
+
+  return payload as T;
+}
 
 function toDateOnly(value: string | undefined | null): string | undefined {
   if (!value) return undefined;
@@ -152,96 +180,133 @@ function normalizeStatus(v: unknown): EmployeeStatus {
   return "Active";
 }
 
-function normalizeEmploymentType(v: unknown): EmploymentType {
-  if (v === "Regular" || v === "Probationary" || v === "Project-based") {
-    return v;
+export function extractApiError(error: unknown): string {
+  if (!error) return "Unexpected error";
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
   }
-  return "Regular";
-}
 
-function buildEmployeeName(dto: EmployeeDto): string {
-  const last = dto.lastName?.trim() ?? "";
-  const first = dto.firstName?.trim() ?? "";
-  const middle = dto.middleName?.trim() ?? "";
+  if (typeof error === "string" && error.trim()) {
+    return error.trim();
+  }
 
-  if (last && first && middle) return `${last}, ${first} ${middle}`;
-  if (last && first) return `${last}, ${first}`;
-  return [first, middle, last].filter(Boolean).join(" ") || "—";
-}
-
-export function mapEmployeeDtoToEmployee(dto: EmployeeDto): Employee {
-  return {
-    id: dto.id,
-    employeeId: dto.employeeNumber,
-    name: buildEmployeeName(dto),
-    position: dto.position ?? "",
-    department: dto.department ?? "",
-    status: dto.isActive ? "Active" : "Inactive",
-    employmentType: normalizeEmploymentType(dto.employmentType),
-    contact: dto.contactNumber ?? "",
-    email: dto.email ?? "",
-    hireDate: dto.dateHired ?? "",
-    addressLine1: dto.addressLine1 ?? "",
-    addressLine2: dto.addressLine2 ?? "",
-    city: dto.city ?? "",
-    province: dto.province ?? "",
-    zipCode: dto.zipCode ?? "",
+  const err = error as {
+    response?: {
+      data?: {
+        message?: string;
+        title?: string;
+        detail?: string;
+        errors?: Record<string, string[]>;
+      };
+      status?: number;
+      statusText?: string;
+    };
+    message?: string;
   };
+
+  const data = err.response?.data;
+
+  if (data?.errors && typeof data.errors === "object") {
+    const firstKey = Object.keys(data.errors)[0];
+    const firstMessage = firstKey ? data.errors[firstKey]?.[0] : undefined;
+
+    if (firstMessage?.trim()) {
+      return firstMessage.trim();
+    }
+  }
+
+  if (typeof data?.message === "string" && data.message.trim()) {
+    return data.message.trim();
+  }
+
+  if (typeof data?.detail === "string" && data.detail.trim()) {
+    return data.detail.trim();
+  }
+
+  if (typeof data?.title === "string" && data.title.trim()) {
+    return data.title.trim();
+  }
+
+  if (typeof err.message === "string" && err.message.trim()) {
+    return err.message.trim();
+  }
+
+  if (typeof err.response?.status === "number") {
+    return `Request failed (${err.response.status})`;
+  }
+
+  return "Unknown error";
+}
+
+function preserveApiError(error: unknown): never {
+  if (error instanceof Error) {
+    throw error;
+  }
+
+  throw new Error(extractApiError(error));
+}
+
+async function withApiErrorHandling<T>(request: Promise<T>): Promise<T> {
+  try {
+    return await request;
+  } catch (error) {
+    preserveApiError(error);
+  }
 }
 
 export type EmployeeWriteExtras = {
   status?: EmployeeStatus;
 };
 
-// ---- API ----
-
 export function getEmployees(q: GetEmployeesQuery) {
   const params = new URLSearchParams();
 
   if (typeof q.page === "number") params.set("page", String(q.page));
-  if (typeof q.pageSize === "number")
+  if (typeof q.pageSize === "number") {
     params.set("pageSize", String(q.pageSize));
+  }
   if (q.search && q.search.trim()) params.set("search", q.search.trim());
-  if (typeof q.isActive === "boolean")
+  if (typeof q.isActive === "boolean") {
     params.set("isActive", String(q.isActive));
+  }
 
   const qs = params.toString();
 
-  return apiRequest<PagedEmployeesResponse>(`/employees${qs ? `?${qs}` : ""}`);
+  return apiRequest<PagedEmployeesResponse | ApiEnvelope<PagedEmployeesResponse>>(
+    `/employees${qs ? `?${qs}` : ""}`
+  );
 }
 
 export function getEmployeeById(id: string) {
-  return apiRequest<EmployeeDto>(`/employees/${id}`);
+  return apiRequest<EmployeeDto | ApiEnvelope<EmployeeDto>>(`/employees/${id}`);
 }
 
 export function getNextEmployeeNumber() {
-  return apiRequest<NextEmployeeNumberResponse>("/employees/next-number");
+  return apiRequest<
+    NextEmployeeNumberResponse | ApiEnvelope<NextEmployeeNumberResponse>
+  >("/employees/next-number");
 }
 
-export function createEmployee(data: CreateEmployeeRequest) {
+export async function createEmployee(data: CreateEmployeeRequest) {
   const payload = {
     userId: data.userId,
     employmentType: data.employmentType,
-
     department: normalizeOptional(data.department),
     position: normalizeOptional(data.position),
-
-    contactNumber: normalizeOptional(data.contactNumber),
-
-    addressLine1: normalizeOptional(data.addressLine1),
-    addressLine2: normalizeOptional(data.addressLine2),
-    city: normalizeOptional(data.city),
-    province: normalizeOptional(data.province),
-    zipCode: normalizeOptional(data.zipCode),
   };
 
-  return apiRequest<EmployeeDto>("/employees", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  const response = await withApiErrorHandling(
+    apiRequest<EmployeeDto | ApiEnvelope<EmployeeDto>>("/employees", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  );
+
+  return unwrapApiData(response);
 }
 
-export function updateEmployee(
+export async function updateEmployee(
   id: string,
   data: UpdateEmployeeRequest & EmployeeWriteExtras
 ) {
@@ -269,7 +334,6 @@ export function updateEmployee(
     province: normalizeOptional(data.province),
     zipCode: normalizeOptional(data.zipCode),
 
-    // ---- C2 Government Fields ----
     sssNumber: normalizeOptional(data.sssNumber),
     philHealthNumber: normalizeOptional(data.philHealthNumber),
     pagIbigNumber: normalizeOptional(data.pagIbigNumber),
@@ -279,21 +343,34 @@ export function updateEmployee(
     status,
   };
 
-  return apiRequest<EmployeeDto>(`/employees/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(payload),
-  });
+  const response = await withApiErrorHandling(
+    apiRequest<EmployeeDto | ApiEnvelope<EmployeeDto>>(`/employees/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  );
+
+  return unwrapApiData(response);
 }
 
-export function updateEmployeeStatus(id: string, isActive: boolean) {
-  return apiRequest<EmployeeDto>(`/employees/${id}/status`, {
-    method: "PATCH",
-    body: JSON.stringify({ isActive }),
-  });
+export async function updateEmployeeStatus(id: string, isActive: boolean) {
+  const response = await withApiErrorHandling(
+    apiRequest<EmployeeDto | ApiEnvelope<EmployeeDto>>(
+      `/employees/${id}/status`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ isActive }),
+      }
+    )
+  );
+
+  return unwrapApiData(response);
 }
 
-export function deleteEmployee(id: string) {
-  return apiRequest<void>(`/employees/${id}`, {
-    method: "DELETE",
-  });
+export async function deleteEmployee(id: string) {
+  return withApiErrorHandling(
+    apiRequest<void>(`/employees/${id}`, {
+      method: "DELETE",
+    })
+  );
 }

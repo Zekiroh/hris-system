@@ -162,7 +162,7 @@ const UserManagement = () => {
                     >
                       {filterRoleOptions.map((role) => (
                         <option key={role} value={role}>
-                          {role === 'ALL' ? 'All Roles' : role}
+                          {role === 'ALL' ? 'All' : role}
                         </option>
                       ))}
                     </select>
@@ -179,7 +179,7 @@ const UserManagement = () => {
                     >
                       {filterStatusOptions.map((status) => (
                         <option key={status} value={status}>
-                          {status === 'ALL' ? 'All Statuses' : status}
+                          {status === 'ALL' ? 'All' : status}
                         </option>
                       ))}
                     </select>
