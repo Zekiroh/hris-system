@@ -31,3 +31,6 @@ Thumbs.db
 !.vscode/extensions.json
 HashGenTemp/
 temp-frontend-reference/
+
+# Document upload - Admin Core Module
+uploads/ 

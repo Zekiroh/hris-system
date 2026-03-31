@@ -4,6 +4,7 @@ using HRIS.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRIS.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260326075114_Add_EmployeeDocuments")]
+    partial class Add_EmployeeDocuments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -175,15 +178,15 @@ namespace HRIS.Api.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
+                    b.Property<string>("SSSNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
                     b.Property<string>("Sex")
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
-                    b.Property<string>("SssNumber")
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)");
-
-                    b.Property<string>("TinNumber")
+                    b.Property<string>("TINNumber")
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
@@ -200,18 +203,6 @@ namespace HRIS.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("EmployeeNumber")
-                        .IsUnique();
-
-                    b.HasIndex("PagIbigNumber")
-                        .IsUnique();
-
-                    b.HasIndex("PhilHealthNumber")
-                        .IsUnique();
-
-                    b.HasIndex("SssNumber")
-                        .IsUnique();
-
-                    b.HasIndex("TinNumber")
                         .IsUnique();
 
                     b.HasIndex("UserId")

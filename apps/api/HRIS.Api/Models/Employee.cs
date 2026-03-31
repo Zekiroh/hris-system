@@ -73,7 +73,7 @@ public class Employee
     // =========================
 
     [MaxLength(20)]
-    public string? SSSNumber { get; set; }
+    public string? SssNumber { get; set; }
 
     [MaxLength(20)]
     public string? PhilHealthNumber { get; set; }
@@ -82,10 +82,12 @@ public class Employee
     public string? PagIbigNumber { get; set; }
 
     [MaxLength(20)]
-    public string? TINNumber { get; set; }
+    public string? TinNumber { get; set; }
 
     public bool IsActive { get; set; } = true;
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAtUtc { get; set; }
+
+    public ICollection<EmployeeDocument> Documents { get; set; } = new List<EmployeeDocument>();
 }

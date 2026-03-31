@@ -1,6 +1,7 @@
 using HRIS.Api.Data;
 using HRIS.Api.Features.Employees.DTOs;
 using HRIS.Api.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 
@@ -70,6 +71,72 @@ public class EmployeesService
             .Where(e => e.Id == id)
             .Select(ToDtoExpr())
             .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<List<EmployeeDocumentDto>> GetDocumentsAsync(
+        Guid employeeId,
+        CancellationToken ct = default)
+    {
+        return await _db.EmployeeDocuments
+            .AsNoTracking()
+            .Where(d => d.EmployeeId == employeeId)
+            .OrderByDescending(d => d.UploadedAtUtc)
+            .Select(d => new EmployeeDocumentDto(
+                d.Id,
+                d.DocumentType,
+                d.OriginalFileName,
+                d.ContentType,
+                d.FileSize,
+                d.UploadedAtUtc
+            ))
+            .ToListAsync(ct);
+    }
+
+    public async Task<(bool ok, string? error, (Stream Stream, string ContentType, string OriginalFileName)? file)>
+        DownloadDocumentAsync(
+            Guid employeeId,
+            Guid documentId,
+            CancellationToken ct = default)
+    {
+        var document = await _db.EmployeeDocuments
+            .AsNoTracking()
+            .FirstOrDefaultAsync(d => d.Id == documentId && d.EmployeeId == employeeId, ct);
+
+        if (document is null)
+            return (false, "Document not found.", null);
+
+        var absolutePath = Path.Combine(Directory.GetCurrentDirectory(), document.StoragePath);
+
+        if (!System.IO.File.Exists(absolutePath))
+            return (false, "File not found on server.", null);
+
+        var stream = new FileStream(absolutePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        return (true, null, (stream, document.ContentType, document.OriginalFileName));
+    }
+
+    public async Task<(bool ok, string? error)> DeleteDocumentAsync(
+        Guid employeeId,
+        Guid documentId,
+        CancellationToken ct = default)
+    {
+        var document = await _db.EmployeeDocuments
+            .FirstOrDefaultAsync(d => d.Id == documentId && d.EmployeeId == employeeId, ct);
+
+        if (document is null)
+            return (false, "Document not found.");
+
+        var absolutePath = Path.Combine(Directory.GetCurrentDirectory(), document.StoragePath);
+
+        if (System.IO.File.Exists(absolutePath))
+        {
+            System.IO.File.Delete(absolutePath);
+        }
+
+        _db.EmployeeDocuments.Remove(document);
+        await _db.SaveChangesAsync(ct);
+
+        return (true, null);
     }
 
     public async Task<NextEmployeeNumberResponse> GetNextEmployeeNumberAsync(CancellationToken ct = default)
@@ -148,6 +215,67 @@ public class EmployeesService
         return (true, null, ToDto(entity));
     }
 
+    public async Task<(bool ok, string? error, EmployeeDocument? document)> UploadDocumentAsync(
+        Guid employeeId,
+        string? documentType,
+        IFormFile? file,
+        CancellationToken ct = default)
+    {
+        var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId, ct);
+        if (employee is null)
+            return (false, "Employee not found.", null);
+
+        if (string.IsNullOrWhiteSpace(documentType))
+            return (false, "Document type is required.", null);
+
+        if (file is null || file.Length == 0)
+            return (false, "File is required.", null);
+
+        var normalizedDocumentType = documentType.Trim();
+        var originalFileName = Path.GetFileName(file.FileName);
+
+        if (string.IsNullOrWhiteSpace(originalFileName))
+            return (false, "Invalid file name.", null);
+
+        var relativeDirectory = Path.Combine("uploads", "employees", employeeId.ToString());
+        var absoluteDirectory = Path.Combine(Directory.GetCurrentDirectory(), relativeDirectory);
+
+        if (!Directory.Exists(absoluteDirectory))
+        {
+            Directory.CreateDirectory(absoluteDirectory);
+        }
+
+        var extension = Path.GetExtension(originalFileName);
+        var storedFileName = $"{Guid.NewGuid()}{extension}";
+        var absoluteFilePath = Path.Combine(absoluteDirectory, storedFileName);
+        var relativeFilePath = Path.Combine(relativeDirectory, storedFileName).Replace("\\", "/");
+
+        await using (var stream = new FileStream(absoluteFilePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream, ct);
+        }
+
+        var document = new EmployeeDocument
+        {
+            Id = Guid.NewGuid(),
+            EmployeeId = employeeId,
+            DocumentType = normalizedDocumentType,
+            OriginalFileName = originalFileName,
+            StoredFileName = storedFileName,
+            ContentType = string.IsNullOrWhiteSpace(file.ContentType)
+                ? "application/octet-stream"
+                : file.ContentType,
+            FileSize = file.Length,
+            StoragePath = relativeFilePath,
+            UploadedAtUtc = DateTime.UtcNow
+        };
+
+        _db.EmployeeDocuments.Add(document);
+        await _db.SaveChangesAsync(ct);
+
+        return (true, null, document);
+    }
+
     public async Task<(bool ok, string? error, EmployeeDto? employee)> UpdateAsync(
         Guid id,
         UpdateEmployeeRequest req,
@@ -156,31 +284,117 @@ public class EmployeesService
         var entity = await _db.Employees.FirstOrDefaultAsync(e => e.Id == id, ct);
         if (entity is null) return (false, "Employee not found.", null);
 
-        entity.FirstName = req.FirstName.Trim();
-        entity.MiddleName = string.IsNullOrWhiteSpace(req.MiddleName) ? null : req.MiddleName.Trim();
-        entity.LastName = req.LastName.Trim();
+        var firstName = req.FirstName.Trim();
+        var middleName = string.IsNullOrWhiteSpace(req.MiddleName) ? null : req.MiddleName.Trim();
+        var lastName = req.LastName.Trim();
+
+        var sex = string.IsNullOrWhiteSpace(req.Sex) ? null : req.Sex.Trim();
+        var civilStatus = string.IsNullOrWhiteSpace(req.CivilStatus) ? null : req.CivilStatus.Trim();
+
+        var department = string.IsNullOrWhiteSpace(req.Department) ? null : req.Department.Trim();
+        var position = string.IsNullOrWhiteSpace(req.Position) ? null : req.Position.Trim();
+        var employmentType = req.EmploymentType.Trim();
+
+        var contactNumber = string.IsNullOrWhiteSpace(req.ContactNumber) ? null : req.ContactNumber.Trim();
+        var email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim();
+
+        var addressLine1 = string.IsNullOrWhiteSpace(req.AddressLine1) ? null : req.AddressLine1.Trim();
+        var addressLine2 = string.IsNullOrWhiteSpace(req.AddressLine2) ? null : req.AddressLine2.Trim();
+        var city = string.IsNullOrWhiteSpace(req.City) ? null : req.City.Trim();
+        var province = string.IsNullOrWhiteSpace(req.Province) ? null : req.Province.Trim();
+        var zipCode = string.IsNullOrWhiteSpace(req.ZipCode) ? null : req.ZipCode.Trim();
+
+        var sssNumber = NormalizeGovernmentValue(req.SSSNumber);
+        var philHealthNumber = NormalizeGovernmentValue(req.PhilHealthNumber);
+        var pagIbigNumber = NormalizeGovernmentValue(req.PagIbigNumber);
+        var tinNumber = NormalizeGovernmentValue(req.TINNumber);
+
+        var duplicateErrors = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(sssNumber))
+        {
+            var candidates = BuildGovernmentCandidates(sssNumber, GovernmentNumberKind.Sss);
+
+            var exists = await _db.Employees.AnyAsync(
+                e => e.Id != id &&
+                    e.SssNumber != null &&
+                    candidates.Contains(e.SssNumber),
+                ct);
+
+            if (exists)
+                duplicateErrors.Add("sssNumber:SSS number already exists.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(philHealthNumber))
+        {
+            var candidates = BuildGovernmentCandidates(philHealthNumber, GovernmentNumberKind.PhilHealth);
+
+            var exists = await _db.Employees.AnyAsync(
+                e => e.Id != id &&
+                    e.PhilHealthNumber != null &&
+                    candidates.Contains(e.PhilHealthNumber),
+                ct);
+
+            if (exists)
+                duplicateErrors.Add("philHealthNumber:PhilHealth number already exists.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(pagIbigNumber))
+        {
+            var candidates = BuildGovernmentCandidates(pagIbigNumber, GovernmentNumberKind.PagIbig);
+
+            var exists = await _db.Employees.AnyAsync(
+                e => e.Id != id &&
+                    e.PagIbigNumber != null &&
+                    candidates.Contains(e.PagIbigNumber),
+                ct);
+
+            if (exists)
+                duplicateErrors.Add("pagIbigNumber:Pag-IBIG number already exists.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(tinNumber))
+        {
+            var candidates = BuildGovernmentCandidates(tinNumber, GovernmentNumberKind.Tin);
+
+            var exists = await _db.Employees.AnyAsync(
+                e => e.Id != id &&
+                    e.TinNumber != null &&
+                    candidates.Contains(e.TinNumber),
+                ct);
+
+            if (exists)
+                duplicateErrors.Add("tinNumber:TIN already exists.");
+        }
+
+        if (duplicateErrors.Count > 0)
+            return (false, string.Join("|", duplicateErrors), null);
+
+        entity.FirstName = firstName;
+        entity.MiddleName = middleName;
+        entity.LastName = lastName;
 
         entity.BirthDate = req.BirthDate;
-        entity.Sex = string.IsNullOrWhiteSpace(req.Sex) ? null : req.Sex.Trim();
-        entity.CivilStatus = string.IsNullOrWhiteSpace(req.CivilStatus) ? null : req.CivilStatus.Trim();
+        entity.Sex = sex;
+        entity.CivilStatus = civilStatus;
 
-        entity.Department = string.IsNullOrWhiteSpace(req.Department) ? null : req.Department.Trim();
-        entity.Position = string.IsNullOrWhiteSpace(req.Position) ? null : req.Position.Trim();
-        entity.EmploymentType = req.EmploymentType.Trim();
+        entity.Department = department;
+        entity.Position = position;
+        entity.EmploymentType = employmentType;
 
-        entity.ContactNumber = string.IsNullOrWhiteSpace(req.ContactNumber) ? null : req.ContactNumber.Trim();
-        entity.Email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim();
+        entity.ContactNumber = contactNumber;
+        entity.Email = email;
 
-        entity.AddressLine1 = string.IsNullOrWhiteSpace(req.AddressLine1) ? null : req.AddressLine1.Trim();
-        entity.AddressLine2 = string.IsNullOrWhiteSpace(req.AddressLine2) ? null : req.AddressLine2.Trim();
-        entity.City = string.IsNullOrWhiteSpace(req.City) ? null : req.City.Trim();
-        entity.Province = string.IsNullOrWhiteSpace(req.Province) ? null : req.Province.Trim();
-        entity.ZipCode = string.IsNullOrWhiteSpace(req.ZipCode) ? null : req.ZipCode.Trim();
+        entity.AddressLine1 = addressLine1;
+        entity.AddressLine2 = addressLine2;
+        entity.City = city;
+        entity.Province = province;
+        entity.ZipCode = zipCode;
 
-        entity.SSSNumber = string.IsNullOrWhiteSpace(req.SSSNumber) ? null : req.SSSNumber.Trim();
-        entity.PhilHealthNumber = string.IsNullOrWhiteSpace(req.PhilHealthNumber) ? null : req.PhilHealthNumber.Trim();
-        entity.PagIbigNumber = string.IsNullOrWhiteSpace(req.PagIbigNumber) ? null : req.PagIbigNumber.Trim();
-        entity.TINNumber = string.IsNullOrWhiteSpace(req.TINNumber) ? null : req.TINNumber.Trim();
+        entity.SssNumber = sssNumber;
+        entity.PhilHealthNumber = philHealthNumber;
+        entity.PagIbigNumber = pagIbigNumber;
+        entity.TinNumber = tinNumber;
 
         entity.IsActive = req.IsActive;
         entity.UpdatedAtUtc = DateTime.UtcNow;
@@ -250,6 +464,47 @@ public class EmployeesService
         return $"EMP-{(max + 1):D3}";
     }
 
+    private static string NormalizeGovernmentValue(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null!;
+
+        var digits = new string(value.Where(char.IsDigit).ToArray());
+        return string.IsNullOrWhiteSpace(digits) ? null! : digits;
+    }
+
+    private static List<string> BuildGovernmentCandidates(string digitsOnly, GovernmentNumberKind kind)
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            digitsOnly
+        };
+
+        switch (kind)
+        {
+            case GovernmentNumberKind.Sss:
+                if (digitsOnly.Length == 10)
+                    set.Add($"{digitsOnly[..2]}-{digitsOnly.Substring(2, 7)}-{digitsOnly.Substring(9, 1)}");
+                break;
+
+            case GovernmentNumberKind.PhilHealth:
+                if (digitsOnly.Length == 12)
+                    set.Add($"{digitsOnly[..2]}-{digitsOnly.Substring(2, 9)}-{digitsOnly.Substring(11, 1)}");
+                break;
+
+            case GovernmentNumberKind.PagIbig:
+                if (digitsOnly.Length == 12)
+                    set.Add($"{digitsOnly[..4]}-{digitsOnly.Substring(4, 4)}-{digitsOnly.Substring(8, 4)}");
+                break;
+
+            case GovernmentNumberKind.Tin:
+                if (digitsOnly.Length == 9)
+                    set.Add($"{digitsOnly[..3]}-{digitsOnly.Substring(3, 3)}-{digitsOnly.Substring(6, 3)}");
+                break;
+        }
+
+        return set.ToList();
+    }
+
     private static string ExtractFirstName(string? fullName)
     {
         if (string.IsNullOrWhiteSpace(fullName)) return "Unknown";
@@ -293,10 +548,10 @@ public class EmployeesService
         Province = e.Province,
         ZipCode = e.ZipCode,
 
-        SSSNumber = e.SSSNumber,
+        SSSNumber = e.SssNumber,
         PhilHealthNumber = e.PhilHealthNumber,
         PagIbigNumber = e.PagIbigNumber,
-        TINNumber = e.TINNumber,
+        TINNumber = e.TinNumber,
 
         IsActive = e.IsActive,
         CreatedAtUtc = e.CreatedAtUtc,
@@ -331,13 +586,21 @@ public class EmployeesService
             Province = e.Province,
             ZipCode = e.ZipCode,
 
-            SSSNumber = e.SSSNumber,
+            SSSNumber = e.SssNumber,
             PhilHealthNumber = e.PhilHealthNumber,
             PagIbigNumber = e.PagIbigNumber,
-            TINNumber = e.TINNumber,
+            TINNumber = e.TinNumber,
 
             IsActive = e.IsActive,
             CreatedAtUtc = e.CreatedAtUtc,
             UpdatedAtUtc = e.UpdatedAtUtc
         };
+
+    private enum GovernmentNumberKind
+    {
+        Sss,
+        PhilHealth,
+        PagIbig,
+        Tin
+    }
 }
