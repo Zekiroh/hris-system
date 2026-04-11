@@ -137,6 +137,11 @@ namespace HRIS.Api.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
 
+                    b.Property<string>("EmploymentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -154,6 +159,14 @@ namespace HRIS.Api.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
+                    b.Property<string>("PagIbigNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("PhilHealthNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
                     b.Property<string>("Position")
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
@@ -166,8 +179,19 @@ namespace HRIS.Api.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
+                    b.Property<string>("SssNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("TinNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("UserId")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("ZipCode")
                         .HasMaxLength(20)
@@ -178,7 +202,71 @@ namespace HRIS.Api.Migrations
                     b.HasIndex("EmployeeNumber")
                         .IsUnique();
 
+                    b.HasIndex("PagIbigNumber")
+                        .IsUnique();
+
+                    b.HasIndex("PhilHealthNumber")
+                        .IsUnique();
+
+                    b.HasIndex("SssNumber")
+                        .IsUnique();
+
+                    b.HasIndex("TinNumber")
+                        .IsUnique();
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
                     b.ToTable("Employees");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.EmployeeDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("StoragePath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("StoredFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime>("UploadedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentType");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("employee_documents", (string)null);
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.Permission", b =>
@@ -385,6 +473,9 @@ namespace HRIS.Api.Migrations
                     b.Property<int>("RoleId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Suffix")
+                        .HasColumnType("longtext");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
@@ -435,6 +526,27 @@ namespace HRIS.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("HRIS.Api.Models.Employee", b =>
+                {
+                    b.HasOne("HRIS.Api.Models.User", "User")
+                        .WithOne("Employee")
+                        .HasForeignKey("HRIS.Api.Models.Employee", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.EmployeeDocument", b =>
+                {
+                    b.HasOne("HRIS.Api.Models.Employee", "Employee")
+                        .WithMany("Documents")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
             modelBuilder.Entity("HRIS.Api.Models.Permission", b =>
                 {
                     b.HasOne("HRIS.Api.Models.Role", "Role")
@@ -457,9 +569,19 @@ namespace HRIS.Api.Migrations
                     b.Navigation("Role");
                 });
 
+            modelBuilder.Entity("HRIS.Api.Models.Employee", b =>
+                {
+                    b.Navigation("Documents");
+                });
+
             modelBuilder.Entity("HRIS.Api.Models.Role", b =>
                 {
                     b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.User", b =>
+                {
+                    b.Navigation("Employee");
                 });
 #pragma warning restore 612, 618
         }

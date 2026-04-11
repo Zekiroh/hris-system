@@ -11,13 +11,10 @@ const Login: FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // email is okay to keep controlled (because you want to remember it)
   const [email, setEmail] = useState("");
 
-  // password should be uncontrolled to let browser autofill behave correctly
   const passwordRef = useRef<HTMLInputElement | null>(null);
 
-  // remember me preference (NOT password storage)
   const [remember, setRemember] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +35,6 @@ const Login: FC = () => {
       localStorage.removeItem(UI_EMAIL);
     }
 
-    // cleanup old keys (avoid confusing storage drift)
     localStorage.removeItem("ui.loginRole");
     localStorage.removeItem("token");
     sessionStorage.removeItem("ui.loginRole");
@@ -65,7 +61,6 @@ const Login: FC = () => {
 
       await login(email, password, remember);
 
-      // Save UI prefs
       localStorage.setItem(UI_REMEMBER, remember ? "true" : "false");
       if (remember) {
         localStorage.setItem(UI_EMAIL, email);
@@ -167,7 +162,6 @@ const Login: FC = () => {
               </div>
             )}
 
-            {/* IMPORTANT: proper autocomplete + stable names help password managers */}
             <form onSubmit={handleLogin} className="space-y-5" autoComplete="on">
               {/* Username/Email */}
               <div className="space-y-1.5">
@@ -186,7 +180,7 @@ const Login: FC = () => {
                       setEmail(v);
                       if (remember) localStorage.setItem(UI_EMAIL, v);
                     }}
-                    className="w-full pl-11 pr-4 py-3 bg-white/10 border border-white/15 rounded-xl text-white placeholder-emerald-300/30 focus:outline-none focus:border-emerald-400/50 focus:bg-white/15 focus:ring-1 focus:ring-emerald-400/20 transition-all text-sm"
+                    className="w-full pl-11 pr-12 py-3 bg-white/10 border border-white/15 rounded-xl text-white placeholder-emerald-300/30 focus:outline-none focus:border-emerald-400/50 focus:bg-white/15 focus:ring-1 focus:ring-emerald-400/20 transition-all text-sm"
                     placeholder="Enter your username/email"
                     autoComplete="username"
                   />

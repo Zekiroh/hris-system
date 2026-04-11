@@ -19,6 +19,8 @@ import {
   type StatusConfirmState,
   type UserFormState,
   type UserRow,
+  type UserNameFormat,
+  type UserSortOrder,
 } from '../userManagement.shared';
 
 export const useUserManagement = () => {
@@ -28,6 +30,9 @@ export const useUserManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRole, setSelectedRole] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+  const [sortOrder, setSortOrder] = useState<UserSortOrder>('LATEST');
+  const [nameFormat, setNameFormat] = useState<UserNameFormat>('LN_FIRST');
+
   const [users, setUsers] = useState<UserRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,12 +73,44 @@ export const useUserManagement = () => {
 
   const clearModalError = () => setModalError(null);
 
-  const fetchUsers = async () => {
+  const mapSelectedRoleToRoleId = (role: string): number | undefined => {
+    switch (role) {
+      case 'Super Admin':
+        return 1;
+      case 'Admin':
+        return 2;
+      case 'User':
+        return 3;
+      default:
+        return undefined;
+    }
+  };
+
+  const mapSelectedStatusToIsActive = (status: string): boolean | undefined => {
+    switch (status) {
+      case 'Active':
+        return true;
+      case 'Inactive':
+        return false;
+      default:
+        return undefined;
+    }
+  };
+
+  const fetchUsers = async (currentSortOrder: UserSortOrder = sortOrder) => {
     setIsLoading(true);
     try {
-      const data = await getAdminUsers({ page: 1, pageSize: 100 });
+      const data = await getAdminUsers({
+        page: 1,
+        pageSize: 100,
+        roleId: mapSelectedRoleToRoleId(selectedRole),
+        isActive: mapSelectedStatusToIsActive(selectedStatus),
+        sortBy: 'createdAt',
+        sortOrder: currentSortOrder === 'LATEST' ? 'desc' : 'asc',
+      });
+
       const items = Array.isArray(data) ? data : data.items;
-      setUsers(mapAdminUsers(items, authUser?.id));
+      setUsers(mapAdminUsers(items, authUser?.id, nameFormat));
     } catch {
       showBanner('error', 'Failed to load users.');
     } finally {
@@ -82,8 +119,8 @@ export const useUserManagement = () => {
   };
 
   useEffect(() => {
-    void fetchUsers();
-  }, [authUser?.id]);
+    void fetchUsers(sortOrder);
+  }, [authUser?.id, sortOrder, selectedRole, selectedStatus]);
 
   useEffect(() => {
     const closeMenu = () => setActiveMenu(null);
@@ -99,28 +136,28 @@ export const useUserManagement = () => {
     };
   }, []);
 
+  useEffect(() => {
+    setUsers((prev) => mapAdminUsers(prev, authUser?.id, nameFormat));
+  }, [nameFormat, authUser?.id]);
+
   const filteredUsers = useMemo(() => {
     const lower = searchTerm.toLowerCase();
 
     return users.filter((u) => {
-      const matchesSearch =
+      return (
         !searchTerm.trim() ||
+        u.displayName.toLowerCase().includes(lower) ||
         u.fullName.toLowerCase().includes(lower) ||
         u.email.toLowerCase().includes(lower) ||
         u.roleLabel.toLowerCase().includes(lower) ||
-        u.statusLabel.toLowerCase().includes(lower);
-
-      const matchesRole = selectedRole === 'ALL' || u.roleLabel === selectedRole;
-      const matchesStatus =
-        selectedStatus === 'ALL' || u.statusLabel === selectedStatus;
-
-      return matchesSearch && matchesRole && matchesStatus;
+        u.statusLabel.toLowerCase().includes(lower)
+      );
     });
-  }, [searchTerm, users, selectedRole, selectedStatus]);
+  }, [searchTerm, users]);
 
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, users, selectedRole, selectedStatus]);
+  }, [searchTerm, users, selectedRole, selectedStatus, sortOrder, nameFormat]);
 
   const totalPages = Math.max(
     1,
@@ -170,13 +207,12 @@ export const useUserManagement = () => {
   };
 
   const openEditModal = (user: UserRow) => {
-    const parts = user.fullName.trim().split(/\s+/);
-
     setFormData({
       id: user.id,
-      firstName: parts[0] || '',
-      middleName: parts.length > 2 ? parts.slice(1, -1).join(' ') : '',
-      lastName: parts.length > 1 ? parts[parts.length - 1] : '',
+      firstName: user.firstName ?? '',
+      middleName: user.middleName ?? '',
+      lastName: user.lastName ?? '',
+      suffix: user.suffix ?? '',
       email: user.email,
       password: '',
       roleId: user.roleId,
@@ -191,7 +227,7 @@ export const useUserManagement = () => {
   const openResetPasswordModal = (user: UserRow) => {
     setPasswordResetData({
       id: user.id,
-      fullName: user.fullName,
+      fullName: user.displayName,
       newPassword: '',
     });
     clearModalError();
@@ -202,7 +238,7 @@ export const useUserManagement = () => {
   const openStatusConfirmModal = (user: UserRow) => {
     setStatusConfirmData({
       id: user.id,
-      fullName: user.fullName,
+      fullName: user.displayName,
       isActive: user.isActive,
     });
     setShowStatusConfirmModal(true);
@@ -232,6 +268,7 @@ export const useUserManagement = () => {
         firstName: formData.firstName.trim(),
         middleName: formData.middleName.trim() || null,
         lastName: formData.lastName.trim(),
+        suffix: formData.suffix.trim() || null,
         email: normalizedEmail,
         password: formData.password.trim(),
         roleId: formData.roleId,
@@ -242,7 +279,12 @@ export const useUserManagement = () => {
 
       if (!formData.isActive) {
         try {
-          const refreshed = await getAdminUsers({ page: 1, pageSize: 100 });
+          const refreshed = await getAdminUsers({
+            page: 1,
+            pageSize: 100,
+            sortBy: 'createdAt',
+            sortOrder: sortOrder === 'LATEST' ? 'desc' : 'asc',
+          });
           const refreshedItems = Array.isArray(refreshed) ? refreshed : refreshed.items;
           const createdUser = refreshedItems.find(
             (user) => user.email.toLowerCase() === normalizedEmail
@@ -261,7 +303,7 @@ export const useUserManagement = () => {
       closeAddModal();
 
       try {
-        await fetchUsers();
+        await fetchUsers(sortOrder);
       } catch {
         postCreateIssue =
           postCreateIssue ?? 'User created, but the table could not be refreshed.';
@@ -293,6 +335,7 @@ export const useUserManagement = () => {
         firstName: formData.firstName.trim(),
         middleName: formData.middleName.trim() || null,
         lastName: formData.lastName.trim(),
+        suffix: formData.suffix.trim() || null,
         email: formData.email.trim().toLowerCase(),
         roleId: formData.roleId,
         isActive: formData.isActive,
@@ -305,7 +348,7 @@ export const useUserManagement = () => {
       }
 
       closeEditModal();
-      await fetchUsers();
+      await fetchUsers(sortOrder);
       showBanner('success', 'User updated successfully.');
     } catch {
       setModalError('Failed to update user.');
@@ -321,7 +364,7 @@ export const useUserManagement = () => {
     try {
       await updateAdminUserStatus(statusConfirmData.id, { isActive: nextIsActive });
       closeStatusConfirmModal();
-      await fetchUsers();
+      await fetchUsers(sortOrder);
       showBanner(
         'success',
         `User ${nextIsActive ? 'activated' : 'deactivated'} successfully.`
@@ -349,7 +392,7 @@ export const useUserManagement = () => {
       });
 
       closeResetPasswordModal();
-      await fetchUsers();
+      await fetchUsers(sortOrder);
       showBanner('success', 'Password reset successful.');
     } catch {
       setModalError('Failed to reset password.');
@@ -358,30 +401,75 @@ export const useUserManagement = () => {
     }
   };
 
-  const handleExportCsv = () => {
-    const headers = ['Full Name', 'Email', 'Role', 'Status', 'Last Active'];
-    const rows = filteredUsers.map((user) => [
-      user.fullName,
-      user.email,
-      user.roleLabel,
-      user.statusLabel,
-      user.lastActiveLabel,
-    ]);
+  const handleExportCsv = async () => {
+    try {
+      const data = await getAdminUsers({
+        page: 1,
+        pageSize: 100,
+        roleId: mapSelectedRoleToRoleId(selectedRole),
+        isActive: mapSelectedStatusToIsActive(selectedStatus),
+        sortBy: 'createdAt',
+        sortOrder: sortOrder === 'LATEST' ? 'desc' : 'asc',
+      });
 
-    const csv = [headers, ...rows]
-      .map((row) =>
-        row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(',')
-      )
-      .join('\n');
+      const items = Array.isArray(data) ? data : data.items;
+      const mapped = mapAdminUsers(items, authUser?.id, nameFormat);
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
+      const exportUsers = !searchTerm.trim()
+        ? mapped
+        : mapped.filter((u) => {
+            const lower = searchTerm.toLowerCase();
+            return (
+              u.displayName.toLowerCase().includes(lower) ||
+              u.fullName.toLowerCase().includes(lower) ||
+              u.email.toLowerCase().includes(lower) ||
+              u.roleLabel.toLowerCase().includes(lower) ||
+              u.statusLabel.toLowerCase().includes(lower)
+            );
+          });
 
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'admin-users.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+      if (!exportUsers.length) {
+        showBanner('error', 'No users available to export.');
+        return;
+      }
+
+      const headers = ['Name', 'Email', 'Role', 'Status', 'Last Active'];
+
+      const rows = exportUsers.map((user) => [
+        user.displayName,
+        user.email,
+        user.roleLabel,
+        user.statusLabel,
+        user.lastActiveLabel,
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map((row) =>
+          row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+        ),
+      ].join('\n');
+
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const sortLabel = sortOrder === 'LATEST' ? 'latest' : 'oldest';
+      const fileName = `users-export-${sortLabel}-${year}-${month}-${day}.csv`;
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch {
+      showBanner('error', 'Failed to export users.');
+    }
   };
 
   return {
@@ -389,6 +477,8 @@ export const useUserManagement = () => {
     searchTerm,
     selectedRole,
     selectedStatus,
+    sortOrder,
+    nameFormat,
     users,
     isLoading,
     isSubmitting,
@@ -411,6 +501,8 @@ export const useUserManagement = () => {
     setSearchTerm,
     setSelectedRole,
     setSelectedStatus,
+    setSortOrder,
+    setNameFormat,
     setPage,
     setFormData,
     setPasswordResetData,

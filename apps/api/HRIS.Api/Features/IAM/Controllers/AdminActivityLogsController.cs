@@ -152,6 +152,9 @@ public class AdminActivityLogsController : ControllerBase
                 "USER_STATUS_UPDATE" => "Updated Status",
                 "USER_PASSWORD_RESET" => "Reset Password",
                 "PERMISSION_UPDATE" => "Updated Permission",
+                "EMPLOYEE_CREATED" => "Created Employee",
+                "EMPLOYEE_UPDATED" => "Updated Employee",
+                "EMPLOYEE_STATUS_UPDATED" => "Updated Status",
                 _ => string.Join(
                     " ",
                     action
@@ -359,6 +362,113 @@ public class AdminActivityLogsController : ControllerBase
                 }
 
                 return "A new user account was created";
+            }
+
+            if (row.Action == "EMPLOYEE_CREATED")
+            {
+                var marker = "Created employee ";
+                var startIndex = summary.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+
+                if (startIndex >= 0)
+                {
+                    var afterMarker = summary[(startIndex + marker.Length)..].Trim();
+
+                    var openParenIndex = afterMarker.LastIndexOf('(');
+                    var closeParenIndex = afterMarker.LastIndexOf(')');
+
+                    if (openParenIndex > 0 && closeParenIndex > openParenIndex)
+                    {
+                        var employeeNumber = afterMarker[..openParenIndex].Trim();
+                        var employeeName = afterMarker[(openParenIndex + 1)..closeParenIndex].Trim();
+
+                        if (!string.IsNullOrWhiteSpace(employeeNumber) &&
+                            !string.IsNullOrWhiteSpace(employeeName))
+                        {
+                            return $"{employeeName} was onboarded ({employeeNumber})";
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(afterMarker))
+                    {
+                        return $"Employee {afterMarker} was created";
+                    }
+                }
+
+                return "A new employee record was created";
+            }
+
+            if (row.Action == "EMPLOYEE_UPDATED")
+            {
+                var marker = "Updated employee ";
+                var startIndex = summary.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+
+                if (startIndex >= 0)
+                {
+                    var afterMarker = summary[(startIndex + marker.Length)..].Trim();
+
+                    var openParenIndex = afterMarker.LastIndexOf('(');
+                    var closeParenIndex = afterMarker.LastIndexOf(')');
+
+                    if (openParenIndex > 0 && closeParenIndex > openParenIndex)
+                    {
+                        var employeeNumber = afterMarker[..openParenIndex].Trim();
+                        var employeeName = afterMarker[(openParenIndex + 1)..closeParenIndex].Trim();
+
+                        if (!string.IsNullOrWhiteSpace(employeeNumber) &&
+                            !string.IsNullOrWhiteSpace(employeeName))
+                        {
+                            return $"Employee record for {employeeName} was updated ({employeeNumber})";
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(afterMarker))
+                    {
+                        return $"Employee {afterMarker} was updated";
+                    }
+                }
+
+                return "An employee record was updated";
+            }
+
+            if (row.Action == "EMPLOYEE_STATUS_UPDATED")
+            {
+                var marker = "Updated employee status ";
+                var startIndex = summary.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+
+                if (startIndex >= 0)
+                {
+                    var afterMarker = summary[(startIndex + marker.Length)..].Trim();
+                    var arrowIndex = afterMarker.LastIndexOf("->", StringComparison.OrdinalIgnoreCase);
+
+                    if (arrowIndex > 0)
+                    {
+                        var leftPart = afterMarker[..arrowIndex].Trim();
+                        var statusPart = afterMarker[(arrowIndex + 2)..].Trim();
+
+                        var openParenIndex = leftPart.LastIndexOf('(');
+                        var closeParenIndex = leftPart.LastIndexOf(')');
+
+                        if (openParenIndex > 0 && closeParenIndex > openParenIndex)
+                        {
+                            var employeeNumber = leftPart[..openParenIndex].Trim();
+                            var employeeName = leftPart[(openParenIndex + 1)..closeParenIndex].Trim();
+
+                            if (!string.IsNullOrWhiteSpace(employeeNumber) &&
+                                !string.IsNullOrWhiteSpace(employeeName) &&
+                                !string.IsNullOrWhiteSpace(statusPart))
+                            {
+                                return $"{employeeName} was marked {statusPart.ToLowerInvariant()} ({employeeNumber})";
+                            }
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(leftPart) && !string.IsNullOrWhiteSpace(statusPart))
+                        {
+                            return $"Employee {leftPart} was marked {statusPart.ToLowerInvariant()}";
+                        }
+                    }
+                }
+
+                return "Employee status was updated";
             }
 
             if (row.Action == "PERMISSION_UPDATE")

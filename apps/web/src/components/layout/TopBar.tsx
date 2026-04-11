@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Bell, ChevronRight, Check, Trash2, Menu } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { getEmployees } from "../../lib/employees";
+import { subscribeEmployeeStatsChanged } from "../../lib/events/employeeEvents";
 
 type NotificationItem = {
   id: number;
@@ -42,7 +44,7 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const backendRole = user?.role;
   const isAdmin = backendRole === "SUPER_ADMIN" || backendRole === "ADMIN";
 
@@ -58,6 +60,8 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
       : "Unknown Role";
 
   const displayInitial = displayName?.charAt(0)?.toUpperCase() || "U";
+
+  const [activeEmployees, setActiveEmployees] = useState<number>(0);
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([
@@ -99,6 +103,35 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
     },
   ]);
 
+  const fetchSummary = useCallback(async () => {
+    if (!isAdmin || !user || !token) {
+      setActiveEmployees(0);
+      return;
+    }
+
+    try {
+      const res = await getEmployees({
+        page: 1,
+        pageSize: 1,
+      });
+
+      const payload =
+        res && typeof res === "object" && "data" in res
+          ? (res.data ?? res)
+          : res;
+
+      if (payload && typeof payload === "object" && "summary" in payload) {
+        setActiveEmployees(payload.summary?.active ?? 0);
+        return;
+      }
+
+      setActiveEmployees(0);
+    } catch (err) {
+      console.error("Failed to fetch employee summary", err);
+      setActiveEmployees(0);
+    }
+  }, [isAdmin, token, user]);
+
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
 
@@ -107,13 +140,7 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
       if (!newNotif) return;
 
       try {
-        const parsed = JSON.parse(newNotif) as Partial<NotificationItem> & {
-          id: number;
-          title: string;
-          message: string;
-          time: string;
-          type: NotificationItem["type"];
-        };
+        const parsed = JSON.parse(newNotif);
 
         setNotifications((prev) => {
           if (prev.find((n) => n.id === parsed.id)) return prev;
@@ -147,6 +174,35 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
       window.removeEventListener("storage", handleStorageChange);
     };
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin || !user || !token) {
+      setActiveEmployees(0);
+      return;
+    }
+
+    let isMounted = true;
+
+    const runFetch = async () => {
+      if (!isMounted) return;
+      await fetchSummary();
+    };
+
+    Promise.resolve().then(() => {
+      void runFetch();
+    });
+
+    const unsubscribe = subscribeEmployeeStatsChanged(() => {
+      Promise.resolve().then(() => {
+        void runFetch();
+      });
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [fetchSummary, isAdmin, token, user]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -197,7 +253,6 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
         <button
           onClick={onMenuClick}
           className="lg:hidden p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-          aria-label="Open menu"
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -219,7 +274,7 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
         {isAdmin && (
           <div className="hidden sm:flex bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-4 py-1.5 rounded-full text-xs font-semibold shadow-sm items-center gap-2 whitespace-nowrap shrink-0">
             <span className="w-1.5 h-1.5 bg-emerald-300 rounded-full animate-pulse" />
-            245 Active Employees
+            {activeEmployees} Active Employees
           </div>
         )}
 

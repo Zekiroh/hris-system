@@ -140,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isLoggedIn = !!token && !!user;
   const loginInFlightRef = useRef(false);
+  const logoutInFlightRef = useRef(false);
   const sessionRequestIdRef = useRef<string | null>(null);
 
   const setAuthState = useCallback((nextUser: AuthUser | null, nextToken: string | null) => {
@@ -173,12 +174,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [setAuthState]);
 
   const logout = useCallback(async () => {
-    try {
-      const remembered = localStorage.getItem(AUTH_REMEMBER_KEY) === "true";
-      const currentToken = remembered
-        ? localStorage.getItem(AUTH_TOKEN_KEY)
-        : sessionStorage.getItem(AUTH_TOKEN_KEY);
+    if (logoutInFlightRef.current) return;
+    logoutInFlightRef.current = true;
 
+    const remembered = localStorage.getItem(AUTH_REMEMBER_KEY) === "true";
+    const currentToken = remembered
+      ? localStorage.getItem(AUTH_TOKEN_KEY)
+      : sessionStorage.getItem(AUTH_TOKEN_KEY);
+
+    clearAuthStateAndStorage();
+
+    try {
       if (currentToken) {
         await fetch(`${API_BASE_URL}/auth/logout`, {
           method: "POST",
@@ -189,15 +195,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch {
       // ignore logout logging failure and continue clearing local auth
+    } finally {
+      localStorage.setItem(
+        SESSION_AUTH_LOGOUT_KEY,
+        JSON.stringify({ ts: Date.now() })
+      );
+      localStorage.removeItem(SESSION_AUTH_LOGOUT_KEY);
+      logoutInFlightRef.current = false;
     }
-
-    clearAuthStateAndStorage();
-
-    localStorage.setItem(
-      SESSION_AUTH_LOGOUT_KEY,
-      JSON.stringify({ ts: Date.now() })
-    );
-    localStorage.removeItem(SESSION_AUTH_LOGOUT_KEY);
   }, [clearAuthStateAndStorage]);
 
   const login = useCallback(

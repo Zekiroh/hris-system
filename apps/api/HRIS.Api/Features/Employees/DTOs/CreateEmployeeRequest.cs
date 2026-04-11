@@ -4,43 +4,23 @@ namespace HRIS.Api.Features.Employees.DTOs;
 
 public class CreateEmployeeRequest
 {
-    [Required, MaxLength(50)]
-    public string EmployeeNumber { get; set; } = default!;
-
-    [Required, MaxLength(100)]
-    public string FirstName { get; set; } = default!;
-
-    [MaxLength(100)]
-    public string? MiddleName { get; set; }
-
-    [Required, MaxLength(100)]
-    public string LastName { get; set; } = default!;
-
-    public DateOnly? BirthDate { get; set; }
-
-    [MaxLength(20)]
-    public string? Sex { get; set; }
-
-    [MaxLength(20)]
-    public string? CivilStatus { get; set; }
+    [Range(1, long.MaxValue, ErrorMessage = "UserId must be a valid value.")]
+    public long UserId { get; set; }
 
     [Required]
-    public DateOnly? DateHired { get; set; }
-
     [MaxLength(100)]
-    public string? Department { get; set; }
+    public string Position { get; set; } = default!;
 
+    [Required]
     [MaxLength(100)]
-    public string? Position { get; set; }
+    public string Department { get; set; } = default!;
 
-    // ---- C1 Basic Info Fields ----
+    [Required]
+    [MaxLength(50)]
+    public string EmploymentType { get; set; } = default!;
 
     [MaxLength(20)]
     public string? ContactNumber { get; set; }
-
-    [EmailAddress]
-    [MaxLength(150)]
-    public string? Email { get; set; }
 
     [MaxLength(150)]
     public string? AddressLine1 { get; set; }

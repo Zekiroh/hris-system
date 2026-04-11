@@ -11,9 +11,8 @@ public class AppDbContext : DbContext
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
-
-    // Employee Core (Phase 1 MVP)
     public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -24,5 +23,31 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Employee>()
             .HasIndex(e => e.EmployeeNumber)
             .IsUnique();
+
+        modelBuilder.Entity<Employee>()
+            .HasIndex(e => e.UserId)
+            .IsUnique();
+
+        modelBuilder.Entity<Employee>()
+            .HasIndex(e => e.SssNumber)
+            .IsUnique();
+
+        modelBuilder.Entity<Employee>()
+            .HasIndex(e => e.PhilHealthNumber)
+            .IsUnique();
+
+        modelBuilder.Entity<Employee>()
+            .HasIndex(e => e.PagIbigNumber)
+            .IsUnique();
+
+        modelBuilder.Entity<Employee>()
+            .HasIndex(e => e.TinNumber)
+            .IsUnique();
+
+        modelBuilder.Entity<Employee>()
+            .HasOne(e => e.User)
+            .WithOne(u => u.Employee)
+            .HasForeignKey<Employee>(e => e.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

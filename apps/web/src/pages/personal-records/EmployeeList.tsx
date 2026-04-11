@@ -1,22 +1,30 @@
-import { useEffect, useMemo, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 
 import {
   getEmployees,
+  getEmployeeById,
   createEmployee,
   updateEmployee,
-  type CreateEmployeeRequest,
+  getNextEmployeeNumber,
   type UpdateEmployeeRequest,
   type EmployeeDto,
   type EmployeeStatus,
+  type EmployeeSortBy,
+  type EmploymentType,
 } from "../../lib/employees";
+import { subscribeEmployeeStatsChanged } from "../../lib/events/employeeEvents";
+import { mapEmployeeMutationErrorToUiMessage } from "../../lib/employeeErrorHelpers";
+import { getEmployeeApiErrorMessage } from "./utils/employeeApiError";
 
 import { getUserOptionsForEmployeeDropdown } from "../../lib/users";
 
 import {
-  EmployeeFormFields,
   type FormData,
   type UserOption,
+  type FieldErrors,
+  type FormFieldName,
 } from "../../components/personal-records/EmployeeFormFields";
 import {
   EmployeeTable,
@@ -25,125 +33,97 @@ import {
 import { EmployeeToolbar } from "../../components/personal-records/EmployeeToolbar";
 import { EmployeeStats } from "../../components/personal-records/EmployeeStats";
 import { EmployeeViewPanel } from "../../components/personal-records/EmployeeViewPanel";
+import { EmployeeAddModal } from "../../components/personal-records/EmployeeAddModal";
+import { EmployeeEditModal } from "../../components/personal-records/EmployeeEditModal";
+import {
+  type Employee,
+  type Paged,
+  DEFAULT_PAGE_SIZE,
+  emptyFormData,
+  mapDtoToEmployee,
+  mapDtoToFormData,
+  unwrapData,
+} from "../../components/personal-records/employeeList.utils";
 
-interface Employee {
-  id: string;
-  employeeId: string;
-  name: string;
-  position: string;
-  department: string;
-  status: EmployeeStatus;
-  contact: string;
-  email: string;
-  hireDate: string;
-}
-
-function safeTrim(v: string | null | undefined) {
-  return typeof v === "string" ? v.trim() : "";
-}
-
-function normalizeNullString(v: string | null | undefined) {
-  const s = safeTrim(v);
-  if (!s) return "";
-  if (s.toLowerCase() === "null") return "";
-  return s;
-}
-
-function buildName(dto: EmployeeDto) {
-  const last = safeTrim(dto.lastName);
-  const first = safeTrim(dto.firstName);
-  const middle = normalizeNullString(dto.middleName);
-  const base = [last, first].filter(Boolean).join(", ");
-  return [base, middle].filter(Boolean).join(" ").trim() || "(No name)";
-}
-
-function mapDtoToEmployee(dto: EmployeeDto): Employee {
-  return {
-    id: dto.id,
-    employeeId: safeTrim(dto.employeeNumber) || `EMP-${dto.id}`,
-    name: buildName(dto),
-    position: safeTrim(dto.position) || "",
-    department: safeTrim(dto.department) || "",
-    status: dto.isActive ? "Active" : "Inactive",
-    contact: safeTrim(dto.contactNumber) || "",
-    email: safeTrim(dto.email) || "",
-    hireDate: safeTrim(dto.dateHired) || "",
-  };
-}
-
-function parseNameToParts(fullName: string) {
-  const raw = fullName.trim();
-
-  if (raw.includes(",")) {
-    const [last, rest] = raw.split(",", 2);
-    const lastName = (last ?? "").trim();
-    const parts = (rest ?? "").trim().split(/\s+/).filter(Boolean);
-    const firstName = parts[0] ?? "";
-    const middleName = parts.length > 1 ? parts.slice(1).join(" ") : undefined;
-    return { firstName, middleName, lastName };
-  }
-
-  const parts = raw.split(/\s+/).filter(Boolean);
-  const firstName = parts[0] ?? "";
-  const lastName = parts.slice(1).join(" ") || "Unknown";
-  return { firstName, middleName: undefined, lastName };
-}
-
-function toDateOnly(value: string) {
-  if (!value) return "";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0, 10);
-}
-
-function unwrapData<T>(res: unknown): T {
-  if (res && typeof res === "object" && "data" in res) {
-    return (res as { data: T }).data;
-  }
-  return res as T;
-}
-
-type Paged<T> = {
-  items: T[];
-  page?: number;
-  pageSize?: number;
-  totalCount?: number;
-  totalPages?: number;
+type EmployeeSummary = {
+  total: number;
+  active: number;
+  inactive: number;
+  newHires: number;
 };
 
-const DEFAULT_PAGE_SIZE = 10;
+type PagedEmployeesWithSummary = Paged<EmployeeDto> & {
+  totalItems?: number;
+  summary?: EmployeeSummary;
+};
+
+type EmployeeTypeFilter = EmploymentType;
+
+const emptySummary = (): EmployeeSummary => ({
+  total: 0,
+  active: 0,
+  inactive: 0,
+  newHires: 0,
+});
+
+function parseEmploymentTypeParam(
+  value: string | null
+): EmployeeTypeFilter | null {
+  if (!value) return null;
+
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized === "regular") return "Regular";
+  if (normalized === "probationary") return "Probationary";
+  if (normalized === "project-based" || normalized === "contract") {
+    return "Project-based";
+  }
+
+  return null;
+}
 
 const EmployeeList = () => {
+  const [searchParams] = useSearchParams();
+
+  const employmentTypeFilter = useMemo(
+    () => parseEmploymentTypeParam(searchParams.get("employmentType")),
+    [searchParams]
+  );
+
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const [employeesError, setEmployeesError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("All");
+  const [sortBy, setSortBy] = useState<EmployeeSortBy>("latest");
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewPanel, setShowViewPanel] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
+    null
+  );
+  const [selectedEmployeeDto, setSelectedEmployeeDto] =
+    useState<EmployeeDto | null>(null);
 
   const [userOptions, setUserOptions] = useState<UserOption[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  const [formData, setFormData] = useState<FormData>({
-    userId: "",
-    name: "",
-    position: "",
-    department: "",
-    status: "Active",
-    contact: "",
-    email: "",
-  });
+  const [formData, setFormData] = useState<FormData>(emptyFormData());
+  const [initialEditFormData, setInitialEditFormData] =
+    useState<FormData | null>(null);
 
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [summary, setSummary] = useState<EmployeeSummary>(emptySummary());
+
+  const employeeNumberRequestRef = useRef(0);
 
   const isActiveQuery = useMemo(() => {
     if (filterStatus === "Active") return true;
@@ -151,11 +131,221 @@ const EmployeeList = () => {
     return undefined;
   }, [filterStatus]);
 
+  const isNewHireQuery = useMemo(() => {
+    return filterStatus === "New Hires" ? true : undefined;
+  }, [filterStatus]);
+
   const totalPages = useMemo(() => {
     if (!totalCount) return 1;
     const pages = Math.ceil(totalCount / DEFAULT_PAGE_SIZE);
     return pages <= 0 ? 1 : pages;
   }, [totalCount]);
+
+  function sanitizeLoadedText(value: string | null | undefined): string {
+    const normalized = value?.trim() ?? "";
+    if (!normalized) return "";
+    const lowered = normalized.toLowerCase();
+
+    if (lowered === "string" || lowered === "null" || lowered === "undefined") {
+      return "";
+    }
+
+    return normalized;
+  }
+
+  function mapLoadedDtoToFormData(dto: EmployeeDto): FormData {
+    const mapped = mapDtoToFormData(dto);
+
+    return {
+      ...mapped,
+      employeeId: sanitizeLoadedText(mapped.employeeId),
+      name: sanitizeLoadedText(mapped.name),
+      position: sanitizeLoadedText(mapped.position),
+      department: sanitizeLoadedText(mapped.department),
+      contact: sanitizeLoadedText(mapped.contact),
+      email: sanitizeLoadedText(mapped.email),
+      hireDate: sanitizeLoadedText(mapped.hireDate),
+      addressLine1: sanitizeLoadedText(mapped.addressLine1),
+      addressLine2: sanitizeLoadedText(mapped.addressLine2),
+      city: sanitizeLoadedText(mapped.city),
+      province: sanitizeLoadedText(mapped.province),
+      zipCode: sanitizeLoadedText(mapped.zipCode),
+      sssNumber: sanitizeLoadedText(mapped.sssNumber),
+      philHealthNumber: sanitizeLoadedText(mapped.philHealthNumber),
+      pagIbigNumber: sanitizeLoadedText(mapped.pagIbigNumber),
+      tinNumber: sanitizeLoadedText(mapped.tinNumber),
+    };
+  }
+
+  function resetModalState() {
+    setSelectedEmployee(null);
+    setSelectedEmployeeDto(null);
+    setFormData(emptyFormData());
+    setInitialEditFormData(null);
+    setFormError(null);
+    setFieldErrors({});
+    employeeNumberRequestRef.current += 1;
+  }
+
+  function getFirstFieldError(errors: FieldErrors): string | null {
+    const first = Object.values(errors).find(
+      (value): value is string => Boolean(value?.trim())
+    );
+    return first ?? null;
+  }
+
+  function clearFieldError(field: FormFieldName) {
+    setFormError(null);
+
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+
+      const next = { ...prev };
+      delete next[field];
+
+      return next;
+    });
+  }
+
+  function normalizeOptionalText(value: string): string | undefined {
+    const normalized = value.trim().replace(/\s+/g, " ");
+    return normalized || undefined;
+  }
+
+  function normalizeEmailValue(value: string): string | undefined {
+    const normalized = value.trim().toLowerCase();
+    return normalized || undefined;
+  }
+
+  function normalizeContactNumber(value: string): string | undefined {
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+
+    return trimmed.replace(/[^\d+]/g, "");
+  }
+
+  function extractDigits(value: string): string {
+    return value.replace(/\D/g, "");
+  }
+
+  function normalizeGovernmentNumber(value: string): string | undefined {
+    const digits = extractDigits(value);
+    return digits || undefined;
+  }
+
+  function normalizeZipCode(value: string): string | undefined {
+    const digits = extractDigits(value);
+    return digits || undefined;
+  }
+
+  function normalizeFormDataForComparison(data: FormData) {
+    return {
+      ...data,
+      userId: data.userId.trim(),
+      employeeId: data.employeeId.trim(),
+      name: data.name.trim(),
+      position: data.position.trim(),
+      department: data.department.trim(),
+      status: data.status,
+      employmentType: data.employmentType,
+      contact: data.contact.trim(),
+      email: data.email.trim().toLowerCase(),
+      hireDate: data.hireDate.trim(),
+      addressLine1: data.addressLine1.trim(),
+      addressLine2: data.addressLine2.trim(),
+      city: data.city.trim(),
+      province: data.province.trim(),
+      zipCode: data.zipCode.trim(),
+      sssNumber: extractDigits(data.sssNumber),
+      philHealthNumber: extractDigits(data.philHealthNumber),
+      pagIbigNumber: extractDigits(data.pagIbigNumber),
+      tinNumber: extractDigits(data.tinNumber),
+    };
+  }
+
+  function validateAddForm(form: FormData): FieldErrors {
+    const errors: FieldErrors = {};
+
+    if (!form.userId) {
+      errors.userId = "Linked user is required.";
+    } else {
+      const numericUserId = Number(form.userId);
+      if (!Number.isFinite(numericUserId) || numericUserId <= 0) {
+        errors.userId = "Selected user is invalid.";
+      }
+    }
+
+    if (!form.position.trim()) {
+      errors.position = "Position is required.";
+    }
+
+    if (!form.department.trim()) {
+      errors.department = "Department is required.";
+    }
+
+    if (!form.employmentType.trim()) {
+      errors.employmentType = "Employment type is required.";
+    }
+
+    return errors;
+  }
+
+  function validateEditForm(form: FormData): FieldErrors {
+    const errors: FieldErrors = {};
+
+    if (form.email) {
+      const email = form.email.trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errors.email = "Invalid email format.";
+      }
+    }
+
+    if (form.contact.trim()) {
+      const digits = extractDigits(form.contact);
+      if (digits.length < 7 || digits.length > 15) {
+        errors.contact = "Contact number must be 7 to 15 digits.";
+      }
+    }
+
+    if (form.zipCode.trim()) {
+      const zipDigits = extractDigits(form.zipCode);
+      if (zipDigits.length !== 4) {
+        errors.zipCode = "Zip code must be exactly 4 digits.";
+      }
+    }
+
+    if (form.sssNumber.trim()) {
+      const digits = extractDigits(form.sssNumber);
+      if (digits.length !== 10) {
+        errors.sssNumber = "SSS number must contain exactly 10 digits.";
+      }
+    }
+
+    if (form.philHealthNumber.trim()) {
+      const digits = extractDigits(form.philHealthNumber);
+      if (digits.length !== 12) {
+        errors.philHealthNumber =
+          "PhilHealth number must contain exactly 12 digits.";
+      }
+    }
+
+    if (form.pagIbigNumber.trim()) {
+      const digits = extractDigits(form.pagIbigNumber);
+      if (digits.length !== 12) {
+        errors.pagIbigNumber =
+          "Pag-IBIG number must contain exactly 12 digits.";
+      }
+    }
+
+    if (form.tinNumber.trim()) {
+      const digits = extractDigits(form.tinNumber);
+      if (digits.length !== 9) {
+        errors.tinNumber = "TIN must contain exactly 9 digits.";
+      }
+    }
+
+    return errors;
+  }
 
   async function fetchEmployees() {
     setLoading(true);
@@ -167,24 +357,32 @@ const EmployeeList = () => {
         pageSize: DEFAULT_PAGE_SIZE,
         search: searchTerm.trim() || undefined,
         isActive: isActiveQuery,
+        isNewHire: isNewHireQuery,
+        sortBy,
+        employmentType: employmentTypeFilter ?? undefined,
       });
 
-      const payload = unwrapData<Paged<EmployeeDto> | EmployeeDto[]>(res);
+      const payload = unwrapData<PagedEmployeesWithSummary | EmployeeDto[]>(res);
 
       if (Array.isArray(payload)) {
-        setEmployees(payload.map(mapDtoToEmployee));
-        setTotalCount(payload.length);
+        const mappedEmployees = payload.map(mapDtoToEmployee);
+
+        setEmployees(mappedEmployees);
+        setTotalCount(mappedEmployees.length);
+
         return;
       }
 
       const items = Array.isArray(payload.items) ? payload.items : [];
-      setEmployees(items.map(mapDtoToEmployee));
+      const mappedEmployees = items.map(mapDtoToEmployee);
+
+      setEmployees(mappedEmployees);
 
       const tc =
         typeof payload.totalCount === "number"
           ? payload.totalCount
-          : typeof (payload as { totalItems?: number }).totalItems === "number"
-            ? (payload as { totalItems: number }).totalItems
+          : typeof payload.totalItems === "number"
+            ? payload.totalItems
             : items.length;
 
       setTotalCount(tc);
@@ -196,6 +394,26 @@ const EmployeeList = () => {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchEmployeeSummaryOnly() {
+    try {
+      const res = await getEmployees({
+        page: 1,
+        pageSize: 1,
+      });
+
+      const payload = unwrapData<PagedEmployeesWithSummary | EmployeeDto[]>(res);
+
+      if (!Array.isArray(payload) && payload?.summary) {
+        setSummary(payload.summary);
+        return;
+      }
+
+      setSummary(emptySummary());
+    } catch {
+      setSummary(emptySummary());
     }
   }
 
@@ -214,19 +432,97 @@ const EmployeeList = () => {
     }
   }
 
+  async function fetchEmployeeDtoById(id: string) {
+    const res = await getEmployeeById(id);
+    return unwrapData<EmployeeDto>(res);
+  }
+
+  async function handleLinkedUserChange(userId: string) {
+    clearFieldError("userId");
+
+    const selected = userOptions.find((u) => u.id === userId);
+    const requestId = ++employeeNumberRequestRef.current;
+
+    const baseUpdate = {
+      userId,
+      name: selected?.fullName ?? "",
+      email: selected?.email ?? "",
+      contact: selected?.contactNumber ?? "",
+      hireDate: new Date().toISOString().slice(0, 10),
+    };
+
+    if (!userId) {
+      setFormData((p) => ({
+        ...p,
+        ...baseUpdate,
+        employeeId: "",
+      }));
+      return;
+    }
+
+    setFormData((p) => ({
+      ...p,
+      ...baseUpdate,
+    }));
+
+    try {
+      const res = await getNextEmployeeNumber();
+      const payload = unwrapData<{ employeeNumber: string }>(res);
+
+      if (requestId !== employeeNumberRequestRef.current) return;
+
+      if (payload?.employeeNumber) {
+        setFormData((p) => {
+          if (p.userId !== userId) return p;
+
+          return {
+            ...p,
+            employeeId: payload.employeeNumber,
+          };
+        });
+      }
+    } catch {
+      if (requestId !== employeeNumberRequestRef.current) return;
+
+      setFormData((p) => {
+        if (p.userId !== userId) return p;
+
+        return {
+          ...p,
+          employeeId: "",
+        };
+      });
+    }
+  }
+
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, isActiveQuery]);
+  }, [searchTerm, filterStatus, sortBy, employmentTypeFilter]);
 
   useEffect(() => {
-    fetchEmployees();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, searchTerm, isActiveQuery]);
+    void fetchEmployees();
+  }, [page, searchTerm, isActiveQuery, isNewHireQuery, sortBy, employmentTypeFilter]);
 
   useEffect(() => {
-    if (showAddModal) fetchUsersForDropdown();
-    else setFormError(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void fetchEmployeeSummaryOnly();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeEmployeeStatsChanged(() => {
+      void fetchEmployees();
+      void fetchEmployeeSummaryOnly();
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (showAddModal) {
+      void fetchUsersForDropdown();
+    } else {
+      setFormError(null);
+      setFieldErrors({});
+    }
   }, [showAddModal]);
 
   const rows: EmployeeRow[] = useMemo(
@@ -238,134 +534,270 @@ const EmployeeList = () => {
         position: e.position,
         department: e.department,
         status: e.status,
+        isNewHire: e.isNewHire,
       })),
     [employees]
   );
 
-  const totalActive = useMemo(
-    () => employees.filter((e) => e.status === "Active").length,
-    [employees]
-  );
-  const totalOnLeave = useMemo(
-    () => employees.filter((e) => e.status === "On Leave").length,
-    [employees]
-  );
-  const totalInactive = useMemo(
-    () => employees.filter((e) => e.status === "Inactive").length,
-    [employees]
-  );
+  const hasEditChanges = useMemo(() => {
+    if (!initialEditFormData) return true;
 
-  const openEdit = (emp: Employee) => {
-    setSelectedEmployee(emp);
+    return (
+      JSON.stringify(normalizeFormDataForComparison(formData)) !==
+      JSON.stringify(normalizeFormDataForComparison(initialEditFormData))
+    );
+  }, [formData, initialEditFormData]);
+
+  const openEdit = async (id: string) => {
     setFormError(null);
-    setFormData({
-      userId: "",
-      name: emp.name,
-      position: emp.position,
-      department: emp.department,
-      status: emp.status,
-      contact: emp.contact,
-      email: emp.email,
-    });
-    setShowEditModal(true);
+    setFieldErrors({});
+    setEmployeesError(null);
+    setDetailsLoading(true);
+
+    try {
+      const dto = await fetchEmployeeDtoById(id);
+      const employee = mapDtoToEmployee(dto);
+      const mappedForm = mapLoadedDtoToFormData(dto);
+
+      setSelectedEmployee(employee);
+      setSelectedEmployeeDto(dto);
+      setFormData(mappedForm);
+      setInitialEditFormData(mappedForm);
+      setShowEditModal(true);
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : "Failed to load employee details";
+
+      setFormError(message);
+      setEmployeesError(message);
+      setShowEditModal(false);
+      setSelectedEmployee(null);
+      setSelectedEmployeeDto(null);
+      setInitialEditFormData(null);
+    } finally {
+      setDetailsLoading(false);
+    }
   };
 
-  const openView = (emp: Employee) => {
-    setSelectedEmployee(emp);
-    setShowViewPanel(true);
+  const openView = async (id: string) => {
+    setEmployeesError(null);
+    setDetailsLoading(true);
+
+    try {
+      const dto = await fetchEmployeeDtoById(id);
+      setSelectedEmployee(mapDtoToEmployee(dto));
+      setShowViewPanel(true);
+    } catch (e) {
+      setEmployeesError(
+        e instanceof Error ? e.message : "Failed to load employee details"
+      );
+    } finally {
+      setDetailsLoading(false);
+    }
   };
 
-  const handleViewRow = (row: EmployeeRow) => {
-    const emp = employees.find((x) => x.id === row.id);
-    if (emp) openView(emp);
+  const handleViewRow = async (row: EmployeeRow) => {
+    if (detailsLoading || loading) return;
+    await openView(row.id);
   };
 
-  const handleEditRow = (row: EmployeeRow) => {
-    const emp = employees.find((x) => x.id === row.id);
-    if (emp) openEdit(emp);
+  const handleEditRow = async (row: EmployeeRow) => {
+    if (detailsLoading || loading) return;
+    await openEdit(row.id);
+  };
+
+  const handleOpenAddModal = () => {
+    if (loading || detailsLoading) return;
+
+    setFormError(null);
+    setFieldErrors({});
+    setFormData(emptyFormData());
+    setInitialEditFormData(null);
+    setShowAddModal(true);
   };
 
   const handleAdd = async () => {
+    if (submitting) return;
+
     setFormError(null);
 
-    if (!formData.userId) {
-      setFormError("Full Name is required.");
+    const validationErrors = validateAddForm(formData);
+    setFieldErrors(validationErrors);
+
+    const firstError = getFirstFieldError(validationErrors);
+    if (firstError) {
+      setFormError(firstError);
       return;
     }
 
-    const { firstName, middleName, lastName } = parseNameToParts(formData.name);
-    if (!firstName || !lastName) {
-      setFormError("Full Name is required.");
-      return;
-    }
+    const numericUserId = Number(formData.userId);
 
-    const payload: CreateEmployeeRequest & { status: EmployeeStatus } = {
-      employeeNumber: `EMP-${Date.now()}`,
-      firstName,
-      middleName,
-      lastName,
-      position: formData.position || undefined,
-      department: formData.department || undefined,
-      contactNumber: formData.contact || undefined,
-      email: formData.email || undefined,
-      dateHired: toDateOnly(new Date().toISOString()),
-      status: formData.status,
+    const payload: Parameters<typeof createEmployee>[0] = {
+      userId: numericUserId,
+      employmentType: formData.employmentType,
+      department: normalizeOptionalText(formData.department),
+      position: normalizeOptionalText(formData.position),
     };
+
+    setSubmitting(true);
 
     try {
       await createEmployee(payload);
+      setFieldErrors({});
+      setFormError(null);
+      toast.success("Employee created successfully.");
       setShowAddModal(false);
-      setFormData({
-        userId: "",
-        name: "",
-        position: "",
-        department: "",
-        status: "Active",
-        contact: "",
-        email: "",
-      });
+      resetModalState();
       await fetchEmployees();
+      await fetchEmployeeSummaryOnly();
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "Failed to create employee");
+      const normalizedMessage = getEmployeeApiErrorMessage(e);
+      const mapped = mapEmployeeMutationErrorToUiMessage(
+        normalizedMessage,
+        "add"
+      );
+
+      if (mapped.fieldErrors) {
+        setFieldErrors(mapped.fieldErrors);
+        setFormError(mapped.formMessage || normalizedMessage);
+      } else {
+        setFieldErrors({});
+        setFormError(mapped.formMessage || normalizedMessage);
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleEdit = async () => {
-    if (!selectedEmployee) return;
+    if (!selectedEmployee || !selectedEmployeeDto || submitting) return;
+
+    if (!hasEditChanges) {
+      setFormError("No changes detected.");
+      return;
+    }
 
     setFormError(null);
 
-    if (!formData.name.trim()) {
-      setFormError("Full Name is required.");
+    const validationErrors = validateEditForm(formData);
+    setFieldErrors(validationErrors);
+
+    const firstError = getFirstFieldError(validationErrors);
+    if (firstError) {
+      setFormError(firstError);
       return;
     }
 
-    const { firstName, middleName, lastName } = parseNameToParts(formData.name);
-    if (!firstName || !lastName) {
-      setFormError("Full Name is required.");
-      return;
-    }
+    const normalizedStatus: EmployeeStatus =
+      formData.status === "Inactive" ? "Inactive" : "Active";
 
     const updatePayload: UpdateEmployeeRequest & { status: EmployeeStatus } = {
-      firstName,
-      middleName,
-      lastName,
-      position: formData.position || undefined,
-      department: formData.department || undefined,
-      contactNumber: formData.contact || undefined,
-      email: formData.email || undefined,
-      dateHired: toDateOnly(selectedEmployee.hireDate) || undefined,
-      isActive: formData.status !== "Inactive",
-      status: formData.status,
+      firstName: sanitizeLoadedText(selectedEmployeeDto.firstName),
+      middleName: normalizeOptionalText(selectedEmployeeDto.middleName ?? ""),
+      lastName: sanitizeLoadedText(selectedEmployeeDto.lastName),
+      position: normalizeOptionalText(formData.position),
+      department: normalizeOptionalText(formData.department),
+      employmentType: formData.employmentType,
+      contactNumber: normalizeContactNumber(formData.contact),
+      email: normalizeEmailValue(formData.email),
+      addressLine1: normalizeOptionalText(formData.addressLine1),
+      addressLine2: normalizeOptionalText(formData.addressLine2),
+      city: normalizeOptionalText(formData.city),
+      province: normalizeOptionalText(formData.province),
+      zipCode: normalizeZipCode(formData.zipCode),
+      sssNumber: normalizeGovernmentNumber(formData.sssNumber),
+      philHealthNumber: normalizeGovernmentNumber(formData.philHealthNumber),
+      pagIbigNumber: normalizeGovernmentNumber(formData.pagIbigNumber),
+      tinNumber: normalizeGovernmentNumber(formData.tinNumber),
+      isActive: normalizedStatus === "Active",
+      status: normalizedStatus,
     };
 
+    setSubmitting(true);
+
     try {
-      await updateEmployee(selectedEmployee.id, updatePayload);
-      setShowEditModal(false);
-      setSelectedEmployee(null);
+      const updatedDto = await updateEmployee(selectedEmployee.id, updatePayload);
+      const refreshedForm = mapLoadedDtoToFormData(updatedDto);
+      const refreshedEmployee = mapDtoToEmployee(updatedDto);
+
+      setSelectedEmployee(refreshedEmployee);
+      setSelectedEmployeeDto(updatedDto);
+      setFormData(refreshedForm);
+      setInitialEditFormData(refreshedForm);
+      setFieldErrors({});
+      setFormError(null);
+
       await fetchEmployees();
+      await fetchEmployeeSummaryOnly();
+      toast.success("Employee details updated successfully.");
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : "Failed to update employee");
+      const maybeError = e as {
+        response?: {
+          data?: {
+            errors?: Record<string, string[]>;
+            message?: string;
+          };
+        };
+      };
+
+      const serverErrors = maybeError.response?.data?.errors;
+      const serverMessage = maybeError.response?.data?.message?.trim();
+
+      if (serverErrors && typeof serverErrors === "object") {
+        const nextFieldErrors: FieldErrors = {};
+        let hasMappedFieldError = false;
+
+        for (const [key, messages] of Object.entries(serverErrors)) {
+          const firstMessage = Array.isArray(messages) ? messages[0] : undefined;
+          if (!firstMessage?.trim()) continue;
+
+          if (
+            key === "sssNumber" ||
+            key === "philHealthNumber" ||
+            key === "pagIbigNumber" ||
+            key === "tinNumber" ||
+            key === "email" ||
+            key === "contact" ||
+            key === "zipCode" ||
+            key === "addressLine1" ||
+            key === "addressLine2" ||
+            key === "city" ||
+            key === "province" ||
+            key === "position" ||
+            key === "department"
+          ) {
+            nextFieldErrors[key as keyof FieldErrors] = firstMessage.trim();
+            hasMappedFieldError = true;
+          }
+        }
+
+        setFieldErrors(nextFieldErrors);
+
+        if (hasMappedFieldError) {
+          setFormError(serverMessage || null);
+        } else {
+          setFormError(
+            serverMessage ||
+              "Unable to save employee changes. Please review the entered values."
+          );
+        }
+      } else {
+        const normalizedMessage = getEmployeeApiErrorMessage(e);
+        const mapped = mapEmployeeMutationErrorToUiMessage(
+          normalizedMessage,
+          "edit"
+        );
+
+        if (mapped.fieldErrors) {
+          setFieldErrors(mapped.fieldErrors);
+          setFormError(mapped.formMessage || normalizedMessage);
+        } else {
+          setFieldErrors({});
+          setFormError(mapped.formMessage || normalizedMessage);
+        }
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -377,132 +809,95 @@ const EmployeeList = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center animate-fade-in-up">
+      <div className="flex items-center justify-between animate-fade-in-up">
         <div className="page-header" style={{ marginBottom: 0 }}>
           <h1>Employee Information Management</h1>
           <p>Manage employee records and information</p>
         </div>
-        <button
-          onClick={() => {
-            setFormError(null);
-            setFormData({
-              userId: "",
-              name: "",
-              position: "",
-              department: "",
-              status: "Active",
-              contact: "",
-              email: "",
-            });
-            setShowAddModal(true);
-          }}
-          className="btn btn-primary"
-          type="button"
-        >
-          <Plus className="w-4 h-4" /> Add Employee
-        </button>
       </div>
 
       <EmployeeStats
-        total={employees.length}
-        active={totalActive}
-        onLeave={totalOnLeave}
-        inactive={totalInactive}
+        total={summary.total}
+        active={summary.active}
+        newHires={summary.newHires}
+        inactive={summary.inactive}
         filterStatus={filterStatus}
         onFilterStatusChange={setFilterStatus}
       />
 
-      <EmployeeToolbar
-        searchTerm={searchTerm}
-        onSearchTermChange={setSearchTerm}
-        filterStatus={filterStatus}
-        onFilterStatusChange={setFilterStatus}
-        loading={loading}
-        apiError={employeesError}
+      <div
+        className="pro-card overflow-visible animate-fade-in-up"
+        style={{ animationDelay: "0.2s", opacity: 0 }}
+      >
+        <div className="p-6 pb-0 overflow-visible">
+          <EmployeeToolbar
+            searchTerm={searchTerm}
+            onSearchTermChange={setSearchTerm}
+            filterStatus={filterStatus}
+            onFilterStatusChange={setFilterStatus}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            loading={loading}
+            apiError={employeesError}
+            onAddEmployee={handleOpenAddModal}
+          />
+        </div>
+
+        <EmployeeTable
+          rows={rows}
+          onView={handleViewRow}
+          onEdit={handleEditRow}
+          page={page}
+          pageSize={DEFAULT_PAGE_SIZE}
+          totalCount={totalCount}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          loading={loading || detailsLoading}
+        />
+      </div>
+
+      <EmployeeAddModal
+        open={showAddModal}
+        formData={formData}
+        setFormData={setFormData}
+        apiError={formError}
+        fieldErrors={fieldErrors}
+        onClearFieldError={clearFieldError}
+        loading={submitting}
+        loadingUsers={loadingUsers}
+        userOptions={userOptions}
+        onClose={() => {
+          setShowAddModal(false);
+          resetModalState();
+        }}
+        onSubmit={handleAdd}
+        onLinkedUserChange={handleLinkedUserChange}
       />
 
-      <EmployeeTable
-        rows={rows}
-        onView={handleViewRow}
-        onEdit={handleEditRow}
-        page={page}
-        pageSize={DEFAULT_PAGE_SIZE}
-        totalCount={totalCount}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-        loading={loading}
+      <EmployeeEditModal
+        open={showEditModal}
+        employeeId={selectedEmployee?.id ?? null}
+        formData={formData}
+        setFormData={setFormData}
+        apiError={formError}
+        fieldErrors={fieldErrors}
+        onClearFieldError={clearFieldError}
+        loading={submitting || detailsLoading}
+        isSubmitDisabled={!hasEditChanges}
+        onClose={() => {
+          setShowEditModal(false);
+          resetModalState();
+        }}
+        onSubmit={handleEdit}
       />
-
-      {showAddModal && (
-        <div className="pro-modal-overlay">
-          <div
-            className="pro-modal max-w-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="pro-modal-header">
-              <h3>Add New Employee</h3>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="btn-ghost btn-icon"
-                type="button"
-              >
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-            <div className="pro-modal-body">
-              <EmployeeFormFields
-                mode="add"
-                formData={formData}
-                setFormData={setFormData}
-                apiError={formError}
-                loading={loading}
-                onCancel={() => setShowAddModal(false)}
-                onSubmit={handleAdd}
-                submitLabel="Add Employee"
-                userOptions={userOptions}
-                loadingUsers={loadingUsers}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showEditModal && (
-        <div className="pro-modal-overlay">
-          <div
-            className="pro-modal max-w-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="pro-modal-header">
-              <h3>Edit Employee</h3>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="btn-ghost btn-icon"
-                type="button"
-              >
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-            <div className="pro-modal-body">
-              <EmployeeFormFields
-                mode="edit"
-                formData={formData}
-                setFormData={setFormData}
-                apiError={formError}
-                loading={loading}
-                onCancel={() => setShowEditModal(false)}
-                onSubmit={handleEdit}
-                submitLabel="Save Changes"
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       <EmployeeViewPanel
         open={showViewPanel}
         employee={selectedEmployee}
-        onClose={() => setShowViewPanel(false)}
+        onClose={() => {
+          setShowViewPanel(false);
+          resetModalState();
+        }}
       />
     </div>
   );

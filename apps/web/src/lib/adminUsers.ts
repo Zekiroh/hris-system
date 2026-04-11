@@ -3,6 +3,10 @@ import { apiRequest } from './api';
 export type AdminUserDto = {
   id: number;
   fullName: string;
+  firstName: string | null;
+  middleName: string | null;
+  lastName: string | null;
+  suffix: string | null;
   email: string;
   roleId: number;
   isActive: boolean;
@@ -16,6 +20,8 @@ export type GetAdminUsersQuery = {
   search?: string;
   roleId?: number;
   isActive?: boolean;
+  sortBy?: 'createdAt';
+  sortOrder?: 'asc' | 'desc';
 };
 
 export type PagedAdminUsersResponse = {
@@ -29,6 +35,7 @@ export type CreateAdminUserRequest = {
   firstName: string;
   middleName?: string | null;
   lastName: string;
+  suffix?: string | null;
   email: string;
   password: string;
   roleId: number;
@@ -39,6 +46,7 @@ export type UpdateAdminUserRequest = {
   firstName: string;
   middleName?: string | null;
   lastName: string;
+  suffix?: string | null;
   email: string;
   roleId: number;
   isActive: boolean;
@@ -60,6 +68,8 @@ function toQueryString(query: GetAdminUsersQuery) {
   if (query.search?.trim()) params.set('search', query.search.trim());
   if (typeof query.roleId === 'number') params.set('roleId', String(query.roleId));
   if (typeof query.isActive === 'boolean') params.set('isActive', String(query.isActive));
+  if (query.sortBy) params.set('sortBy', query.sortBy);
+  if (query.sortOrder) params.set('sortOrder', query.sortOrder);
 
   const qs = params.toString();
   return qs ? `?${qs}` : '';
@@ -78,6 +88,7 @@ export function createAdminUser(data: CreateAdminUserRequest) {
       firstName: data.firstName.trim(),
       middleName: data.middleName?.trim() || null,
       lastName: data.lastName.trim(),
+      suffix: data.suffix?.trim() || null,
       email: data.email.trim(),
       password: data.password,
       roleId: data.roleId,
@@ -93,6 +104,7 @@ export function updateAdminUser(id: number, data: UpdateAdminUserRequest) {
       firstName: data.firstName.trim(),
       middleName: data.middleName?.trim() || null,
       lastName: data.lastName.trim(),
+      suffix: data.suffix?.trim() || null,
       email: data.email.trim(),
       roleId: data.roleId,
       isActive: data.isActive,

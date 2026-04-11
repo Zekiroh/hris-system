@@ -1,6 +1,31 @@
 import { apiRequest } from "./api";
+import { emitEmployeeStatsChanged } from "./events/employeeEvents";
 
-export type EmployeeStatus = "Active" | "On Leave" | "Inactive";
+export type EmployeeStatus = "Active" | "Inactive";
+export type EmploymentType = "Regular" | "Probationary" | "Project-based";
+export type EmployeeSortBy = "latest" | "oldest" | "name";
+
+export const EMPLOYEE_DOCUMENT_TYPES = [
+  "SSS",
+  "PhilHealth",
+  "Pag-IBIG",
+  "TIN",
+  "Contract",
+  "Government ID",
+  "Resume",
+  "Other",
+] as const;
+
+export type EmployeeDocumentType = (typeof EMPLOYEE_DOCUMENT_TYPES)[number];
+
+export type EmployeeDocumentDto = {
+  id: string;
+  fileName: string;
+  contentType: string;
+  uploadedAtUtc: string;
+  documentType?: string | null;
+  fileSizeBytes?: number | null;
+};
 
 export type EmployeeDto = {
   id: string;
@@ -9,12 +34,14 @@ export type EmployeeDto = {
   firstName: string | null;
   middleName: string | null;
   lastName: string | null;
+  suffix: string | null;
 
   birthDate: string | null;
   sex: string | null;
   civilStatus: string | null;
 
   dateHired: string | null;
+  employmentType: string | null;
 
   department: string | null;
   position: string | null;
@@ -28,10 +55,47 @@ export type EmployeeDto = {
   province: string | null;
   zipCode: string | null;
 
+  sssNumber: string | null;
+  philHealthNumber: string | null;
+  pagIbigNumber: string | null;
+  tinNumber: string | null;
+
   isActive: boolean;
+  isNewHire: boolean;
 
   createdAtUtc: string;
   updatedAtUtc: string | null;
+};
+
+export type Employee = {
+  id: string;
+  employeeId: string;
+  name: string;
+  position: string;
+  department: string;
+  status: EmployeeStatus;
+  employmentType: EmploymentType;
+  contact: string;
+  email: string;
+  hireDate: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  province: string;
+  zipCode: string;
+};
+
+export type EmployeeSummaryDto = {
+  total: number;
+  active: number;
+  inactive: number;
+  newHires: number;
+};
+
+export type EmploymentTypeSummary = {
+  regular: number;
+  probationary: number;
+  contract: number;
 };
 
 export type PagedEmployeesResponse = {
@@ -39,6 +103,7 @@ export type PagedEmployeesResponse = {
   totalCount: number;
   page: number;
   pageSize: number;
+  summary: EmployeeSummaryDto;
 };
 
 export type GetEmployeesQuery = {
@@ -46,32 +111,21 @@ export type GetEmployeesQuery = {
   pageSize?: number;
   search?: string;
   isActive?: boolean;
+  isNewHire?: boolean;
+  sortBy?: EmployeeSortBy;
+  employmentType?: EmploymentType;
+};
+
+export type NextEmployeeNumberResponse = {
+  employeeNumber: string;
 };
 
 export type CreateEmployeeRequest = {
-  employeeNumber: string;
-
-  firstName: string;
-  middleName?: string;
-  lastName: string;
-
-  birthDate?: string;
-  sex?: string;
-  civilStatus?: string;
-
-  dateHired?: string;
+  userId: number;
+  employmentType: EmploymentType;
 
   department?: string;
   position?: string;
-
-  contactNumber?: string;
-  email?: string;
-
-  addressLine1?: string;
-  addressLine2?: string;
-  city?: string;
-  province?: string;
-  zipCode?: string;
 };
 
 export type UpdateEmployeeRequest = {
@@ -83,10 +137,9 @@ export type UpdateEmployeeRequest = {
   sex?: string;
   civilStatus?: string;
 
-  dateHired?: string;
-
   department?: string;
   position?: string;
+  employmentType: EmploymentType;
 
   contactNumber?: string;
   email?: string;
@@ -97,18 +150,37 @@ export type UpdateEmployeeRequest = {
   province?: string;
   zipCode?: string;
 
+  sssNumber?: string;
+  philHealthNumber?: string;
+  pagIbigNumber?: string;
+  tinNumber?: string;
+
   isActive: boolean;
 };
 
-// ---- helpers (integration fixes) ----
+type ApiEnvelope<T> = {
+  data?: T;
+  message?: string;
+};
+
+function unwrapApiData<T>(payload: T | ApiEnvelope<T>): T {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "data" in (payload as Record<string, unknown>)
+  ) {
+    const data = (payload as ApiEnvelope<T>).data;
+    return (data ?? payload) as T;
+  }
+
+  return payload as T;
+}
 
 function toDateOnly(value: string | undefined | null): string | undefined {
   if (!value) return undefined;
 
-  // already YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
 
-  // try ISO -> YYYY-MM-DD
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return undefined;
   return d.toISOString().slice(0, 10);
@@ -125,76 +197,155 @@ function normalizeEmail(v: string | undefined): string | undefined {
 }
 
 function normalizeStatus(v: unknown): EmployeeStatus {
-  if (v === "Active" || v === "Inactive" || v === "On Leave") return v;
+  if (v === "Active" || v === "Inactive") return v;
   return "Active";
 }
 
-// Backend 400 shows "status required". It’s not in your DTOs yet, so we
-// accept it optionally from callers and always send it if present/needed.
+export function extractApiError(error: unknown): string {
+  if (!error) return "Unexpected error";
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  if (typeof error === "string" && error.trim()) {
+    return error.trim();
+  }
+
+  const err = error as {
+    response?: {
+      data?: {
+        message?: string;
+        title?: string;
+        detail?: string;
+        errors?: Record<string, string[]>;
+      };
+      status?: number;
+      statusText?: string;
+    };
+    message?: string;
+  };
+
+  const data = err.response?.data;
+
+  if (data?.errors && typeof data.errors === "object") {
+    const firstKey = Object.keys(data.errors)[0];
+    const firstMessage = firstKey ? data.errors[firstKey]?.[0] : undefined;
+
+    if (firstMessage?.trim()) {
+      return firstMessage.trim();
+    }
+  }
+
+  if (typeof data?.message === "string" && data.message.trim()) {
+    return data.message.trim();
+  }
+
+  if (typeof data?.detail === "string" && data.detail.trim()) {
+    return data.detail.trim();
+  }
+
+  if (typeof data?.title === "string" && data.title.trim()) {
+    return data.title.trim();
+  }
+
+  if (typeof err.message === "string" && err.message.trim()) {
+    return err.message.trim();
+  }
+
+  if (typeof err.response?.status === "number") {
+    return `Request failed (${err.response.status})`;
+  }
+
+  return "Unknown error";
+}
+
+function preserveApiError(error: unknown): never {
+  if (error instanceof Error) {
+    throw error;
+  }
+
+  throw new Error(extractApiError(error));
+}
+
+async function withApiErrorHandling<T>(request: Promise<T>): Promise<T> {
+  try {
+    return await request;
+  } catch (error) {
+    preserveApiError(error);
+  }
+}
+
 export type EmployeeWriteExtras = {
   status?: EmployeeStatus;
 };
-
-// ---- API ----
 
 export function getEmployees(q: GetEmployeesQuery) {
   const params = new URLSearchParams();
 
   if (typeof q.page === "number") params.set("page", String(q.page));
-  if (typeof q.pageSize === "number") params.set("pageSize", String(q.pageSize));
+  if (typeof q.pageSize === "number") {
+    params.set("pageSize", String(q.pageSize));
+  }
   if (q.search && q.search.trim()) params.set("search", q.search.trim());
-  if (typeof q.isActive === "boolean") params.set("isActive", String(q.isActive));
+  if (typeof q.isActive === "boolean") {
+    params.set("isActive", String(q.isActive));
+  }
+  if (typeof q.isNewHire === "boolean") {
+    params.set("isNewHire", String(q.isNewHire));
+  }
+  if (q.sortBy) params.set("sortBy", q.sortBy);
+  if (q.employmentType) params.set("employmentType", q.employmentType);
 
   const qs = params.toString();
 
-  return apiRequest<PagedEmployeesResponse>(`/employees${qs ? `?${qs}` : ""}`);
+  return apiRequest<PagedEmployeesResponse | ApiEnvelope<PagedEmployeesResponse>>(
+    `/employees${qs ? `?${qs}` : ""}`
+  );
+}
+
+export function getEmploymentTypeSummary() {
+  return apiRequest<EmploymentTypeSummary>(
+    "/employees/summary/employment-type"
+  );
 }
 
 export function getEmployeeById(id: string) {
-  return apiRequest<EmployeeDto>(`/employees/${id}`);
+  return apiRequest<EmployeeDto | ApiEnvelope<EmployeeDto>>(`/employees/${id}`);
 }
 
-export function createEmployee(data: CreateEmployeeRequest & EmployeeWriteExtras) {
-  // Force DateOnly + required status
-  const dateOnly = toDateOnly(data.dateHired) ?? toDateOnly(new Date().toISOString());
-  const status = normalizeStatus((data as EmployeeWriteExtras).status);
+export function getNextEmployeeNumber() {
+  return apiRequest<
+    NextEmployeeNumberResponse | ApiEnvelope<NextEmployeeNumberResponse>
+  >("/employees/next-number");
+}
 
+export async function createEmployee(data: CreateEmployeeRequest) {
   const payload = {
-    employeeNumber: data.employeeNumber.trim(),
-
-    firstName: data.firstName.trim(),
-    middleName: normalizeOptional(data.middleName),
-    lastName: data.lastName.trim(),
-
-    birthDate: toDateOnly(data.birthDate), // DateOnly if provided
-    sex: normalizeOptional(data.sex),
-    civilStatus: normalizeOptional(data.civilStatus),
-
-    dateHired: dateOnly, // YYYY-MM-DD
-
+    userId: data.userId,
+    employmentType: data.employmentType,
     department: normalizeOptional(data.department),
     position: normalizeOptional(data.position),
-
-    contactNumber: normalizeOptional(data.contactNumber),
-    email: normalizeEmail(data.email),
-
-    addressLine1: normalizeOptional(data.addressLine1),
-    addressLine2: normalizeOptional(data.addressLine2),
-    city: normalizeOptional(data.city),
-    province: normalizeOptional(data.province),
-    zipCode: normalizeOptional(data.zipCode),
-
-    status, // required by backend
   };
 
-  return apiRequest<EmployeeDto>("/employees", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  const response = await withApiErrorHandling(
+    apiRequest<EmployeeDto | ApiEnvelope<EmployeeDto>>("/employees", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    })
+  );
+
+  const result = unwrapApiData(response);
+
+  emitEmployeeStatsChanged();
+
+  return result;
 }
 
-export function updateEmployee(id: string, data: UpdateEmployeeRequest & EmployeeWriteExtras) {
-  const dateOnly = toDateOnly(data.dateHired); // allow unchanged if omitted
+export async function updateEmployee(
+  id: string,
+  data: UpdateEmployeeRequest & EmployeeWriteExtras
+) {
   const status = normalizeStatus((data as EmployeeWriteExtras).status);
 
   const payload = {
@@ -206,10 +357,9 @@ export function updateEmployee(id: string, data: UpdateEmployeeRequest & Employe
     sex: normalizeOptional(data.sex),
     civilStatus: normalizeOptional(data.civilStatus),
 
-    dateHired: dateOnly, // YYYY-MM-DD when present
-
     department: normalizeOptional(data.department),
     position: normalizeOptional(data.position),
+    employmentType: data.employmentType,
 
     contactNumber: normalizeOptional(data.contactNumber),
     email: normalizeEmail(data.email),
@@ -220,26 +370,55 @@ export function updateEmployee(id: string, data: UpdateEmployeeRequest & Employe
     province: normalizeOptional(data.province),
     zipCode: normalizeOptional(data.zipCode),
 
-    isActive: data.isActive,
+    sssNumber: normalizeOptional(data.sssNumber),
+    philHealthNumber: normalizeOptional(data.philHealthNumber),
+    pagIbigNumber: normalizeOptional(data.pagIbigNumber),
+    tinNumber: normalizeOptional(data.tinNumber),
 
-    status, // keep backend happy if it enforces status on update too
+    isActive: data.isActive,
+    status,
   };
 
-  return apiRequest<EmployeeDto>(`/employees/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(payload),
-  });
+  const response = await withApiErrorHandling(
+    apiRequest<EmployeeDto | ApiEnvelope<EmployeeDto>>(`/employees/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    })
+  );
+
+  const result = unwrapApiData(response);
+
+  emitEmployeeStatsChanged();
+
+  return result;
 }
 
-export function updateEmployeeStatus(id: string, isActive: boolean) {
-  return apiRequest<EmployeeDto>(`/employees/${id}/status`, {
-    method: "PATCH",
-    body: JSON.stringify({ isActive }),
-  });
+export async function updateEmployeeStatus(id: string, isActive: boolean) {
+  const response = await withApiErrorHandling(
+    apiRequest<EmployeeDto | ApiEnvelope<EmployeeDto>>(
+      `/employees/${id}/status`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ isActive }),
+      }
+    )
+  );
+
+  const result = unwrapApiData(response);
+
+  emitEmployeeStatsChanged();
+
+  return result;
 }
 
-export function deleteEmployee(id: string) {
-  return apiRequest<void>(`/employees/${id}`, {
-    method: "DELETE",
-  });
+export async function deleteEmployee(id: string) {
+  const result = await withApiErrorHandling(
+    apiRequest<void>(`/employees/${id}`, {
+      method: "DELETE",
+    })
+  );
+
+  emitEmployeeStatsChanged();
+
+  return result;
 }
