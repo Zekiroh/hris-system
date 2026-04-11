@@ -14,32 +14,70 @@ public class AdminUsersService : IAdminUsersService
         _db = db;
     }
 
-    public async Task<List<AdminUserListItemDto>> GetAdminUsersAsync()
+    public async Task<List<AdminUserListItemDto>> GetAdminUsersAsync(
+        string? sortBy,
+        string? sortOrder,
+        int? roleId,
+        bool? isActive)
     {
-        var rawUsers = await _db.Users
+        var normalizedSortBy = string.IsNullOrWhiteSpace(sortBy)
+            ? "createdAt"
+            : sortBy.Trim().ToLowerInvariant();
+
+        var normalizedSortOrder = string.IsNullOrWhiteSpace(sortOrder)
+            ? "desc"
+            : sortOrder.Trim().ToLowerInvariant();
+
+        var query = _db.Users
             .AsNoTracking()
             .Include(u => u.Role)
-            .OrderBy(u => u.Id)
             .Select(u => new
             {
                 u.Id,
                 u.FullName,
+                u.FirstName,
+                u.MiddleName,
+                u.LastName,
+                u.Suffix,
                 u.Email,
                 u.RoleId,
                 RoleName = u.Role.Name,
                 u.IsActive,
                 u.UpdatedAt,
+                u.CreatedAt,
                 HasEmployee = _db.Employees.Any(e => e.UserId == u.Id),
                 LastActive = _db.ActivityLogs
                     .Where(a => (long)a.ActorUserId == u.Id)
                     .Max(a => (DateTime?)a.CreatedAt)
-            })
-            .ToListAsync();
+            });
+
+        if (roleId.HasValue)
+        {
+            query = query.Where(u => u.RoleId == roleId.Value);
+        }
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(u => u.IsActive == isActive.Value);
+        }
+
+        query = (normalizedSortBy, normalizedSortOrder) switch
+        {
+            ("createdat", "asc") => query.OrderBy(u => u.CreatedAt),
+            ("createdat", "desc") => query.OrderByDescending(u => u.CreatedAt),
+            _ => query.OrderByDescending(u => u.CreatedAt)
+        };
+
+        var rawUsers = await query.ToListAsync();
 
         return rawUsers.Select(u => new AdminUserListItemDto
         {
             Id = u.Id,
             FullName = u.FullName,
+            FirstName = u.FirstName,
+            MiddleName = u.MiddleName,
+            LastName = u.LastName,
+            Suffix = u.Suffix,
             Email = u.Email,
             RoleId = u.RoleId,
             RoleName = u.RoleName,
@@ -62,11 +100,15 @@ public class AdminUsersService : IAdminUsersService
                 u.IsActive &&
                 !_db.Employees.Any(e => e.UserId == u.Id)
             )
-            .OrderBy(u => u.Id)
+            .OrderByDescending(u => u.CreatedAt)
             .Select(u => new AdminUserListItemDto
             {
                 Id = u.Id,
                 FullName = u.FullName,
+                FirstName = u.FirstName,
+                MiddleName = u.MiddleName,
+                LastName = u.LastName,
+                Suffix = u.Suffix,
                 Email = u.Email,
                 RoleId = u.RoleId,
                 RoleName = u.Role.Name,
@@ -87,13 +129,17 @@ public class AdminUsersService : IAdminUsersService
             ? null
             : request.MiddleName.Trim();
         var lastName = (request.LastName ?? string.Empty).Trim();
+        var suffix = string.IsNullOrWhiteSpace(request.Suffix)
+            ? null
+            : request.Suffix.Trim();
 
         var user = new User
         {
             FirstName = firstName,
             MiddleName = middleName,
             LastName = lastName,
-            FullName = BuildFullName(firstName, middleName, lastName),
+            Suffix = suffix,
+            FullName = BuildFullName(firstName, middleName, lastName, suffix),
             Email = email,
             NormalizedEmail = email.ToUpperInvariant(),
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
@@ -114,6 +160,10 @@ public class AdminUsersService : IAdminUsersService
         {
             Id = user.Id,
             FullName = user.FullName,
+            FirstName = user.FirstName,
+            MiddleName = user.MiddleName,
+            LastName = user.LastName,
+            Suffix = user.Suffix,
             Email = user.Email,
             RoleId = user.RoleId,
             RoleName = roleName,
@@ -134,11 +184,15 @@ public class AdminUsersService : IAdminUsersService
             ? null
             : request.MiddleName.Trim();
         var lastName = (request.LastName ?? string.Empty).Trim();
+        var suffix = string.IsNullOrWhiteSpace(request.Suffix)
+            ? null
+            : request.Suffix.Trim();
 
         user.FirstName = firstName;
         user.MiddleName = middleName;
         user.LastName = lastName;
-        user.FullName = BuildFullName(firstName, middleName, lastName);
+        user.Suffix = suffix;
+        user.FullName = BuildFullName(firstName, middleName, lastName, suffix);
         user.Email = email;
         user.NormalizedEmail = email.ToUpperInvariant();
         user.RoleId = request.RoleId;
@@ -158,6 +212,10 @@ public class AdminUsersService : IAdminUsersService
         {
             Id = user.Id,
             FullName = user.FullName,
+            FirstName = user.FirstName,
+            MiddleName = user.MiddleName,
+            LastName = user.LastName,
+            Suffix = user.Suffix,
             Email = user.Email,
             RoleId = user.RoleId,
             RoleName = roleName,
@@ -193,7 +251,7 @@ public class AdminUsersService : IAdminUsersService
         return true;
     }
 
-    private static string BuildFullName(string firstName, string? middleName, string lastName)
+    private static string BuildFullName(string firstName, string? middleName, string lastName, string? suffix)
     {
         var parts = new List<string>();
 
@@ -205,6 +263,9 @@ public class AdminUsersService : IAdminUsersService
 
         if (!string.IsNullOrWhiteSpace(lastName))
             parts.Add(lastName.Trim());
+
+        if (!string.IsNullOrWhiteSpace(suffix))
+            parts.Add(suffix.Trim());
 
         return string.Join(" ", parts);
     }

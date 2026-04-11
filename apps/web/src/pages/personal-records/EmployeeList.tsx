@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import {
@@ -10,7 +11,10 @@ import {
   type UpdateEmployeeRequest,
   type EmployeeDto,
   type EmployeeStatus,
+  type EmployeeSortBy,
+  type EmploymentType,
 } from "../../lib/employees";
+import { subscribeEmployeeStatsChanged } from "../../lib/events/employeeEvents";
 import { mapEmployeeMutationErrorToUiMessage } from "../../lib/employeeErrorHelpers";
 import { getEmployeeApiErrorMessage } from "./utils/employeeApiError";
 
@@ -41,7 +45,51 @@ import {
   unwrapData,
 } from "../../components/personal-records/employeeList.utils";
 
+type EmployeeSummary = {
+  total: number;
+  active: number;
+  inactive: number;
+  newHires: number;
+};
+
+type PagedEmployeesWithSummary = Paged<EmployeeDto> & {
+  totalItems?: number;
+  summary?: EmployeeSummary;
+};
+
+type EmployeeTypeFilter = EmploymentType;
+
+const emptySummary = (): EmployeeSummary => ({
+  total: 0,
+  active: 0,
+  inactive: 0,
+  newHires: 0,
+});
+
+function parseEmploymentTypeParam(
+  value: string | null
+): EmployeeTypeFilter | null {
+  if (!value) return null;
+
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized === "regular") return "Regular";
+  if (normalized === "probationary") return "Probationary";
+  if (normalized === "project-based" || normalized === "contract") {
+    return "Project-based";
+  }
+
+  return null;
+}
+
 const EmployeeList = () => {
+  const [searchParams] = useSearchParams();
+
+  const employmentTypeFilter = useMemo(
+    () => parseEmploymentTypeParam(searchParams.get("employmentType")),
+    [searchParams]
+  );
+
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -53,6 +101,7 @@ const EmployeeList = () => {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("All");
+  const [sortBy, setSortBy] = useState<EmployeeSortBy>("latest");
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -70,6 +119,7 @@ const EmployeeList = () => {
 
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [summary, setSummary] = useState<EmployeeSummary>(emptySummary());
 
   const employeeNumberRequestRef = useRef(0);
 
@@ -77,6 +127,10 @@ const EmployeeList = () => {
     if (filterStatus === "Active") return true;
     if (filterStatus === "Inactive") return false;
     return undefined;
+  }, [filterStatus]);
+
+  const isNewHireQuery = useMemo(() => {
+    return filterStatus === "New Hires" ? true : undefined;
   }, [filterStatus]);
 
   const totalPages = useMemo(() => {
@@ -311,28 +365,32 @@ const EmployeeList = () => {
         pageSize: DEFAULT_PAGE_SIZE,
         search: searchTerm.trim() || undefined,
         isActive: isActiveQuery,
+        isNewHire: isNewHireQuery,
+        sortBy,
+        employmentType: employmentTypeFilter ?? undefined,
       });
 
-      const payload = unwrapData<Paged<EmployeeDto> | EmployeeDto[]>(res);
+      const payload = unwrapData<PagedEmployeesWithSummary | EmployeeDto[]>(res);
 
       if (Array.isArray(payload)) {
-        setEmployees(payload.map(mapDtoToEmployee));
-        setTotalCount(payload.length);
+        const mappedEmployees = payload.map(mapDtoToEmployee);
+
+        setEmployees(mappedEmployees);
+        setTotalCount(mappedEmployees.length);
+
         return;
       }
 
       const items = Array.isArray(payload.items) ? payload.items : [];
-      setEmployees(items.map(mapDtoToEmployee));
+      const mappedEmployees = items.map(mapDtoToEmployee);
 
-      const payloadWithMaybeTotalItems = payload as Paged<EmployeeDto> & {
-        totalItems?: number;
-      };
+      setEmployees(mappedEmployees);
 
       const tc =
         typeof payload.totalCount === "number"
           ? payload.totalCount
-          : typeof payloadWithMaybeTotalItems.totalItems === "number"
-            ? payloadWithMaybeTotalItems.totalItems
+          : typeof payload.totalItems === "number"
+            ? payload.totalItems
             : items.length;
 
       setTotalCount(tc);
@@ -344,6 +402,26 @@ const EmployeeList = () => {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchEmployeeSummaryOnly() {
+    try {
+      const res = await getEmployees({
+        page: 1,
+        pageSize: 1,
+      });
+
+      const payload = unwrapData<PagedEmployeesWithSummary | EmployeeDto[]>(res);
+
+      if (!Array.isArray(payload) && payload?.summary) {
+        setSummary(payload.summary);
+        return;
+      }
+
+      setSummary(emptySummary());
+    } catch {
+      setSummary(emptySummary());
     }
   }
 
@@ -427,12 +505,32 @@ const EmployeeList = () => {
 
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, isActiveQuery]);
+  }, [searchTerm, filterStatus, sortBy, employmentTypeFilter]);
 
   useEffect(() => {
     void fetchEmployees();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, searchTerm, isActiveQuery]);
+  }, [
+    page,
+    searchTerm,
+    isActiveQuery,
+    isNewHireQuery,
+    sortBy,
+    employmentTypeFilter,
+  ]);
+
+  useEffect(() => {
+    void fetchEmployeeSummaryOnly();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeEmployeeStatsChanged(() => {
+      void fetchEmployees();
+      void fetchEmployeeSummaryOnly();
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (showAddModal) {
@@ -453,20 +551,8 @@ const EmployeeList = () => {
         position: e.position,
         department: e.department,
         status: e.status,
+        isNewHire: e.isNewHire,
       })),
-    [employees]
-  );
-
-  const totalActive = useMemo(
-    () => employees.filter((e) => e.status === "Active").length,
-    [employees]
-  );
-  const totalOnLeave = useMemo(
-    () => employees.filter((e) => e.status === "On Leave").length,
-    [employees]
-  );
-  const totalInactive = useMemo(
-    () => employees.filter((e) => e.status === "Inactive").length,
     [employees]
   );
 
@@ -526,16 +612,18 @@ const EmployeeList = () => {
   };
 
   const handleViewRow = async (row: EmployeeRow) => {
-    if (detailsLoading) return;
+    if (detailsLoading || loading) return;
     await openView(row.id);
   };
 
   const handleEditRow = async (row: EmployeeRow) => {
-    if (detailsLoading) return;
+    if (detailsLoading || loading) return;
     await openEdit(row.id);
   };
 
   const handleOpenAddModal = () => {
+    if (loading || detailsLoading) return;
+
     setFormError(null);
     setFieldErrors({});
     setFormData(emptyFormData());
@@ -576,6 +664,7 @@ const EmployeeList = () => {
       setShowAddModal(false);
       resetModalState();
       await fetchEmployees();
+      await fetchEmployeeSummaryOnly();
     } catch (e) {
       const normalizedMessage = getEmployeeApiErrorMessage(e);
       const mapped = mapEmployeeMutationErrorToUiMessage(
@@ -655,6 +744,7 @@ const EmployeeList = () => {
       setFormError(null);
 
       await fetchEmployees();
+      await fetchEmployeeSummaryOnly();
       toast.success("Employee details updated successfully.");
     } catch (e) {
       const maybeError = e as {
@@ -723,10 +813,10 @@ const EmployeeList = () => {
       </div>
 
       <EmployeeStats
-        total={employees.length}
-        active={totalActive}
-        onLeave={totalOnLeave}
-        inactive={totalInactive}
+        total={summary.total}
+        active={summary.active}
+        newHires={summary.newHires}
+        inactive={summary.inactive}
         filterStatus={filterStatus}
         onFilterStatusChange={setFilterStatus}
       />
@@ -741,6 +831,8 @@ const EmployeeList = () => {
             onSearchTermChange={setSearchTerm}
             filterStatus={filterStatus}
             onFilterStatusChange={setFilterStatus}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
             loading={loading}
             apiError={employeesError}
             onAddEmployee={handleOpenAddModal}

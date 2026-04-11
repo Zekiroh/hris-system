@@ -1,5 +1,7 @@
 import { Search, Filter, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import type { EmployeeSortBy } from "../../lib/employees";
 
 type FilterOption = {
   label: string;
@@ -9,8 +11,14 @@ type FilterOption = {
 const FILTER_STATUS_OPTIONS: FilterOption[] = [
   { label: "All", value: "All" },
   { label: "Active", value: "Active" },
-  { label: "On Leave", value: "On Leave" },
   { label: "Inactive", value: "Inactive" },
+  { label: "New Hires", value: "New Hires" },
+];
+
+const SORT_OPTIONS: Array<{ label: string; value: EmployeeSortBy }> = [
+  { label: "Latest", value: "latest" },
+  { label: "Oldest", value: "oldest" },
+  { label: "Name", value: "name" },
 ];
 
 function FilterDropdown({
@@ -19,7 +27,7 @@ function FilterDropdown({
   onSelect,
 }: {
   value: string;
-  options: FilterOption[];
+  options: readonly FilterOption[];
   onSelect: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -84,6 +92,8 @@ export function EmployeeToolbar({
   onSearchTermChange,
   filterStatus,
   onFilterStatusChange,
+  sortBy,
+  onSortChange,
   loading,
   apiError,
   onAddEmployee,
@@ -92,17 +102,27 @@ export function EmployeeToolbar({
   onSearchTermChange: (v: string) => void;
   filterStatus: string;
   onFilterStatusChange: (v: string) => void;
+  sortBy: EmployeeSortBy;
+  onSortChange: (v: EmployeeSortBy) => void;
   loading: boolean;
   apiError: string | null;
   onAddEmployee: () => void;
 }) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const employmentType = searchParams.get("employmentType");
+
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [draftFilterStatus, setDraftFilterStatus] = useState(filterStatus);
+  const [draftSortBy, setDraftSortBy] = useState<EmployeeSortBy>(sortBy);
   const filterMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setDraftFilterStatus(filterStatus);
   }, [filterStatus]);
+
+  useEffect(() => {
+    setDraftSortBy(sortBy);
+  }, [sortBy]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -112,15 +132,24 @@ export function EmployeeToolbar({
       ) {
         setShowFilterMenu(false);
         setDraftFilterStatus(filterStatus);
+        setDraftSortBy(sortBy);
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [filterStatus]);
+  }, [filterStatus, sortBy]);
 
   const hasPendingFilterChange = draftFilterStatus !== filterStatus;
-  const hasActiveFilters = filterStatus !== "All";
+  const hasPendingSortChange = draftSortBy !== sortBy;
+  const hasPendingChanges = hasPendingFilterChange || hasPendingSortChange;
+  const hasActiveFilters = filterStatus !== "All" || sortBy !== "latest";
+
+  const clearEmploymentType = () => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete("employmentType");
+    setSearchParams(newParams);
+  };
 
   return (
     <div className="overflow-visible">
@@ -135,7 +164,21 @@ export function EmployeeToolbar({
           />
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          
+          {/* 🔥 ACTIVE EMPLOYMENT TYPE (NO UI DRIFT) */}
+          {employmentType && (
+            <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700">
+              <span>{employmentType}</span>
+              <button
+                onClick={clearEmploymentType}
+                className="text-emerald-500 hover:text-emerald-700"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           <div className="relative overflow-visible" ref={filterMenuRef}>
             <button
               className="btn btn-secondary flex items-center gap-2"
@@ -143,6 +186,7 @@ export function EmployeeToolbar({
               onClick={() => {
                 if (!showFilterMenu) {
                   setDraftFilterStatus(filterStatus);
+                  setDraftSortBy(sortBy);
                 }
                 setShowFilterMenu((prev) => !prev);
               }}
@@ -166,16 +210,30 @@ export function EmployeeToolbar({
                     />
                   </div>
 
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Sort
+                    </label>
+
+                    <FilterDropdown
+                      value={draftSortBy}
+                      options={SORT_OPTIONS}
+                      onSelect={(value) => setDraftSortBy(value as EmployeeSortBy)}
+                    />
+                  </div>
+
                   <div className="flex items-center justify-end gap-2 pt-1">
                     <button
                       type="button"
                       className="btn btn-secondary"
                       onClick={() => {
                         setDraftFilterStatus("All");
+                        setDraftSortBy("latest");
                         onFilterStatusChange("All");
+                        onSortChange("latest");
                         setShowFilterMenu(false);
                       }}
-                      disabled={!hasActiveFilters && draftFilterStatus === "All"}
+                      disabled={!hasActiveFilters}
                     >
                       Clear
                     </button>
@@ -185,9 +243,10 @@ export function EmployeeToolbar({
                       className="btn btn-primary"
                       onClick={() => {
                         onFilterStatusChange(draftFilterStatus);
+                        onSortChange(draftSortBy);
                         setShowFilterMenu(false);
                       }}
-                      disabled={!hasPendingFilterChange}
+                      disabled={!hasPendingChanges}
                     >
                       Apply
                     </button>
@@ -201,6 +260,7 @@ export function EmployeeToolbar({
             onClick={onAddEmployee}
             className="btn btn-primary flex items-center gap-2"
             type="button"
+            disabled={loading}
           >
             <Plus className="h-4 w-4" />
             Add Employee

@@ -2,10 +2,14 @@ import type { AdminUserDto } from '../../lib/adminUsers';
 
 export type BackendUser = AdminUserDto;
 
+export type UserSortOrder = 'LATEST' | 'OLDEST';
+export type UserNameFormat = 'FN_FIRST' | 'LN_FIRST';
+
 export type UserRow = BackendUser & {
   roleLabel: string;
   statusLabel: 'Active' | 'Inactive';
   lastActiveLabel: string;
+  displayName: string;
 };
 
 export type UserFormState = {
@@ -13,6 +17,7 @@ export type UserFormState = {
   firstName: string;
   middleName: string;
   lastName: string;
+  suffix: string;
   email: string;
   password: string;
   roleId: number;
@@ -37,11 +42,21 @@ export const ROLE_OPTIONS = [
   { id: 3, label: 'User' },
 ] as const;
 
+export const USER_SUFFIX_OPTIONS = [
+  { label: 'None', value: '' },
+  { label: 'Jr.', value: 'Jr.' },
+  { label: 'Sr.', value: 'Sr.' },
+  { label: 'II', value: 'II' },
+  { label: 'III', value: 'III' },
+  { label: 'IV', value: 'IV' },
+] as const;
+
 export const DEFAULT_FORM: UserFormState = {
   id: 0,
   firstName: '',
   middleName: '',
   lastName: '',
+  suffix: '',
   email: '',
   password: '',
   roleId: 3,
@@ -114,7 +129,9 @@ function isValidEmail(value: string) {
 
 export function validateUserForm(form: UserFormState) {
   const firstName = form.firstName.trim();
+  const middleName = form.middleName.trim();
   const lastName = form.lastName.trim();
+  const suffix = form.suffix.trim();
   const email = form.email.trim();
 
   if (!firstName) return 'First name is required.';
@@ -123,10 +140,18 @@ export function validateUserForm(form: UserFormState) {
     return 'First name contains invalid characters.';
   }
 
+  if (middleName && hasInvalidNameCharacters(middleName)) {
+    return 'Middle name contains invalid characters.';
+  }
+
   if (!lastName) return 'Last name is required.';
   if (lastName.length < 2) return 'Last name must be at least 2 characters.';
   if (hasInvalidNameCharacters(lastName)) {
     return 'Last name contains invalid characters.';
+  }
+
+  if (suffix && !USER_SUFFIX_OPTIONS.some((option) => option.value === suffix)) {
+    return 'Please select a valid suffix.';
   }
 
   if (!email) return 'Email address is required.';
@@ -139,15 +164,79 @@ export function validateUserForm(form: UserFormState) {
   return null;
 }
 
-export function buildFullName(first: string, middle: string, last: string) {
-  return [first, middle, last]
+export function buildFullName(first: string, middle: string, last: string, suffix = '') {
+  return [first, middle, last, suffix]
     .filter((x) => x && x.trim())
     .join(' ');
 }
 
+function getMiddleInitial(middleName: string | null | undefined) {
+  const trimmed = middleName?.trim();
+  if (!trimmed) return '';
+  return `${trimmed.charAt(0).toUpperCase()}.`;
+}
+
+function splitFullName(fullName: string) {
+  const parts = fullName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  const firstName = parts[0] ?? '';
+  const lastName = parts.length > 1 ? parts[parts.length - 1] : '';
+  const middleName = parts.length > 2 ? parts.slice(1, -1).join(' ') : '';
+
+  return {
+    firstName,
+    middleName,
+    lastName,
+  };
+}
+
+export function formatUserDisplayName(
+  user: Pick<BackendUser, 'fullName' | 'firstName' | 'middleName' | 'lastName' | 'suffix'>,
+  nameFormat: UserNameFormat
+) {
+  const fallback = splitFullName(user.fullName);
+
+  const firstName = user.firstName?.trim() || fallback.firstName;
+  const middleName = user.middleName?.trim() || fallback.middleName;
+  const lastName = user.lastName?.trim() || fallback.lastName;
+  const suffix = user.suffix?.trim() || '';
+
+  const middleInitial = getMiddleInitial(middleName);
+
+  if (nameFormat === 'LN_FIRST') {
+    const leading = lastName || firstName;
+    const trailingCore = [firstName, middleInitial].filter(Boolean).join(' ').trim();
+    const trailing = suffix
+      ? [trailingCore, suffix].filter(Boolean).join(', ')
+      : trailingCore;
+
+    if (!leading) return suffix || trailingCore;
+    if (!trailing) return leading;
+
+    return `${leading}, ${trailing}`;
+  }
+
+  const core = [firstName, middleInitial, lastName].filter(Boolean).join(' ').trim();
+  return suffix ? [core, suffix].filter(Boolean).join(', ') : core;
+}
+
+export function getUserSortTimestamp(user: BackendUser) {
+  const updatedAtMs = user.updatedAt ? new Date(user.updatedAt).getTime() : Number.NaN;
+
+  if (!Number.isNaN(updatedAtMs)) {
+    return updatedAtMs;
+  }
+
+  return user.id;
+}
+
 export function mapAdminUsers(
   items: BackendUser[],
-  currentUserId?: number
+  currentUserId?: number,
+  nameFormat: UserNameFormat = 'FN_FIRST'
 ): UserRow[] {
   return items.map((user) => ({
     ...user,
@@ -157,6 +246,7 @@ export function mapAdminUsers(
       user.id === currentUserId
         ? 'Just now'
         : formatRelativeDate(user.lastActive),
+    displayName: formatUserDisplayName(user, nameFormat),
   }));
 }
 

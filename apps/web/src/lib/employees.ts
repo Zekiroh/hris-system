@@ -1,7 +1,9 @@
 import { apiRequest } from "./api";
+import { emitEmployeeStatsChanged } from "./events/employeeEvents";
 
-export type EmployeeStatus = "Active" | "On Leave" | "Inactive";
+export type EmployeeStatus = "Active" | "Inactive";
 export type EmploymentType = "Regular" | "Probationary" | "Project-based";
+export type EmployeeSortBy = "latest" | "oldest" | "name";
 
 export const EMPLOYEE_DOCUMENT_TYPES = [
   "SSS",
@@ -16,6 +18,15 @@ export const EMPLOYEE_DOCUMENT_TYPES = [
 
 export type EmployeeDocumentType = (typeof EMPLOYEE_DOCUMENT_TYPES)[number];
 
+export type EmployeeDocumentDto = {
+  id: string;
+  fileName: string;
+  contentType: string;
+  uploadedAtUtc: string;
+  documentType?: string | null;
+  fileSizeBytes?: number | null;
+};
+
 export type EmployeeDto = {
   id: string;
   employeeNumber: string;
@@ -23,6 +34,7 @@ export type EmployeeDto = {
   firstName: string | null;
   middleName: string | null;
   lastName: string | null;
+  suffix: string | null;
 
   birthDate: string | null;
   sex: string | null;
@@ -49,6 +61,7 @@ export type EmployeeDto = {
   tinNumber: string | null;
 
   isActive: boolean;
+  isNewHire: boolean;
 
   createdAtUtc: string;
   updatedAtUtc: string | null;
@@ -72,11 +85,25 @@ export type Employee = {
   zipCode: string;
 };
 
+export type EmployeeSummaryDto = {
+  total: number;
+  active: number;
+  inactive: number;
+  newHires: number;
+};
+
+export type EmploymentTypeSummary = {
+  regular: number;
+  probationary: number;
+  contract: number;
+};
+
 export type PagedEmployeesResponse = {
   items: EmployeeDto[];
   totalCount: number;
   page: number;
   pageSize: number;
+  summary: EmployeeSummaryDto;
 };
 
 export type GetEmployeesQuery = {
@@ -84,6 +111,9 @@ export type GetEmployeesQuery = {
   pageSize?: number;
   search?: string;
   isActive?: boolean;
+  isNewHire?: boolean;
+  sortBy?: EmployeeSortBy;
+  employmentType?: EmploymentType;
 };
 
 export type NextEmployeeNumberResponse = {
@@ -128,15 +158,6 @@ export type UpdateEmployeeRequest = {
   isActive: boolean;
 };
 
-export type EmployeeDocumentDto = {
-  id: string;
-  fileName: string;
-  contentType: string;
-  uploadedAtUtc: string;
-  documentType?: string | null;
-  fileSizeBytes?: number | null;
-};
-
 type ApiEnvelope<T> = {
   data?: T;
   message?: string;
@@ -176,7 +197,7 @@ function normalizeEmail(v: string | undefined): string | undefined {
 }
 
 function normalizeStatus(v: unknown): EmployeeStatus {
-  if (v === "Active" || v === "Inactive" || v === "On Leave") return v;
+  if (v === "Active" || v === "Inactive") return v;
   return "Active";
 }
 
@@ -270,11 +291,22 @@ export function getEmployees(q: GetEmployeesQuery) {
   if (typeof q.isActive === "boolean") {
     params.set("isActive", String(q.isActive));
   }
+  if (typeof q.isNewHire === "boolean") {
+    params.set("isNewHire", String(q.isNewHire));
+  }
+  if (q.sortBy) params.set("sortBy", q.sortBy);
+  if (q.employmentType) params.set("employmentType", q.employmentType);
 
   const qs = params.toString();
 
   return apiRequest<PagedEmployeesResponse | ApiEnvelope<PagedEmployeesResponse>>(
     `/employees${qs ? `?${qs}` : ""}`
+  );
+}
+
+export function getEmploymentTypeSummary() {
+  return apiRequest<EmploymentTypeSummary>(
+    "/employees/summary/employment-type"
   );
 }
 
@@ -303,7 +335,11 @@ export async function createEmployee(data: CreateEmployeeRequest) {
     })
   );
 
-  return unwrapApiData(response);
+  const result = unwrapApiData(response);
+
+  emitEmployeeStatsChanged();
+
+  return result;
 }
 
 export async function updateEmployee(
@@ -350,7 +386,11 @@ export async function updateEmployee(
     })
   );
 
-  return unwrapApiData(response);
+  const result = unwrapApiData(response);
+
+  emitEmployeeStatsChanged();
+
+  return result;
 }
 
 export async function updateEmployeeStatus(id: string, isActive: boolean) {
@@ -364,13 +404,21 @@ export async function updateEmployeeStatus(id: string, isActive: boolean) {
     )
   );
 
-  return unwrapApiData(response);
+  const result = unwrapApiData(response);
+
+  emitEmployeeStatsChanged();
+
+  return result;
 }
 
 export async function deleteEmployee(id: string) {
-  return withApiErrorHandling(
+  const result = await withApiErrorHandling(
     apiRequest<void>(`/employees/${id}`, {
       method: "DELETE",
     })
   );
+
+  emitEmployeeStatsChanged();
+
+  return result;
 }

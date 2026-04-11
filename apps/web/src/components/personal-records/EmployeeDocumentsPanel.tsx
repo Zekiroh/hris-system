@@ -13,6 +13,8 @@ import type {
   EmployeeDocumentType,
 } from "../../lib/employees";
 import { EMPLOYEE_DOCUMENT_TYPES } from "../../lib/employees";
+import { DropdownMenu } from "./EmployeeFormFields";
+import { useAuth } from "../../context/AuthContext";
 
 type Props = {
   employeeId: string | null;
@@ -208,9 +210,18 @@ export function EmployeeDocumentsPanel({
   onPreviewSelect,
   activeDocumentId = null,
 }: Props) {
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [pendingDeleteDoc, setPendingDeleteDoc] =
     useState<EmployeeDocumentDto | null>(null);
+  const [isDragActive, setIsDragActive] = useState(false);
+
+  const canDeleteDocuments = !readOnly && user?.role === "SUPER_ADMIN";
+
+  const documentTypeOptions = EMPLOYEE_DOCUMENT_TYPES.map((type) => ({
+    label: type,
+    value: type,
+  }));
 
   const handleChooseFile = () => {
     if (readOnly || uploading) return;
@@ -228,7 +239,7 @@ export function EmployeeDocumentsPanel({
   };
 
   const handleDeleteClick = (doc: EmployeeDocumentDto) => {
-    if (readOnly) return;
+    if (!canDeleteDocuments) return;
     setPendingDeleteDoc(doc);
   };
 
@@ -238,7 +249,7 @@ export function EmployeeDocumentsPanel({
   };
 
   const handleConfirmDelete = async () => {
-    if (!pendingDeleteDoc) return;
+    if (!pendingDeleteDoc || !canDeleteDocuments) return;
 
     try {
       await onDelete(pendingDeleteDoc.id);
@@ -256,23 +267,16 @@ export function EmployeeDocumentsPanel({
       <div className="space-y-4">
         {!readOnly && (
           <>
-            <div>
-              <select
+            <div className="overflow-visible">
+              <DropdownMenu
                 value={selectedDocumentType}
-                onChange={(e) =>
-                  onSelectedDocumentTypeChange(
-                    e.target.value as EmployeeDocumentType
-                  )
-                }
-                className="pro-select"
+                options={documentTypeOptions}
+                placeholder="Select document type"
                 disabled={uploading}
-              >
-                {EMPLOYEE_DOCUMENT_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
+                onSelect={(value) =>
+                  onSelectedDocumentTypeChange(value as EmployeeDocumentType)
+                }
+              />
             </div>
 
             <div className="flex justify-center">
@@ -283,24 +287,74 @@ export function EmployeeDocumentsPanel({
                 accept=".pdf,.png,.jpg,.jpeg"
                 onChange={handleFileChange}
               />
-              <button
-                type="button"
-                className="btn btn-primary"
+
+              <div
                 onClick={handleChooseFile}
-                disabled={uploading}
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (readOnly || uploading) return;
+                  setIsDragActive(true);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (readOnly || uploading) return;
+                  setIsDragActive(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setIsDragActive(false);
+                  }
+                }}
+                onDrop={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragActive(false);
+
+                  if (readOnly || uploading) return;
+
+                  const file = e.dataTransfer.files?.[0];
+                  if (!file) return;
+
+                  await onUpload(file);
+                }}
+                className={`w-full max-w-xl rounded-xl border-2 border-dashed px-6 py-8 text-center transition ${
+                  uploading
+                    ? "cursor-not-allowed border-gray-200 bg-gray-50"
+                    : isDragActive
+                      ? "cursor-pointer border-green-400 bg-green-50"
+                      : "cursor-pointer border-gray-300 bg-white hover:border-green-400 hover:bg-green-50"
+                }`}
               >
                 {uploading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                  <div className="flex flex-col items-center gap-2 text-sm text-gray-500">
+                    <Loader2 className="h-6 w-6 animate-spin" />
                     Uploading...
-                  </>
+                  </div>
                 ) : (
                   <>
-                    <Upload className="h-4 w-4" />
-                    Upload Document
+                    <div className="mb-3 flex justify-center">
+                      <Upload
+                        className={`h-6 w-6 ${
+                          isDragActive ? "text-green-600" : "text-gray-400"
+                        }`}
+                      />
+                    </div>
+
+                    <p className="text-sm text-gray-600">
+                      Drag and drop file here or{" "}
+                      <span className="font-medium text-green-600">browse</span>
+                    </p>
+
+                    <p className="mt-1 text-xs text-gray-400">
+                      Supports PDF, PNG, JPG
+                    </p>
                   </>
                 )}
-              </button>
+              </div>
             </div>
           </>
         )}
@@ -392,7 +446,7 @@ export function EmployeeDocumentsPanel({
                       </button>
                     )}
 
-                    {!readOnly && (
+                    {canDeleteDocuments && (
                       <button
                         type="button"
                         className="btn-ghost btn-icon"
@@ -415,7 +469,7 @@ export function EmployeeDocumentsPanel({
         )}
       </div>
 
-      {pendingDeleteDoc && (
+      {pendingDeleteDoc && canDeleteDocuments && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 px-4">
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
             <div className="border-b px-6 py-4">

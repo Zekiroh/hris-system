@@ -14,6 +14,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useUserManagement } from './hooks/useUserManagement';
 import { ROLE_OPTIONS } from './userManagement.shared';
+import { formatPersonName, getAvatarInitial } from '../../lib/nameFormatter';
 
 import AddUserModal from './modals/AddUserModal';
 import EditUserModal from './modals/EditUserModal';
@@ -21,6 +22,69 @@ import ResetPasswordModal from './modals/ResetPasswordModal';
 import UserStatusModal from './modals/UserStatusModal';
 
 const SUPER_ADMIN_ROLE_ID = 1;
+
+type FilterOption = {
+  label: string;
+  value: string;
+};
+
+type FilterDropdownKey = 'role' | 'status' | 'sort' | 'nameFormat' | null;
+
+function FilterDropdown({
+  label,
+  value,
+  options,
+  isOpen,
+  onToggle,
+  onSelect,
+}: {
+  label: string;
+  value: string;
+  options: FilterOption[];
+  isOpen: boolean;
+  onToggle: () => void;
+  onSelect: (value: string) => void;
+}) {
+  const selected = options.find((option) => option.value === value);
+
+  return (
+    <div className="relative">
+      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+        {label}
+      </label>
+
+      <button
+        type="button"
+        onClick={onToggle}
+        className="pro-input flex w-full items-center justify-between text-left"
+      >
+        <span className={selected ? 'text-gray-700' : 'text-gray-500'}>
+          {selected?.label ?? 'Select'}
+        </span>
+        <span className="ml-3 shrink-0 text-gray-400">▾</span>
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full z-[70] mt-2 max-h-60 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-xl">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={`block w-full rounded-xl px-4 py-2.5 text-left text-sm transition ${
+                option.value === value
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+              onClick={() => onSelect(option.value)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const UserManagement = () => {
   const { user: authUser } = useAuth();
@@ -31,6 +95,8 @@ const UserManagement = () => {
     searchTerm,
     selectedRole,
     selectedStatus,
+    sortOrder,
+    nameFormat,
     isLoading,
     isSubmitting,
     bannerMessage,
@@ -51,6 +117,8 @@ const UserManagement = () => {
     setSearchTerm,
     setSelectedRole,
     setSelectedStatus,
+    setSortOrder,
+    setNameFormat,
     setPage,
     setFormData,
     setPasswordResetData,
@@ -73,6 +141,9 @@ const UserManagement = () => {
   } = useUserManagement();
 
   const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [openFilterDropdown, setOpenFilterDropdown] =
+    useState<FilterDropdownKey>(null);
+
   const filterMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -82,11 +153,12 @@ const UserManagement = () => {
         !filterMenuRef.current.contains(event.target as Node)
       ) {
         setShowFilterMenu(false);
+        setOpenFilterDropdown(null);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
   const roleOptions = useMemo(() => {
@@ -94,16 +166,46 @@ const UserManagement = () => {
     return ROLE_OPTIONS.filter((role) => role.id !== SUPER_ADMIN_ROLE_ID);
   }, [isAdminCaller]);
 
-  const filterRoleOptions = useMemo(() => {
-    return ['ALL', 'Super Admin', 'Admin', 'User'];
-  }, []);
+  const filterRoleOptions = useMemo<FilterOption[]>(
+    () => [
+      { label: 'All', value: 'ALL' },
+      { label: 'Super Admin', value: 'Super Admin' },
+      { label: 'Admin', value: 'Admin' },
+      { label: 'User', value: 'User' },
+    ],
+    []
+  );
 
-  const filterStatusOptions = useMemo(() => {
-    return ['ALL', 'Active', 'Inactive'];
-  }, []);
+  const filterStatusOptions = useMemo<FilterOption[]>(
+    () => [
+      { label: 'All', value: 'ALL' },
+      { label: 'Active', value: 'Active' },
+      { label: 'Inactive', value: 'Inactive' },
+    ],
+    []
+  );
+
+  const sortOptions = useMemo<FilterOption[]>(
+    () => [
+      { label: 'Latest', value: 'LATEST' },
+      { label: 'Oldest', value: 'OLDEST' },
+    ],
+    []
+  );
+
+  const nameFormatOptions = useMemo<FilterOption[]>(
+    () => [
+      { label: 'First Name First', value: 'FN_FIRST' },
+      { label: 'Last Name First', value: 'LN_FIRST' },
+    ],
+    []
+  );
 
   const hasActiveFilters =
-    selectedRole !== 'ALL' || selectedStatus !== 'ALL';
+    selectedRole !== 'ALL' ||
+    selectedStatus !== 'ALL' ||
+    sortOrder !== 'LATEST' ||
+    nameFormat !== 'LN_FIRST';
 
   const paddedUsers = useMemo(() => {
     const missing = Math.max(0, 10 - pagedUsers.length);
@@ -122,11 +224,15 @@ const UserManagement = () => {
     return 'No users available.';
   }, [searchTerm, hasActiveFilters]);
 
+  const toggleFilterDropdown = (key: Exclude<FilterDropdownKey, null>) => {
+    setOpenFilterDropdown((prev) => (prev === key ? null : key));
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="relative w-full max-w-sm hidden sm:block">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <div className="relative hidden w-full max-w-sm sm:block">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             autoComplete="off"
@@ -142,48 +248,70 @@ const UserManagement = () => {
             <button
               className="btn btn-secondary flex items-center gap-2"
               type="button"
-              onClick={() => setShowFilterMenu((prev) => !prev)}
+              onClick={() => {
+                setShowFilterMenu((prev) => !prev);
+                if (showFilterMenu) {
+                  setOpenFilterDropdown(null);
+                }
+              }}
             >
-              <Filter className="w-4 h-4" />
+              <Filter className="h-4 w-4" />
               Filter
             </button>
 
             {showFilterMenu && (
-              <div className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-gray-200 bg-white p-4 shadow-lg">
+              <div
+                className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-gray-200 bg-white p-4 shadow-lg"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div className="space-y-4">
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Role
-                    </label>
-                    <select
-                      className="pro-input"
-                      value={selectedRole}
-                      onChange={(e) => setSelectedRole(e.target.value)}
-                    >
-                      {filterRoleOptions.map((role) => (
-                        <option key={role} value={role}>
-                          {role === 'ALL' ? 'All' : role}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <FilterDropdown
+                    label="Role"
+                    value={selectedRole}
+                    options={filterRoleOptions}
+                    isOpen={openFilterDropdown === 'role'}
+                    onToggle={() => toggleFilterDropdown('role')}
+                    onSelect={(value) => {
+                      setSelectedRole(value);
+                      setOpenFilterDropdown(null);
+                    }}
+                  />
 
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Status
-                    </label>
-                    <select
-                      className="pro-input"
-                      value={selectedStatus}
-                      onChange={(e) => setSelectedStatus(e.target.value)}
-                    >
-                      {filterStatusOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {status === 'ALL' ? 'All' : status}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <FilterDropdown
+                    label="Status"
+                    value={selectedStatus}
+                    options={filterStatusOptions}
+                    isOpen={openFilterDropdown === 'status'}
+                    onToggle={() => toggleFilterDropdown('status')}
+                    onSelect={(value) => {
+                      setSelectedStatus(value);
+                      setOpenFilterDropdown(null);
+                    }}
+                  />
+
+                  <FilterDropdown
+                    label="Sort"
+                    value={sortOrder}
+                    options={sortOptions}
+                    isOpen={openFilterDropdown === 'sort'}
+                    onToggle={() => toggleFilterDropdown('sort')}
+                    onSelect={(value) => {
+                      setSortOrder(value as 'LATEST' | 'OLDEST');
+                      setOpenFilterDropdown(null);
+                    }}
+                  />
+
+                  <FilterDropdown
+                    label="Name Format"
+                    value={nameFormat}
+                    options={nameFormatOptions}
+                    isOpen={openFilterDropdown === 'nameFormat'}
+                    onToggle={() => toggleFilterDropdown('nameFormat')}
+                    onSelect={(value) => {
+                      setNameFormat(value as 'FN_FIRST' | 'LN_FIRST');
+                      setOpenFilterDropdown(null);
+                    }}
+                  />
 
                   <div className="flex items-center justify-end gap-2 pt-1">
                     <button
@@ -192,6 +320,9 @@ const UserManagement = () => {
                       onClick={() => {
                         setSelectedRole('ALL');
                         setSelectedStatus('ALL');
+                        setSortOrder('LATEST');
+                        setNameFormat('LN_FIRST');
+                        setOpenFilterDropdown(null);
                       }}
                       disabled={!hasActiveFilters}
                     >
@@ -200,7 +331,10 @@ const UserManagement = () => {
                     <button
                       type="button"
                       className="btn btn-primary"
-                      onClick={() => setShowFilterMenu(false)}
+                      onClick={() => {
+                        setShowFilterMenu(false);
+                        setOpenFilterDropdown(null);
+                      }}
                     >
                       Apply
                     </button>
@@ -215,7 +349,7 @@ const UserManagement = () => {
             type="button"
             onClick={handleExportCsv}
           >
-            <Download className="w-4 h-4" />
+            <Download className="h-4 w-4" />
             Export
           </button>
 
@@ -224,7 +358,7 @@ const UserManagement = () => {
             className="btn btn-primary flex items-center gap-2"
             type="button"
           >
-            <UserPlus className="w-4 h-4" />
+            <UserPlus className="h-4 w-4" />
             Add User
           </button>
         </div>
@@ -257,7 +391,7 @@ const UserManagement = () => {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={5} className="text-center py-8 text-gray-500 italic">
+                <td colSpan={5} className="py-8 text-center italic text-gray-500">
                   Loading users...
                 </td>
               </tr>
@@ -275,25 +409,32 @@ const UserManagement = () => {
                   );
                 }
 
-                const statusActionLabel = user.isActive ? 'Deactivate User' : 'Activate User';
+                const statusActionLabel = user.isActive
+                  ? 'Deactivate User'
+                  : 'Activate User';
+
                 const isProtectedSuperAdminRow =
                   isAdminCaller && user.roleId === SUPER_ADMIN_ROLE_ID;
+
                 const canToggleStatus =
                   isSuperAdminCaller ||
                   (isAdminCaller && user.roleId !== SUPER_ADMIN_ROLE_ID);
+
+                const fullName = formatPersonName(user, nameFormat);
+                const avatarInitial = getAvatarInitial(user);
 
                 return (
                   <tr key={user.id}>
                     <td className="!font-medium !text-gray-800">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-600 shadow-sm">
-                          {user.fullName.charAt(0)}
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-600 shadow-sm">
+                          {avatarInitial}
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-gray-900 leading-tight">
-                            {user.fullName}
+                          <p className="text-sm font-bold leading-tight text-gray-900">
+                            {fullName}
                           </p>
-                          <p className="text-[10px] text-gray-500 leading-tight">
+                          <p className="text-[10px] leading-tight text-gray-500">
                             {user.email}
                           </p>
                         </div>
@@ -302,14 +443,24 @@ const UserManagement = () => {
 
                     <td>
                       <div className="flex items-center gap-1.5 text-sm text-gray-700">
-                        <Shield className="w-3.5 h-3.5 text-gray-400" />
+                        <Shield className="h-3.5 w-3.5 text-gray-400" />
                         {user.roleLabel}
                       </div>
                     </td>
 
                     <td>
-                      <span className={`badge ${user.isActive ? 'badge-success' : 'badge-neutral'}`}>
-                        <span className="badge-dot" />
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
+                          user.isActive
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-red-100 text-red-600'
+                        }`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${
+                            user.isActive ? 'bg-emerald-500' : 'bg-red-500'
+                          }`}
+                        />
                         {user.statusLabel}
                       </span>
                     </td>
@@ -320,42 +471,50 @@ const UserManagement = () => {
                       <div className="flex items-center justify-center gap-3">
                         <button
                           onClick={() => openEditModal(user)}
-                          className={`p-1.5 rounded-md transition ${
+                          className={`rounded-md p-1.5 transition ${
                             isProtectedSuperAdminRow
-                              ? 'text-gray-300 cursor-not-allowed'
-                              : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50'
+                              ? 'cursor-not-allowed text-gray-300'
+                              : 'text-slate-500 hover:bg-emerald-50 hover:text-emerald-600'
                           }`}
                           type="button"
-                          title={isProtectedSuperAdminRow ? 'Only Super Admin can edit this user' : 'Edit User'}
+                          title={
+                            isProtectedSuperAdminRow
+                              ? 'Only Super Admin can edit this user'
+                              : 'Edit User'
+                          }
                           aria-label="Edit User"
                           disabled={isProtectedSuperAdminRow}
                         >
-                          <Edit className="w-4 h-4" />
+                          <Edit className="h-4 w-4" />
                         </button>
 
                         <button
                           onClick={() => openResetPasswordModal(user)}
-                          className={`p-1.5 rounded-md transition ${
+                          className={`rounded-md p-1.5 transition ${
                             isProtectedSuperAdminRow
-                              ? 'text-gray-300 cursor-not-allowed'
-                              : 'text-slate-500 hover:text-blue-600 hover:bg-blue-50'
+                              ? 'cursor-not-allowed text-gray-300'
+                              : 'text-slate-500 hover:bg-blue-50 hover:text-blue-600'
                           }`}
                           type="button"
-                          title={isProtectedSuperAdminRow ? 'Only Super Admin can reset this password' : 'Reset Password'}
+                          title={
+                            isProtectedSuperAdminRow
+                              ? 'Only Super Admin can reset this password'
+                              : 'Reset Password'
+                          }
                           aria-label="Reset Password"
                           disabled={isProtectedSuperAdminRow}
                         >
-                          <KeyRound className="w-4 h-4" />
+                          <KeyRound className="h-4 w-4" />
                         </button>
 
                         <button
                           onClick={() => openStatusConfirmModal(user)}
-                          className={`p-1.5 rounded-md transition ${
+                          className={`rounded-md p-1.5 transition ${
                             !canToggleStatus
-                              ? 'text-gray-300 cursor-not-allowed'
+                              ? 'cursor-not-allowed text-gray-300'
                               : user.isActive
-                                ? 'text-slate-500 hover:text-rose-600 hover:bg-rose-50'
-                                : 'text-slate-500 hover:text-emerald-600 hover:bg-emerald-50'
+                                ? 'text-slate-500 hover:bg-rose-50 hover:text-rose-600'
+                                : 'text-slate-500 hover:bg-emerald-50 hover:text-emerald-600'
                           }`}
                           type="button"
                           title={
@@ -367,9 +526,9 @@ const UserManagement = () => {
                           disabled={!canToggleStatus}
                         >
                           {user.isActive ? (
-                            <Ban className="w-4 h-4" />
+                            <Ban className="h-4 w-4" />
                           ) : (
-                            <CheckCircle className="w-4 h-4" />
+                            <CheckCircle className="h-4 w-4" />
                           )}
                         </button>
                       </div>
@@ -380,7 +539,7 @@ const UserManagement = () => {
             ) : (
               <>
                 <tr>
-                  <td colSpan={5} className="text-center py-8 text-gray-500 italic">
+                  <td colSpan={5} className="py-8 text-center italic text-gray-500">
                     {emptyMessage}
                   </td>
                 </tr>
@@ -400,7 +559,7 @@ const UserManagement = () => {
         </table>
 
         {!isLoading && filteredUsers.length > 0 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100">
+          <div className="flex items-center justify-between border-t border-gray-100 px-6 py-4">
             <button
               className="btn btn-secondary"
               onClick={() => setPage((prev) => prev - 1)}

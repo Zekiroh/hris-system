@@ -41,12 +41,7 @@ export function EmployeeAddModal({
   if (!open) return null;
 
   return createPortal(
-    <div
-      className="pro-modal-overlay"
-      onClick={() => {
-        if (!loading) onClose();
-      }}
-    >
+    <div className="pro-modal-overlay">
       <div className="pro-modal max-w-lg" onClick={(e) => e.stopPropagation()}>
         <div className="pro-modal-header">
           <h3>Add New Employee</h3>

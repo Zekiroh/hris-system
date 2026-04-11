@@ -4,6 +4,7 @@ using HRIS.Api.Data;
 using HRIS.Api.Features.IAM.DTOs;
 using HRIS.Api.Features.IAM.Services;
 using HRIS.Api.Models;
+using HRIS.Api.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -82,9 +83,18 @@ public class AdminUsersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> List()
+    public async Task<IActionResult> List(
+        [FromQuery] string? sortBy = "createdAt",
+        [FromQuery] string? sortOrder = "desc",
+        [FromQuery] int? roleId = null,
+        [FromQuery] bool? isActive = null)
     {
-        var users = await _adminUsersService.GetAdminUsersAsync();
+        var users = await _adminUsersService.GetAdminUsersAsync(
+            sortBy,
+            sortOrder,
+            roleId,
+            isActive);
+
         return Ok(users);
     }
 
@@ -112,9 +122,14 @@ public class AdminUsersController : ControllerBase
         var firstName = request.FirstName.Trim();
         var middleName = string.IsNullOrWhiteSpace(request.MiddleName) ? null : request.MiddleName.Trim();
         var lastName = request.LastName.Trim();
+        var suffix = string.IsNullOrWhiteSpace(request.Suffix) ? null : NameFormatter.NormalizeSuffix(request.Suffix);
 
-        var fullName = string.Join(" ", new[] { firstName, middleName, lastName }
-            .Where(x => !string.IsNullOrWhiteSpace(x)));
+        var fullName = NameFormatter.FormatFullName(
+            firstName,
+            middleName,
+            lastName,
+            suffix
+        );
 
         var email = request.Email.Trim();
         var normalizedEmail = email.ToUpperInvariant();
@@ -130,12 +145,13 @@ public class AdminUsersController : ControllerBase
             FirstName = firstName,
             MiddleName = middleName,
             LastName = lastName,
+            Suffix = suffix,
             FullName = fullName,
             Email = email,
             NormalizedEmail = normalizedEmail,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             RoleId = request.RoleId,
-            IsActive = true,
+            IsActive = request.IsActive,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = null
         };
@@ -156,6 +172,10 @@ public class AdminUsersController : ControllerBase
         {
             id = user.Id,
             fullName = user.FullName,
+            firstName = user.FirstName,
+            middleName = user.MiddleName,
+            lastName = user.LastName,
+            suffix = user.Suffix,
             email = user.Email,
             roleId = user.RoleId,
             isActive = user.IsActive,
@@ -188,6 +208,10 @@ public class AdminUsersController : ControllerBase
         {
             id = user.Id,
             fullName = user.FullName,
+            firstName = user.FirstName,
+            middleName = user.MiddleName,
+            lastName = user.LastName,
+            suffix = user.Suffix,
             email = user.Email,
             roleId = user.RoleId,
             isActive = user.IsActive,
@@ -225,9 +249,14 @@ public class AdminUsersController : ControllerBase
         var firstName = request.FirstName.Trim();
         var middleName = string.IsNullOrWhiteSpace(request.MiddleName) ? null : request.MiddleName.Trim();
         var lastName = request.LastName.Trim();
+        var suffix = string.IsNullOrWhiteSpace(request.Suffix) ? null : NameFormatter.NormalizeSuffix(request.Suffix);
 
-        var fullName = string.Join(" ", new[] { firstName, middleName, lastName }
-            .Where(x => !string.IsNullOrWhiteSpace(x)));
+        var fullName = NameFormatter.FormatFullName(
+            firstName,
+            middleName,
+            lastName,
+            suffix
+        );
 
         var email = request.Email.Trim();
         var normalizedEmail = email.ToUpperInvariant();
@@ -241,11 +270,22 @@ public class AdminUsersController : ControllerBase
         user.FirstName = firstName;
         user.MiddleName = middleName;
         user.LastName = lastName;
+        user.Suffix = suffix;
         user.FullName = fullName;
         user.Email = email;
         user.NormalizedEmail = normalizedEmail;
         user.RoleId = request.RoleId;
         user.UpdatedAt = DateTime.UtcNow;
+
+        var linkedEmployee = await _db.Employees.FirstOrDefaultAsync(e => e.UserId == user.Id);
+        if (linkedEmployee is not null)
+        {
+            linkedEmployee.FirstName = firstName;
+            linkedEmployee.MiddleName = middleName;
+            linkedEmployee.LastName = lastName;
+            linkedEmployee.Email = email;
+            linkedEmployee.UpdatedAtUtc = DateTime.UtcNow;
+        }
 
         AddAudit(
             action: "USER_UPDATE",
@@ -261,6 +301,10 @@ public class AdminUsersController : ControllerBase
         {
             id = user.Id,
             fullName = user.FullName,
+            firstName = user.FirstName,
+            middleName = user.MiddleName,
+            lastName = user.LastName,
+            suffix = user.Suffix,
             email = user.Email,
             roleId = user.RoleId,
             isActive = user.IsActive,

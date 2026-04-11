@@ -81,6 +81,12 @@ export function formatActionLabel(action: string) {
       return 'Reset Password';
     case 'PERMISSION_UPDATE':
       return 'Updated Permission';
+    case 'EMPLOYEE_CREATED':
+      return 'Created Employee';
+    case 'EMPLOYEE_UPDATED':
+      return 'Updated Employee';
+    case 'EMPLOYEE_STATUS_UPDATED':
+      return 'Updated Status';
     default:
       return action
         .toLowerCase()
@@ -108,6 +114,12 @@ export function getBadgeClassName(action: string) {
       return 'bg-rose-50 text-rose-700 border border-rose-100';
     case 'PERMISSION_UPDATE':
       return 'bg-cyan-50 text-cyan-700 border border-cyan-100';
+    case 'EMPLOYEE_CREATED':
+      return 'bg-emerald-50 text-emerald-700 border border-emerald-100';
+    case 'EMPLOYEE_UPDATED':
+      return 'bg-amber-50 text-amber-700 border border-amber-100';
+    case 'EMPLOYEE_STATUS_UPDATED':
+      return 'bg-violet-50 text-violet-700 border border-violet-100';
     default:
       return 'bg-gray-50 text-gray-700 border border-gray-100';
   }
@@ -208,6 +220,64 @@ export function prettifyDetails(
     }
 
     return 'A new user account was created';
+  }
+
+  if (log.action === 'EMPLOYEE_CREATED') {
+    const match = summary.match(/Created employee (.+?) \((.+?)\)/i);
+
+    if (match) {
+      const employeeNumber = match[1]?.trim();
+      const fullName = match[2]?.trim();
+
+      if (employeeNumber && fullName) {
+        return `${fullName} was onboarded (${employeeNumber})`;
+      }
+
+      if (employeeNumber) {
+        return `Employee ${employeeNumber} was created`;
+      }
+    }
+
+    return 'A new employee was onboarded';
+  }
+
+  if (log.action === 'EMPLOYEE_UPDATED') {
+    const match = summary.match(/Updated employee (.+?) \((.+?)\)/i);
+
+    if (match) {
+      const employeeNumber = match[1]?.trim();
+      const fullName = match[2]?.trim();
+
+      if (employeeNumber && fullName) {
+        return `Employee record for ${fullName} was updated (${employeeNumber})`;
+      }
+
+      if (employeeNumber) {
+        return `Employee ${employeeNumber} was updated`;
+      }
+    }
+
+    return 'An employee record was updated';
+  }
+
+  if (log.action === 'EMPLOYEE_STATUS_UPDATED') {
+    const match = summary.match(/Updated employee status (.+?) \((.+?)\) -> (Active|Inactive)/i);
+
+    if (match) {
+      const employeeNumber = match[1]?.trim();
+      const fullName = match[2]?.trim();
+      const status = match[3]?.trim();
+
+      if (employeeNumber && fullName && status) {
+        return `${fullName} was marked ${status.toLowerCase()} (${employeeNumber})`;
+      }
+
+      if (employeeNumber && status) {
+        return `Employee ${employeeNumber} was marked ${status.toLowerCase()}`;
+      }
+    }
+
+    return 'Employee status was updated';
   }
 
   if (log.action === 'PERMISSION_UPDATE') {

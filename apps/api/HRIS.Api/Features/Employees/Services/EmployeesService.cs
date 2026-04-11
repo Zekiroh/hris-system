@@ -1,5 +1,6 @@
 using HRIS.Api.Data;
 using HRIS.Api.Features.Employees.DTOs;
+using HRIS.Api.Features.IAM.Services;
 using HRIS.Api.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -10,10 +11,17 @@ namespace HRIS.Api.Features.Employees.Services;
 public class EmployeesService
 {
     private readonly AppDbContext _db;
+    private readonly IActivityLogger _activityLogger;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public EmployeesService(AppDbContext db)
+    public EmployeesService(
+        AppDbContext db,
+        IActivityLogger activityLogger,
+        IHttpContextAccessor httpContextAccessor)
     {
         _db = db;
+        _activityLogger = activityLogger;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<PagedEmployeesResponse> GetAllAsync(GetEmployeesQuery query, CancellationToken ct = default)
@@ -22,34 +30,125 @@ public class EmployeesService
         var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
         if (pageSize > 100) pageSize = 100;
 
-        var q = _db.Employees.AsNoTracking().AsQueryable();
+        var todayUtc = DateOnly.FromDateTime(DateTime.UtcNow.Date);
+        var newHireCutoff = todayUtc.AddDays(-7);
 
-        if (query.IsActive.HasValue)
-        {
-            q = q.Where(e => e.IsActive == query.IsActive.Value);
-        }
+        var baseQuery = _db.Employees
+            .AsNoTracking()
+            .Include(e => e.User)
+            .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var search = query.Search.Trim();
 
-            q = q.Where(e =>
+            baseQuery = baseQuery.Where(e =>
                 e.EmployeeNumber.Contains(search) ||
                 e.FirstName.Contains(search) ||
                 (e.MiddleName != null && e.MiddleName.Contains(search)) ||
                 e.LastName.Contains(search) ||
+                (e.User != null && e.User.Suffix != null && e.User.Suffix.Contains(search)) ||
                 (e.Department != null && e.Department.Contains(search)) ||
                 (e.Position != null && e.Position.Contains(search)) ||
-                e.EmploymentType.Contains(search)
+                (e.EmploymentType != null && e.EmploymentType.Contains(search))
             );
         }
 
-        var totalCount = await q.CountAsync(ct);
-        var skip = (page - 1) * pageSize;
+        var filteredQuery = baseQuery;
 
-        var items = await q
-            .OrderBy(e => e.LastName)
-            .ThenBy(e => e.FirstName)
+        if (!string.IsNullOrWhiteSpace(query.EmploymentType))
+        {
+            var normalizedEmploymentType = query.EmploymentType.Trim();
+
+            if (normalizedEmploymentType.Equals("Project-based", StringComparison.OrdinalIgnoreCase))
+            {
+                normalizedEmploymentType = "Contract";
+            }
+
+            filteredQuery = filteredQuery.Where(e =>
+                e.EmploymentType != null &&
+                (
+                    e.EmploymentType == normalizedEmploymentType ||
+                    (
+                        normalizedEmploymentType == "Contract" &&
+                        e.EmploymentType == "Project-based"
+                    )
+                )
+            );
+        }
+
+        if (query.IsNewHire == true)
+        {
+            filteredQuery = filteredQuery.Where(
+                e => e.DateHired >= newHireCutoff && e.DateHired <= todayUtc);
+        }
+        else if (query.IsActive.HasValue)
+        {
+            filteredQuery = filteredQuery.Where(e => e.IsActive == query.IsActive.Value);
+        }
+
+        var totalCount = await filteredQuery.CountAsync(ct);
+
+        EmployeeSummaryDto summary;
+
+        if (query.IsNewHire == true)
+        {
+            summary = new EmployeeSummaryDto
+            {
+                Total = totalCount,
+                Active = await filteredQuery.CountAsync(e => e.IsActive, ct),
+                Inactive = await filteredQuery.CountAsync(e => !e.IsActive, ct),
+                NewHires = totalCount
+            };
+        }
+        else if (query.IsActive == true)
+        {
+            summary = new EmployeeSummaryDto
+            {
+                Total = totalCount,
+                Active = totalCount,
+                Inactive = 0,
+                NewHires = await filteredQuery.CountAsync(
+                    e => e.DateHired >= newHireCutoff && e.DateHired <= todayUtc,
+                    ct)
+            };
+        }
+        else if (query.IsActive == false)
+        {
+            summary = new EmployeeSummaryDto
+            {
+                Total = totalCount,
+                Active = 0,
+                Inactive = totalCount,
+                NewHires = await filteredQuery.CountAsync(
+                    e => e.DateHired >= newHireCutoff && e.DateHired <= todayUtc,
+                    ct)
+            };
+        }
+        else
+        {
+            summary = new EmployeeSummaryDto
+            {
+                Total = totalCount,
+                Active = await filteredQuery.CountAsync(e => e.IsActive, ct),
+                Inactive = await filteredQuery.CountAsync(e => !e.IsActive, ct),
+                NewHires = await filteredQuery.CountAsync(
+                    e => e.DateHired >= newHireCutoff && e.DateHired <= todayUtc,
+                    ct)
+            };
+        }
+
+        var skip = (page - 1) * pageSize;
+        var sort = query.SortBy?.Trim().ToLowerInvariant();
+
+        filteredQuery = sort switch
+        {
+            "oldest" => filteredQuery.OrderBy(e => e.CreatedAtUtc),
+            "name" => filteredQuery.OrderBy(e => e.LastName).ThenBy(e => e.FirstName),
+            _ => filteredQuery.OrderByDescending(e => e.CreatedAtUtc)
+        };
+
+        var items = await filteredQuery
             .Skip(skip)
             .Take(pageSize)
             .Select(ToDtoExpr())
@@ -60,7 +159,26 @@ public class EmployeesService
             Items = items,
             TotalCount = totalCount,
             Page = page,
-            PageSize = pageSize
+            PageSize = pageSize,
+            Summary = summary
+        };
+    }
+
+    public async Task<EmploymentTypeSummaryDto> GetEmploymentTypeSummaryAsync(CancellationToken ct = default)
+    {
+        var query = _db.Employees.AsNoTracking();
+
+        var regular = await query.CountAsync(e => e.EmploymentType == "Regular", ct);
+        var probationary = await query.CountAsync(e => e.EmploymentType == "Probationary", ct);
+        var contract = await query.CountAsync(
+            e => e.EmploymentType == "Contract" || e.EmploymentType == "Project-based",
+            ct);
+
+        return new EmploymentTypeSummaryDto
+        {
+            Regular = regular,
+            Probationary = probationary,
+            Contract = contract
         };
     }
 
@@ -68,6 +186,7 @@ public class EmployeesService
     {
         return await _db.Employees
             .AsNoTracking()
+            .Include(e => e.User)
             .Where(e => e.Id == id)
             .Select(ToDtoExpr())
             .FirstOrDefaultAsync(ct);
@@ -212,6 +331,28 @@ public class EmployeesService
         _db.Employees.Add(entity);
         await _db.SaveChangesAsync(ct);
 
+        var httpContext = _httpContextAccessor.HttpContext;
+
+        if (httpContext is not null)
+        {
+            var log = _activityLogger.Build(
+                user: httpContext.User,
+                action: "EMPLOYEE_CREATED",
+                module: "EMPLOYEES",
+                targetType: "Employee",
+                targetId: entity.Id.ToString(),
+                summary: $"Created employee {entity.EmployeeNumber} ({string.Join(" ", new[] { entity.FirstName, entity.MiddleName, entity.LastName }.Where(x => !string.IsNullOrWhiteSpace(x)))})",
+                ipAddress: httpContext.Connection.RemoteIpAddress?.ToString(),
+                userAgent: httpContext.Request.Headers["User-Agent"].ToString()
+            );
+
+            if (log is not null)
+            {
+                _db.ActivityLogs.Add(log);
+                await _db.SaveChangesAsync(ct);
+            }
+        }
+
         return (true, null, ToDto(entity));
     }
 
@@ -281,7 +422,9 @@ public class EmployeesService
         UpdateEmployeeRequest req,
         CancellationToken ct = default)
     {
-        var entity = await _db.Employees.FirstOrDefaultAsync(e => e.Id == id, ct);
+        var entity = await _db.Employees
+            .Include(e => e.User)
+            .FirstOrDefaultAsync(e => e.Id == id, ct);
         if (entity is null) return (false, "Employee not found.", null);
 
         var firstName = req.FirstName.Trim();
@@ -370,6 +513,8 @@ public class EmployeesService
         if (duplicateErrors.Count > 0)
             return (false, string.Join("|", duplicateErrors), null);
 
+        var previousIsActive = entity.IsActive;
+
         entity.FirstName = firstName;
         entity.MiddleName = middleName;
         entity.LastName = lastName;
@@ -401,6 +546,41 @@ public class EmployeesService
 
         await _db.SaveChangesAsync(ct);
 
+        var httpContext = _httpContextAccessor.HttpContext;
+
+        if (httpContext is not null)
+        {
+            var fullName = string.Join(" ", new[] { entity.FirstName, entity.MiddleName, entity.LastName }
+                .Where(x => !string.IsNullOrWhiteSpace(x)));
+
+            var statusChanged = previousIsActive != entity.IsActive;
+
+            var action = statusChanged
+                ? "EMPLOYEE_STATUS_UPDATED"
+                : "EMPLOYEE_UPDATED";
+
+            var summary = statusChanged
+                ? $"Updated employee status {entity.EmployeeNumber} ({fullName}) -> {(entity.IsActive ? "Active" : "Inactive")}"
+                : $"Updated employee {entity.EmployeeNumber} ({fullName})";
+
+            var log = _activityLogger.Build(
+                user: httpContext.User,
+                action: action,
+                module: "EMPLOYEES",
+                targetType: "Employee",
+                targetId: entity.Id.ToString(),
+                summary: summary,
+                ipAddress: httpContext.Connection.RemoteIpAddress?.ToString(),
+                userAgent: httpContext.Request.Headers["User-Agent"].ToString()
+            );
+
+            if (log is not null)
+            {
+                _db.ActivityLogs.Add(log);
+                await _db.SaveChangesAsync(ct);
+            }
+        }
+
         return (true, null, ToDto(entity));
     }
 
@@ -409,13 +589,42 @@ public class EmployeesService
         UpdateEmployeeStatusRequest req,
         CancellationToken ct = default)
     {
-        var entity = await _db.Employees.FirstOrDefaultAsync(e => e.Id == id, ct);
+        var entity = await _db.Employees
+            .Include(e => e.User)
+            .FirstOrDefaultAsync(e => e.Id == id, ct);
         if (entity is null) return (false, "Employee not found.", null);
 
         entity.IsActive = req.IsActive;
         entity.UpdatedAtUtc = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
+
+        var httpContext = _httpContextAccessor.HttpContext;
+
+        if (httpContext is not null)
+        {
+            var fullName = string.Join(" ", new[] { entity.FirstName, entity.MiddleName, entity.LastName }
+                .Where(x => !string.IsNullOrWhiteSpace(x)));
+
+            var statusLabel = entity.IsActive ? "Active" : "Inactive";
+
+            var log = _activityLogger.Build(
+                user: httpContext.User,
+                action: "EMPLOYEE_STATUS_UPDATED",
+                module: "EMPLOYEES",
+                targetType: "Employee",
+                targetId: entity.Id.ToString(),
+                summary: $"Updated employee status {entity.EmployeeNumber} ({fullName}) -> {statusLabel}",
+                ipAddress: httpContext.Connection.RemoteIpAddress?.ToString(),
+                userAgent: httpContext.Request.Headers["User-Agent"].ToString()
+            );
+
+            if (log is not null)
+            {
+                _db.ActivityLogs.Add(log);
+                await _db.SaveChangesAsync(ct);
+            }
+        }
 
         return (true, null, ToDto(entity));
     }
@@ -521,51 +730,19 @@ public class EmployeesService
         return parts.Length > 1 ? parts[^1] : "Unknown";
     }
 
-    private static EmployeeDto ToDto(Employee e) => new()
+    private static EmployeeDto ToDto(Employee e)
     {
-        Id = e.Id,
-        EmployeeNumber = e.EmployeeNumber,
-        FirstName = e.FirstName,
-        MiddleName = e.MiddleName,
-        LastName = e.LastName,
+        var todayUtc = DateOnly.FromDateTime(DateTime.UtcNow.Date);
+        var newHireCutoff = todayUtc.AddDays(-7);
 
-        BirthDate = e.BirthDate,
-        Sex = e.Sex,
-        CivilStatus = e.CivilStatus,
-
-        DateHired = e.DateHired,
-        EmploymentType = e.EmploymentType,
-
-        Department = e.Department,
-        Position = e.Position,
-
-        ContactNumber = e.ContactNumber,
-        Email = e.Email,
-
-        AddressLine1 = e.AddressLine1,
-        AddressLine2 = e.AddressLine2,
-        City = e.City,
-        Province = e.Province,
-        ZipCode = e.ZipCode,
-
-        SSSNumber = e.SssNumber,
-        PhilHealthNumber = e.PhilHealthNumber,
-        PagIbigNumber = e.PagIbigNumber,
-        TINNumber = e.TinNumber,
-
-        IsActive = e.IsActive,
-        CreatedAtUtc = e.CreatedAtUtc,
-        UpdatedAtUtc = e.UpdatedAtUtc
-    };
-
-    private static Expression<Func<Employee, EmployeeDto>> ToDtoExpr() =>
-        e => new EmployeeDto
+        return new EmployeeDto
         {
             Id = e.Id,
             EmployeeNumber = e.EmployeeNumber,
-            FirstName = e.FirstName,
-            MiddleName = e.MiddleName,
-            LastName = e.LastName,
+            FirstName = e.User != null ? e.User.FirstName ?? e.FirstName : e.FirstName,
+            MiddleName = e.User != null ? e.User.MiddleName : e.MiddleName,
+            LastName = e.User != null ? e.User.LastName ?? e.LastName : e.LastName,
+            Suffix = e.User != null ? e.User.Suffix : null,
 
             BirthDate = e.BirthDate,
             Sex = e.Sex,
@@ -578,7 +755,7 @@ public class EmployeesService
             Position = e.Position,
 
             ContactNumber = e.ContactNumber,
-            Email = e.Email,
+            Email = e.User != null ? e.User.Email : e.Email,
 
             AddressLine1 = e.AddressLine1,
             AddressLine2 = e.AddressLine2,
@@ -592,9 +769,56 @@ public class EmployeesService
             TINNumber = e.TinNumber,
 
             IsActive = e.IsActive,
+            IsNewHire = e.DateHired >= newHireCutoff && e.DateHired <= todayUtc,
             CreatedAtUtc = e.CreatedAtUtc,
             UpdatedAtUtc = e.UpdatedAtUtc
         };
+    }
+
+    private static Expression<Func<Employee, EmployeeDto>> ToDtoExpr()
+    {
+        var todayUtc = DateOnly.FromDateTime(DateTime.UtcNow.Date);
+        var newHireCutoff = todayUtc.AddDays(-7);
+
+        return e => new EmployeeDto
+        {
+            Id = e.Id,
+            EmployeeNumber = e.EmployeeNumber,
+            FirstName = e.User != null ? (e.User.FirstName ?? e.FirstName) : e.FirstName,
+            MiddleName = e.User != null ? e.User.MiddleName : e.MiddleName,
+            LastName = e.User != null ? (e.User.LastName ?? e.LastName) : e.LastName,
+            Suffix = e.User != null ? e.User.Suffix : null,
+
+            BirthDate = e.BirthDate,
+            Sex = e.Sex,
+            CivilStatus = e.CivilStatus,
+
+            DateHired = e.DateHired,
+            EmploymentType = e.EmploymentType,
+
+            Department = e.Department,
+            Position = e.Position,
+
+            ContactNumber = e.ContactNumber,
+            Email = e.User != null ? e.User.Email : e.Email,
+
+            AddressLine1 = e.AddressLine1,
+            AddressLine2 = e.AddressLine2,
+            City = e.City,
+            Province = e.Province,
+            ZipCode = e.ZipCode,
+
+            SSSNumber = e.SssNumber,
+            PhilHealthNumber = e.PhilHealthNumber,
+            PagIbigNumber = e.PagIbigNumber,
+            TINNumber = e.TinNumber,
+
+            IsActive = e.IsActive,
+            IsNewHire = e.DateHired >= newHireCutoff && e.DateHired <= todayUtc,
+            CreatedAtUtc = e.CreatedAtUtc,
+            UpdatedAtUtc = e.UpdatedAtUtc
+        };
+    }
 
     private enum GovernmentNumberKind
     {

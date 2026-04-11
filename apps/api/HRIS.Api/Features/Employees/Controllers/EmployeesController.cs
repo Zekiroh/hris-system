@@ -28,6 +28,15 @@ public class EmployeesController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("summary/employment-type")]
+    [PermissionAuthorize("EMPLOYEES", "View")]
+    public async Task<ActionResult<EmploymentTypeSummaryDto>> GetEmploymentTypeSummary(
+        CancellationToken ct)
+    {
+        var result = await _employees.GetEmploymentTypeSummaryAsync(ct);
+        return Ok(result);
+    }
+
     [HttpGet("next-number")]
     [PermissionAuthorize("EMPLOYEES", "Create")]
     public async Task<ActionResult<NextEmployeeNumberResponse>> GetNextEmployeeNumber(

@@ -8,6 +8,7 @@ import { EMPLOYEE_TABS, type EmployeeTabKey } from "./employeeTabs";
 import { useEmployeeDocuments } from "../../pages/personal-records/hooks/useEmployeeDocuments";
 import { EmployeeDocumentsPanel } from "./EmployeeDocumentsPanel";
 import type { EmployeeDocumentDto } from "../../lib/employees";
+import { formatEmploymentTypeLabel } from "./employeeList.utils";
 
 export type EmployeeView = {
   id?: string;
@@ -470,7 +471,10 @@ export function EmployeeViewPanel({
               {[
                 ["Position", employee.position],
                 ["Department", employee.department],
-                ["Employment Type", employee.employmentType],
+                [
+                  "Employment Type",
+                  formatEmploymentTypeLabel(employee.employmentType),
+                ],
                 ["Hire Date", formatDisplayDate(employee.hireDate)],
               ].map(([label, value]) => (
                 <div

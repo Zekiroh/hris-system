@@ -117,7 +117,7 @@ export function EmployeeEditModal({
   return createPortal(
     <div className="pro-modal-overlay">
       <div
-        className="pro-modal max-w-2xl h-[580px] max-h-[85vh] flex flex-col overflow-hidden"
+        className="pro-modal max-w-2xl h-[580px] max-h-[85vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="pro-modal-header shrink-0">
@@ -150,9 +150,9 @@ export function EmployeeEditModal({
           </div>
         </div>
 
-        <div className="pro-modal-body flex-1 min-h-0">
+        <div className="pro-modal-body flex-1 min-h-0 overflow-visible">
           {activeTab !== "documents" && (
-            <div className="h-full">
+            <div className="h-full overflow-visible">
               <EmployeeFormFields
                 mode="edit"
                 formData={formData}

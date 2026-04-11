@@ -9,6 +9,7 @@ public class EmployeeDto
     public string FirstName { get; set; } = default!;
     public string? MiddleName { get; set; }
     public string LastName { get; set; } = default!;
+    public string? Suffix { get; set; }
 
     public DateOnly? BirthDate { get; set; }
     public string? Sex { get; set; }
@@ -29,14 +30,13 @@ public class EmployeeDto
     public string? Province { get; set; }
     public string? ZipCode { get; set; }
 
-    // ---- C2 Government Fields ----
-
     public string? SSSNumber { get; set; }
     public string? PhilHealthNumber { get; set; }
     public string? PagIbigNumber { get; set; }
     public string? TINNumber { get; set; }
 
     public bool IsActive { get; set; }
+    public bool IsNewHire { get; set; }
 
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? UpdatedAtUtc { get; set; }

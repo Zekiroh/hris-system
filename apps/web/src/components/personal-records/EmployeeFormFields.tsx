@@ -1,6 +1,16 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { createPortal } from "react-dom";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import type { EmployeeStatus } from "../../lib/employees";
+import type { EmploymentType } from "../../lib/employees";
+import { LOCATION_OPTIONS } from "./locationOptions";
 
 export type UserOption = {
   id: string;
@@ -9,7 +19,6 @@ export type UserOption = {
   contactNumber?: string;
 };
 
-export type EmploymentType = "Regular" | "Probationary" | "Project-based";
 export type EmployeeFormSection = "personal" | "employment" | "government";
 
 export type FormData = {
@@ -41,6 +50,21 @@ type SelectOption = {
   label: string;
   value: string;
 };
+
+type DropdownKey =
+  | "linkedUser"
+  | "employmentType"
+  | "employmentStatus"
+  | "province"
+  | "city"
+  | null;
+
+const PROVINCE_OPTIONS: SelectOption[] = Object.keys(LOCATION_OPTIONS).map(
+  (province) => ({
+    label: province,
+    value: province,
+  })
+);
 
 function RequiredAsterisk() {
   return <span className="ml-1 text-red-500">*</span>;
@@ -287,7 +311,7 @@ function GovernmentMaskedInput({
   );
 }
 
-function DropdownMenu({
+export function DropdownMenu({
   value,
   options,
   placeholder,
@@ -295,6 +319,9 @@ function DropdownMenu({
   disabled,
   loading = false,
   onSelect,
+  open,
+  onToggle,
+  onClose,
 }: {
   value: string;
   options: SelectOption[];
@@ -303,25 +330,71 @@ function DropdownMenu({
   disabled?: boolean;
   loading?: boolean;
   onSelect: (value: string) => void;
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+
+  const [menuStyle, setMenuStyle] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
 
   const selectedOption = options.find((option) => option.value === value);
+  const isInactive = disabled || loading;
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
+      const target = event.target as Node;
+
       if (
         rootRef.current &&
-        !rootRef.current.contains(event.target as Node)
+        dropdownRef.current &&
+        !rootRef.current.contains(target) &&
+        !dropdownRef.current.contains(target)
       ) {
-        setOpen(false);
+        onClose();
       }
     }
 
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, []);
+    if (open) {
+      document.addEventListener("click", handleOutsideClick);
+    }
+
+    return () => {
+      document.removeEventListener("click", handleOutsideClick);
+    };
+  }, [open, onClose]);
+
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current) return;
+
+    const updatePosition = () => {
+      if (!buttonRef.current) return;
+
+      const rect = buttonRef.current.getBoundingClientRect();
+
+      setMenuStyle({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      });
+    };
+
+    updatePosition();
+
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open]);
 
   const buttonLabel = loading
     ? "Loading..."
@@ -330,45 +403,67 @@ function DropdownMenu({
   return (
     <div className="relative" ref={rootRef}>
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => {
-          if (!disabled && !loading) {
-            setOpen((prev) => !prev);
+          if (!isInactive) {
+            onToggle();
           }
         }}
-        className={getFieldClass(
+        className={`${getFieldClass(
           "pro-input flex w-full items-center justify-between text-left",
           Boolean(error)
-        )}
-        disabled={disabled || loading}
+        )} ${isInactive ? "cursor-not-allowed text-gray-400" : ""}`}
+        disabled={isInactive}
       >
-        <span className={selectedOption ? "text-gray-700" : "text-gray-500"}>
+        <span
+          className={
+            selectedOption
+              ? isInactive
+                ? "text-gray-400"
+                : "text-gray-700"
+              : "text-gray-500"
+          }
+        >
           {buttonLabel}
         </span>
-        <span className="ml-3 shrink-0 text-gray-400">▾</span>
+
+        {!isInactive && <span className="ml-3 shrink-0 text-gray-400">▾</span>}
       </button>
 
-      {open && (
-        <div className="absolute left-0 top-full z-[120] mt-2 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
-          {options.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className={`block w-full px-4 py-3 text-left text-sm transition hover:bg-gray-50 ${
-                option.value === value
-                  ? "bg-emerald-50 text-emerald-700"
-                  : "text-gray-700"
-              }`}
-              onClick={() => {
-                onSelect(option.value);
-                setOpen(false);
-              }}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {open &&
+        !isInactive &&
+        menuStyle &&
+        createPortal(
+          <div
+            ref={dropdownRef}
+            className="fixed z-[9999] max-h-48 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-xl"
+            style={{
+              top: menuStyle.top,
+              left: menuStyle.left,
+              width: menuStyle.width,
+            }}
+          >
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`block w-full rounded-xl px-4 py-2.5 text-left text-sm transition ${
+                  option.value === value
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "text-gray-700 hover:bg-gray-50"
+                }`}
+                onClick={() => {
+                  onSelect(option.value);
+                  onClose();
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
 
       <FieldError message={error} />
     </div>
@@ -381,12 +476,18 @@ function LinkedUserDropdown({
   loading,
   error,
   onSelect,
+  open,
+  onToggle,
+  onClose,
 }: {
   value: string;
   users: UserOption[];
   loading: boolean;
   error?: string;
   onSelect: (userId: string) => void;
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
 }) {
   const options: SelectOption[] = users.map((user) => ({
     label: user.fullName,
@@ -397,11 +498,16 @@ function LinkedUserDropdown({
     <DropdownMenu
       value={value}
       options={options}
-      placeholder={users.length ? "Select a linked user account" : "No users found"}
+      placeholder={
+        users.length ? "Select a linked user account" : "No users found"
+      }
       loading={loading}
       error={error}
       disabled={users.length === 0}
       onSelect={onSelect}
+      open={open}
+      onToggle={onToggle}
+      onClose={onClose}
     />
   );
 }
@@ -414,7 +520,6 @@ const EMPLOYMENT_TYPE_OPTIONS: SelectOption[] = [
 
 const EMPLOYMENT_STATUS_OPTIONS: SelectOption[] = [
   { label: "Active", value: "Active" },
-  { label: "On Leave", value: "On Leave" },
   { label: "Inactive", value: "Inactive" },
 ];
 
@@ -456,6 +561,20 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
   const usersBusy = Boolean(loadingUsers);
   const hasSelectedUser = !!formData.userId;
   const errors = fieldErrors ?? {};
+  const [openDropdown, setOpenDropdown] = useState<DropdownKey>(null);
+
+  const cityOptions: SelectOption[] = useMemo(() => {
+    const selectedProvince = formData.province as keyof typeof LOCATION_OPTIONS;
+
+    if (!selectedProvince || !(selectedProvince in LOCATION_OPTIONS)) {
+      return [];
+    }
+
+    return LOCATION_OPTIONS[selectedProvince].map((city) => ({
+      label: city,
+      value: city,
+    }));
+  }, [formData.province]);
 
   const apiFieldErrors = useMemo<FieldErrors>(() => {
     return {
@@ -501,13 +620,6 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
   const showEmployment = isAdd || section === "employment";
   const showGovernment = !isAdd && section === "government";
 
-  const isAddFormInvalid =
-    isAdd &&
-    (!formData.userId ||
-      !formData.position.trim() ||
-      !formData.department.trim() ||
-      !formData.employmentType);
-
   function updateField<K extends FormFieldName>(field: K, value: FormData[K]) {
     onClearFieldError?.(field);
 
@@ -517,11 +629,26 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
     }));
   }
 
+  function handleProvinceSelect(value: string) {
+    onClearFieldError?.("province");
+    onClearFieldError?.("city");
+
+    setFormData((p) => ({
+      ...p,
+      province: value,
+      city: "",
+    }));
+
+    setOpenDropdown(null);
+  }
+
   function handleLinkedUserSelect(id: string) {
     onClearFieldError?.("userId");
     onClearFieldError?.("name");
     onClearFieldError?.("email");
     onClearFieldError?.("contact");
+
+    setOpenDropdown(null);
 
     if (onLinkedUserChange) {
       Promise.resolve(onLinkedUserChange(id)).catch(() => {});
@@ -539,10 +666,14 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
     }));
   }
 
+  const toggleDropdown = (key: DropdownKey) => {
+    setOpenDropdown((prev) => (prev === key ? null : key));
+  };
+
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-1">
-        <div className="space-y-4">
+      <div className="flex-1 overflow-visible">
+        <div className="space-y-4 overflow-visible">
           {apiError && !shouldHideTopApiError && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {apiError}
@@ -559,6 +690,9 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
                 loading={usersBusy || loading}
                 error={errors.userId}
                 onSelect={handleLinkedUserSelect}
+                open={openDropdown === "linkedUser"}
+                onToggle={() => toggleDropdown("linkedUser")}
+                onClose={() => setOpenDropdown(null)}
               />
             </div>
           )}
@@ -568,8 +702,12 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
               <SectionHeader title="Personal Information" />
 
               <div>
-                <FormLabel>Full Name</FormLabel>
-                <ReadOnlyValue value={formData.name} />
+                <p className="text-sm font-medium text-gray-600">
+                  Full Name:{" "}
+                  <span className="font-semibold text-green-600">
+                    {formData.name?.trim() || "—"}
+                  </span>
+                </p>
                 <FieldError message={errors.name} />
               </div>
             </>
@@ -643,38 +781,50 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
                     placeholder="Select employment type"
                     error={errors.employmentType}
                     disabled={loading}
-                    onSelect={(value) =>
-                      updateField("employmentType", value as EmploymentType)
-                    }
+                    onSelect={(value) => {
+                      updateField("employmentType", value as EmploymentType);
+                      setOpenDropdown(null);
+                    }}
+                    open={openDropdown === "employmentType"}
+                    onToggle={() => toggleDropdown("employmentType")}
+                    onClose={() => setOpenDropdown(null)}
                   />
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <FormLabel required>Employment Type</FormLabel>
+                    <FormLabel>Employment Type</FormLabel>
                     <DropdownMenu
                       value={formData.employmentType}
                       options={EMPLOYMENT_TYPE_OPTIONS}
                       placeholder="Select employment type"
                       error={errors.employmentType}
                       disabled={loading}
-                      onSelect={(value) =>
-                        updateField("employmentType", value as EmploymentType)
-                      }
+                      onSelect={(value) => {
+                        updateField("employmentType", value as EmploymentType);
+                        setOpenDropdown(null);
+                      }}
+                      open={openDropdown === "employmentType"}
+                      onToggle={() => toggleDropdown("employmentType")}
+                      onClose={() => setOpenDropdown(null)}
                     />
                   </div>
 
                   <div>
-                    <FormLabel required>Employment Status</FormLabel>
+                    <FormLabel>Employment Status</FormLabel>
                     <DropdownMenu
                       value={formData.status}
                       options={EMPLOYMENT_STATUS_OPTIONS}
                       placeholder="Select status"
                       error={errors.status}
                       disabled={loading}
-                      onSelect={(value) =>
-                        updateField("status", value as EmployeeStatus)
-                      }
+                      onSelect={(value) => {
+                        updateField("status", value as EmployeeStatus);
+                        setOpenDropdown(null);
+                      }}
+                      open={openDropdown === "employmentStatus"}
+                      onToggle={() => toggleDropdown("employmentStatus")}
+                      onClose={() => setOpenDropdown(null)}
                     />
                   </div>
                 </div>
@@ -709,53 +859,78 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
                 </div>
               </div>
 
-              <div>
-                <FormLabel>Address Line 1</FormLabel>
-                <input
-                  type="text"
-                  value={formData.addressLine1}
-                  onChange={(e) =>
-                    updateField("addressLine1", sanitizeTextInput(e.target.value))
-                  }
-                  className={getFieldClass(
-                    "pro-input",
-                    Boolean(errors.addressLine1)
-                  )}
-                  placeholder="Enter address line 1"
-                />
-                <FieldError message={errors.addressLine1} />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <FormLabel>City</FormLabel>
+                  <FormLabel>Address Line 1</FormLabel>
                   <input
                     type="text"
-                    value={formData.city}
+                    value={formData.addressLine1}
                     onChange={(e) =>
-                      updateField("city", sanitizeTextInput(e.target.value))
-                    }
-                    className={getFieldClass("pro-input", Boolean(errors.city))}
-                    placeholder="Enter city"
-                  />
-                  <FieldError message={errors.city} />
-                </div>
-
-                <div>
-                  <FormLabel>Province</FormLabel>
-                  <input
-                    type="text"
-                    value={formData.province}
-                    onChange={(e) =>
-                      updateField("province", sanitizeTextInput(e.target.value))
+                      updateField("addressLine1", sanitizeTextInput(e.target.value))
                     }
                     className={getFieldClass(
                       "pro-input",
-                      Boolean(errors.province)
+                      Boolean(errors.addressLine1)
                     )}
-                    placeholder="Enter province"
+                    placeholder="Street address"
                   />
-                  <FieldError message={errors.province} />
+                  <FieldError message={errors.addressLine1} />
+                </div>
+
+                <div>
+                  <FormLabel>Address Line 2</FormLabel>
+                  <input
+                    type="text"
+                    value={formData.addressLine2}
+                    onChange={(e) =>
+                      updateField("addressLine2", sanitizeTextInput(e.target.value))
+                    }
+                    className={getFieldClass(
+                      "pro-input",
+                      Boolean(errors.addressLine2)
+                    )}
+                    placeholder="Apartment, Unit, Building, Floor, etc."
+                  />
+                  <FieldError message={errors.addressLine2} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="overflow-visible">
+                  <FormLabel>City / Municipality</FormLabel>
+                  <DropdownMenu
+                    value={formData.city}
+                    options={cityOptions}
+                    placeholder={
+                      formData.province
+                        ? "Select city"
+                        : "Select province first"
+                    }
+                    error={errors.city}
+                    disabled={loading || !formData.province}
+                    onSelect={(value) => {
+                      updateField("city", value);
+                      setOpenDropdown(null);
+                    }}
+                    open={openDropdown === "city"}
+                    onToggle={() => toggleDropdown("city")}
+                    onClose={() => setOpenDropdown(null)}
+                  />
+                </div>
+
+                <div className="overflow-visible">
+                  <FormLabel>Province</FormLabel>
+                  <DropdownMenu
+                    value={formData.province}
+                    options={PROVINCE_OPTIONS}
+                    placeholder="Select province"
+                    error={errors.province}
+                    disabled={loading}
+                    onSelect={handleProvinceSelect}
+                    open={openDropdown === "province"}
+                    onToggle={() => toggleDropdown("province")}
+                    onClose={() => setOpenDropdown(null)}
+                  />
                 </div>
 
                 <div>
@@ -857,7 +1032,7 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
           <button
             onClick={onSubmit}
             className="btn btn-primary flex items-center justify-center gap-2"
-            disabled={loading || isSubmitDisabled || isAddFormInvalid}
+            disabled={loading || isSubmitDisabled}
             type="button"
           >
             {loading && (

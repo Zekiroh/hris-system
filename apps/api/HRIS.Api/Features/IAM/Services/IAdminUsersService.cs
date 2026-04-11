@@ -4,7 +4,12 @@ namespace HRIS.Api.Features.IAM.Services;
 
 public interface IAdminUsersService
 {
-    Task<List<AdminUserListItemDto>> GetAdminUsersAsync();
+    Task<List<AdminUserListItemDto>> GetAdminUsersAsync(
+        string? sortBy,
+        string? sortOrder,
+        int? roleId,
+        bool? isActive);
+
     Task<List<AdminUserListItemDto>> GetAvailableUsersForEmployeeAsync();
     Task<AdminUserListItemDto> CreateUserAsync(CreateUserRequest request);
     Task<AdminUserListItemDto?> UpdateUserAsync(long id, UpdateUserRequest request);

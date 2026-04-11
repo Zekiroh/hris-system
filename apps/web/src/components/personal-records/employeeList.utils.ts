@@ -1,5 +1,10 @@
-import type { EmployeeDto, EmployeeStatus } from "../../lib/employees";
-import type { EmploymentType, FormData } from "./EmployeeFormFields";
+import type {
+  EmployeeDto,
+  EmployeeStatus,
+  EmploymentType,
+} from "../../lib/employees";
+import type { FormData } from "./EmployeeFormFields";
+import { formatPersonName } from "../../lib/nameFormatter";
 
 export interface Employee {
   id: string;
@@ -21,6 +26,7 @@ export interface Employee {
   philHealthNumber: string;
   pagIbigNumber: string;
   tinNumber: string;
+  isNewHire: boolean;
 }
 
 export type Paged<T> = {
@@ -45,11 +51,50 @@ export function normalizeNullString(v: string | null | undefined) {
 }
 
 export function buildName(dto: EmployeeDto) {
-  const last = safeTrim(dto.lastName);
-  const first = safeTrim(dto.firstName);
-  const middle = normalizeNullString(dto.middleName);
-  const base = [last, first].filter(Boolean).join(", ");
-  return [base, middle].filter(Boolean).join(" ").trim() || "(No name)";
+  const firstName = safeTrim(dto.firstName);
+  const middleName = normalizeNullString(dto.middleName);
+  const lastName = safeTrim(dto.lastName);
+  const suffix = safeTrim(dto.suffix);
+
+  return (
+    formatPersonName(
+      {
+        firstName,
+        middleName,
+        lastName,
+        suffix,
+      },
+      "LN_FIRST"
+    ) || "(No name)"
+  );
+}
+
+export function normalizeEmploymentType(
+  value: string | null | undefined
+): EmploymentType {
+  const normalized = safeTrim(value).toLowerCase();
+
+  if (normalized === "probationary") return "Probationary";
+  if (normalized === "project-based" || normalized === "contract") {
+    return "Project-based";
+  }
+
+  return "Regular";
+}
+
+export function formatEmploymentTypeLabel(
+  value: EmploymentType | string | null | undefined
+): string {
+  const normalized = safeTrim(value).toLowerCase();
+
+  if (!normalized) return "—";
+  if (normalized === "project-based" || normalized === "contract") {
+    return "Project-based";
+  }
+  if (normalized === "probationary") return "Probationary";
+  if (normalized === "regular") return "Regular";
+
+  return safeTrim(value);
 }
 
 export function mapDtoToEmployee(dto: EmployeeDto): Employee {
@@ -60,11 +105,7 @@ export function mapDtoToEmployee(dto: EmployeeDto): Employee {
     position: safeTrim(dto.position) || "",
     department: safeTrim(dto.department) || "",
     status: dto.isActive ? "Active" : "Inactive",
-    employmentType:
-      dto.employmentType === "Probationary" ||
-      dto.employmentType === "Project-based"
-        ? dto.employmentType
-        : "Regular",
+    employmentType: normalizeEmploymentType(dto.employmentType),
     contact: safeTrim(dto.contactNumber) || "",
     email: safeTrim(dto.email) || "",
     hireDate: safeTrim(dto.dateHired) || "",
@@ -77,6 +118,7 @@ export function mapDtoToEmployee(dto: EmployeeDto): Employee {
     philHealthNumber: safeTrim(dto.philHealthNumber) || "",
     pagIbigNumber: safeTrim(dto.pagIbigNumber) || "",
     tinNumber: safeTrim(dto.tinNumber) || "",
+    isNewHire: dto.isNewHire ?? false,
   };
 }
 
@@ -84,18 +126,30 @@ export function parseNameToParts(fullName: string) {
   const raw = fullName.trim();
 
   if (raw.includes(",")) {
-    const [last, rest] = raw.split(",", 2);
-    const lastName = (last ?? "").trim();
-    const parts = (rest ?? "").trim().split(/\s+/).filter(Boolean);
-    const firstName = parts[0] ?? "";
-    const middleName = parts.length > 1 ? parts.slice(1).join(" ") : undefined;
-    return { firstName, middleName, lastName };
+    const parts = raw.split(",").map((part) => part.trim()).filter(Boolean);
+
+    const lastName = parts[0] ?? "";
+    const suffix =
+      parts.length > 2 ? parts.slice(2).join(", ").trim() : undefined;
+
+    const givenParts = (parts[1] ?? "").split(/\s+/).filter(Boolean);
+
+    const firstName = givenParts[0] ?? "";
+    const middleToken = givenParts.length > 1 ? givenParts[1] : undefined;
+
+    const middleName =
+      middleToken && /^[A-Za-z]\.$/.test(middleToken)
+        ? middleToken.slice(0, 1)
+        : middleToken;
+
+    return { firstName, middleName, lastName, suffix };
   }
 
   const parts = raw.split(/\s+/).filter(Boolean);
   const firstName = parts[0] ?? "";
   const lastName = parts.slice(1).join(" ") || "Unknown";
-  return { firstName, middleName: undefined, lastName };
+
+  return { firstName, middleName: undefined, lastName, suffix: undefined };
 }
 
 export function unwrapData<T>(res: unknown): T {

@@ -8,11 +8,11 @@ export type EmployeeRow = {
   position: string;
   department: string;
   status: EmployeeStatus;
+  isNewHire?: boolean;
 };
 
 const statusBadge: Record<EmployeeStatus, string> = {
   Active: "badge-success",
-  "On Leave": "badge-warning",
   Inactive: "badge-danger",
 };
 
@@ -121,26 +121,36 @@ export function EmployeeTable({
                     <td>{emp.position}</td>
                     <td>{emp.department}</td>
                     <td>
-                      <span className={`badge ${statusBadge[emp.status]}`}>
-                        <span className="badge-dot" />
-                        {emp.status}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`badge ${statusBadge[emp.status]}`}>
+                          <span className="badge-dot" />
+                          {emp.status}
+                        </span>
+
+                        {emp.isNewHire && (
+                          <span className="badge badge-warning">
+                            New Hire
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td>
                       <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => onView(emp)}
-                          className="btn-ghost btn-icon text-blue-500 hover:bg-blue-50"
+                          className="btn-ghost btn-icon text-blue-500 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
                           title="View"
                           type="button"
+                          disabled={loading}
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => onEdit(emp)}
-                          className="btn-ghost btn-icon text-emerald-600 hover:bg-emerald-50"
+                          className="btn-ghost btn-icon text-emerald-600 hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Edit"
                           type="button"
+                          disabled={loading}
                         >
                           <Edit className="w-4 h-4" />
                         </button>
@@ -165,7 +175,7 @@ export function EmployeeTable({
         </button>
 
         <div className="text-sm text-gray-500">
-          Page {safePage} / {safeTotalPages}
+          Page {safePage} of {safeTotalPages}
         </div>
 
         <button

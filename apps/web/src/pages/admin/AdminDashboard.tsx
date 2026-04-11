@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Users,
   UserCheck,
@@ -10,6 +11,10 @@ import {
   DollarSign,
   ArrowUpRight,
   CalendarDays,
+  LogIn,
+  LogOut,
+  ShieldCheck,
+  KeyRound,
 } from "lucide-react";
 import {
   Chart as ChartJS,
@@ -20,7 +25,27 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import { Bar, Doughnut } from "react-chartjs-2";
+import { Bar, Doughnut, getElementAtEvent } from "react-chartjs-2";
+import { useAuth } from "../../context/AuthContext";
+import {
+  getActivityLogs,
+  type ActivityLogItemDto,
+} from "../../lib/activityLogs";
+import { getAdminUsers, type AdminUserDto } from "../../lib/adminUsers";
+import {
+  getEmployees,
+  type EmployeeSummaryDto,
+  type PagedEmployeesResponse,
+  type EmploymentTypeSummary,
+} from "../../lib/employees";
+import { subscribeEmployeeStatsChanged } from "../../lib/events/employeeEvents";
+import {
+  buildUserNameByEmail,
+  formatActionLabel,
+  formatDatePart,
+  formatTimePart,
+  prettifyDetails,
+} from "../../lib/activityLog.utils";
 
 ChartJS.register(
   CategoryScale,
@@ -31,42 +56,378 @@ ChartJS.register(
   Legend
 );
 
-const AdminDashboard = () => {
-  const [time, setTime] = useState(new Date());
+const extractRecentLogs = (response: unknown): ActivityLogItemDto[] => {
+  if (!response || typeof response !== "object") return [];
 
-  useState(() => {
+  const candidate = response as {
+    items?: unknown;
+    data?: unknown;
+    logs?: unknown;
+  };
+
+  if (Array.isArray(candidate.items))
+    return candidate.items as ActivityLogItemDto[];
+  if (Array.isArray(candidate.data))
+    return candidate.data as ActivityLogItemDto[];
+  if (Array.isArray(candidate.logs))
+    return candidate.logs as ActivityLogItemDto[];
+
+  return [];
+};
+
+const extractAdminUsers = (response: unknown): AdminUserDto[] => {
+  if (!response) return [];
+
+  if (Array.isArray(response)) {
+    return response;
+  }
+
+  if (typeof response === "object") {
+    const candidate = response as { items?: unknown; data?: unknown };
+
+    if (Array.isArray(candidate.items)) {
+      return candidate.items as AdminUserDto[];
+    }
+
+    if (
+      candidate.data &&
+      typeof candidate.data === "object" &&
+      Array.isArray((candidate.data as { items?: unknown }).items)
+    ) {
+      return (candidate.data as { items: AdminUserDto[] }).items;
+    }
+  }
+
+  return [];
+};
+
+const extractEmployeesPayload = (
+  response: unknown
+): PagedEmployeesResponse | null => {
+  if (!response || typeof response !== "object") return null;
+
+  const candidate = response as {
+    items?: unknown;
+    summary?: unknown;
+    data?: unknown;
+  };
+
+  if (Array.isArray(candidate.items)) {
+    return candidate as PagedEmployeesResponse;
+  }
+
+  if (
+    candidate.data &&
+    typeof candidate.data === "object" &&
+    Array.isArray((candidate.data as { items?: unknown }).items)
+  ) {
+    return candidate.data as PagedEmployeesResponse;
+  }
+
+  return null;
+};
+
+const getRecentActivityVisual = (action?: string) => {
+  switch ((action || "").trim().toUpperCase()) {
+    case "LOGIN":
+      return {
+        icon: LogIn,
+        color: "#2563eb",
+        background: "#eff6ff",
+      };
+    case "LOGIN_FAILED":
+      return {
+        icon: LogIn,
+        color: "#dc2626",
+        background: "#fef2f2",
+      };
+    case "LOGOUT":
+      return {
+        icon: LogOut,
+        color: "#ef4444",
+        background: "#fef2f2",
+      };
+    case "USER_CREATE":
+    case "EMPLOYEE_CREATED":
+      return {
+        icon: UserPlus,
+        color: "#059669",
+        background: "#ecfdf5",
+      };
+    case "USER_UPDATE":
+    case "EMPLOYEE_UPDATED":
+      return {
+        icon: FileText,
+        color: "#d97706",
+        background: "#fffbeb",
+      };
+    case "USER_STATUS_UPDATE":
+    case "EMPLOYEE_STATUS_UPDATED":
+      return {
+        icon: Users,
+        color: "#7c3aed",
+        background: "#f5f3ff",
+      };
+    case "USER_PASSWORD_RESET":
+      return {
+        icon: KeyRound,
+        color: "#e11d48",
+        background: "#fff1f2",
+      };
+    case "PERMISSION_UPDATE":
+      return {
+        icon: ShieldCheck,
+        color: "#0891b2",
+        background: "#ecfeff",
+      };
+    default:
+      return {
+        icon: Clock,
+        color: "#2563eb",
+        background: "#eff6ff",
+      };
+  }
+};
+
+const emptyEmploymentSummary = (): EmploymentTypeSummary => ({
+  regular: 0,
+  probationary: 0,
+  contract: 0,
+});
+
+const emptyEmployeeSummary = (): EmployeeSummaryDto => ({
+  total: 0,
+  active: 0,
+  inactive: 0,
+  newHires: 0,
+});
+
+const AdminDashboard = () => {
+  const navigate = useNavigate();
+  const employmentChartRef =
+    useRef<ChartJS<"doughnut", number[], string> | null>(null);
+  const { user, token } = useAuth();
+  const canLoadDashboard = !!user && !!token;
+
+  const [time, setTime] = useState(new Date());
+  const [recentLogs, setRecentLogs] = useState<ActivityLogItemDto[]>([]);
+  const [adminUsers, setAdminUsers] = useState<AdminUserDto[]>([]);
+  const [employeeSummary, setEmployeeSummary] =
+    useState<EmployeeSummaryDto | null>(null);
+  const [employmentSummary, setEmploymentSummary] =
+    useState<EmploymentTypeSummary>(emptyEmploymentSummary());
+
+  useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
-  });
+  }, []);
+
+  const activities = useMemo(
+    () => [
+      {
+        icon: UserPlus,
+        text: "New employee Maria Santos was onboarded",
+        time: "2 hours ago",
+        color: "#059669",
+      },
+      {
+        icon: Clock,
+        text: "Attendance report generated for January",
+        time: "4 hours ago",
+        color: "#3b82f6",
+      },
+      {
+        icon: FileText,
+        text: "Leave request approved for Juan Dela Cruz",
+        time: "5 hours ago",
+        color: "#f59e0b",
+      },
+      {
+        icon: TrendingUp,
+        text: "Payroll processing completed for January",
+        time: "1 day ago",
+        color: "#059669",
+      },
+      {
+        icon: Users,
+        text: "3 employees completed probationary period",
+        time: "2 days ago",
+        color: "#8b5cf6",
+      },
+    ],
+    []
+  );
+
+  useEffect(() => {
+    if (!canLoadDashboard) return;
+
+    let isMounted = true;
+
+    const fetchDashboardActivityData = async () => {
+      try {
+        const [logsResponse, usersResponse] = await Promise.all([
+          getActivityLogs({
+            page: 1,
+            pageSize: activities.length,
+          }),
+          getAdminUsers({
+            page: 1,
+            pageSize: 200,
+          }),
+        ]);
+
+        if (!isMounted) return;
+
+        const extractedLogs = extractRecentLogs(logsResponse).slice(
+          0,
+          activities.length
+        );
+        const extractedUsers = extractAdminUsers(usersResponse);
+
+        setRecentLogs(extractedLogs);
+        setAdminUsers(extractedUsers);
+      } catch (error) {
+        if (!isMounted) return;
+        console.error("Failed to fetch dashboard recent activities:", error);
+        setRecentLogs([]);
+        setAdminUsers([]);
+      }
+    };
+
+    Promise.resolve().then(() => {
+      void fetchDashboardActivityData();
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activities.length, canLoadDashboard]);
+
+  const fetchEmployeeDashboardData = useCallback(async () => {
+    if (!canLoadDashboard) return;
+
+    try {
+      const [
+        summaryResponse,
+        regularResponse,
+        probationaryResponse,
+        contractResponse,
+      ] = await Promise.all([
+        getEmployees({
+          page: 1,
+          pageSize: 1,
+        }),
+        getEmployees({
+          page: 1,
+          pageSize: 1,
+          isActive: true,
+          employmentType: "Regular",
+        }),
+        getEmployees({
+          page: 1,
+          pageSize: 1,
+          isActive: true,
+          employmentType: "Probationary",
+        }),
+        getEmployees({
+          page: 1,
+          pageSize: 1,
+          isActive: true,
+          employmentType: "Project-based",
+        }),
+      ]);
+
+      const summaryPayload = extractEmployeesPayload(summaryResponse);
+      const regularPayload = extractEmployeesPayload(regularResponse);
+      const probationaryPayload =
+        extractEmployeesPayload(probationaryResponse);
+      const contractPayload = extractEmployeesPayload(contractResponse);
+
+      const summary = summaryPayload?.summary ?? null;
+
+      const activeEmploymentTypeSummary: EmploymentTypeSummary = {
+        regular: regularPayload?.totalCount ?? 0,
+        probationary: probationaryPayload?.totalCount ?? 0,
+        contract: contractPayload?.totalCount ?? 0,
+      };
+
+      setEmployeeSummary(summary);
+      setEmploymentSummary(activeEmploymentTypeSummary);
+    } catch (error) {
+      console.error("Failed to fetch employee dashboard data:", error);
+      setEmployeeSummary(null);
+      setEmploymentSummary(emptyEmploymentSummary());
+    }
+  }, [canLoadDashboard]);
+
+  useEffect(() => {
+    if (!canLoadDashboard) return;
+
+    let isMounted = true;
+
+    const runFetch = async () => {
+      if (!isMounted) return;
+      await fetchEmployeeDashboardData();
+    };
+
+    Promise.resolve().then(() => {
+      void runFetch();
+    });
+
+    const unsubscribe = subscribeEmployeeStatsChanged(() => {
+      Promise.resolve().then(() => {
+        void runFetch();
+      });
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [fetchEmployeeDashboardData, canLoadDashboard]);
+
+  const safeRecentLogs = canLoadDashboard ? recentLogs : [];
+  const safeAdminUsers = canLoadDashboard ? adminUsers : [];
+  const safeEmployeeSummary = canLoadDashboard
+    ? (employeeSummary ?? emptyEmployeeSummary())
+    : emptyEmployeeSummary();
+  const safeEmploymentSummary = canLoadDashboard
+    ? employmentSummary
+    : emptyEmploymentSummary();
+
+  const userNameByEmail = useMemo(
+    () => buildUserNameByEmail(safeAdminUsers),
+    [safeAdminUsers]
+  );
 
   const statCards = [
     {
       title: "Total Employees",
-      value: 245,
+      value: safeEmployeeSummary.total,
       icon: Users,
       gradient: "linear-gradient(135deg, #059669 0%, #10b981 100%)",
-      change: "+5.2%",
+      change: "0%",
     },
     {
       title: "Active Employees",
-      value: 235,
+      value: safeEmployeeSummary.active,
       icon: UserCheck,
       gradient: "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)",
-      change: "+2.1%",
+      change: "0%",
     },
     {
       title: "On Leave",
-      value: 3,
+      value: 0,
       icon: UserX,
       gradient: "linear-gradient(135deg, #d97706 0%, #f59e0b 100%)",
-      change: "-1",
+      change: "0",
     },
     {
-      title: "New Hires",
-      value: 18,
+      title: "Resigned",
+      value: 0,
       icon: UserPlus,
       gradient: "linear-gradient(135deg, #dc2626 0%, #ef4444 100%)",
-      change: "+12",
+      change: "0",
     },
   ];
 
@@ -138,10 +499,14 @@ const AdminDashboard = () => {
   };
 
   const employmentData = {
-    labels: ["Regular", "Probationary", "Contract"],
+    labels: ["Regular", "Probationary", "Project-based"],
     datasets: [
       {
-        data: [185, 35, 25],
+        data: [
+          safeEmploymentSummary.regular,
+          safeEmploymentSummary.probationary,
+          safeEmploymentSummary.contract,
+        ],
         backgroundColor: ["#059669", "#f59e0b", "#3b82f6"],
         borderWidth: 0,
         cutout: "70%",
@@ -166,52 +531,83 @@ const AdminDashboard = () => {
     },
   };
 
-  const activities = [
+  const financialBreakdown = [
     {
-      icon: UserPlus,
-      text: "New employee Maria Santos was onboarded",
-      time: "2 hours ago",
+      label: "Basic Salary",
+      amount: "₱6,200,000",
+      percent: 73,
       color: "#059669",
     },
     {
-      icon: Clock,
-      text: "Attendance report generated for January",
-      time: "4 hours ago",
+      label: "Overtime Pay",
+      amount: "₱850,000",
+      percent: 10,
       color: "#3b82f6",
     },
     {
-      icon: FileText,
-      text: "Leave request approved for Juan Dela Cruz",
-      time: "5 hours ago",
-      color: "#f59e0b",
-    },
-    {
-      icon: TrendingUp,
-      text: "Payroll processing completed for January",
-      time: "1 day ago",
-      color: "#059669",
-    },
-    {
-      icon: Users,
-      text: "3 employees completed probationary period",
-      time: "2 days ago",
+      label: "Allowances",
+      amount: "₱650,000",
+      percent: 8,
       color: "#8b5cf6",
+    },
+    {
+      label: "Benefits",
+      amount: "₱500,000",
+      percent: 6,
+      color: "#14b8a6",
+    },
+    {
+      label: "Deductions",
+      amount: "-₱1,700,000",
+      percent: 20,
+      color: "#ef4444",
     },
   ];
 
-  const financialBreakdown = [
-    { label: "Basic Salary", amount: "₱6,200,000", percent: 73, color: "#059669" },
-    { label: "Overtime Pay", amount: "₱850,000", percent: 10, color: "#3b82f6" },
-    { label: "Allowances", amount: "₱650,000", percent: 8, color: "#8b5cf6" },
-    { label: "Benefits", amount: "₱500,000", percent: 6, color: "#14b8a6" },
-    { label: "Deductions", amount: "-₱1,700,000", percent: 20, color: "#ef4444" },
-  ];
+  const employmentTypeTargets = [
+    { label: "Regular", query: "Regular" },
+    { label: "Probationary", query: "Probationary" },
+    { label: "Project-based", query: "Project-based" },
+  ] as const;
+
+  const navigateToEmploymentType = (query: string) => {
+    navigate(
+      `/dashboard/personal-records?employmentType=${encodeURIComponent(query)}`
+    );
+  };
+
+  const handleEmploymentChartClick = (
+    event: React.MouseEvent<HTMLCanvasElement>
+  ) => {
+    const chart = employmentChartRef.current;
+    if (!chart) return;
+
+    const elements = getElementAtEvent(chart, event);
+    if (!elements.length) return;
+
+    const clickedIndex = elements[0].index;
+    const target = employmentTypeTargets[clickedIndex];
+
+    if (!target) return;
+    navigateToEmploymentType(target.query);
+  };
 
   const greeting = () => {
     const h = time.getHours();
     if (h < 12) return "Good Morning";
     if (h < 17) return "Good Afternoon";
     return "Good Evening";
+  };
+
+  const formatRecentTimestamp = (value?: string) => {
+    if (!value) return "—";
+
+    const datePart = formatDatePart(value);
+    const timePart = formatTimePart(value);
+
+    if (datePart === "—" || timePart === "—") return "—";
+
+    return `${datePart} at ${timePart}`;
   };
 
   return (
@@ -294,24 +690,53 @@ const AdminDashboard = () => {
         >
           <div className="mb-4">
             <h3 className="text-base font-bold text-gray-800">
-              Employment Status
+              Employment Type
             </h3>
             <p className="text-xs text-gray-400 mt-0.5">
               Distribution by type
             </p>
           </div>
-          <div style={{ height: 260 }}>
-            <Doughnut data={employmentData} options={employmentOptions} />
+
+          <div
+            style={{ height: 260 }}
+            className="cursor-pointer"
+            title="Click chart segment to filter employees"
+          >
+            <Doughnut
+              ref={employmentChartRef}
+              data={employmentData}
+              options={employmentOptions}
+              onClick={handleEmploymentChartClick}
+            />
           </div>
+
           <div className="mt-4 space-y-2">
             {[
-              { label: "Regular", value: 185, color: "#059669" },
-              { label: "Probationary", value: 35, color: "#f59e0b" },
-              { label: "Contract", value: 25, color: "#3b82f6" },
+              {
+                label: "Regular",
+                value: safeEmploymentSummary.regular,
+                color: "#059669",
+                query: "Regular",
+              },
+              {
+                label: "Probationary",
+                value: safeEmploymentSummary.probationary,
+                color: "#f59e0b",
+                query: "Probationary",
+              },
+              {
+                label: "Project-based",
+                value: safeEmploymentSummary.contract,
+                color: "#3b82f6",
+                query: "Project-based",
+              },
             ].map((item) => (
-              <div
+              <button
                 key={item.label}
-                className="flex items-center justify-between text-xs"
+                type="button"
+                onClick={() => navigateToEmploymentType(item.query)}
+                className="flex w-full items-center justify-between rounded-md px-1 py-1 text-left text-xs transition hover:bg-gray-50"
+                title={`Show ${item.label} employees`}
               >
                 <div className="flex items-center gap-2">
                   <div
@@ -323,7 +748,7 @@ const AdminDashboard = () => {
                 <span className="font-semibold text-gray-700">
                   {item.value}
                 </span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -344,31 +769,42 @@ const AdminDashboard = () => {
               </p>
             </div>
           </div>
+
           <div className="space-y-1">
-            {activities.map((activity, i) => (
-              <div
-                key={i}
-                className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50/80 transition-colors group cursor-pointer"
-              >
+            {safeRecentLogs.map((log, i) => {
+              const visual = getRecentActivityVisual(log.action);
+              const Icon = visual.icon;
+              const timestamp = log.createdAt || "";
+              const description = prettifyDetails(log, userNameByEmail);
+              const fallbackLabel = formatActionLabel(
+                log.action || "SYSTEM_ACTIVITY"
+              );
+
+              return (
                 <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
-                  style={{ backgroundColor: activity.color + "12" }}
+                  key={log.id ?? `recent-log-${i}`}
+                  className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50/80 transition-colors group cursor-pointer"
                 >
-                  <activity.icon
-                    className="w-4 h-4"
-                    style={{ color: activity.color }}
-                  />
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
+                    style={{ backgroundColor: visual.background }}
+                  >
+                    <Icon className="w-4 h-4" style={{ color: visual.color }} />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-700 font-medium">
+                      {description && description !== "—"
+                        ? description
+                        : fallbackLabel}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {formatRecentTimestamp(timestamp)}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-700 font-medium">
-                    {activity.text}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {activity.time}
-                  </p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

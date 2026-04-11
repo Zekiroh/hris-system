@@ -77,6 +77,8 @@ builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IActivityLogger, ActivityLogger>();
 builder.Services.AddScoped<IAdminUsersService, AdminUsersService>();
 
+builder.Services.AddHttpContextAccessor();
+
 // =====================
 // Employee Core Services
 // =====================
