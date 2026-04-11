@@ -741,9 +741,11 @@ const EmployeeList = () => {
       };
 
       const serverErrors = maybeError.response?.data?.errors;
+      const serverMessage = maybeError.response?.data?.message?.trim();
 
       if (serverErrors && typeof serverErrors === "object") {
         const nextFieldErrors: FieldErrors = {};
+        let hasMappedFieldError = false;
 
         for (const [key, messages] of Object.entries(serverErrors)) {
           const firstMessage = Array.isArray(messages) ? messages[0] : undefined;
@@ -753,14 +755,32 @@ const EmployeeList = () => {
             key === "sssNumber" ||
             key === "philHealthNumber" ||
             key === "pagIbigNumber" ||
-            key === "tinNumber"
+            key === "tinNumber" ||
+            key === "email" ||
+            key === "contact" ||
+            key === "zipCode" ||
+            key === "addressLine1" ||
+            key === "addressLine2" ||
+            key === "city" ||
+            key === "province" ||
+            key === "position" ||
+            key === "department"
           ) {
-            nextFieldErrors[key] = firstMessage.trim();
+            nextFieldErrors[key as keyof FieldErrors] = firstMessage.trim();
+            hasMappedFieldError = true;
           }
         }
 
         setFieldErrors(nextFieldErrors);
-        setFormError(null);
+
+        if (hasMappedFieldError) {
+          setFormError(serverMessage || null);
+        } else {
+          setFormError(
+            serverMessage ||
+              "Unable to save employee changes. Please review the entered values."
+          );
+        }
       } else {
         const normalizedMessage = getEmployeeApiErrorMessage(e);
         const mapped = mapEmployeeMutationErrorToUiMessage(

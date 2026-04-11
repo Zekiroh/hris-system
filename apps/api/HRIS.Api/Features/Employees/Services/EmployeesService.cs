@@ -247,13 +247,13 @@ public class EmployeesService
 
         var absolutePath = Path.Combine(Directory.GetCurrentDirectory(), document.StoragePath);
 
+        _db.EmployeeDocuments.Remove(document);
+        await _db.SaveChangesAsync(ct);
+
         if (System.IO.File.Exists(absolutePath))
         {
             System.IO.File.Delete(absolutePath);
         }
-
-        _db.EmployeeDocuments.Remove(document);
-        await _db.SaveChangesAsync(ct);
 
         return (true, null);
     }
@@ -697,12 +697,12 @@ public class EmployeesService
             (message.Contains("employeenumber") || message.Contains("employee_number"));
     }
 
-    private static string NormalizeGovernmentValue(string? value)
+    private static string? NormalizeGovernmentValue(string? value)
     {
-        if (string.IsNullOrWhiteSpace(value)) return null!;
+        if (string.IsNullOrWhiteSpace(value)) return null;
 
         var digits = new string(value.Where(char.IsDigit).ToArray());
-        return string.IsNullOrWhiteSpace(digits) ? null! : digits;
+        return string.IsNullOrWhiteSpace(digits) ? null : digits;
     }
 
     private static List<string> BuildGovernmentCandidates(string digitsOnly, GovernmentNumberKind kind)
