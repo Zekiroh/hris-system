@@ -285,8 +285,6 @@ public class EmployeesService
         if (alreadyLinked)
             return (false, "This user is already linked to an employee.", null);
 
-        var nextEmployeeNumber = await GenerateNextEmployeeNumberAsync(ct);
-
         var firstName = string.IsNullOrWhiteSpace(user.FirstName)
             ? ExtractFirstName(user.FullName)
             : user.FirstName!.Trim();
@@ -299,61 +297,78 @@ public class EmployeesService
             ? ExtractLastName(user.FullName)
             : user.LastName!.Trim();
 
-        var entity = new Employee
+        const int maxEmployeeNumberAttempts = 3;
+
+        for (var attempt = 1; attempt <= maxEmployeeNumberAttempts; attempt++)
         {
-            Id = Guid.NewGuid(),
-            UserId = req.UserId,
-            EmployeeNumber = nextEmployeeNumber,
+            var nextEmployeeNumber = await GenerateNextEmployeeNumberAsync(ct);
 
-            FirstName = firstName,
-            MiddleName = middleName,
-            LastName = lastName,
-
-            DateHired = DateOnly.FromDateTime(DateTime.UtcNow),
-            EmploymentType = req.EmploymentType.Trim(),
-
-            Department = string.IsNullOrWhiteSpace(req.Department) ? null : req.Department.Trim(),
-            Position = string.IsNullOrWhiteSpace(req.Position) ? null : req.Position.Trim(),
-
-            ContactNumber = string.IsNullOrWhiteSpace(req.ContactNumber) ? null : req.ContactNumber.Trim(),
-            Email = string.IsNullOrWhiteSpace(user.Email) ? null : user.Email.Trim(),
-
-            AddressLine1 = string.IsNullOrWhiteSpace(req.AddressLine1) ? null : req.AddressLine1.Trim(),
-            AddressLine2 = string.IsNullOrWhiteSpace(req.AddressLine2) ? null : req.AddressLine2.Trim(),
-            City = string.IsNullOrWhiteSpace(req.City) ? null : req.City.Trim(),
-            Province = string.IsNullOrWhiteSpace(req.Province) ? null : req.Province.Trim(),
-            ZipCode = string.IsNullOrWhiteSpace(req.ZipCode) ? null : req.ZipCode.Trim(),
-
-            IsActive = true,
-            CreatedAtUtc = DateTime.UtcNow
-        };
-
-        _db.Employees.Add(entity);
-        await _db.SaveChangesAsync(ct);
-
-        var httpContext = _httpContextAccessor.HttpContext;
-
-        if (httpContext is not null)
-        {
-            var log = _activityLogger.Build(
-                user: httpContext.User,
-                action: "EMPLOYEE_CREATED",
-                module: "EMPLOYEES",
-                targetType: "Employee",
-                targetId: entity.Id.ToString(),
-                summary: $"Created employee {entity.EmployeeNumber} ({string.Join(" ", new[] { entity.FirstName, entity.MiddleName, entity.LastName }.Where(x => !string.IsNullOrWhiteSpace(x)))})",
-                ipAddress: httpContext.Connection.RemoteIpAddress?.ToString(),
-                userAgent: httpContext.Request.Headers["User-Agent"].ToString()
-            );
-
-            if (log is not null)
+            var entity = new Employee
             {
-                _db.ActivityLogs.Add(log);
+                Id = Guid.NewGuid(),
+                UserId = req.UserId,
+                EmployeeNumber = nextEmployeeNumber,
+
+                FirstName = firstName,
+                MiddleName = middleName,
+                LastName = lastName,
+
+                DateHired = DateOnly.FromDateTime(DateTime.UtcNow),
+                EmploymentType = req.EmploymentType.Trim(),
+
+                Department = string.IsNullOrWhiteSpace(req.Department) ? null : req.Department.Trim(),
+                Position = string.IsNullOrWhiteSpace(req.Position) ? null : req.Position.Trim(),
+
+                ContactNumber = string.IsNullOrWhiteSpace(req.ContactNumber) ? null : req.ContactNumber.Trim(),
+                Email = string.IsNullOrWhiteSpace(user.Email) ? null : user.Email.Trim(),
+
+                AddressLine1 = string.IsNullOrWhiteSpace(req.AddressLine1) ? null : req.AddressLine1.Trim(),
+                AddressLine2 = string.IsNullOrWhiteSpace(req.AddressLine2) ? null : req.AddressLine2.Trim(),
+                City = string.IsNullOrWhiteSpace(req.City) ? null : req.City.Trim(),
+                Province = string.IsNullOrWhiteSpace(req.Province) ? null : req.Province.Trim(),
+                ZipCode = string.IsNullOrWhiteSpace(req.ZipCode) ? null : req.ZipCode.Trim(),
+
+                IsActive = true,
+                CreatedAtUtc = DateTime.UtcNow
+            };
+
+            _db.Employees.Add(entity);
+
+            try
+            {
                 await _db.SaveChangesAsync(ct);
+
+                var httpContext = _httpContextAccessor.HttpContext;
+
+                if (httpContext is not null)
+                {
+                    var log = _activityLogger.Build(
+                        user: httpContext.User,
+                        action: "EMPLOYEE_CREATED",
+                        module: "EMPLOYEES",
+                        targetType: "Employee",
+                        targetId: entity.Id.ToString(),
+                        summary: $"Created employee {entity.EmployeeNumber} ({string.Join(" ", new[] { entity.FirstName, entity.MiddleName, entity.LastName }.Where(x => !string.IsNullOrWhiteSpace(x)))})",
+                        ipAddress: httpContext.Connection.RemoteIpAddress?.ToString(),
+                        userAgent: httpContext.Request.Headers["User-Agent"].ToString()
+                    );
+
+                    if (log is not null)
+                    {
+                        _db.ActivityLogs.Add(log);
+                        await _db.SaveChangesAsync(ct);
+                    }
+                }
+
+                return (true, null, ToDto(entity));
+            }
+            catch (DbUpdateException ex) when (IsEmployeeNumberUniqueConflict(ex) && attempt < maxEmployeeNumberAttempts)
+            {
+                _db.Entry(entity).State = EntityState.Detached;
             }
         }
 
-        return (true, null, ToDto(entity));
+        return (false, "Unable to generate a unique employee number. Please try again.", null);
     }
 
     public async Task<(bool ok, string? error, EmployeeDocument? document)> UploadDocumentAsync(
@@ -671,6 +686,15 @@ public class EmployeesService
         }
 
         return $"EMP-{(max + 1):D3}";
+    }
+
+    private static bool IsEmployeeNumberUniqueConflict(DbUpdateException ex)
+    {
+        var message = $"{ex.Message} {ex.InnerException?.Message}".ToLowerInvariant();
+
+        return
+            (message.Contains("duplicate") || message.Contains("unique")) &&
+            (message.Contains("employeenumber") || message.Contains("employee_number"));
     }
 
     private static string NormalizeGovernmentValue(string? value)

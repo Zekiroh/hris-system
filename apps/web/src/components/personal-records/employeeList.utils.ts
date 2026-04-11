@@ -122,34 +122,28 @@ export function mapDtoToEmployee(dto: EmployeeDto): Employee {
   };
 }
 
-export function parseNameToParts(fullName: string) {
-  const raw = fullName.trim();
-
-  if (raw.includes(",")) {
-    const parts = raw.split(",").map((part) => part.trim()).filter(Boolean);
-
-    const lastName = parts[0] ?? "";
-    const suffix =
-      parts.length > 2 ? parts.slice(2).join(", ").trim() : undefined;
-
-    const givenParts = (parts[1] ?? "").split(/\s+/).filter(Boolean);
-
-    const firstName = givenParts[0] ?? "";
-    const middleToken = givenParts.length > 1 ? givenParts[1] : undefined;
-
-    const middleName =
-      middleToken && /^[A-Za-z]\.$/.test(middleToken)
-        ? middleToken.slice(0, 1)
-        : middleToken;
-
-    return { firstName, middleName, lastName, suffix };
-  }
-
-  const parts = raw.split(/\s+/).filter(Boolean);
-  const firstName = parts[0] ?? "";
-  const lastName = parts.slice(1).join(" ") || "Unknown";
-
-  return { firstName, middleName: undefined, lastName, suffix: undefined };
+export function mapDtoToFormData(dto: EmployeeDto): FormData {
+  return {
+    userId: "",
+    employeeId: safeTrim(dto.employeeNumber) || "",
+    name: buildName(dto),
+    position: safeTrim(dto.position) || "",
+    department: safeTrim(dto.department) || "",
+    status: dto.isActive ? "Active" : "Inactive",
+    employmentType: normalizeEmploymentType(dto.employmentType),
+    contact: safeTrim(dto.contactNumber) || "",
+    email: safeTrim(dto.email) || "",
+    hireDate: safeTrim(dto.dateHired) || "",
+    addressLine1: safeTrim(dto.addressLine1) || "",
+    addressLine2: safeTrim(dto.addressLine2) || "",
+    city: safeTrim(dto.city) || "",
+    province: safeTrim(dto.province) || "",
+    zipCode: safeTrim(dto.zipCode) || "",
+    sssNumber: safeTrim(dto.sssNumber) || "",
+    philHealthNumber: safeTrim(dto.philHealthNumber) || "",
+    pagIbigNumber: safeTrim(dto.pagIbigNumber) || "",
+    tinNumber: safeTrim(dto.tinNumber) || "",
+  };
 }
 
 export function unwrapData<T>(res: unknown): T {

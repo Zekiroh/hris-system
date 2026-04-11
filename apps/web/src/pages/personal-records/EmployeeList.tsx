@@ -41,7 +41,7 @@ import {
   DEFAULT_PAGE_SIZE,
   emptyFormData,
   mapDtoToEmployee,
-  parseNameToParts,
+  mapDtoToFormData,
   unwrapData,
 } from "../../components/personal-records/employeeList.utils";
 
@@ -109,6 +109,8 @@ const EmployeeList = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
     null
   );
+  const [selectedEmployeeDto, setSelectedEmployeeDto] =
+    useState<EmployeeDto | null>(null);
 
   const [userOptions, setUserOptions] = useState<UserOption[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -151,34 +153,33 @@ const EmployeeList = () => {
     return normalized;
   }
 
-  function mapDtoToFormData(dto: EmployeeDto): FormData {
-    const employee = mapDtoToEmployee(dto);
+  function mapLoadedDtoToFormData(dto: EmployeeDto): FormData {
+    const mapped = mapDtoToFormData(dto);
 
     return {
-      userId: "",
-      employeeId: sanitizeLoadedText(employee.employeeId),
-      name: sanitizeLoadedText(employee.name),
-      position: sanitizeLoadedText(employee.position),
-      department: sanitizeLoadedText(employee.department),
-      status: employee.status,
-      employmentType: employee.employmentType,
-      contact: sanitizeLoadedText(employee.contact),
-      email: sanitizeLoadedText(employee.email),
-      hireDate: sanitizeLoadedText(employee.hireDate),
-      addressLine1: sanitizeLoadedText(employee.addressLine1),
-      addressLine2: sanitizeLoadedText(employee.addressLine2),
-      city: sanitizeLoadedText(employee.city),
-      province: sanitizeLoadedText(employee.province),
-      zipCode: sanitizeLoadedText(employee.zipCode),
-      sssNumber: sanitizeLoadedText(employee.sssNumber),
-      philHealthNumber: sanitizeLoadedText(employee.philHealthNumber),
-      pagIbigNumber: sanitizeLoadedText(employee.pagIbigNumber),
-      tinNumber: sanitizeLoadedText(employee.tinNumber),
+      ...mapped,
+      employeeId: sanitizeLoadedText(mapped.employeeId),
+      name: sanitizeLoadedText(mapped.name),
+      position: sanitizeLoadedText(mapped.position),
+      department: sanitizeLoadedText(mapped.department),
+      contact: sanitizeLoadedText(mapped.contact),
+      email: sanitizeLoadedText(mapped.email),
+      hireDate: sanitizeLoadedText(mapped.hireDate),
+      addressLine1: sanitizeLoadedText(mapped.addressLine1),
+      addressLine2: sanitizeLoadedText(mapped.addressLine2),
+      city: sanitizeLoadedText(mapped.city),
+      province: sanitizeLoadedText(mapped.province),
+      zipCode: sanitizeLoadedText(mapped.zipCode),
+      sssNumber: sanitizeLoadedText(mapped.sssNumber),
+      philHealthNumber: sanitizeLoadedText(mapped.philHealthNumber),
+      pagIbigNumber: sanitizeLoadedText(mapped.pagIbigNumber),
+      tinNumber: sanitizeLoadedText(mapped.tinNumber),
     };
   }
 
   function resetModalState() {
     setSelectedEmployee(null);
+    setSelectedEmployeeDto(null);
     setFormData(emptyFormData());
     setInitialEditFormData(null);
     setFormError(null);
@@ -291,15 +292,6 @@ const EmployeeList = () => {
 
   function validateEditForm(form: FormData): FieldErrors {
     const errors: FieldErrors = {};
-
-    if (!form.name.trim()) {
-      errors.name = "Employee name is required.";
-    } else {
-      const { firstName, lastName } = parseNameToParts(form.name);
-      if (!firstName || !lastName) {
-        errors.name = "Invalid employee name.";
-      }
-    }
 
     if (form.email) {
       const email = form.email.trim().toLowerCase();
@@ -509,15 +501,7 @@ const EmployeeList = () => {
 
   useEffect(() => {
     void fetchEmployees();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    page,
-    searchTerm,
-    isActiveQuery,
-    isNewHireQuery,
-    sortBy,
-    employmentTypeFilter,
-  ]);
+  }, [page, searchTerm, isActiveQuery, isNewHireQuery, sortBy, employmentTypeFilter]);
 
   useEffect(() => {
     void fetchEmployeeSummaryOnly();
@@ -539,7 +523,6 @@ const EmployeeList = () => {
       setFormError(null);
       setFieldErrors({});
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAddModal]);
 
   const rows: EmployeeRow[] = useMemo(
@@ -574,9 +557,10 @@ const EmployeeList = () => {
     try {
       const dto = await fetchEmployeeDtoById(id);
       const employee = mapDtoToEmployee(dto);
-      const mappedForm = mapDtoToFormData(dto);
+      const mappedForm = mapLoadedDtoToFormData(dto);
 
       setSelectedEmployee(employee);
+      setSelectedEmployeeDto(dto);
       setFormData(mappedForm);
       setInitialEditFormData(mappedForm);
       setShowEditModal(true);
@@ -588,6 +572,7 @@ const EmployeeList = () => {
       setEmployeesError(message);
       setShowEditModal(false);
       setSelectedEmployee(null);
+      setSelectedEmployeeDto(null);
       setInitialEditFormData(null);
     } finally {
       setDetailsLoading(false);
@@ -685,7 +670,7 @@ const EmployeeList = () => {
   };
 
   const handleEdit = async () => {
-    if (!selectedEmployee || submitting) return;
+    if (!selectedEmployee || !selectedEmployeeDto || submitting) return;
 
     if (!hasEditChanges) {
       setFormError("No changes detected.");
@@ -703,15 +688,13 @@ const EmployeeList = () => {
       return;
     }
 
-    const { firstName, middleName, lastName } = parseNameToParts(formData.name);
-
     const normalizedStatus: EmployeeStatus =
       formData.status === "Inactive" ? "Inactive" : "Active";
 
     const updatePayload: UpdateEmployeeRequest & { status: EmployeeStatus } = {
-      firstName: firstName.trim(),
-      middleName: normalizeOptionalText(middleName ?? ""),
-      lastName: lastName.trim(),
+      firstName: sanitizeLoadedText(selectedEmployeeDto.firstName),
+      middleName: normalizeOptionalText(selectedEmployeeDto.middleName ?? ""),
+      lastName: sanitizeLoadedText(selectedEmployeeDto.lastName),
       position: normalizeOptionalText(formData.position),
       department: normalizeOptionalText(formData.department),
       employmentType: formData.employmentType,
@@ -734,10 +717,11 @@ const EmployeeList = () => {
 
     try {
       const updatedDto = await updateEmployee(selectedEmployee.id, updatePayload);
-      const refreshedForm = mapDtoToFormData(updatedDto);
+      const refreshedForm = mapLoadedDtoToFormData(updatedDto);
       const refreshedEmployee = mapDtoToEmployee(updatedDto);
 
       setSelectedEmployee(refreshedEmployee);
+      setSelectedEmployeeDto(updatedDto);
       setFormData(refreshedForm);
       setInitialEditFormData(refreshedForm);
       setFieldErrors({});
