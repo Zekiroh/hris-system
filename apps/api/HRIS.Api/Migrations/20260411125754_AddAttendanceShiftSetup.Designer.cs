@@ -4,6 +4,7 @@ using HRIS.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRIS.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260411125754_AddAttendanceShiftSetup")]
+    partial class AddAttendanceShiftSetup
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -87,63 +90,6 @@ namespace HRIS.Api.Migrations
                     b.HasIndex("Module", "CreatedAt");
 
                     b.ToTable("activity_logs", (string)null);
-                });
-
-            modelBuilder.Entity("HRIS.Api.Models.AttendanceLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateOnly>("Date")
-                        .HasColumnType("date");
-
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<bool>("IsPresent")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false);
-
-                    b.Property<int>("LateMinutes")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<int>("OvertimeMinutes")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<int>("RenderedMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<TimeOnly?>("TimeIn")
-                        .HasColumnType("time(6)");
-
-                    b.Property<TimeOnly?>("TimeOut")
-                        .HasColumnType("time(6)");
-
-                    b.Property<int>("UndertimeMinutes")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId", "Date")
-                        .IsUnique();
-
-                    b.ToTable("attendance_logs", (string)null);
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.Employee", b =>
@@ -326,102 +272,6 @@ namespace HRIS.Api.Migrations
                     b.ToTable("employee_documents", (string)null);
                 });
 
-            modelBuilder.Entity("HRIS.Api.Models.EmployeeShiftAssignment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateOnly>("EffectiveFrom")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly?>("EffectiveTo")
-                        .HasColumnType("date");
-
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true);
-
-                    b.Property<int>("ShiftId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ShiftId");
-
-                    b.HasIndex("EmployeeId", "IsActive");
-
-                    b.ToTable("employee_shift_assignments", (string)null);
-                });
-
-            modelBuilder.Entity("HRIS.Api.Models.OvertimeRequest", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AttendanceLogId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<string>("Reason")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<int>("RequestedMinutes")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ReviewRemarks")
-                        .HasMaxLength(500)
-                        .HasColumnType("varchar(500)");
-
-                    b.Property<DateTime?>("ReviewedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<long?>("ReviewedByUserId")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)")
-                        .HasDefaultValue("Pending");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AttendanceLogId")
-                        .IsUnique();
-
-                    b.HasIndex("EmployeeId");
-
-                    b.HasIndex("ReviewedByUserId");
-
-                    b.ToTable("overtime_requests", (string)null);
-                });
-
             modelBuilder.Entity("HRIS.Api.Models.Permission", b =>
                 {
                     b.Property<int>("Id")
@@ -477,24 +327,13 @@ namespace HRIS.Api.Migrations
                         },
                         new
                         {
-                            Id = 6,
+                            Id = 2,
                             CanArchive = true,
                             CanCreate = true,
                             CanUpdate = true,
                             CanView = true,
                             CreatedAt = new DateTime(2026, 2, 23, 0, 0, 0, 0, DateTimeKind.Utc),
                             Module = "EMPLOYEES",
-                            RoleId = 1
-                        },
-                        new
-                        {
-                            Id = 9,
-                            CanArchive = true,
-                            CanCreate = true,
-                            CanUpdate = true,
-                            CanView = true,
-                            CreatedAt = new DateTime(2026, 2, 23, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Module = "ATTENDANCE",
                             RoleId = 1
                         },
                         new
@@ -510,7 +349,7 @@ namespace HRIS.Api.Migrations
                         },
                         new
                         {
-                            Id = 7,
+                            Id = 4,
                             CanArchive = true,
                             CanCreate = true,
                             CanUpdate = true,
@@ -521,35 +360,13 @@ namespace HRIS.Api.Migrations
                         },
                         new
                         {
-                            Id = 10,
-                            CanArchive = true,
-                            CanCreate = true,
-                            CanUpdate = true,
+                            Id = 5,
+                            CanArchive = false,
+                            CanCreate = false,
+                            CanUpdate = false,
                             CanView = true,
                             CreatedAt = new DateTime(2026, 2, 23, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Module = "ATTENDANCE",
-                            RoleId = 2
-                        },
-                        new
-                        {
-                            Id = 8,
-                            CanArchive = false,
-                            CanCreate = false,
-                            CanUpdate = false,
-                            CanView = false,
-                            CreatedAt = new DateTime(2026, 2, 23, 0, 0, 0, 0, DateTimeKind.Utc),
                             Module = "EMPLOYEES",
-                            RoleId = 3
-                        },
-                        new
-                        {
-                            Id = 11,
-                            CanArchive = false,
-                            CanCreate = false,
-                            CanUpdate = false,
-                            CanView = false,
-                            CreatedAt = new DateTime(2026, 2, 23, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Module = "ATTENDANCE",
                             RoleId = 3
                         });
                 });
@@ -603,178 +420,6 @@ namespace HRIS.Api.Migrations
                             IsSystem = true,
                             Name = "User",
                             NormalizedName = "USER"
-                        });
-                });
-
-            modelBuilder.Entity("HRIS.Api.Models.Shift", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(true);
-
-                    b.Property<bool>("IsFlexible")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(1)")
-                        .HasDefaultValue(false);
-
-                    b.Property<int>("LateGraceMinutes")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.ToTable("shifts", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1001,
-                            Code = "STD-0830-1730",
-                            CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Default weekday office shift",
-                            IsActive = true,
-                            IsFlexible = false,
-                            LateGraceMinutes = 5,
-                            Name = "Standard Office Shift"
-                        });
-                });
-
-            modelBuilder.Entity("HRIS.Api.Models.ShiftDay", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<TimeOnly?>("BreakEndTime")
-                        .HasColumnType("time(6)");
-
-                    b.Property<TimeOnly?>("BreakStartTime")
-                        .HasColumnType("time(6)");
-
-                    b.Property<int>("DayOfWeek")
-                        .HasColumnType("int");
-
-                    b.Property<TimeOnly?>("EndTime")
-                        .HasColumnType("time(6)");
-
-                    b.Property<bool>("IsWorkingDay")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int>("ShiftId")
-                        .HasColumnType("int");
-
-                    b.Property<TimeOnly?>("StartTime")
-                        .HasColumnType("time(6)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ShiftId", "DayOfWeek")
-                        .IsUnique();
-
-                    b.ToTable("shift_days", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 2001,
-                            BreakEndTime = new TimeOnly(13, 0, 0),
-                            BreakStartTime = new TimeOnly(12, 0, 0),
-                            DayOfWeek = 1,
-                            EndTime = new TimeOnly(17, 30, 0),
-                            IsWorkingDay = true,
-                            ShiftId = 1001,
-                            StartTime = new TimeOnly(8, 30, 0)
-                        },
-                        new
-                        {
-                            Id = 2002,
-                            BreakEndTime = new TimeOnly(13, 0, 0),
-                            BreakStartTime = new TimeOnly(12, 0, 0),
-                            DayOfWeek = 2,
-                            EndTime = new TimeOnly(17, 30, 0),
-                            IsWorkingDay = true,
-                            ShiftId = 1001,
-                            StartTime = new TimeOnly(8, 30, 0)
-                        },
-                        new
-                        {
-                            Id = 2003,
-                            BreakEndTime = new TimeOnly(13, 0, 0),
-                            BreakStartTime = new TimeOnly(12, 0, 0),
-                            DayOfWeek = 3,
-                            EndTime = new TimeOnly(17, 30, 0),
-                            IsWorkingDay = true,
-                            ShiftId = 1001,
-                            StartTime = new TimeOnly(8, 30, 0)
-                        },
-                        new
-                        {
-                            Id = 2004,
-                            BreakEndTime = new TimeOnly(13, 0, 0),
-                            BreakStartTime = new TimeOnly(12, 0, 0),
-                            DayOfWeek = 4,
-                            EndTime = new TimeOnly(17, 30, 0),
-                            IsWorkingDay = true,
-                            ShiftId = 1001,
-                            StartTime = new TimeOnly(8, 30, 0)
-                        },
-                        new
-                        {
-                            Id = 2005,
-                            BreakEndTime = new TimeOnly(13, 0, 0),
-                            BreakStartTime = new TimeOnly(12, 0, 0),
-                            DayOfWeek = 5,
-                            EndTime = new TimeOnly(17, 30, 0),
-                            IsWorkingDay = true,
-                            ShiftId = 1001,
-                            StartTime = new TimeOnly(8, 30, 0)
-                        },
-                        new
-                        {
-                            Id = 2006,
-                            DayOfWeek = 6,
-                            IsWorkingDay = false,
-                            ShiftId = 1001
-                        },
-                        new
-                        {
-                            Id = 2007,
-                            DayOfWeek = 0,
-                            IsWorkingDay = false,
-                            ShiftId = 1001
                         });
                 });
 
@@ -884,17 +529,6 @@ namespace HRIS.Api.Migrations
                         });
                 });
 
-            modelBuilder.Entity("HRIS.Api.Models.AttendanceLog", b =>
-                {
-                    b.HasOne("HRIS.Api.Models.Employee", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Employee");
-                });
-
             modelBuilder.Entity("HRIS.Api.Models.Employee", b =>
                 {
                     b.HasOne("HRIS.Api.Models.User", "User")
@@ -916,51 +550,6 @@ namespace HRIS.Api.Migrations
                     b.Navigation("Employee");
                 });
 
-            modelBuilder.Entity("HRIS.Api.Models.EmployeeShiftAssignment", b =>
-                {
-                    b.HasOne("HRIS.Api.Models.Employee", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("HRIS.Api.Models.Shift", "Shift")
-                        .WithMany()
-                        .HasForeignKey("ShiftId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Employee");
-
-                    b.Navigation("Shift");
-                });
-
-            modelBuilder.Entity("HRIS.Api.Models.OvertimeRequest", b =>
-                {
-                    b.HasOne("HRIS.Api.Models.AttendanceLog", "AttendanceLog")
-                        .WithMany()
-                        .HasForeignKey("AttendanceLogId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("HRIS.Api.Models.Employee", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("HRIS.Api.Models.User", "ReviewedByUser")
-                        .WithMany()
-                        .HasForeignKey("ReviewedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("AttendanceLog");
-
-                    b.Navigation("Employee");
-
-                    b.Navigation("ReviewedByUser");
-                });
-
             modelBuilder.Entity("HRIS.Api.Models.Permission", b =>
                 {
                     b.HasOne("HRIS.Api.Models.Role", "Role")
@@ -970,17 +559,6 @@ namespace HRIS.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Role");
-                });
-
-            modelBuilder.Entity("HRIS.Api.Models.ShiftDay", b =>
-                {
-                    b.HasOne("HRIS.Api.Models.Shift", "Shift")
-                        .WithMany("ShiftDays")
-                        .HasForeignKey("ShiftId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Shift");
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.User", b =>
@@ -1002,11 +580,6 @@ namespace HRIS.Api.Migrations
             modelBuilder.Entity("HRIS.Api.Models.Role", b =>
                 {
                     b.Navigation("Users");
-                });
-
-            modelBuilder.Entity("HRIS.Api.Models.Shift", b =>
-                {
-                    b.Navigation("ShiftDays");
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.User", b =>

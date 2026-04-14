@@ -4,6 +4,7 @@ using HRIS.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRIS.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260412105232_Add_ShiftDay_Table")]
+    partial class Add_ShiftDay_Table
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -120,9 +123,6 @@ namespace HRIS.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(0);
-
-                    b.Property<int>("RenderedMinutes")
-                        .HasColumnType("int");
 
                     b.Property<TimeOnly?>("TimeIn")
                         .HasColumnType("time(6)");
@@ -655,19 +655,6 @@ namespace HRIS.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("shifts", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1001,
-                            Code = "STD-0830-1730",
-                            CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Description = "Default weekday office shift",
-                            IsActive = true,
-                            IsFlexible = false,
-                            LateGraceMinutes = 5,
-                            Name = "Standard Office Shift"
-                        });
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.ShiftDay", b =>
@@ -705,77 +692,6 @@ namespace HRIS.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("shift_days", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 2001,
-                            BreakEndTime = new TimeOnly(13, 0, 0),
-                            BreakStartTime = new TimeOnly(12, 0, 0),
-                            DayOfWeek = 1,
-                            EndTime = new TimeOnly(17, 30, 0),
-                            IsWorkingDay = true,
-                            ShiftId = 1001,
-                            StartTime = new TimeOnly(8, 30, 0)
-                        },
-                        new
-                        {
-                            Id = 2002,
-                            BreakEndTime = new TimeOnly(13, 0, 0),
-                            BreakStartTime = new TimeOnly(12, 0, 0),
-                            DayOfWeek = 2,
-                            EndTime = new TimeOnly(17, 30, 0),
-                            IsWorkingDay = true,
-                            ShiftId = 1001,
-                            StartTime = new TimeOnly(8, 30, 0)
-                        },
-                        new
-                        {
-                            Id = 2003,
-                            BreakEndTime = new TimeOnly(13, 0, 0),
-                            BreakStartTime = new TimeOnly(12, 0, 0),
-                            DayOfWeek = 3,
-                            EndTime = new TimeOnly(17, 30, 0),
-                            IsWorkingDay = true,
-                            ShiftId = 1001,
-                            StartTime = new TimeOnly(8, 30, 0)
-                        },
-                        new
-                        {
-                            Id = 2004,
-                            BreakEndTime = new TimeOnly(13, 0, 0),
-                            BreakStartTime = new TimeOnly(12, 0, 0),
-                            DayOfWeek = 4,
-                            EndTime = new TimeOnly(17, 30, 0),
-                            IsWorkingDay = true,
-                            ShiftId = 1001,
-                            StartTime = new TimeOnly(8, 30, 0)
-                        },
-                        new
-                        {
-                            Id = 2005,
-                            BreakEndTime = new TimeOnly(13, 0, 0),
-                            BreakStartTime = new TimeOnly(12, 0, 0),
-                            DayOfWeek = 5,
-                            EndTime = new TimeOnly(17, 30, 0),
-                            IsWorkingDay = true,
-                            ShiftId = 1001,
-                            StartTime = new TimeOnly(8, 30, 0)
-                        },
-                        new
-                        {
-                            Id = 2006,
-                            DayOfWeek = 6,
-                            IsWorkingDay = false,
-                            ShiftId = 1001
-                        },
-                        new
-                        {
-                            Id = 2007,
-                            DayOfWeek = 0,
-                            IsWorkingDay = false,
-                            ShiftId = 1001
-                        });
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.User", b =>

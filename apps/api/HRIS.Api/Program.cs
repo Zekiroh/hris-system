@@ -1,11 +1,13 @@
+using System.Text;
 using HRIS.Api.Data;
+using HRIS.Api.Features.Attendance.Services;
 using HRIS.Api.Features.Employees.Services;
 using HRIS.Api.Features.IAM.Services;
+using HRIS.Api.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,7 +38,11 @@ builder.Services.AddSwaggerGen(o =>
         {
             new OpenApiSecurityScheme
             {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
             },
             Array.Empty<string>()
         }
@@ -85,7 +91,21 @@ builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddScoped<EmployeesService>();
 
+// =====================
+// Attendance Services
+// =====================
+
+builder.Services.AddScoped<IShiftsService, ShiftsService>();
+builder.Services.AddScoped<IShiftAssignmentsService, ShiftAssignmentsService>();
+builder.Services.AddScoped<IAttendanceLogsService, AttendanceLogsService>();
+
+// Overtime Request
+builder.Services.AddScoped<OvertimeRequestService>();
+
+// =====================
 // JWT Auth (locked)
+// =====================
+
 var jwtKey = builder.Configuration["Jwt:Key"];
 if (string.IsNullOrWhiteSpace(jwtKey))
     throw new InvalidOperationException("Jwt:Key is missing. Set it via user-secrets.");
@@ -94,20 +114,17 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.RequireHttpsMetadata = false; // local dev
+        options.RequireHttpsMetadata = false;
         options.SaveToken = true;
 
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-
             ValidateIssuer = false,
             ValidateAudience = false,
-
             RequireExpirationTime = true,
             ValidateLifetime = true,
-
             ClockSkew = TimeSpan.Zero
         };
     });
@@ -130,6 +147,8 @@ if (app.Environment.IsDevelopment())
 // app.UseHttpsRedirection();
 
 app.UseCors("ClientCors");
+
+app.UseMiddleware<ExceptionMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
