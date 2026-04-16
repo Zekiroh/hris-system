@@ -7,17 +7,15 @@ public class OvertimeRequest
     public int Id { get; set; }
 
     [Required]
-    public int AttendanceLogId { get; set; }
-
-    public AttendanceLog AttendanceLog { get; set; } = null!;
-
-    [Required]
     public Guid EmployeeId { get; set; }
 
     public Employee Employee { get; set; } = null!;
 
     [Required]
-    public int RequestedMinutes { get; set; }
+    public DateOnly DateFrom { get; set; }
+
+    [Required]
+    public DateOnly DateTo { get; set; }
 
     [MaxLength(500)]
     public string? Reason { get; set; }
@@ -38,4 +36,6 @@ public class OvertimeRequest
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAtUtc { get; set; }
+
+    public ICollection<OvertimeRequestItem> Items { get; set; } = new List<OvertimeRequestItem>();
 }

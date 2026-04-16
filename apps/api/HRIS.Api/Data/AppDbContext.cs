@@ -19,7 +19,10 @@ public class AppDbContext : DbContext
 
     public DbSet<EmployeeShiftAssignment> EmployeeShiftAssignments => Set<EmployeeShiftAssignment>();
     public DbSet<AttendanceLog> AttendanceLogs => Set<AttendanceLog>();
+
     public DbSet<OvertimeRequest> OvertimeRequests => Set<OvertimeRequest>();
+
+    public DbSet<OvertimeRequestItem> OvertimeRequestItems => Set<OvertimeRequestItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -286,14 +286,14 @@ public class AttendanceLogsService : IAttendanceLogsService
 
         var overtimeRequests = _context.OvertimeRequests
             .AsNoTracking()
-            .Include(x => x.AttendanceLog)
+            .Include(x => x.Items)
             .AsQueryable();
 
         if (query.DateFrom.HasValue)
-            overtimeRequests = overtimeRequests.Where(x => x.AttendanceLog.Date >= query.DateFrom.Value);
+            overtimeRequests = overtimeRequests.Where(x => x.DateTo >= query.DateFrom.Value);
 
         if (query.DateTo.HasValue)
-            overtimeRequests = overtimeRequests.Where(x => x.AttendanceLog.Date <= query.DateTo.Value);
+            overtimeRequests = overtimeRequests.Where(x => x.DateFrom <= query.DateTo.Value);
 
         if (query.EmployeeId.HasValue)
             overtimeRequests = overtimeRequests.Where(x => x.EmployeeId == query.EmployeeId.Value);

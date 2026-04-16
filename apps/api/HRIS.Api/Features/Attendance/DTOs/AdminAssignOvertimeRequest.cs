@@ -2,8 +2,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace HRIS.Api.Features.Attendance.DTOs;
 
-public class SubmitOvertimeRequest
+public class AdminAssignOvertimeRequest
 {
+    [Required]
+    public Guid EmployeeId { get; set; }
+
     [Required]
     public DateOnly DateFrom { get; set; }
 

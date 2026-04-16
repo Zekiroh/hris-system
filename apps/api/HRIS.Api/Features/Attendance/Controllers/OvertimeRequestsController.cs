@@ -52,7 +52,7 @@ public class OvertimeRequestsController : ControllerBase
 
     [HttpPost("admin-assign")]
     [PermissionAuthorize("ATTENDANCE", "Update")]
-    public async Task<IActionResult> AdminAssign([FromBody] SubmitOvertimeRequest request)
+    public async Task<IActionResult> AdminAssign([FromBody] AdminAssignOvertimeRequest request)
     {
         var userId = GetUserId();
 

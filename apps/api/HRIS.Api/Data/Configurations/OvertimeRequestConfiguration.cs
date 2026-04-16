@@ -12,16 +12,21 @@ public class OvertimeRequestConfiguration : IEntityTypeConfiguration<OvertimeReq
 
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.RequestedMinutes)
+        builder.Property(x => x.EmployeeId)
             .IsRequired();
 
-        builder.Property(x => x.Status)
-            .IsRequired()
-            .HasMaxLength(20)
-            .HasDefaultValue("Pending");
+        builder.Property(x => x.DateFrom)
+            .IsRequired();
+
+        builder.Property(x => x.DateTo)
+            .IsRequired();
 
         builder.Property(x => x.Reason)
             .HasMaxLength(500);
+
+        builder.Property(x => x.Status)
+            .IsRequired()
+            .HasMaxLength(20);
 
         builder.Property(x => x.ReviewRemarks)
             .HasMaxLength(500);
@@ -29,10 +34,9 @@ public class OvertimeRequestConfiguration : IEntityTypeConfiguration<OvertimeReq
         builder.Property(x => x.CreatedAtUtc)
             .IsRequired();
 
-        builder.HasOne(x => x.AttendanceLog)
-            .WithMany()
-            .HasForeignKey(x => x.AttendanceLogId)
-            .OnDelete(DeleteBehavior.Cascade);
+        builder.Property(x => x.UpdatedAtUtc);
+
+        builder.Property(x => x.ReviewedAtUtc);
 
         builder.HasOne(x => x.Employee)
             .WithMany()
@@ -44,7 +48,15 @@ public class OvertimeRequestConfiguration : IEntityTypeConfiguration<OvertimeReq
             .HasForeignKey(x => x.ReviewedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasIndex(x => x.AttendanceLogId)
-            .IsUnique();
+        builder.HasMany(x => x.Items)
+            .WithOne(x => x.OvertimeRequest)
+            .HasForeignKey(x => x.OvertimeRequestId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(x => x.EmployeeId);
+
+        builder.HasIndex(x => x.Status);
+
+        builder.HasIndex(x => new { x.EmployeeId, x.DateFrom, x.DateTo });
     }
 }
