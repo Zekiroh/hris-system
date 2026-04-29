@@ -1,6 +1,5 @@
 using HRIS.Api.Features.Attendance.DTOs;
 using HRIS.Api.Features.Attendance.Services;
-using HRIS.Api.Features.IAM.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,6 +7,7 @@ namespace HRIS.Api.Features.Attendance.Controllers;
 
 [ApiController]
 [Route("attendance/logs")]
+[Authorize]
 public class AttendanceLogsController : ControllerBase
 {
     private readonly IAttendanceLogsService _service;
@@ -18,57 +18,73 @@ public class AttendanceLogsController : ControllerBase
     }
 
     [HttpPost("time-in")]
-    [Authorize(Roles = "USER")]
-    public async Task<IActionResult> TimeIn(CancellationToken ct)
+    public async Task<ActionResult<AttendanceLogDto>> TimeIn(
+        [FromBody] TimeInRequest request,
+        CancellationToken ct)
     {
-        var result = await _service.TimeInAsync(User, ct);
+        var result = await _service.TimeInAsync(User, request, ct);
         return Ok(result);
     }
 
     [HttpPost("time-out")]
-    [Authorize(Roles = "USER")]
-    public async Task<IActionResult> TimeOut(CancellationToken ct)
+    public async Task<ActionResult<AttendanceLogDto>> TimeOut(
+        [FromBody] TimeOutRequest request,
+        CancellationToken ct)
     {
-        var result = await _service.TimeOutAsync(User, ct);
+        var result = await _service.TimeOutAsync(User, request, ct);
         return Ok(result);
     }
 
-    [HttpGet]
-    [Authorize]
-    [PermissionAuthorize("ATTENDANCE", "View")]
-    public async Task<IActionResult> GetLogs([FromQuery] GetAttendanceLogsQuery query, CancellationToken ct)
+    [HttpGet("me")]
+    public async Task<ActionResult<PagedAttendanceLogsResponse>> GetMyLogs(
+        [FromQuery] GetAttendanceLogsQuery query,
+        CancellationToken ct)
     {
-        var result = await _service.GetLogsAsync(query, ct);
+        var result = await _service.GetMyLogsAsync(User, query, ct);
+        return Ok(result);
+    }
+
+    [HttpGet("me/today")]
+    public async Task<ActionResult<AttendanceLogDto?>> GetToday(CancellationToken ct)
+    {
+        var result = await _service.GetTodayMyLogAsync(User, ct);
         return Ok(result);
     }
 
     [HttpGet("monitoring")]
-    [Authorize]
-    [PermissionAuthorize("ATTENDANCE", "View")]
-    public async Task<IActionResult> GetMonitoring([FromQuery] GetAttendanceLogsQuery query, CancellationToken ct)
+    public async Task<ActionResult<PagedAttendanceLogsResponse>> GetMonitoring(
+        [FromQuery] GetAttendanceLogsQuery query,
+        CancellationToken ct)
     {
         var result = await _service.GetMonitoringAsync(query, ct);
         return Ok(result);
     }
 
     [HttpGet("summary")]
-    [Authorize]
-    [PermissionAuthorize("ATTENDANCE", "View")]
-    public async Task<IActionResult> GetSummary([FromQuery] GetAttendanceLogsQuery query, CancellationToken ct)
+    public async Task<ActionResult<AttendanceSummaryDto>> GetSummary(
+        [FromQuery] GetAttendanceLogsQuery query,
+        CancellationToken ct)
     {
         var result = await _service.GetSummaryAsync(query, ct);
         return Ok(result);
     }
 
     [HttpGet("export")]
-    [Authorize]
-    [PermissionAuthorize("ATTENDANCE", "View")]
-    public async Task<IActionResult> Export([FromQuery] GetAttendanceLogsQuery query, CancellationToken ct)
+    public async Task<IActionResult> Export(
+        [FromQuery] GetAttendanceLogsQuery query,
+        CancellationToken ct)
     {
-        var bytes = await _service.ExportCsvAsync(query, ct);
+        var file = await _service.ExportCsvAsync(query, ct);
+        return File(file, "text/csv", "attendance.csv");
+    }
 
-        var fileName = $"attendance-logs-{DateTime.UtcNow:yyyyMMddHHmmss}.csv";
-
-        return File(bytes, "text/csv", fileName);
+    [HttpPut("{id:long}")]
+    public async Task<ActionResult<AttendanceLogDto>> Update(
+        long id,
+        [FromBody] UpdateAttendanceLogRequest request,
+        CancellationToken ct)
+    {
+        var result = await _service.UpdateAsync(id, request, ct);
+        return Ok(result);
     }
 }

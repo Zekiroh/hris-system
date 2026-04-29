@@ -15,6 +15,14 @@ public class AttendanceLogConfiguration : IEntityTypeConfiguration<AttendanceLog
         builder.Property(x => x.Date)
             .IsRequired();
 
+        builder.Property(x => x.Task)
+            .HasMaxLength(1000)
+            .IsRequired(false);
+
+        builder.Property(x => x.Accomplished)
+            .HasMaxLength(1000)
+            .IsRequired(false);
+
         builder.Property(x => x.LateMinutes)
             .HasDefaultValue(0);
 

@@ -17,7 +17,9 @@ public class ShiftsService : IShiftsService
 
     public async Task<PagedShiftsResponse> GetShiftsAsync(GetShiftQuery query, CancellationToken ct)
     {
-        var dbQuery = _context.Shifts.AsQueryable();
+        var dbQuery = _context.Shifts
+            .Include(x => x.ShiftDays)
+            .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
@@ -37,9 +39,21 @@ public class ShiftsService : IShiftsService
             .Take(query.PageSize)
             .ToListAsync(ct);
 
+        var shiftIds = items.Select(x => x.Id).ToList();
+
+        var assignedCounts = await _context.EmployeeShiftAssignments
+            .Where(x => x.IsActive && shiftIds.Contains(x.ShiftId))
+            .GroupBy(x => x.ShiftId)
+            .Select(g => new
+            {
+                ShiftId = g.Key,
+                Count = g.Count()
+            })
+            .ToDictionaryAsync(x => x.ShiftId, x => x.Count, ct);
+
         return new PagedShiftsResponse
         {
-            Items = items.Select(MapToDto).ToList(),
+            Items = items.Select(x => MapToDto(x, assignedCounts.GetValueOrDefault(x.Id))).ToList(),
             Page = query.Page,
             PageSize = query.PageSize,
             TotalCount = totalCount,
@@ -49,8 +63,16 @@ public class ShiftsService : IShiftsService
 
     public async Task<ShiftDto?> GetByIdAsync(int id, CancellationToken ct)
     {
-        var shift = await _context.Shifts.FindAsync(new object[] { id }, ct);
-        return shift == null ? null : MapToDto(shift);
+        var shift = await _context.Shifts
+            .Include(x => x.ShiftDays)
+            .FirstOrDefaultAsync(x => x.Id == id, ct);
+
+        if (shift == null) return null;
+
+        var assignedCount = await _context.EmployeeShiftAssignments
+            .CountAsync(x => x.ShiftId == shift.Id && x.IsActive, ct);
+
+        return MapToDto(shift, assignedCount);
     }
 
     public async Task<ShiftDto> CreateAsync(CreateShiftRequest request, CancellationToken ct)
@@ -72,12 +94,15 @@ public class ShiftsService : IShiftsService
         _context.Shifts.Add(shift);
         await _context.SaveChangesAsync(ct);
 
-        return MapToDto(shift);
+        return MapToDto(shift, 0);
     }
 
     public async Task<ShiftDto?> UpdateAsync(int id, UpdateShiftRequest request, CancellationToken ct)
     {
-        var shift = await _context.Shifts.FindAsync(new object[] { id }, ct);
+        var shift = await _context.Shifts
+            .Include(x => x.ShiftDays)
+            .FirstOrDefaultAsync(x => x.Id == id, ct);
+
         if (shift == null) return null;
 
         if (await _context.Shifts.AnyAsync(x => x.Code == request.Code && x.Id != id, ct))
@@ -92,7 +117,10 @@ public class ShiftsService : IShiftsService
 
         await _context.SaveChangesAsync(ct);
 
-        return MapToDto(shift);
+        var assignedCount = await _context.EmployeeShiftAssignments
+            .CountAsync(x => x.ShiftId == shift.Id && x.IsActive, ct);
+
+        return MapToDto(shift, assignedCount);
     }
 
     public async Task<bool> UpdateStatusAsync(int id, UpdateShiftStatusRequest request, CancellationToken ct)
@@ -108,7 +136,7 @@ public class ShiftsService : IShiftsService
         return true;
     }
 
-    private static ShiftDto MapToDto(Shift x) => new()
+    private static ShiftDto MapToDto(Shift x, int assignedCount) => new()
     {
         Id = x.Id,
         Code = x.Code,
@@ -117,7 +145,21 @@ public class ShiftsService : IShiftsService
         LateGraceMinutes = x.LateGraceMinutes,
         IsFlexible = x.IsFlexible,
         IsActive = x.IsActive,
+        AssignedCount = assignedCount,
         CreatedAtUtc = x.CreatedAtUtc,
-        UpdatedAtUtc = x.UpdatedAtUtc
+        UpdatedAtUtc = x.UpdatedAtUtc,
+        Days = x.ShiftDays
+            .OrderBy(d => d.DayOfWeek)
+            .Select(d => new ShiftDayDto
+            {
+                Id = d.Id,
+                DayOfWeek = d.DayOfWeek,
+                IsWorkingDay = d.IsWorkingDay,
+                StartTime = d.StartTime,
+                BreakStartTime = d.BreakStartTime,
+                BreakEndTime = d.BreakEndTime,
+                EndTime = d.EndTime
+            })
+            .ToList()
     };
 }

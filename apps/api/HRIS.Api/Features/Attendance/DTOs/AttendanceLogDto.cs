@@ -2,11 +2,12 @@ namespace HRIS.Api.Features.Attendance.DTOs;
 
 public class AttendanceLogDto
 {
-    public int Id { get; set; }
-
+    public long Id { get; set; }
     public Guid EmployeeId { get; set; }
-    public string EmployeeNumber { get; set; } = null!;
-    public string EmployeeName { get; set; } = null!;
+
+    public string EmployeeNumber { get; set; } = string.Empty;
+    public string EmployeeName { get; set; } = string.Empty;
+    public string? EmployeeSuffix { get; set; }
 
     public DateOnly Date { get; set; }
 
@@ -16,7 +17,20 @@ public class AttendanceLogDto
     public int LateMinutes { get; set; }
     public int UndertimeMinutes { get; set; }
     public int OvertimeMinutes { get; set; }
+
+    public string OvertimeStatus { get; set; } = "None";
+
     public int RenderedMinutes { get; set; }
 
     public bool IsPresent { get; set; }
+
+    public string? Task { get; set; }
+    public string? Accomplished { get; set; }
+
+    public bool IsWorkingDay { get; set; }
+    public bool CanTimeIn { get; set; }
+    public string? BlockReason { get; set; }
+
+    public bool IsHoliday { get; set; }
+    public string? HolidayName { get; set; }
 }

@@ -18,6 +18,10 @@ public class AttendanceLog
 
     public TimeOnly? TimeOut { get; set; }
 
+    public string? Task { get; set; }
+
+    public string? Accomplished { get; set; }
+
     public int LateMinutes { get; set; } = 0;
 
     public int UndertimeMinutes { get; set; } = 0;

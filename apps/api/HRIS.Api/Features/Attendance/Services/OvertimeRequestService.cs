@@ -13,6 +13,7 @@ public class OvertimeRequestService
 
     private const int MaxEmployeeOtMinutes = 180;
     private const int MaxAdminOtMinutes = 600;
+    private const int MaxEmployeeRequestDays = 5;
     private static readonly TimeZoneInfo ManilaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila");
 
     public OvertimeRequestService(AppDbContext context)
@@ -50,14 +51,10 @@ public class OvertimeRequestService
         }
 
         if (query.DateFrom.HasValue)
-        {
             overtimeQuery = overtimeQuery.Where(x => x.DateTo >= query.DateFrom.Value);
-        }
 
         if (query.DateTo.HasValue)
-        {
             overtimeQuery = overtimeQuery.Where(x => x.DateFrom <= query.DateTo.Value);
-        }
 
         var totalCount = await overtimeQuery.CountAsync();
 
@@ -74,7 +71,11 @@ public class OvertimeRequestService
                 LastName = x.Employee.LastName,
                 x.DateFrom,
                 x.DateTo,
-                RequestedMinutes = x.Items.Sum(i => i.RequestedMinutes),
+                RequestedMinutesPerDay = x.Items
+                    .OrderBy(i => i.Date)
+                    .Select(i => (int?)i.RequestedMinutes)
+                    .FirstOrDefault() ?? 0,
+                TotalRequestedMinutes = x.Items.Sum(i => (int?)i.RequestedMinutes) ?? 0,
                 x.Reason,
                 x.Status,
                 x.ReviewedByUserId,
@@ -92,11 +93,12 @@ public class OvertimeRequestService
             EmployeeId = x.EmployeeId,
             EmployeeNumber = x.EmployeeNumber,
             EmployeeName = BuildEmployeeName(x.FirstName, x.LastName),
-
-            // Transitional mapping while DTO is still v1-shaped.
             AttendanceDate = x.DateFrom,
-
-            RequestedMinutes = x.RequestedMinutes,
+            DateFrom = x.DateFrom,
+            DateTo = x.DateTo,
+            RequestedMinutes = x.TotalRequestedMinutes,
+            RequestedMinutesPerDay = x.RequestedMinutesPerDay,
+            TotalRequestedMinutes = x.TotalRequestedMinutes,
             Reason = x.Reason,
             Status = x.Status,
             ReviewedByUserId = x.ReviewedByUserId,
@@ -143,14 +145,10 @@ public class OvertimeRequestService
         }
 
         if (query.DateFrom.HasValue)
-        {
             overtimeQuery = overtimeQuery.Where(x => x.DateTo >= query.DateFrom.Value);
-        }
 
         if (query.DateTo.HasValue)
-        {
             overtimeQuery = overtimeQuery.Where(x => x.DateFrom <= query.DateTo.Value);
-        }
 
         var totalCount = await overtimeQuery.CountAsync();
 
@@ -167,7 +165,11 @@ public class OvertimeRequestService
                 LastName = x.Employee.LastName,
                 x.DateFrom,
                 x.DateTo,
-                RequestedMinutes = x.Items.Sum(i => i.RequestedMinutes),
+                RequestedMinutesPerDay = x.Items
+                    .OrderBy(i => i.Date)
+                    .Select(i => (int?)i.RequestedMinutes)
+                    .FirstOrDefault() ?? 0,
+                TotalRequestedMinutes = x.Items.Sum(i => (int?)i.RequestedMinutes) ?? 0,
                 x.Reason,
                 x.Status,
                 x.ReviewedByUserId,
@@ -185,11 +187,12 @@ public class OvertimeRequestService
             EmployeeId = x.EmployeeId,
             EmployeeNumber = x.EmployeeNumber,
             EmployeeName = BuildEmployeeName(x.FirstName, x.LastName),
-
-            // Transitional mapping while DTO is still v1-shaped.
             AttendanceDate = x.DateFrom,
-
-            RequestedMinutes = x.RequestedMinutes,
+            DateFrom = x.DateFrom,
+            DateTo = x.DateTo,
+            RequestedMinutes = x.TotalRequestedMinutes,
+            RequestedMinutesPerDay = x.RequestedMinutesPerDay,
+            TotalRequestedMinutes = x.TotalRequestedMinutes,
             Reason = x.Reason,
             Status = x.Status,
             ReviewedByUserId = x.ReviewedByUserId,
@@ -221,38 +224,32 @@ public class OvertimeRequestService
         ValidateEmployeeRequestedMinutes(request.RequestedMinutes);
 
         if (request.DateFrom > request.DateTo)
-        {
-            throw new ApiException(
-                "Date From cannot be later than Date To.",
-                StatusCodes.Status400BadRequest);
-        }
+            throw new ApiException("Date From cannot be later than Date To.", StatusCodes.Status400BadRequest);
+
+        var requestedDays = CountInclusiveDays(request.DateFrom, request.DateTo);
+
+        if (requestedDays > MaxEmployeeRequestDays)
+            throw new ApiException($"Overtime request cannot exceed {MaxEmployeeRequestDays} days.", StatusCodes.Status400BadRequest);
 
         var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, ManilaTimeZone);
         var today = DateOnly.FromDateTime(nowLocal);
         var nowTime = TimeOnly.FromDateTime(nowLocal);
 
-        var requestOpen = new TimeOnly(13, 0);
-        var requestClose = new TimeOnly(16, 30);
+        if (request.DateFrom < today)
+            throw new ApiException("Overtime request cannot be submitted for past dates.", StatusCodes.Status400BadRequest);
 
-        if (nowTime < requestOpen)
-        {
-            throw new ApiException(
-                "Overtime requests open at 1:00 PM.",
-                StatusCodes.Status400BadRequest);
-        }
+        var requestIncludesToday = request.DateFrom <= today && request.DateTo >= today;
 
-        if (nowTime > requestClose)
+        if (requestIncludesToday)
         {
-            throw new ApiException(
-                "Overtime requests are closed after 4:30 PM.",
-                StatusCodes.Status400BadRequest);
-        }
+            var requestOpen = new TimeOnly(13, 0);
+            var requestClose = new TimeOnly(16, 30);
 
-        if (request.DateFrom != today || request.DateTo != today)
-        {
-            throw new ApiException(
-                "Overtime request is currently allowed only for today.",
-                StatusCodes.Status400BadRequest);
+            if (nowTime < requestOpen)
+                throw new ApiException("Overtime requests for today open at 1:00 PM.", StatusCodes.Status400BadRequest);
+
+            if (nowTime > requestClose)
+                throw new ApiException("Overtime requests for today are closed after 4:30 PM.", StatusCodes.Status400BadRequest);
         }
 
         var attendance = await _context.AttendanceLogs
@@ -263,96 +260,68 @@ public class OvertimeRequestService
                 x.Date <= request.DateTo)
             .ToListAsync();
 
-        if (attendance.Count == 0)
-            throw new ApiException("No attendance records found for the selected date range.", StatusCodes.Status404NotFound);
-
         var attendanceByDate = attendance.ToDictionary(x => x.Date);
-
         var items = new List<OvertimeRequestItem>();
 
         for (var date = request.DateFrom; date <= request.DateTo; date = date.AddDays(1))
         {
-            if (!attendanceByDate.TryGetValue(date, out var attendanceLog))
-            {
-                throw new ApiException(
-                    $"Attendance record not found for {date:yyyy-MM-dd}.",
-                    StatusCodes.Status404NotFound);
-            }
-
             var shiftDay = await GetCurrentShiftDay(employee.Id, date);
 
             if (!shiftDay.IsWorkingDay)
-            {
-                throw new ApiException(
-                    $"Overtime request is not allowed on a non-working day ({date:yyyy-MM-dd}).",
-                    StatusCodes.Status400BadRequest);
-            }
+                continue;
 
             if (!shiftDay.EndTime.HasValue)
-            {
-                throw new ApiException(
-                    $"Shift end time is not configured for {date:yyyy-MM-dd}.",
-                    StatusCodes.Status400BadRequest);
-            }
+                throw new ApiException($"Shift end time is not configured for {date:yyyy-MM-dd}.", StatusCodes.Status400BadRequest);
+
+            var alreadyHasActiveOt = await _context.OvertimeRequests
+                .AsNoTracking()
+                .AnyAsync(x =>
+                    x.EmployeeId == employee.Id &&
+                    (x.Status == "Pending" || x.Status == "Approved") &&
+                    x.Items.Any(i => i.Date == date));
+
+            if (alreadyHasActiveOt)
+                throw new ApiException($"An overtime request already exists for {date:yyyy-MM-dd}.", StatusCodes.Status409Conflict);
 
             var shiftEnd = shiftDay.EndTime.Value;
-            var advanceWindowStart = shiftEnd.AddHours(-3);
-
-            var isAfterShiftWithRenderedOt = attendanceLog.OvertimeMinutes > 0;
-            var isWithinAdvanceWindow = nowTime >= advanceWindowStart && nowTime <= shiftEnd;
-
-            if (!isAfterShiftWithRenderedOt && !isWithinAdvanceWindow)
-            {
-                throw new ApiException(
-                    "Overtime request is only allowed within 3 hours before shift end or after overtime is rendered.",
-                    StatusCodes.Status400BadRequest);
-            }
-
-            if (isAfterShiftWithRenderedOt && request.RequestedMinutes > attendanceLog.OvertimeMinutes)
-            {
-                throw new ApiException(
-                    $"Requested minutes exceed computed overtime for {date:yyyy-MM-dd}.",
-                    StatusCodes.Status400BadRequest);
-            }
-
             var maxAllowedOtEnd = new TimeOnly(20, 30);
             var maxMinutesUntilCap = GetMaxMinutesUntilCap(shiftEnd, maxAllowedOtEnd);
 
             if (request.RequestedMinutes > maxMinutesUntilCap)
-            {
-                throw new ApiException(
-                    $"Requested overtime cannot go beyond 8:30 PM for {date:yyyy-MM-dd}.",
-                    StatusCodes.Status400BadRequest);
-            }
+                throw new ApiException($"Requested overtime cannot go beyond 8:30 PM for {date:yyyy-MM-dd}.", StatusCodes.Status400BadRequest);
 
-            var hasPendingForSameDate = await _context.OvertimeRequests
-                .AsNoTracking()
-                .AnyAsync(x =>
-                    x.EmployeeId == employee.Id &&
-                    x.Status == "Pending" &&
-                    x.Items.Any(i => i.Date == date));
+            attendanceByDate.TryGetValue(date, out var attendanceLog);
 
-            if (hasPendingForSameDate)
+            if (date == today && attendanceLog is not null)
             {
-                throw new ApiException(
-                    $"You already have a pending overtime request for {date:yyyy-MM-dd}.",
-                    StatusCodes.Status409Conflict);
+                var isAfterShiftWithRenderedOt = attendanceLog.OvertimeMinutes > 0;
+                var advanceWindowStart = shiftEnd.AddHours(-3);
+                var isWithinAdvanceWindow = nowTime >= advanceWindowStart && nowTime <= shiftEnd;
+
+                if (!isAfterShiftWithRenderedOt && !isWithinAdvanceWindow)
+                    throw new ApiException("Overtime request for today is only allowed within 3 hours before shift end or after overtime is rendered.", StatusCodes.Status400BadRequest);
+
+                if (isAfterShiftWithRenderedOt && request.RequestedMinutes > attendanceLog.OvertimeMinutes)
+                    throw new ApiException($"Requested minutes exceed computed overtime for {date:yyyy-MM-dd}.", StatusCodes.Status400BadRequest);
             }
 
             items.Add(new OvertimeRequestItem
             {
                 Date = date,
                 RequestedMinutes = request.RequestedMinutes,
-                AttendanceLogId = attendanceLog.Id,
+                AttendanceLogId = attendanceLog?.Id,
                 CreatedAtUtc = DateTime.UtcNow
             });
         }
 
+        if (!items.Any())
+            throw new ApiException("No valid working days found in the selected range.", StatusCodes.Status400BadRequest);
+
         var entity = new OvertimeRequest
         {
             EmployeeId = employee.Id,
-            DateFrom = request.DateFrom,
-            DateTo = request.DateTo,
+            DateFrom = items.Min(x => x.Date),
+            DateTo = items.Max(x => x.Date),
             Reason = request.Reason,
             Status = "Pending",
             CreatedAtUtc = DateTime.UtcNow,
@@ -368,11 +337,7 @@ public class OvertimeRequestService
         ValidateAdminRequestedMinutes(request.RequestedMinutes);
 
         if (request.DateFrom > request.DateTo)
-        {
-            throw new ApiException(
-                "Date From cannot be later than Date To.",
-                StatusCodes.Status400BadRequest);
-        }
+            throw new ApiException("Date From cannot be later than Date To.", StatusCodes.Status400BadRequest);
 
         var attendance = await _context.AttendanceLogs
             .AsNoTracking()
@@ -382,79 +347,56 @@ public class OvertimeRequestService
                 x.Date <= request.DateTo)
             .ToListAsync();
 
-        if (attendance.Count == 0)
-        {
-            throw new ApiException(
-                "No attendance records found for the selected date range.",
-                StatusCodes.Status404NotFound);
-        }
-
         var attendanceByDate = attendance.ToDictionary(x => x.Date);
-
         var items = new List<OvertimeRequestItem>();
 
         for (var date = request.DateFrom; date <= request.DateTo; date = date.AddDays(1))
         {
-            if (!attendanceByDate.TryGetValue(date, out var attendanceLog))
-            {
-                throw new ApiException(
-                    $"Attendance record not found for {date:yyyy-MM-dd}.",
-                    StatusCodes.Status404NotFound);
-            }
-
-            var exists = await _context.OvertimeRequests
-                .AsNoTracking()
-                .AnyAsync(x => x.Items.Any(i => i.AttendanceLogId == attendanceLog.Id));
-
-            if (exists)
-            {
-                throw new ApiException(
-                    $"Overtime already assigned/requested for {date:yyyy-MM-dd}.",
-                    StatusCodes.Status409Conflict);
-            }
-
             var shiftDay = await GetCurrentShiftDay(request.EmployeeId, date);
 
             if (!shiftDay.IsWorkingDay)
-            {
-                throw new ApiException(
-                    $"Cannot assign overtime on a non-working day ({date:yyyy-MM-dd}).",
-                    StatusCodes.Status400BadRequest);
-            }
+                continue;
 
             if (!shiftDay.EndTime.HasValue)
-            {
-                throw new ApiException(
-                    $"Shift end time is not configured for {date:yyyy-MM-dd}.",
-                    StatusCodes.Status400BadRequest);
-            }
+                throw new ApiException($"Shift end time is not configured for {date:yyyy-MM-dd}.", StatusCodes.Status400BadRequest);
+
+            var alreadyHasActiveOt = await _context.OvertimeRequests
+                .AsNoTracking()
+                .AnyAsync(x =>
+                    x.EmployeeId == request.EmployeeId &&
+                    (x.Status == "Pending" || x.Status == "Approved") &&
+                    x.Items.Any(i => i.Date == date));
+
+            if (alreadyHasActiveOt)
+                throw new ApiException($"Overtime already assigned/requested for {date:yyyy-MM-dd}.", StatusCodes.Status409Conflict);
 
             var shiftEnd = shiftDay.EndTime.Value;
             var maxAllowedOtEnd = new TimeOnly(20, 30);
             var maxMinutesUntilCap = GetMaxMinutesUntilCap(shiftEnd, maxAllowedOtEnd);
 
             if (request.RequestedMinutes > maxMinutesUntilCap)
-            {
-                throw new ApiException(
-                    $"Assigned overtime cannot go beyond 8:30 PM for {date:yyyy-MM-dd}.",
-                    StatusCodes.Status400BadRequest);
-            }
+                throw new ApiException($"Assigned overtime cannot go beyond 8:30 PM for {date:yyyy-MM-dd}.", StatusCodes.Status400BadRequest);
+
+            attendanceByDate.TryGetValue(date, out var attendanceLog);
 
             items.Add(new OvertimeRequestItem
             {
                 Date = date,
                 RequestedMinutes = request.RequestedMinutes,
-                AttendanceLogId = attendanceLog.Id,
+                AttendanceLogId = attendanceLog?.Id,
                 CreatedAtUtc = DateTime.UtcNow,
                 UpdatedAtUtc = DateTime.UtcNow
             });
         }
 
+        if (!items.Any())
+            throw new ApiException("No valid working days found in the selected range.", StatusCodes.Status400BadRequest);
+
         var entity = new OvertimeRequest
         {
             EmployeeId = request.EmployeeId,
-            DateFrom = request.DateFrom,
-            DateTo = request.DateTo,
+            DateFrom = items.Min(x => x.Date),
+            DateTo = items.Max(x => x.Date),
             Reason = request.Reason,
             Status = "Approved",
             ReviewedByUserId = adminUserId,
@@ -482,13 +424,12 @@ public class OvertimeRequestService
 
         if (!string.Equals(action, "Approve", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(action, "Reject", StringComparison.OrdinalIgnoreCase))
-        {
             throw new ApiException("Invalid action.", StatusCodes.Status400BadRequest);
-        }
 
         request.Status = string.Equals(action, "Approve", StringComparison.OrdinalIgnoreCase)
             ? "Approved"
             : "Rejected";
+
         request.ReviewedByUserId = reviewerUserId;
         request.ReviewedAtUtc = DateTime.UtcNow;
         request.ReviewRemarks = remarks;
@@ -533,24 +474,21 @@ public class OvertimeRequestService
         return (int)(capEnd - shiftEnd).TotalMinutes;
     }
 
+    private static int CountInclusiveDays(DateOnly dateFrom, DateOnly dateTo)
+    {
+        return dateTo.DayNumber - dateFrom.DayNumber + 1;
+    }
+
     private static void ValidateEmployeeRequestedMinutes(int requestedMinutes)
     {
         if (requestedMinutes <= 0 || requestedMinutes > MaxEmployeeOtMinutes)
-        {
-            throw new ApiException(
-                $"Requested minutes must be between 1 and {MaxEmployeeOtMinutes}.",
-                StatusCodes.Status400BadRequest);
-        }
+            throw new ApiException($"Requested minutes must be between 1 and {MaxEmployeeOtMinutes}.", StatusCodes.Status400BadRequest);
     }
 
     private static void ValidateAdminRequestedMinutes(int requestedMinutes)
     {
         if (requestedMinutes <= 0 || requestedMinutes > MaxAdminOtMinutes)
-        {
-            throw new ApiException(
-                $"Requested minutes must be between 1 and {MaxAdminOtMinutes}.",
-                StatusCodes.Status400BadRequest);
-        }
+            throw new ApiException($"Requested minutes must be between 1 and {MaxAdminOtMinutes}.", StatusCodes.Status400BadRequest);
     }
 
     private static string BuildEmployeeName(string? firstName, string? lastName)

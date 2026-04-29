@@ -10,7 +10,14 @@ public class OvertimeRequestDto
 
     public DateOnly AttendanceDate { get; set; }
 
+    public DateOnly DateFrom { get; set; }
+    public DateOnly DateTo { get; set; }
+
     public int RequestedMinutes { get; set; }
+
+    public int RequestedMinutesPerDay { get; set; }
+    public int TotalRequestedMinutes { get; set; }
+
     public string? Reason { get; set; }
 
     public string Status { get; set; } = null!;
