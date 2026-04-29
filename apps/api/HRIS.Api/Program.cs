@@ -97,6 +97,7 @@ builder.Services.AddScoped<EmployeesService>();
 
 builder.Services.AddScoped<IShiftsService, ShiftsService>();
 builder.Services.AddScoped<IShiftAssignmentsService, ShiftAssignmentsService>();
+builder.Services.AddScoped<IAttendanceHolidayProvider, AttendanceHolidayProvider>();
 builder.Services.AddScoped<IAttendanceLogsService, AttendanceLogsService>();
 
 // Overtime Request
