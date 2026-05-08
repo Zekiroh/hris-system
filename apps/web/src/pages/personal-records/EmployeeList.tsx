@@ -83,7 +83,7 @@ function parseEmploymentTypeParam(
 }
 
 const EmployeeList = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const employmentTypeFilter = useMemo(
     () => parseEmploymentTypeParam(searchParams.get("employmentType")),
@@ -124,6 +124,7 @@ const EmployeeList = () => {
   const [summary, setSummary] = useState<EmployeeSummary>(emptySummary());
 
   const employeeNumberRequestRef = useRef(0);
+  const profileViewRequestRef = useRef<string | null>(null);
 
   const isActiveQuery = useMemo(() => {
     if (filterStatus === "Active") return true;
@@ -595,6 +596,25 @@ const EmployeeList = () => {
       setDetailsLoading(false);
     }
   };
+
+
+  useEffect(() => {
+    const employeeId = searchParams.get("employeeId");
+    const shouldOpenView = searchParams.get("view") === "1";
+
+    if (!employeeId || !shouldOpenView) return;
+    if (profileViewRequestRef.current === employeeId) return;
+
+    profileViewRequestRef.current = employeeId;
+    void openView(employeeId);
+
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.delete("employeeId");
+      next.delete("view");
+      return next;
+    }, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const handleViewRow = async (row: EmployeeRow) => {
     if (detailsLoading || loading) return;
