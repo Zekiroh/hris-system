@@ -15,11 +15,21 @@ type OvertimeRequestModalProps = {
     errorMessage?: string | null;
     onClose: () => void;
     onSubmit: (payload: SubmitOvertimePayload) => void | Promise<void>;
+
+    isWorkingDay?: boolean;
+    breakEndTime?: string | null;
+    shiftEndTime?: string | null;
+};
+
+type FormState = {
+    dateFrom: string;
+    dateTo: string;
+    hoursPerDay: string;
+    reason: string;
 };
 
 const MAX_DAYS = 5;
-const REQUEST_OPEN_MINUTES = 13 * 60;
-const REQUEST_CLOSE_MINUTES = 16 * 60 + 30;
+const REQUEST_OPEN_BEFORE_SHIFT_END_MINUTES = 180;
 
 const HOUR_OPTIONS = [
     { label: '0.5 hour', value: '0.5' },
@@ -52,6 +62,69 @@ const getCurrentMinutes = () => {
     return now.getHours() * 60 + now.getMinutes();
 };
 
+const parseTimeToMinutes = (value?: string | null) => {
+    if (!value) return null;
+
+    const raw = value.trim();
+    if (!raw) return null;
+
+    const timeOnlyMatch = raw.match(/^(\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/);
+    if (!timeOnlyMatch) return null;
+
+    const hour = Number(timeOnlyMatch[1]);
+    const minute = Number(timeOnlyMatch[2]);
+
+    if (
+        Number.isNaN(hour) ||
+        Number.isNaN(minute) ||
+        hour < 0 ||
+        hour > 23 ||
+        minute < 0 ||
+        minute > 59
+    ) {
+        return null;
+    }
+
+    return hour * 60 + minute;
+};
+
+const formatMinutesToDisplayTime = (minutes: number) => {
+    const normalizedMinutes = ((minutes % 1440) + 1440) % 1440;
+    let hour = Math.floor(normalizedMinutes / 60);
+    const minute = normalizedMinutes % 60;
+    const modifier = hour >= 12 ? 'PM' : 'AM';
+
+    if (hour === 0) hour = 12;
+    else if (hour > 12) hour -= 12;
+
+    return `${hour}:${String(minute).padStart(2, '0')} ${modifier}`;
+};
+
+const isWithinTimeRange = (
+    currentMinutes: number,
+    openMinutes: number,
+    closeMinutes: number
+) => {
+    if (openMinutes === closeMinutes) return false;
+
+    if (openMinutes < closeMinutes) {
+        return currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
+    }
+
+    return currentMinutes >= openMinutes || currentMinutes <= closeMinutes;
+};
+
+const getDefaultFormState = (): FormState => {
+    const today = getTodayDateString();
+
+    return {
+        dateFrom: today,
+        dateTo: today,
+        hoursPerDay: '3',
+        reason: '',
+    };
+};
+
 const getDateRangeDays = (dateFrom: string, dateTo: string) => {
     if (!dateFrom || !dateTo) return 0;
 
@@ -65,25 +138,65 @@ const getDateRangeDays = (dateFrom: string, dateTo: string) => {
     return Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
 };
 
+const formatTotalHours = (hours: number) => {
+    if (!Number.isFinite(hours) || hours <= 0) return '0 hrs';
+
+    return Number.isInteger(hours) ? `${hours} hrs` : `${hours.toFixed(1)} hrs`;
+};
+
 const OvertimeRequestModal = ({
     isOpen,
     submittingOt,
     errorMessage,
     onClose,
     onSubmit,
+    isWorkingDay = true,
+    breakEndTime,
+    shiftEndTime,
 }: OvertimeRequestModalProps) => {
-    const [dateFrom, setDateFrom] = useState('');
-    const [dateTo, setDateTo] = useState('');
-    const [hoursPerDay, setHoursPerDay] = useState('');
-    const [reason, setReason] = useState('');
+    const [form, setForm] = useState<FormState>(() => getDefaultFormState());
+    const [wasOpen, setWasOpen] = useState(isOpen);
+
+    if (isOpen && !wasOpen) {
+        setWasOpen(true);
+        setForm(getDefaultFormState());
+    }
+
+    if (!isOpen && wasOpen) {
+        setWasOpen(false);
+    }
+
+    const { dateFrom, dateTo, hoursPerDay, reason } = form;
 
     const today = getTodayDateString();
     const tomorrow = getTomorrowDateString();
     const currentMinutes = getCurrentMinutes();
 
+    const dynamicOpenMinutes = parseTimeToMinutes(breakEndTime);
+    const dynamicShiftEndMinutes = parseTimeToMinutes(shiftEndTime);
+
+    const requestOpenMinutes =
+        dynamicOpenMinutes ??
+        (dynamicShiftEndMinutes !== null
+            ? dynamicShiftEndMinutes - REQUEST_OPEN_BEFORE_SHIFT_END_MINUTES
+            : null);
+
+    const requestCloseMinutes = dynamicShiftEndMinutes ?? null;
+
+    const hasRequestWindow =
+        requestOpenMinutes !== null && requestCloseMinutes !== null;
+
+    const requestOpenTime = hasRequestWindow
+        ? formatMinutesToDisplayTime(requestOpenMinutes)
+        : null;
+    const requestCloseTime = hasRequestWindow
+        ? formatMinutesToDisplayTime(requestCloseMinutes)
+        : null;
+
     const isWithinCurrentDayWindow =
-        currentMinutes >= REQUEST_OPEN_MINUTES &&
-        currentMinutes <= REQUEST_CLOSE_MINUTES;
+        isWorkingDay &&
+        hasRequestWindow &&
+        isWithinTimeRange(currentMinutes, requestOpenMinutes, requestCloseMinutes);
 
     const effectiveDateFrom = useMemo(() => {
         if (!dateFrom || !dateTo) return dateFrom;
@@ -104,6 +217,7 @@ const OvertimeRequestModal = ({
 
     const totalHours = useMemo(() => {
         const hours = Number(hoursPerDay || 0);
+
         return totalDays > 0 ? totalDays * hours : 0;
     }, [totalDays, hoursPerDay]);
 
@@ -112,12 +226,28 @@ const OvertimeRequestModal = ({
 
         const includesToday = dateFrom <= today && dateTo >= today;
 
+        if (includesToday && !isWorkingDay) {
+            return 'Today is not part of your assigned working schedule, so the request will start from the next valid date.';
+        }
+
+        if (includesToday && !hasRequestWindow) {
+            return 'Today has no complete shift window for overtime requests, so the request will start from the next valid date.';
+        }
+
         if (includesToday && !isWithinCurrentDayWindow && effectiveDateFrom !== dateFrom) {
-            return 'Today is outside the request window, so the request will start from the next valid date.';
+            return 'Today is outside your shift-based overtime request window, so the request will start from the next valid date.';
         }
 
         return null;
-    }, [dateFrom, dateTo, today, isWithinCurrentDayWindow, effectiveDateFrom]);
+    }, [
+        dateFrom,
+        dateTo,
+        today,
+        isWorkingDay,
+        hasRequestWindow,
+        isWithinCurrentDayWindow,
+        effectiveDateFrom,
+    ]);
 
     const validationMessage = useMemo(() => {
         if (!dateFrom || !dateTo) return null;
@@ -133,7 +263,7 @@ const OvertimeRequestModal = ({
         const originalRangeDays = getDateRangeDays(dateFrom, dateTo);
 
         if (originalRangeDays > MAX_DAYS) {
-            return 'Maximum overtime request range is 5 days.';
+            return `Maximum overtime request range is ${MAX_DAYS} days.`;
         }
 
         if (effectiveDateFrom > dateTo) {
@@ -162,6 +292,11 @@ const OvertimeRequestModal = ({
         !hoursPerDay ||
         !reason.trim();
 
+    const handleClose = () => {
+        if (submittingOt) return;
+        onClose();
+    };
+
     const handleSubmit = () => {
         if (isSubmitDisabled) return;
 
@@ -178,7 +313,7 @@ const OvertimeRequestModal = ({
     return createPortal(
         <div
             className="fixed inset-0 z-[2147483647] flex min-h-dvh items-center justify-center bg-[rgba(15,23,42,0.5)] p-4 backdrop-blur-[4px]"
-            onClick={submittingOt ? undefined : onClose}
+            onClick={handleClose}
         >
             <div
                 className="w-full max-w-md animate-fade-in-up overflow-hidden rounded-2xl bg-white shadow-xl"
@@ -191,7 +326,7 @@ const OvertimeRequestModal = ({
 
                     <button
                         type="button"
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="text-gray-400 transition-colors hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
                         disabled={submittingOt}
                     >
@@ -208,7 +343,19 @@ const OvertimeRequestModal = ({
                             <input
                                 type="date"
                                 value={dateFrom}
-                                onChange={(event) => setDateFrom(event.target.value)}
+                                min={today}
+                                onChange={(event) => {
+                                    const value = event.target.value;
+
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        dateFrom: value,
+                                        dateTo:
+                                            !prev.dateTo || prev.dateTo < value
+                                                ? value
+                                                : prev.dateTo,
+                                    }));
+                                }}
                                 className="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                 disabled={submittingOt}
                             />
@@ -221,7 +368,13 @@ const OvertimeRequestModal = ({
                             <input
                                 type="date"
                                 value={dateTo}
-                                onChange={(event) => setDateTo(event.target.value)}
+                                min={dateFrom || today}
+                                onChange={(event) =>
+                                    setForm((prev) => ({
+                                        ...prev,
+                                        dateTo: event.target.value,
+                                    }))
+                                }
                                 className="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                                 disabled={submittingOt}
                             />
@@ -234,7 +387,12 @@ const OvertimeRequestModal = ({
                         </label>
                         <select
                             value={hoursPerDay}
-                            onChange={(event) => setHoursPerDay(event.target.value)}
+                            onChange={(event) =>
+                                setForm((prev) => ({
+                                    ...prev,
+                                    hoursPerDay: event.target.value,
+                                }))
+                            }
                             className="w-full rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                             disabled={submittingOt}
                         >
@@ -248,8 +406,11 @@ const OvertimeRequestModal = ({
                     </div>
 
                     <p className="mt-2 text-xs font-medium text-slate-500">
-                        Current-day requests are accepted from 1:00 PM to 4:30 PM.
-                        Future dates may be requested anytime. Maximum range is 5 days.
+                        Current-day requests for your assigned shift are accepted
+                        {hasRequestWindow
+                            ? ` from ${requestOpenTime} to ${requestCloseTime}`
+                            : ' when your shift schedule has a complete time window'}
+                        . Future dates may be requested anytime. Maximum range is {MAX_DAYS} days.
                     </p>
 
                     {skipTodayMessage && (
@@ -263,7 +424,7 @@ const OvertimeRequestModal = ({
                             Total Overtime Calculated
                         </p>
                         <p className="font-mono text-3xl font-black text-blue-600">
-                            {totalHours.toFixed(1)} hrs
+                            {formatTotalHours(totalHours)}
                         </p>
                     </div>
 
@@ -273,7 +434,12 @@ const OvertimeRequestModal = ({
                         </label>
                         <textarea
                             value={reason}
-                            onChange={(event) => setReason(event.target.value)}
+                            onChange={(event) =>
+                                setForm((prev) => ({
+                                    ...prev,
+                                    reason: event.target.value,
+                                }))
+                            }
                             className="h-28 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm outline-none placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                             placeholder="Why do you need to work overtime?"
                             disabled={submittingOt}
@@ -290,7 +456,7 @@ const OvertimeRequestModal = ({
                 <div className="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
                     <button
                         type="button"
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="rounded-xl bg-gray-100 px-5 py-2.5 font-bold text-gray-600 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
                         disabled={submittingOt}
                     >

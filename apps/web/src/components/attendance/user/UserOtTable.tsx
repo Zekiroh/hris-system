@@ -1,3 +1,13 @@
+import {
+  AlertCircle,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  FileText,
+  Timer,
+  XCircle,
+} from 'lucide-react';
+
 type UserOvertimeRow = {
   id: number;
   date: string;
@@ -14,7 +24,7 @@ type Props = {
 const DEFAULT_PAGE_SIZE = 10;
 
 const formatDate = (value: string) => {
-  if (!value) return '--';
+  if (!value || value === '-' || value === '--' || value === '—') return '--';
 
   if (value.startsWith('0001-01-01')) return '--';
 
@@ -31,27 +41,37 @@ const formatDate = (value: string) => {
 const formatDuration = (value: string) => {
   if (!value || value === '-' || value === '--' || value === '—') return '--';
 
-  if (value.toLowerCase().includes('h') || value.toLowerCase().includes('m')) {
-    return value;
-  }
+  if (/[hm]/i.test(value)) return value;
 
   const num = Number(value);
   if (!isFinite(num) || num <= 0) return '--';
 
-  const minutes = Math.round(num * 60);
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
+  const totalMinutes = Math.round(num * 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
 
-  if (h === 0) return `m`;
-  if (m === 0) return `h`;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
 
-  return `h m`;
+  return `${h}h ${m}m`;
 };
 
 const getStatusClass = (status: string) => {
-  if (status === 'Approved') return 'badge-success';
-  if (status === 'Rejected') return 'badge-danger';
+  const normalized = status?.toLowerCase();
+
+  if (normalized === 'approved') return 'badge-success';
+  if (normalized === 'rejected') return 'badge-danger';
+
   return 'badge-warning';
+};
+
+const getStatusIcon = (status: string) => {
+  const normalized = status?.toLowerCase();
+
+  if (normalized === 'approved') return <CheckCircle2 className="h-3.5 w-3.5" />;
+  if (normalized === 'rejected') return <XCircle className="h-3.5 w-3.5" />;
+
+  return <AlertCircle className="h-3.5 w-3.5" />;
 };
 
 const createEmptyRow = (id: number): UserOvertimeRow => ({
@@ -83,9 +103,9 @@ const UserOtTable = ({ loadingOt, myOvertime }: Props) => {
         <table className="pro-table min-w-full">
           <thead>
             <tr>
-              <th>DATE</th>
-              <th>DURATION</th>
-              <th>REASON</th>
+              <th className="text-left">DATE</th>
+              <th className="text-left">DURATION</th>
+              <th className="text-left">REASON</th>
               <th>STATUS</th>
             </tr>
           </thead>
@@ -93,7 +113,10 @@ const UserOtTable = ({ loadingOt, myOvertime }: Props) => {
           <tbody>
             {loadingOt ? (
               <tr>
-                <td colSpan={4} className="px-6 py-10 text-center text-sm text-gray-500">
+                <td
+                  colSpan={4}
+                  className="px-6 py-10 text-center text-sm text-gray-500"
+                >
                   Loading overtime requests...
                 </td>
               </tr>
@@ -101,7 +124,10 @@ const UserOtTable = ({ loadingOt, myOvertime }: Props) => {
               <>
                 {!hasData && (
                   <tr>
-                    <td colSpan={4} className="text-center text-sm text-gray-500 h-[48px]">
+                    <td
+                      colSpan={4}
+                      className="h-[48px] text-center text-sm font-medium text-gray-600"
+                    >
                       No overtime requests yet.
                     </td>
                   </tr>
@@ -112,27 +138,73 @@ const UserOtTable = ({ loadingOt, myOvertime }: Props) => {
 
                   return (
                     <tr key={row.id}>
-                      <td className={`px-6 py-4 ${isPlaceholder ? 'text-gray-300' : ''}`}>
-                        {formatDate(row.date)}
+                      <td
+                        className={`px-6 py-4 ${
+                          isPlaceholder ? 'text-gray-300' : 'text-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <CalendarDays
+                            className={`h-4 w-4 shrink-0 ${
+                              isPlaceholder ? 'text-gray-300' : 'text-slate-400'
+                            }`}
+                          />
+                          <span className="font-medium">{formatDate(row.date)}</span>
+                        </div>
                       </td>
 
-                      <td className={`px-6 py-4 font-mono ${isPlaceholder ? 'text-gray-300' : ''}`}>
-                        {formatDuration(row.duration)}
+                      <td
+                        className={`px-6 py-4 font-mono ${
+                          isPlaceholder ? 'text-gray-300' : 'text-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
+                              isPlaceholder
+                                ? 'bg-gray-50 text-gray-300'
+                                : 'bg-blue-50 text-blue-600'
+                            }`}
+                          >
+                            <Timer className="h-4 w-4" />
+                          </span>
+                          <span className="font-bold">
+                            {formatDuration(row.duration)}
+                          </span>
+                        </div>
                       </td>
 
-                      <td className={`px-6 py-4 truncate ${isPlaceholder ? 'text-gray-300' : ''}`}>
-                        {row.reason || '--'}
+                      <td
+                        className={`px-6 py-4 ${
+                          isPlaceholder ? 'text-gray-300' : 'text-slate-600'
+                        }`}
+                      >
+                        <div className="flex max-w-[420px] items-center gap-2">
+                          <FileText
+                            className={`h-4 w-4 shrink-0 ${
+                              isPlaceholder ? 'text-gray-300' : 'text-slate-400'
+                            }`}
+                          />
+                          <span className="truncate font-medium">
+                            {row.reason || '--'}
+                          </span>
+                        </div>
                       </td>
 
                       <td className="px-6 py-4">
-                        {isPlaceholder ? (
-                          <span className="text-gray-300">--</span>
-                        ) : (
-                          <span className={`badge ${getStatusClass(row.status)}`}>
-                            <span className="badge-dot" />
-                            {row.status || 'Pending'}
-                          </span>
-                        )}
+                        <div className="flex justify-center">
+                          {isPlaceholder ? (
+                            <span className="inline-flex items-center gap-2 text-gray-300">
+                              <Clock3 className="h-4 w-4" />
+                              --
+                            </span>
+                          ) : (
+                            <span className={`badge ${getStatusClass(row.status)}`}>
+                              {getStatusIcon(row.status)}
+                              {row.status || 'Pending'}
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

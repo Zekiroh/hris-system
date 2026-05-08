@@ -9,6 +9,15 @@ type UseLiveTrackerOptions = {
     overtimeStartMinute: number;
 };
 
+type ShiftContext = {
+    shiftName?: string | null;
+    shiftStartTime?: string | null;
+    timeInOpenTime?: string | null;
+    breakStartTime?: string | null;
+    breakEndTime?: string | null;
+    shiftEndTime?: string | null;
+};
+
 type UseLiveTrackerReturn = {
     currentTime: Date;
     displayTime: Date;
@@ -16,6 +25,8 @@ type UseLiveTrackerReturn = {
     isBeforeStart: boolean;
     isBreakTime: boolean;
     isAfterRegularHours: boolean;
+    isNoShift: boolean;
+    trackerMessage: string;
 };
 
 const createTime = (hour: number, minute: number) => {
@@ -24,43 +35,132 @@ const createTime = (hour: number, minute: number) => {
     return d;
 };
 
-const useLiveTracker = ({
-    startAtHour,
-    startAtMinute,
-    stopAtHour,
-    stopAtMinute,
-    overtimeStartHour,
-    overtimeStartMinute,
-}: UseLiveTrackerOptions): UseLiveTrackerReturn => {
+const getMinutes = (date: Date) => date.getHours() * 60 + date.getMinutes();
+
+const toMinutes = (value?: string | null) => {
+    if (!value) return null;
+
+    const timeValue = value.slice(0, 5);
+    const [hourRaw, minuteRaw] = timeValue.split(':');
+
+    const hour = Number(hourRaw);
+    const minute = Number(minuteRaw);
+
+    if (
+        Number.isNaN(hour) ||
+        Number.isNaN(minute) ||
+        hour < 0 ||
+        hour > 23 ||
+        minute < 0 ||
+        minute > 59
+    ) {
+        return null;
+    }
+
+    return hour * 60 + minute;
+};
+
+const formatScheduleTime = (value?: string | null) => {
+    if (!value) return '--:--';
+
+    const minutes = toMinutes(value);
+    if (minutes === null) return '--:--';
+
+    const date = createTime(Math.floor(minutes / 60), minutes % 60);
+
+    return date.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+};
+
+const useLiveTracker = (
+    {
+        startAtHour,
+        startAtMinute,
+        stopAtHour,
+        stopAtMinute,
+        overtimeStartHour,
+        overtimeStartMinute,
+    }: UseLiveTrackerOptions,
+    shift?: ShiftContext | null
+): UseLiveTrackerReturn => {
     const [currentTime, setCurrentTime] = useState(new Date());
     const [displayTime, setDisplayTime] = useState(new Date());
 
-    // kept for compatibility with existing props/UI usage
     const frozenTimeOut = null;
 
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    const startTime = useMemo(
+    const fallbackStartTime = useMemo(
         () => createTime(startAtHour, startAtMinute),
         [startAtHour, startAtMinute]
     );
 
-    const breakStart = useMemo(() => createTime(12, 0), []);
-    const breakEnd = useMemo(() => createTime(13, 0), []);
-
-    const overtimeStart = useMemo(
+    const fallbackOvertimeStart = useMemo(
         () => createTime(overtimeStartHour, overtimeStartMinute),
         [overtimeStartHour, overtimeStartMinute]
     );
 
-    // kept intentionally because the hook signature still accepts it
-    // and we may use it later for a safety cap rule
-    void stopAtHour;
-    void stopAtMinute;
+    const isNoShift = !shift?.shiftName;
 
-    const isBeforeStart = currentTime < startTime;
-    const isBreakTime = currentTime >= breakStart && currentTime < breakEnd;
-    const isAfterRegularHours = currentTime >= overtimeStart;
+    const nowMinutes = getMinutes(currentTime);
+
+    const openMinutes =
+        toMinutes(shift?.timeInOpenTime) ?? getMinutes(fallbackStartTime);
+
+    const breakStartMinutes = toMinutes(shift?.breakStartTime);
+    const breakEndMinutes = toMinutes(shift?.breakEndTime);
+
+    const shiftEndMinutes =
+        toMinutes(shift?.shiftEndTime) ?? getMinutes(fallbackOvertimeStart);
+
+    const stopMinutes = stopAtHour * 60 + stopAtMinute;
+
+    const isBeforeStart = nowMinutes < openMinutes;
+
+    const isBreakTime =
+        breakStartMinutes !== null &&
+        breakEndMinutes !== null &&
+        nowMinutes >= breakStartMinutes &&
+        nowMinutes < breakEndMinutes;
+
+    const isAfterRegularHours = nowMinutes >= shiftEndMinutes;
+
+    const isAfterCutoff = nowMinutes >= stopMinutes;
+
+    const trackerMessage = useMemo(() => {
+        if (isNoShift) {
+            return 'No assigned shift. Please contact HR/Admin.';
+        }
+
+        if (isBeforeStart) {
+            return `Time-in opens at ${formatScheduleTime(
+                shift?.timeInOpenTime
+            )}`;
+        }
+
+        if (isBreakTime) {
+            return 'Break time';
+        }
+
+        if (isAfterCutoff) {
+            return 'Time-in is no longer available';
+        }
+
+        if (isAfterRegularHours) {
+            return 'Overtime period active';
+        }
+
+        return 'Time-in is available';
+    }, [
+        isNoShift,
+        isBeforeStart,
+        isBreakTime,
+        isAfterCutoff,
+        isAfterRegularHours,
+        shift,
+    ]);
 
     useEffect(() => {
         intervalRef.current = setInterval(() => {
@@ -84,6 +184,8 @@ const useLiveTracker = ({
         isBeforeStart,
         isBreakTime,
         isAfterRegularHours,
+        isNoShift, 
+        trackerMessage,
     };
 };
 

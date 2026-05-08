@@ -10,8 +10,12 @@ type UserAttendanceRecord = {
     status: string;
     isOT: boolean;
     isUndertime: boolean;
+    overtimeStatus?: 'None' | 'Pending' | 'Approved';
     hours: string;
     renderedMinutes: number;
+    creditedMinutes?: number;
+    excessMinutes?: number;
+    hasExceededApprovedOvertime?: boolean;
     lateMinutes: number;
     undertimeMinutes: number;
     overtimeMinutes: number;
@@ -52,8 +56,26 @@ const formatAttendanceDate = (value: string) => {
     }).format(date);
 };
 
+const normalizeOvertimeStatus = (value?: string | null): 'None' | 'Pending' | 'Approved' => {
+    const normalized = value?.trim().toLowerCase();
+
+    if (normalized === 'approved') return 'Approved';
+    if (normalized === 'pending') return 'Pending';
+
+    return 'None';
+};
+
 const ViewAttendanceModal = ({ isOpen, record, statusBadge, onClose }: Props) => {
     if (!isOpen || !record) return null;
+
+    const overtimeStatus = normalizeOvertimeStatus(record.overtimeStatus);
+
+    const hasApprovedOT = overtimeStatus === 'Approved';
+    const hasPendingOT = overtimeStatus === 'Pending';
+    const shouldShowCredited =
+        record.hasExceededApprovedOvertime === true &&
+        typeof record.creditedMinutes === 'number' &&
+        record.creditedMinutes > 0;
 
     const modalContent = (
         <div
@@ -105,7 +127,14 @@ const ViewAttendanceModal = ({ isOpen, record, statusBadge, onClose }: Props) =>
                                     </span>
                                 )}
 
-                                {record.isOT && (
+                                {hasPendingOT && (
+                                    <span className="badge badge-warning">
+                                        <span className="badge-dot" />
+                                        Pending OT
+                                    </span>
+                                )}
+
+                                {hasApprovedOT && (
                                     <span className="badge badge-info">
                                         <span className="badge-dot" />
                                         Overtime
@@ -175,6 +204,11 @@ const ViewAttendanceModal = ({ isOpen, record, statusBadge, onClose }: Props) =>
                             <div className="text-[14px] text-slate-700">
                                 {formatMinutes(record.renderedMinutes)}
                             </div>
+                            {shouldShowCredited && (
+                                <div className="mt-1 text-[12px] font-semibold text-slate-400">
+                                    Credited: {formatMinutes(record.creditedMinutes)}
+                                </div>
+                            )}
                         </div>
 
                         <div>

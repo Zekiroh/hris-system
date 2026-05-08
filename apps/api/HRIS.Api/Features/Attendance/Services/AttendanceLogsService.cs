@@ -13,6 +13,8 @@ public class AttendanceLogsService : IAttendanceLogsService
 {
     private readonly AppDbContext _context;
     private readonly IAttendanceHolidayProvider _holidayProvider;
+    private const int EarlyTimeInBufferMinutes = 10;
+    private const int MaxAttendanceDurationHours = 16;
     private static readonly TimeZoneInfo ManilaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila");
 
     public AttendanceLogsService(AppDbContext context, IAttendanceHolidayProvider holidayProvider)
@@ -38,24 +40,21 @@ public class AttendanceLogsService : IAttendanceLogsService
         if (existing != null && existing.TimeIn != null)
             throw new ApiException("Already timed in.");
 
-        if (!string.IsNullOrWhiteSpace(holidayName))
-            throw new ApiException("Holiday. Work is not required today.", StatusCodes.Status400BadRequest);
+        var shiftDay = await GetShiftDayForDate(
+            employee.Id,
+            today,
+            requireActiveAssignment: true,
+            ct);
 
-        var shiftDay = await GetCurrentShiftDay(employee.Id, today, ct);
+        var availability = ResolveTimeInAvailability(nowLocal, today, shiftDay, holidayName);
 
-        if (!shiftDay.IsWorkingDay)
-            throw new ApiException("Today is not a working day.", StatusCodes.Status400BadRequest);
+        if (!availability.CanTimeIn)
+            throw new ApiException(availability.BlockReason ?? "Time in is unavailable.", StatusCodes.Status400BadRequest);
 
-        if (shiftDay.BreakStartTime.HasValue &&
-            shiftDay.BreakEndTime.HasValue &&
-            now >= shiftDay.BreakStartTime.Value &&
-            now < shiftDay.BreakEndTime.Value)
+        if (shiftDay == null)
         {
-            throw new ApiException("You cannot time in during break time.", StatusCodes.Status400BadRequest);
+            throw new ApiException("No active shift.", StatusCodes.Status400BadRequest);
         }
-
-        if (shiftDay.EndTime.HasValue && now >= shiftDay.EndTime.Value)
-            throw new ApiException("You cannot time in after shift end.", StatusCodes.Status400BadRequest);
 
         if (existing == null)
         {
@@ -74,18 +73,7 @@ public class AttendanceLogsService : IAttendanceLogsService
         existing.Task = NormalizeNullableText(request.Task);
         existing.UpdatedAtUtc = nowUtc;
 
-        if (shiftDay.StartTime.HasValue)
-        {
-            var lateThreshold = shiftDay.StartTime.Value.AddMinutes(shiftDay.Shift.LateGraceMinutes);
-
-            existing.LateMinutes = now > lateThreshold
-                ? (int)(now - lateThreshold).TotalMinutes
-                : 0;
-        }
-        else
-        {
-            existing.LateMinutes = 0;
-        }
+        existing.LateMinutes = CalculateLateMinutes(now, shiftDay);
 
         existing.UndertimeMinutes = 0;
         existing.OvertimeMinutes = 0;
@@ -120,11 +108,14 @@ public class AttendanceLogsService : IAttendanceLogsService
         if (!shiftDay.IsWorkingDay)
             throw new ApiException("Today is not a working day.", StatusCodes.Status400BadRequest);
 
+        ValidateAttendanceDuration(existing.TimeIn.Value, now);
+
         existing.TimeOut = now;
         existing.Accomplished = NormalizeNullableText(request.Accomplished);
         existing.UpdatedAtUtc = nowUtc;
 
         RecalculateAttendanceFields(existing, shiftDay, includeOvertime: true);
+        await ApplyApprovedOvertimeCapAsync(existing, ct);
 
         await _context.SaveChangesAsync(ct);
 
@@ -138,11 +129,30 @@ public class AttendanceLogsService : IAttendanceLogsService
         var page = query.Page < 1 ? 1 : query.Page;
         var pageSize = query.PageSize < 1 ? 10 : query.PageSize;
 
+        var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, ManilaTimeZone);
+        var today = DateOnly.FromDateTime(nowLocal);
+
+        var earliestAssignmentDate = await _context.EmployeeShiftAssignments
+            .AsNoTracking()
+            .Where(x =>
+                x.EmployeeId == employee.Id &&
+                x.IsActive &&
+                x.Shift.IsActive)
+            .OrderBy(x => x.EffectiveFrom)
+            .Select(x => (DateOnly?)x.EffectiveFrom)
+            .FirstOrDefaultAsync(ct);
+
+        var dateFrom = query.DateFrom ?? earliestAssignmentDate ?? today;
+        var dateTo = query.DateTo ?? today;
+
+        if (dateTo < dateFrom)
+            (dateFrom, dateTo) = (dateTo, dateFrom);
+
         var scopedQuery = new GetAttendanceLogsQuery
         {
             EmployeeId = employee.Id,
-            DateFrom = query.DateFrom,
-            DateTo = query.DateTo,
+            DateFrom = dateFrom,
+            DateTo = dateTo,
             IsPresent = query.IsPresent,
             Search = query.Search,
             Page = page,
@@ -151,28 +161,7 @@ public class AttendanceLogsService : IAttendanceLogsService
             HasUndertime = query.HasUndertime
         };
 
-        var baseQuery = BuildAttendanceQuery(scopedQuery, includeMonitoringFilters: false);
-
-        var totalCount = await baseQuery.CountAsync(ct);
-
-        var logs = await baseQuery
-            .OrderByDescending(x => x.Date)
-            .ThenByDescending(x => x.TimeIn)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(ct);
-
-        var items = logs.Select(MapToDto).ToList();
-
-        await EnrichOvertimeStatusesAsync(items, ct);
-
-        return new PagedAttendanceLogsResponse
-        {
-            Items = items,
-            Page = page,
-            PageSize = pageSize,
-            TotalCount = totalCount
-        };
+        return await GetMonitoringAsync(scopedQuery, ct);
     }
 
     public async Task<AttendanceLogDto?> GetTodayMyLogAsync(ClaimsPrincipal user, CancellationToken ct)
@@ -181,12 +170,15 @@ public class AttendanceLogsService : IAttendanceLogsService
 
         var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, ManilaTimeZone);
         var today = DateOnly.FromDateTime(nowLocal);
-        var now = TimeOnly.FromDateTime(nowLocal);
 
         var holidayName = _holidayProvider.GetHolidayName(today);
         var isHoliday = !string.IsNullOrWhiteSpace(holidayName);
 
-        var shiftDay = await GetCurrentShiftDay(employee.Id, today, ct);
+        var shiftDay = await GetShiftDayForDate(
+            employee.Id,
+            today,
+            requireActiveAssignment: true,
+            ct);
 
         var todayLog = await _context.AttendanceLogs
             .AsNoTracking()
@@ -196,32 +188,9 @@ public class AttendanceLogsService : IAttendanceLogsService
 
         var item = todayLog == null ? null : MapToDto(todayLog);
 
-        var canTimeIn = true;
-        string? blockReason = null;
-
-        if (isHoliday)
-        {
-            canTimeIn = false;
-            blockReason = "Holiday. Work is not required today.";
-        }
-        else if (!shiftDay.IsWorkingDay)
-        {
-            canTimeIn = false;
-            blockReason = "Today is not part of your scheduled working days. Time in is unavailable.";
-        }
-        else if (shiftDay.BreakStartTime.HasValue &&
-                 shiftDay.BreakEndTime.HasValue &&
-                 now >= shiftDay.BreakStartTime.Value &&
-                 now < shiftDay.BreakEndTime.Value)
-        {
-            canTimeIn = false;
-            blockReason = "You cannot time in during break time.";
-        }
-        else if (shiftDay.EndTime.HasValue && now >= shiftDay.EndTime.Value)
-        {
-            canTimeIn = false;
-            blockReason = "You cannot time in after shift end.";
-        }
+        var availability = ResolveTimeInAvailability(nowLocal, today, shiftDay, holidayName);
+        var canTimeIn = availability.CanTimeIn;
+        var blockReason = availability.BlockReason;
 
         if (item == null)
         {
@@ -244,27 +213,43 @@ public class AttendanceLogsService : IAttendanceLogsService
                 OvertimeMinutes = 0,
                 OvertimeStatus = "None",
                 RenderedMinutes = 0,
+                CreditedMinutes = 0,
+                ExcessMinutes = 0,
+                HasExceededApprovedOvertime = false,
                 IsPresent = false,
                 Task = null,
                 Accomplished = null,
-                IsWorkingDay = shiftDay.IsWorkingDay,
+                IsWorkingDay = shiftDay?.IsWorkingDay ?? false,
                 CanTimeIn = canTimeIn,
                 BlockReason = blockReason,
                 IsHoliday = isHoliday,
-                HolidayName = holidayName
+                HolidayName = holidayName,
+                ShiftStartTime = shiftDay?.StartTime,
+                TimeInOpenTime = shiftDay?.StartTime?.AddMinutes(-EarlyTimeInBufferMinutes),
+                BreakStartTime = shiftDay?.BreakStartTime,
+                BreakEndTime = shiftDay?.BreakEndTime,
+                ShiftEndTime = shiftDay?.EndTime,
+                LateGraceMinutes = shiftDay?.Shift.LateGraceMinutes ?? 0
             };
 
             await EnrichOvertimeStatusAsync(item, ct);
+            ApplyCreditedOvertimeMetrics(item);
             return item;
         }
 
-        item.IsWorkingDay = shiftDay.IsWorkingDay;
+        item.IsWorkingDay = shiftDay?.IsWorkingDay ?? false;
         item.CanTimeIn = canTimeIn;
         item.BlockReason = blockReason;
         item.IsHoliday = isHoliday;
         item.HolidayName = holidayName;
 
+        if (shiftDay == null)
+            ClearShiftScheduleFields(item);
+        else
+            ApplyShiftScheduleFields(item, shiftDay);
+
         await EnrichOvertimeStatusAsync(item, ct);
+        ApplyCreditedOvertimeMetrics(item);
 
         return item;
     }
@@ -288,6 +273,8 @@ public class AttendanceLogsService : IAttendanceLogsService
         var items = logs.Select(MapToDto).ToList();
 
         await EnrichOvertimeStatusesAsync(items, ct);
+        await EnrichWorkingDaysAsync(items, ct);
+        ApplyCreditedOvertimeMetrics(items);
 
         return new PagedAttendanceLogsResponse
         {
@@ -305,18 +292,56 @@ public class AttendanceLogsService : IAttendanceLogsService
 
         var baseQuery = BuildAttendanceQuery(query, includeMonitoringFilters: true);
 
-        var totalCount = await baseQuery.CountAsync(ct);
-
         var logs = await baseQuery
             .OrderByDescending(x => x.Date)
             .ThenByDescending(x => x.TimeIn)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .ThenByDescending(x => x.Id)
             .ToListAsync(ct);
 
-        var items = logs.Select(MapToDto).ToList();
+        var actualItems = logs
+            .GroupBy(x => new { x.EmployeeId, x.Date })
+            .Select(group => group
+                .OrderByDescending(x => x.TimeIn.HasValue)
+                .ThenByDescending(x => x.TimeOut.HasValue)
+                .ThenByDescending(x => x.UpdatedAtUtc ?? x.CreatedAtUtc)
+                .ThenByDescending(x => x.Id)
+                .First())
+            .Select(MapToDto)
+            .ToList();
+
+        var actualLogKeys = actualItems
+            .Select(x => (x.EmployeeId, x.Date))
+            .ToHashSet();
+
+        var generatedAbsentItems = await GenerateScheduledAbsenceDtosAsync(
+            query,
+            actualLogKeys,
+            ct);
+
+        var combinedItems = actualItems
+            .Concat(generatedAbsentItems)
+            .GroupBy(x => new { x.EmployeeId, x.Date })
+            .Select(group => group
+                .OrderByDescending(x => x.IsPresent)
+                .ThenByDescending(x => x.TimeIn.HasValue)
+                .ThenByDescending(x => x.Id)
+                .First())
+            .OrderByDescending(x => x.Date)
+            .ThenByDescending(x => x.TimeIn.HasValue)
+            .ThenByDescending(x => x.TimeIn)
+            .ThenBy(x => x.EmployeeName)
+            .ToList();
+
+        var totalCount = combinedItems.Count;
+
+        var items = combinedItems
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
 
         await EnrichOvertimeStatusesAsync(items, ct);
+        await EnrichWorkingDaysAsync(items, ct);
+        ApplyCreditedOvertimeMetrics(items);
 
         return new PagedAttendanceLogsResponse
         {
@@ -329,53 +354,80 @@ public class AttendanceLogsService : IAttendanceLogsService
 
     public async Task<AttendanceSummaryDto> GetSummaryAsync(GetAttendanceLogsQuery query, CancellationToken ct)
     {
+        var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, ManilaTimeZone);
+        var today = DateOnly.FromDateTime(nowLocal);
+
+        var summaryDateFrom = query.DateFrom ?? today;
+        var summaryDateTo = query.DateTo ?? today;
+
+        if (summaryDateTo < summaryDateFrom)
+        {
+            (summaryDateFrom, summaryDateTo) = (summaryDateTo, summaryDateFrom);
+        }
+
         var logs = _context.AttendanceLogs
             .AsNoTracking()
+            .Where(x => x.Date >= summaryDateFrom && x.Date <= summaryDateTo)
             .AsQueryable();
-
-        if (query.DateFrom.HasValue)
-            logs = logs.Where(x => x.Date >= query.DateFrom.Value);
-
-        if (query.DateTo.HasValue)
-            logs = logs.Where(x => x.Date <= query.DateTo.Value);
 
         if (query.EmployeeId.HasValue)
             logs = logs.Where(x => x.EmployeeId == query.EmployeeId.Value);
 
-        var totalRecords = await logs.CountAsync(ct);
+        var logsList = await logs.ToListAsync(ct);
 
-        var presentCount = await logs
-            .Where(x => x.IsPresent)
-            .CountAsync(ct);
+        var totalRecords = logsList.Count;
+        var presentCount = logsList.Count(x => x.IsPresent);
+        var lateCount = logsList.Count(x => x.LateMinutes > 0);
+        var undertimeCount = logsList.Count(x => x.UndertimeMinutes > 0);
 
-        var lateCount = await logs
-            .Where(x => x.LateMinutes > 0)
-            .CountAsync(ct);
+        var approvedOvertimeDates = await _context.OvertimeRequests
+            .AsNoTracking()
+            .Where(request =>
+                request.Status == "Approved" &&
+                request.DateFrom <= summaryDateTo &&
+                request.DateTo >= summaryDateFrom)
+            .Where(request => !query.EmployeeId.HasValue || request.EmployeeId == query.EmployeeId.Value)
+            .Select(request => new
+            {
+                request.EmployeeId,
+                request.DateFrom,
+                request.DateTo
+            })
+            .ToListAsync(ct);
 
-        var undertimeCount = await logs
-            .Where(x => x.UndertimeMinutes > 0)
-            .CountAsync(ct);
+        var overtimeKeys = new HashSet<(Guid EmployeeId, DateOnly Date)>();
 
-        var overtimeCount = await logs
-            .Where(log => _context.OvertimeRequests
-                .AsNoTracking()
-                .Any(request =>
-                    request.EmployeeId == log.EmployeeId &&
-                    request.Status == "Approved" &&
-                    request.DateFrom <= log.Date &&
-                    request.DateTo >= log.Date))
-            .CountAsync(ct);
+        foreach (var request in approvedOvertimeDates)
+        {
+            var current = request.DateFrom < summaryDateFrom ? summaryDateFrom : request.DateFrom;
+            var end = request.DateTo > summaryDateTo ? summaryDateTo : request.DateTo;
+
+            while (current <= end)
+            {
+                overtimeKeys.Add((request.EmployeeId, current));
+                current = current.AddDays(1);
+            }
+        }
+
+        var actualLogKeys = logsList
+            .Select(x => (x.EmployeeId, x.Date))
+            .Distinct()
+            .ToHashSet();
+
+        var overtimeCount = overtimeKeys.Count(actualLogKeys.Contains);
+
+        var absentCount = await CountScheduledAbsencesAsync(
+            query,
+            summaryDateFrom,
+            summaryDateTo,
+            actualLogKeys,
+            ct);
 
         var overtimeRequests = _context.OvertimeRequests
             .AsNoTracking()
             .Include(x => x.Items)
+            .Where(x => x.DateTo >= summaryDateFrom && x.DateFrom <= summaryDateTo)
             .AsQueryable();
-
-        if (query.DateFrom.HasValue)
-            overtimeRequests = overtimeRequests.Where(x => x.DateTo >= query.DateFrom.Value);
-
-        if (query.DateTo.HasValue)
-            overtimeRequests = overtimeRequests.Where(x => x.DateFrom <= query.DateTo.Value);
 
         if (query.EmployeeId.HasValue)
             overtimeRequests = overtimeRequests.Where(x => x.EmployeeId == query.EmployeeId.Value);
@@ -395,9 +447,249 @@ public class AttendanceLogsService : IAttendanceLogsService
             LateCount = lateCount,
             UndertimeCount = undertimeCount,
             OvertimeCount = overtimeCount,
+            AbsentCount = absentCount,
             PendingOvertimeRequests = pendingOvertimeRequests,
             ApprovedOvertimeRequests = approvedOvertimeRequests
         };
+    }
+
+    private async Task<int> CountScheduledAbsencesAsync(
+        GetAttendanceLogsQuery query,
+        DateOnly dateFrom,
+        DateOnly dateTo,
+        HashSet<(Guid EmployeeId, DateOnly Date)> actualLogKeys,
+        CancellationToken ct)
+    {
+        var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, ManilaTimeZone);
+        var today = DateOnly.FromDateTime(nowLocal);
+
+        var assignmentsQuery = _context.EmployeeShiftAssignments
+            .AsNoTracking()
+            .Include(x => x.Employee)
+            .ThenInclude(x => x.User)
+            .Include(x => x.Shift)
+            .ThenInclude(x => x.ShiftDays)
+            .Where(x =>
+                x.IsActive &&
+                x.EffectiveFrom <= dateTo &&
+                (!x.EffectiveTo.HasValue || x.EffectiveTo.Value >= dateFrom) &&
+                x.Shift.IsActive);
+
+        if (query.EmployeeId.HasValue)
+            assignmentsQuery = assignmentsQuery.Where(x => x.EmployeeId == query.EmployeeId.Value);
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var search = query.Search.Trim().ToLower();
+
+            assignmentsQuery = assignmentsQuery.Where(x =>
+                (x.Employee.EmployeeNumber != null && x.Employee.EmployeeNumber.ToLower().Contains(search)) ||
+                x.Employee.FirstName.ToLower().Contains(search) ||
+                x.Employee.LastName.ToLower().Contains(search));
+        }
+
+        var assignments = await assignmentsQuery.ToListAsync(ct);
+        var absentKeys = new HashSet<(Guid EmployeeId, DateOnly Date)>();
+
+        foreach (var assignment in assignments)
+        {
+            var current = assignment.EffectiveFrom > dateFrom ? assignment.EffectiveFrom : dateFrom;
+            var assignmentEnd = assignment.EffectiveTo.HasValue && assignment.EffectiveTo.Value < dateTo
+                ? assignment.EffectiveTo.Value
+                : dateTo;
+
+            while (current <= assignmentEnd)
+            {
+                if (current > today)
+                {
+                    current = current.AddDays(1);
+                    continue;
+                }
+
+                if (actualLogKeys.Contains((assignment.EmployeeId, current)))
+                {
+                    current = current.AddDays(1);
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(_holidayProvider.GetHolidayName(current)))
+                {
+                    current = current.AddDays(1);
+                    continue;
+                }
+
+                var shiftDay = GetWorkingShiftDayForDate(assignment.Shift.ShiftDays, current);
+
+                if (shiftDay?.StartTime == null || shiftDay.EndTime == null)
+                {
+                    current = current.AddDays(1);
+                    continue;
+                }
+
+                var shiftEndDateTime = current.ToDateTime(shiftDay.EndTime.Value);
+
+                if (shiftDay.EndTime.Value <= shiftDay.StartTime.Value)
+                    shiftEndDateTime = shiftEndDateTime.AddDays(1);
+
+                if (current < today || nowLocal > shiftEndDateTime)
+                    absentKeys.Add((assignment.EmployeeId, current));
+
+                current = current.AddDays(1);
+            }
+        }
+
+        return absentKeys.Count;
+    }
+
+    private async Task<List<AttendanceLogDto>> GenerateScheduledAbsenceDtosAsync(
+        GetAttendanceLogsQuery query,
+        HashSet<(Guid EmployeeId, DateOnly Date)> actualLogKeys,
+        CancellationToken ct)
+    {
+        if (query.IsPresent == true || query.HasLate == true || query.HasUndertime == true)
+            return new List<AttendanceLogDto>();
+
+        var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, ManilaTimeZone);
+        var today = DateOnly.FromDateTime(nowLocal);
+
+        var dateFrom = query.DateFrom ?? today;
+        var dateTo = query.DateTo ?? today;
+
+        if (dateTo < dateFrom)
+            (dateFrom, dateTo) = (dateTo, dateFrom);
+
+        if (dateFrom > today)
+            return new List<AttendanceLogDto>();
+
+        if (dateTo > today)
+            dateTo = today;
+
+        var assignmentsQuery = _context.EmployeeShiftAssignments
+            .AsNoTracking()
+            .Include(x => x.Employee)
+            .ThenInclude(x => x.User)
+            .Include(x => x.Shift)
+            .ThenInclude(x => x.ShiftDays)
+            .Where(x =>
+                x.IsActive &&
+                x.EffectiveFrom <= dateTo &&
+                (!x.EffectiveTo.HasValue || x.EffectiveTo.Value >= dateFrom) &&
+                x.Shift.IsActive);
+
+        if (query.EmployeeId.HasValue)
+            assignmentsQuery = assignmentsQuery.Where(x => x.EmployeeId == query.EmployeeId.Value);
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var search = query.Search.Trim().ToLower();
+
+            assignmentsQuery = assignmentsQuery.Where(x =>
+                (x.Employee.EmployeeNumber != null && x.Employee.EmployeeNumber.ToLower().Contains(search)) ||
+                x.Employee.FirstName.ToLower().Contains(search) ||
+                x.Employee.LastName.ToLower().Contains(search));
+        }
+
+        var assignments = await assignmentsQuery.ToListAsync(ct);
+        var absentItems = new List<AttendanceLogDto>();
+        var generatedKeys = new HashSet<(Guid EmployeeId, DateOnly Date)>();
+
+        foreach (var assignment in assignments
+                     .OrderBy(x => x.Employee.LastName)
+                     .ThenBy(x => x.Employee.FirstName)
+                     .ThenByDescending(x => x.EffectiveFrom)
+                     .ThenByDescending(x => x.Id))
+        {
+            var current = assignment.EffectiveFrom > dateFrom ? assignment.EffectiveFrom : dateFrom;
+            var assignmentEnd = assignment.EffectiveTo.HasValue && assignment.EffectiveTo.Value < dateTo
+                ? assignment.EffectiveTo.Value
+                : dateTo;
+
+            while (current <= assignmentEnd)
+            {
+                var key = (assignment.EmployeeId, current);
+
+                if (actualLogKeys.Contains(key) || generatedKeys.Contains(key))
+                {
+                    current = current.AddDays(1);
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(_holidayProvider.GetHolidayName(current)))
+                {
+                    current = current.AddDays(1);
+                    continue;
+                }
+
+                var shiftDay = GetWorkingShiftDayForDate(assignment.Shift.ShiftDays, current);
+
+                if (shiftDay?.StartTime == null || shiftDay.EndTime == null)
+                {
+                    current = current.AddDays(1);
+                    continue;
+                }
+
+                var shiftEndDateTime = current.ToDateTime(shiftDay.EndTime.Value);
+
+                if (shiftDay.EndTime.Value <= shiftDay.StartTime.Value)
+                    shiftEndDateTime = shiftEndDateTime.AddDays(1);
+
+                if (current == today && nowLocal <= shiftEndDateTime)
+                {
+                    current = current.AddDays(1);
+                    continue;
+                }
+
+                var item = new AttendanceLogDto
+                {
+                    Id = 0,
+                    EmployeeId = assignment.EmployeeId,
+                    EmployeeNumber = assignment.Employee.EmployeeNumber ?? string.Empty,
+                    EmployeeName = BuildEmployeeName(
+                        assignment.Employee.FirstName,
+                        assignment.Employee.MiddleName,
+                        assignment.Employee.LastName,
+                        assignment.Employee.User?.Suffix),
+                    EmployeeSuffix = assignment.Employee.User?.Suffix,
+                    Date = current,
+                    TimeIn = null,
+                    TimeOut = null,
+                    LateMinutes = 0,
+                    UndertimeMinutes = 0,
+                    OvertimeMinutes = 0,
+                    OvertimeStatus = "None",
+                    RenderedMinutes = 0,
+                    CreditedMinutes = 0,
+                    ExcessMinutes = 0,
+                    HasExceededApprovedOvertime = false,
+                    IsPresent = false,
+                    Task = null,
+                    Accomplished = null,
+                    IsWorkingDay = true,
+                    CanTimeIn = false,
+                    BlockReason = "Absent. No attendance record was found for this scheduled working day.",
+                    IsHoliday = false,
+                    HolidayName = null
+                };
+
+                ApplyShiftScheduleFields(item, shiftDay);
+
+                absentItems.Add(item);
+                generatedKeys.Add(key);
+
+                current = current.AddDays(1);
+            }
+        }
+
+        return absentItems;
+    }
+
+    private static ShiftDay? GetWorkingShiftDayForDate(IEnumerable<ShiftDay> shiftDays, DateOnly date)
+    {
+        var dayOfWeek = date.ToDateTime(TimeOnly.MinValue).DayOfWeek;
+
+        return shiftDays.FirstOrDefault(day =>
+            day.IsWorkingDay &&
+            day.DayOfWeek == dayOfWeek);
     }
 
     public async Task<byte[]> ExportCsvAsync(GetAttendanceLogsQuery query, CancellationToken ct)
@@ -410,10 +702,12 @@ public class AttendanceLogsService : IAttendanceLogsService
         var items = logs.Select(MapToDto).ToList();
 
         await EnrichOvertimeStatusesAsync(items, ct);
+        await EnrichWorkingDaysAsync(items, ct);
+        ApplyCreditedOvertimeMetrics(items);
 
         var sb = new StringBuilder();
 
-        sb.AppendLine("EmployeeNumber,EmployeeName,Date,TimeIn,TimeOut,LateMinutes,UndertimeMinutes,OvertimeMinutes,OvertimeStatus,RenderedMinutes,IsPresent,Task,Accomplished");
+        sb.AppendLine("EmployeeNumber,EmployeeName,Date,TimeIn,TimeOut,LateMinutes,UndertimeMinutes,OvertimeMinutes,OvertimeStatus,RenderedMinutes,CreditedMinutes,ExcessMinutes,HasExceededApprovedOvertime,IsPresent,Task,Accomplished");
 
         foreach (var item in items)
         {
@@ -428,6 +722,9 @@ public class AttendanceLogsService : IAttendanceLogsService
                 item.OvertimeMinutes,
                 EscapeCsv(item.OvertimeStatus),
                 item.RenderedMinutes,
+                item.CreditedMinutes,
+                item.ExcessMinutes,
+                item.HasExceededApprovedOvertime ? "Yes" : "No",
                 item.IsPresent ? "Yes" : "No",
                 EscapeCsv(item.Task),
                 EscapeCsv(item.Accomplished)));
@@ -446,7 +743,9 @@ public class AttendanceLogsService : IAttendanceLogsService
         if (attendanceLog == null)
             throw new ApiException("Attendance log not found.", StatusCodes.Status404NotFound);
 
-        var shiftDay = await GetCurrentShiftDay(attendanceLog.EmployeeId, request.Date, ct);
+        var shiftDay = await GetEffectiveShiftDay(attendanceLog.EmployeeId, request.Date, ct);
+
+        ValidateAttendanceTimeRange(request.TimeIn, request.TimeOut);
 
         attendanceLog.Date = request.Date;
         attendanceLog.TimeIn = request.TimeIn.HasValue
@@ -462,11 +761,14 @@ public class AttendanceLogsService : IAttendanceLogsService
         attendanceLog.UpdatedAtUtc = DateTime.UtcNow;
 
         RecalculateAttendanceFields(attendanceLog, shiftDay, request.IsOT);
+        await ApplyApprovedOvertimeCapAsync(attendanceLog, ct);
 
         await _context.SaveChangesAsync(ct);
 
         var dto = MapToDto(attendanceLog);
         await EnrichOvertimeStatusAsync(dto, ct);
+        await EnrichWorkingDaysAsync(new List<AttendanceLogDto> { dto }, ct);
+        ApplyCreditedOvertimeMetrics(dto);
 
         return dto;
     }
@@ -482,6 +784,8 @@ public class AttendanceLogsService : IAttendanceLogsService
         var dto = MapToDto(attendanceLog);
 
         await EnrichOvertimeStatusAsync(dto, ct);
+        await EnrichWorkingDaysAsync(new List<AttendanceLogDto> { dto }, ct);
+        ApplyCreditedOvertimeMetrics(dto);
 
         return dto;
     }
@@ -549,30 +853,109 @@ public class AttendanceLogsService : IAttendanceLogsService
 
     private async Task<ShiftDay> GetCurrentShiftDay(Guid employeeId, DateOnly workDate, CancellationToken ct)
     {
-        var assignment = await _context.EmployeeShiftAssignments
+        var shiftDay = await GetShiftDayForDate(
+            employeeId,
+            workDate,
+            requireActiveAssignment: true,
+            ct);
+
+        if (shiftDay == null)
+            throw new ApiException("No active shift.", StatusCodes.Status400BadRequest);
+
+        return shiftDay;
+    }
+
+    private async Task<ShiftDay> GetEffectiveShiftDay(Guid employeeId, DateOnly workDate, CancellationToken ct)
+    {
+        var shiftDay = await GetShiftDayForDate(
+            employeeId,
+            workDate,
+            requireActiveAssignment: false,
+            ct);
+
+        if (shiftDay == null)
+            throw new ApiException("No shift assignment found for this date.", StatusCodes.Status400BadRequest);
+
+        return shiftDay;
+    }
+
+    private async Task<ShiftDay?> GetShiftDayForDate(
+        Guid employeeId,
+        DateOnly workDate,
+        bool requireActiveAssignment,
+        CancellationToken ct)
+    {
+        var assignmentsQuery = _context.EmployeeShiftAssignments
             .AsNoTracking()
             .Include(x => x.Shift)
             .ThenInclude(x => x.ShiftDays)
             .Where(x =>
                 x.EmployeeId == employeeId &&
-                x.IsActive &&
                 x.EffectiveFrom <= workDate &&
-                (!x.EffectiveTo.HasValue || x.EffectiveTo.Value >= workDate))
+                (!x.EffectiveTo.HasValue || x.EffectiveTo.Value >= workDate) &&
+                x.Shift.IsActive);
+
+        if (requireActiveAssignment)
+            assignmentsQuery = assignmentsQuery.Where(x => x.IsActive);
+
+        var assignment = await assignmentsQuery
             .OrderByDescending(x => x.EffectiveFrom)
+            .ThenByDescending(x => x.Id)
             .FirstOrDefaultAsync(ct);
 
         if (assignment == null)
-            throw new ApiException("No active shift.", StatusCodes.Status400BadRequest);
+            return null;
 
         var dayOfWeek = workDate.ToDateTime(TimeOnly.MinValue).DayOfWeek;
 
-        var shiftDay = assignment.Shift.ShiftDays
+        return assignment.Shift.ShiftDays
             .FirstOrDefault(x => x.DayOfWeek == dayOfWeek);
+    }
 
-        if (shiftDay == null)
-            throw new ApiException("Shift day configuration not found.", StatusCodes.Status400BadRequest);
+    private async Task ApplyApprovedOvertimeCapAsync(AttendanceLog attendanceLog, CancellationToken ct)
+    {
+        if (!attendanceLog.TimeIn.HasValue || !attendanceLog.TimeOut.HasValue)
+        {
+            attendanceLog.OvertimeMinutes = 0;
+            return;
+        }
 
-        return shiftDay;
+        if (attendanceLog.OvertimeMinutes <= 0)
+        {
+            attendanceLog.OvertimeMinutes = 0;
+            return;
+        }
+
+        var approvedMinutes = await GetApprovedOvertimeMinutesAsync(
+            attendanceLog.EmployeeId,
+            attendanceLog.Date,
+            ct);
+
+        attendanceLog.OvertimeMinutes = approvedMinutes <= 0
+            ? 0
+            : Math.Min(attendanceLog.OvertimeMinutes, approvedMinutes);
+    }
+
+    private async Task<int> GetApprovedOvertimeMinutesAsync(Guid employeeId, DateOnly date, CancellationToken ct)
+    {
+        var approvedRequest = await _context.OvertimeRequests
+            .AsNoTracking()
+            .Include(x => x.Items)
+            .Where(x =>
+                x.EmployeeId == employeeId &&
+                x.Status == "Approved" &&
+                x.DateFrom <= date &&
+                x.DateTo >= date)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .FirstOrDefaultAsync(ct);
+
+        if (approvedRequest == null)
+            return 0;
+
+        var approvedItem = approvedRequest.Items
+            .FirstOrDefault(x => x.Date == date);
+
+        return approvedItem?.RequestedMinutes ?? 0;
     }
 
     private void RecalculateAttendanceFields(AttendanceLog attendanceLog, ShiftDay shiftDay, bool includeOvertime)
@@ -590,20 +973,9 @@ public class AttendanceLogsService : IAttendanceLogsService
 
         attendanceLog.IsPresent = true;
 
-        if (shiftDay.StartTime.HasValue)
-        {
-            var lateThreshold = shiftDay.StartTime.Value.AddMinutes(shiftDay.Shift.LateGraceMinutes);
+        attendanceLog.LateMinutes = CalculateLateMinutes(attendanceLog.TimeIn.Value, shiftDay);
 
-            attendanceLog.LateMinutes = attendanceLog.TimeIn.Value > lateThreshold
-                ? (int)(attendanceLog.TimeIn.Value - lateThreshold).TotalMinutes
-                : 0;
-        }
-        else
-        {
-            attendanceLog.LateMinutes = 0;
-        }
-
-        if (!attendanceLog.TimeOut.HasValue || attendanceLog.TimeOut.Value <= attendanceLog.TimeIn.Value)
+        if (!attendanceLog.TimeOut.HasValue)
         {
             attendanceLog.UndertimeMinutes = 0;
             attendanceLog.OvertimeMinutes = 0;
@@ -611,7 +983,9 @@ public class AttendanceLogsService : IAttendanceLogsService
             return;
         }
 
-        var renderedMinutes = (int)(attendanceLog.TimeOut.Value - attendanceLog.TimeIn.Value).TotalMinutes;
+        ValidateAttendanceDuration(attendanceLog.TimeIn.Value, attendanceLog.TimeOut.Value);
+
+        var renderedMinutes = CalculateDurationMinutes(attendanceLog.TimeIn.Value, attendanceLog.TimeOut.Value);
 
         var breakOverlapMinutes = CalculateBreakOverlapMinutes(
             attendanceLog.TimeIn.Value,
@@ -630,7 +1004,7 @@ public class AttendanceLogsService : IAttendanceLogsService
 
         if (shiftDay.StartTime.HasValue && shiftDay.EndTime.HasValue)
         {
-            requiredMinutes = (int)(shiftDay.EndTime.Value - shiftDay.StartTime.Value).TotalMinutes;
+            requiredMinutes = CalculateDurationMinutes(shiftDay.StartTime.Value, shiftDay.EndTime.Value);
 
             var scheduledBreakMinutes = CalculateBreakOverlapMinutes(
                 shiftDay.StartTime.Value,
@@ -652,9 +1026,20 @@ public class AttendanceLogsService : IAttendanceLogsService
         else if (renderedMinutes > requiredMinutes)
         {
             attendanceLog.UndertimeMinutes = 0;
-            attendanceLog.OvertimeMinutes = includeOvertime
-                ? renderedMinutes - requiredMinutes
-                : 0;
+
+            var rawOvertime = renderedMinutes - requiredMinutes;
+
+            if (includeOvertime &&
+                shiftDay.StartTime.HasValue &&
+                shiftDay.EndTime.HasValue &&
+                IsAfterShiftEnd(attendanceLog.TimeOut.Value, shiftDay))
+            {
+                attendanceLog.OvertimeMinutes = rawOvertime;
+            }
+            else
+            {
+                attendanceLog.OvertimeMinutes = 0;
+            }
         }
         else
         {
@@ -678,6 +1063,29 @@ public class AttendanceLogsService : IAttendanceLogsService
             .FirstOrDefaultAsync(ct);
 
         item.OvertimeStatus = matchedRequest?.Status ?? "None";
+
+        var hasActualDtr = item.TimeIn.HasValue && item.TimeOut.HasValue;
+
+        if (matchedRequest?.Status == "Approved")
+        {
+            var approvedItem = matchedRequest.Items
+                .FirstOrDefault(x => x.Date == item.Date);
+
+            if (hasActualDtr && approvedItem != null)
+            {
+                item.OvertimeMinutes = item.OvertimeMinutes > 0
+                    ? Math.Min(item.OvertimeMinutes, approvedItem.RequestedMinutes)
+                    : approvedItem.RequestedMinutes;
+            }
+            else
+            {
+                item.OvertimeMinutes = 0;
+            }
+
+            return;
+        }
+
+        item.OvertimeMinutes = 0;
     }
 
     private async Task EnrichOvertimeStatusesAsync(List<AttendanceLogDto> items, CancellationToken ct)
@@ -710,21 +1118,148 @@ public class AttendanceLogsService : IAttendanceLogsService
                     x.EmployeeId == item.EmployeeId &&
                     x.DateFrom <= item.Date &&
                     x.DateTo >= item.Date)
+                .OrderByDescending(x => x.Status == "Approved")
+                .ThenByDescending(x => x.CreatedAtUtc)
                 .ToList();
 
-            if (matchedRequests.Any(x => x.Status == "Approved"))
+            var approvedRequest = matchedRequests.FirstOrDefault(x => x.Status == "Approved");
+            var hasActualDtr = item.TimeIn.HasValue && item.TimeOut.HasValue;
+
+            if (approvedRequest != null)
             {
                 item.OvertimeStatus = "Approved";
+
+                var approvedItem = approvedRequest.Items
+                    .FirstOrDefault(x => x.Date == item.Date);
+
+                if (hasActualDtr && approvedItem != null)
+                {
+                    item.OvertimeMinutes = item.OvertimeMinutes > 0
+                        ? Math.Min(item.OvertimeMinutes, approvedItem.RequestedMinutes)
+                        : approvedItem.RequestedMinutes;
+                }
+                else
+                {
+                    item.OvertimeMinutes = 0;
+                }
+
+                continue;
             }
-            else if (matchedRequests.Any(x => x.Status == "Pending"))
+
+            if (matchedRequests.Any(x => x.Status == "Pending"))
             {
                 item.OvertimeStatus = "Pending";
+                item.OvertimeMinutes = 0;
+                continue;
             }
-            else
-            {
-                item.OvertimeStatus = "None";
-            }
+
+            item.OvertimeStatus = "None";
+            item.OvertimeMinutes = 0;
         }
+    }
+
+    private async Task EnrichWorkingDaysAsync(List<AttendanceLogDto> items, CancellationToken ct)
+    {
+        if (items.Count == 0)
+            return;
+
+        var employeeIds = items
+            .Select(x => x.EmployeeId)
+            .Distinct()
+            .ToList();
+
+        var minDate = items.Min(x => x.Date);
+        var maxDate = items.Max(x => x.Date);
+
+        var assignments = await _context.EmployeeShiftAssignments
+            .AsNoTracking()
+            .Include(x => x.Shift)
+            .ThenInclude(x => x.ShiftDays)
+            .Where(x =>
+                employeeIds.Contains(x.EmployeeId) &&
+                x.EffectiveFrom <= maxDate &&
+                (!x.EffectiveTo.HasValue || x.EffectiveTo.Value >= minDate) &&
+                x.Shift.IsActive)
+            .ToListAsync(ct);
+
+        foreach (var item in items)
+        {
+            var assignment = assignments
+                .Where(x =>
+                    x.EmployeeId == item.EmployeeId &&
+                    x.EffectiveFrom <= item.Date &&
+                    (!x.EffectiveTo.HasValue || x.EffectiveTo.Value >= item.Date))
+                .OrderByDescending(x => x.EffectiveFrom)
+                .ThenByDescending(x => x.Id)
+                .FirstOrDefault();
+
+            if (assignment == null)
+            {
+                item.IsWorkingDay = false;
+                ClearShiftScheduleFields(item);
+                continue;
+            }
+
+            var dayOfWeek = item.Date.ToDateTime(TimeOnly.MinValue).DayOfWeek;
+            var shiftDay = assignment.Shift.ShiftDays.FirstOrDefault(x => x.DayOfWeek == dayOfWeek);
+
+            item.IsWorkingDay = shiftDay?.IsWorkingDay ?? false;
+
+            if (shiftDay == null)
+                ClearShiftScheduleFields(item);
+            else
+                ApplyShiftScheduleFields(item, shiftDay);
+        }
+    }
+
+    private static void ApplyCreditedOvertimeMetrics(List<AttendanceLogDto> items)
+    {
+        foreach (var item in items)
+            ApplyCreditedOvertimeMetrics(item);
+    }
+
+    private static void ApplyCreditedOvertimeMetrics(AttendanceLogDto item)
+    {
+        var hasActualDtr = item.TimeIn.HasValue && item.TimeOut.HasValue;
+
+        if (!hasActualDtr || item.RenderedMinutes <= 0)
+        {
+            item.CreditedMinutes = 0;
+            item.ExcessMinutes = 0;
+            item.HasExceededApprovedOvertime = false;
+            return;
+        }
+
+        var requiredMinutes = CalculateRequiredShiftMinutes(item);
+        var approvedOvertimeMinutes = string.Equals(item.OvertimeStatus, "Approved", StringComparison.OrdinalIgnoreCase)
+            ? Math.Max(0, item.OvertimeMinutes)
+            : 0;
+
+        var creditedMinutes = requiredMinutes > 0
+            ? Math.Min(item.RenderedMinutes, requiredMinutes + approvedOvertimeMinutes)
+            : item.RenderedMinutes;
+
+        item.CreditedMinutes = creditedMinutes;
+        item.ExcessMinutes = Math.Max(0, item.RenderedMinutes - creditedMinutes);
+        item.HasExceededApprovedOvertime = item.ExcessMinutes > 0;
+    }
+
+    private static int CalculateRequiredShiftMinutes(AttendanceLogDto item)
+    {
+        if (!item.ShiftStartTime.HasValue || !item.ShiftEndTime.HasValue)
+            return 0;
+
+        var requiredMinutes = CalculateDurationMinutes(item.ShiftStartTime.Value, item.ShiftEndTime.Value);
+
+        var scheduledBreakMinutes = CalculateBreakOverlapMinutes(
+            item.ShiftStartTime.Value,
+            item.ShiftEndTime.Value,
+            item.BreakStartTime,
+            item.BreakEndTime);
+
+        requiredMinutes -= scheduledBreakMinutes;
+
+        return Math.Max(0, requiredMinutes);
     }
 
     private static AttendanceLogDto MapToDto(AttendanceLog x)
@@ -748,10 +1283,55 @@ public class AttendanceLogsService : IAttendanceLogsService
             OvertimeMinutes = x.OvertimeMinutes,
             OvertimeStatus = "None",
             RenderedMinutes = x.RenderedMinutes,
+            CreditedMinutes = x.RenderedMinutes,
+            ExcessMinutes = 0,
+            HasExceededApprovedOvertime = false,
             IsPresent = x.IsPresent,
             Task = x.Task,
             Accomplished = x.Accomplished
         };
+    }
+
+    private static void ApplyShiftScheduleFields(AttendanceLogDto item, ShiftDay shiftDay)
+    {
+        item.ShiftStartTime = shiftDay.StartTime;
+        item.TimeInOpenTime = shiftDay.StartTime?.AddMinutes(-EarlyTimeInBufferMinutes);
+        item.BreakStartTime = shiftDay.BreakStartTime;
+        item.BreakEndTime = shiftDay.BreakEndTime;
+        item.ShiftEndTime = shiftDay.EndTime;
+        item.LateGraceMinutes = shiftDay.Shift.LateGraceMinutes;
+    }
+
+    private static void ClearShiftScheduleFields(AttendanceLogDto item)
+    {
+        item.ShiftStartTime = null;
+        item.TimeInOpenTime = null;
+        item.BreakStartTime = null;
+        item.BreakEndTime = null;
+        item.ShiftEndTime = null;
+        item.LateGraceMinutes = 0;
+    }
+
+    private static void ValidateAttendanceTimeRange(TimeSpan? timeIn, TimeSpan? timeOut)
+    {
+        if (!timeIn.HasValue || !timeOut.HasValue)
+            return;
+
+        var normalizedTimeIn = TimeOnly.FromTimeSpan(timeIn.Value);
+        var normalizedTimeOut = TimeOnly.FromTimeSpan(timeOut.Value);
+
+        ValidateAttendanceDuration(normalizedTimeIn, normalizedTimeOut);
+    }
+
+    private static void ValidateAttendanceDuration(TimeOnly timeIn, TimeOnly timeOut)
+    {
+        var totalMinutes = CalculateDurationMinutes(timeIn, timeOut);
+
+        if (totalMinutes <= 0)
+            throw new ApiException("Time out must be later than time in.", StatusCodes.Status400BadRequest);
+
+        if (totalMinutes > TimeSpan.FromHours(MaxAttendanceDurationHours).TotalMinutes)
+            throw new ApiException($"Attendance duration cannot exceed {MaxAttendanceDurationHours} hours.", StatusCodes.Status400BadRequest);
     }
 
     private static int CalculateBreakOverlapMinutes(
@@ -763,16 +1343,214 @@ public class AttendanceLogsService : IAttendanceLogsService
         if (!breakStart.HasValue || !breakEnd.HasValue)
             return 0;
 
-        if (actualEnd <= actualStart)
+        var actualStartMinute = ToMinuteOfDay(actualStart);
+        var actualEndMinute = NormalizeEndMinute(actualStart, actualEnd);
+        var breakStartMinute = ToMinuteOfDay(breakStart.Value);
+        var breakEndMinute = NormalizeEndMinute(breakStart.Value, breakEnd.Value);
+
+        if (actualEndMinute <= actualStartMinute)
             return 0;
 
-        var overlapStart = actualStart > breakStart.Value ? actualStart : breakStart.Value;
-        var overlapEnd = actualEnd < breakEnd.Value ? actualEnd : breakEnd.Value;
+        if (breakEndMinute <= breakStartMinute)
+            return 0;
+
+        if (breakStartMinute < actualStartMinute && breakEndMinute <= actualStartMinute)
+        {
+            breakStartMinute += MinutesPerDay;
+            breakEndMinute += MinutesPerDay;
+        }
+
+        var overlapStart = Math.Max(actualStartMinute, breakStartMinute);
+        var overlapEnd = Math.Min(actualEndMinute, breakEndMinute);
 
         if (overlapEnd <= overlapStart)
             return 0;
 
-        return (int)(overlapEnd - overlapStart).TotalMinutes;
+        return overlapEnd - overlapStart;
+    }
+
+
+    private const int MinutesPerDay = 24 * 60;
+
+    private sealed record TimeInAvailability(bool CanTimeIn, string? BlockReason);
+
+    private static TimeInAvailability ResolveTimeInAvailability(
+        DateTime currentLocalDateTime,
+        DateOnly workDate,
+        ShiftDay? shiftDay,
+        string? holidayName)
+    {
+        if (shiftDay == null)
+            return new TimeInAvailability(false, "No assigned shift.");
+
+        if (!string.IsNullOrWhiteSpace(holidayName))
+            return new TimeInAvailability(false, "Holiday. Work is not required today.");
+
+        if (!shiftDay.IsWorkingDay)
+            return new TimeInAvailability(false, "Today is not part of your scheduled working days. Time in is unavailable.");
+
+        var blockReason = GetTimeInBlockReason(currentLocalDateTime, workDate, shiftDay);
+
+        return new TimeInAvailability(string.IsNullOrWhiteSpace(blockReason), blockReason);
+    }
+
+    private static string? GetTimeInBlockReason(DateTime currentLocalDateTime, DateOnly workDate, ShiftDay shiftDay)
+    {
+        if (!shiftDay.StartTime.HasValue || !shiftDay.EndTime.HasValue)
+            return "Shift schedule is incomplete. Please contact HR/Admin.";
+
+        var window = BuildShiftWindow(workDate, shiftDay);
+
+        if (currentLocalDateTime >= window.End)
+            return "You cannot time in after shift end.";
+
+        if (currentLocalDateTime < window.EarliestTimeIn)
+            return "You can time in starting 10 minutes before your shift.";
+
+        if (window.BreakStart.HasValue &&
+            window.BreakEnd.HasValue &&
+            currentLocalDateTime >= window.BreakStart.Value &&
+            currentLocalDateTime < window.BreakEnd.Value)
+        {
+            return "You cannot time in during break time.";
+        }
+
+        return null;
+    }
+
+    private sealed record ShiftWindow(
+        DateTime EarliestTimeIn,
+        DateTime Start,
+        DateTime? BreakStart,
+        DateTime? BreakEnd,
+        DateTime End);
+
+    private static ShiftWindow BuildShiftWindow(DateOnly workDate, ShiftDay shiftDay)
+    {
+        var start = workDate.ToDateTime(shiftDay.StartTime!.Value);
+        var end = workDate.ToDateTime(shiftDay.EndTime!.Value);
+
+        if (end <= start)
+            end = end.AddDays(1);
+
+        var earliestTimeIn = start.AddMinutes(-EarlyTimeInBufferMinutes);
+
+        if (earliestTimeIn.Date < start.Date)
+            earliestTimeIn = start;
+
+        DateTime? breakStart = null;
+        DateTime? breakEnd = null;
+
+        if (shiftDay.BreakStartTime.HasValue && shiftDay.BreakEndTime.HasValue)
+        {
+            breakStart = workDate.ToDateTime(shiftDay.BreakStartTime.Value);
+            breakEnd = workDate.ToDateTime(shiftDay.BreakEndTime.Value);
+
+            if (end.Date > start.Date && breakStart.Value < start)
+            {
+                breakStart = breakStart.Value.AddDays(1);
+                breakEnd = breakEnd.Value.AddDays(1);
+            }
+
+            if (breakEnd.Value <= breakStart.Value)
+                breakEnd = breakEnd.Value.AddDays(1);
+        }
+
+        return new ShiftWindow(earliestTimeIn, start, breakStart, breakEnd, end);
+    }
+
+    private static bool IsBeforeEarliestTimeIn(TimeOnly currentTime, ShiftDay shiftDay)
+    {
+        if (!shiftDay.StartTime.HasValue || !shiftDay.EndTime.HasValue)
+            return false;
+
+        var startMinute = ToMinuteOfDay(shiftDay.StartTime.Value);
+        var endMinute = NormalizeEndMinute(shiftDay.StartTime.Value, shiftDay.EndTime.Value);
+        var currentMinute = NormalizeCurrentMinute(currentTime, shiftDay.StartTime.Value, shiftDay.EndTime.Value);
+        var earliestMinute = startMinute - EarlyTimeInBufferMinutes;
+
+        if (startMinute == 0 && earliestMinute < 0)
+            earliestMinute = 0;
+
+        if (currentMinute >= endMinute)
+            return false;
+
+        return currentMinute < earliestMinute;
+    }
+
+    private static bool IsAfterShiftEnd(TimeOnly currentTime, ShiftDay shiftDay)
+    {
+        if (!shiftDay.StartTime.HasValue || !shiftDay.EndTime.HasValue)
+            return false;
+
+        var currentMinute = NormalizeCurrentMinute(currentTime, shiftDay.StartTime.Value, shiftDay.EndTime.Value);
+        var endMinute = NormalizeEndMinute(shiftDay.StartTime.Value, shiftDay.EndTime.Value);
+
+        return currentMinute >= endMinute;
+    }
+
+    private static bool IsWithinBreakTime(TimeOnly currentTime, ShiftDay shiftDay)
+    {
+        if (!shiftDay.BreakStartTime.HasValue || !shiftDay.BreakEndTime.HasValue)
+            return false;
+
+        var currentMinute = ToMinuteOfDay(currentTime);
+        var breakStartMinute = ToMinuteOfDay(shiftDay.BreakStartTime.Value);
+        var breakEndMinute = NormalizeEndMinute(shiftDay.BreakStartTime.Value, shiftDay.BreakEndTime.Value);
+
+        if (breakEndMinute > MinutesPerDay && currentMinute < breakStartMinute)
+            currentMinute += MinutesPerDay;
+
+        return currentMinute >= breakStartMinute && currentMinute < breakEndMinute;
+    }
+
+    private static int CalculateLateMinutes(TimeOnly timeIn, ShiftDay shiftDay)
+    {
+        if (!shiftDay.StartTime.HasValue || !shiftDay.EndTime.HasValue)
+            return 0;
+
+        var timeInMinute = NormalizeCurrentMinute(timeIn, shiftDay.StartTime.Value, shiftDay.EndTime.Value);
+        var lateThresholdMinute = ToMinuteOfDay(shiftDay.StartTime.Value) + shiftDay.Shift.LateGraceMinutes;
+
+        return timeInMinute > lateThresholdMinute
+            ? timeInMinute - lateThresholdMinute
+            : 0;
+    }
+
+    private static int CalculateDurationMinutes(TimeOnly start, TimeOnly end)
+    {
+        var startMinute = ToMinuteOfDay(start);
+        var endMinute = NormalizeEndMinute(start, end);
+
+        return endMinute - startMinute;
+    }
+
+    private static int NormalizeCurrentMinute(TimeOnly current, TimeOnly start, TimeOnly end)
+    {
+        var currentMinute = ToMinuteOfDay(current);
+        var startMinute = ToMinuteOfDay(start);
+        var endMinute = ToMinuteOfDay(end);
+
+        if (endMinute < startMinute && currentMinute < startMinute)
+            return currentMinute + MinutesPerDay;
+
+        return currentMinute;
+    }
+
+    private static int NormalizeEndMinute(TimeOnly start, TimeOnly end)
+    {
+        var startMinute = ToMinuteOfDay(start);
+        var endMinute = ToMinuteOfDay(end);
+
+        if (endMinute < startMinute)
+            return endMinute + MinutesPerDay;
+
+        return endMinute;
+    }
+
+    private static int ToMinuteOfDay(TimeOnly value)
+    {
+        return value.Hour * 60 + value.Minute;
     }
 
     private static string BuildEmployeeName(

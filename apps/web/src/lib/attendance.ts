@@ -18,6 +18,9 @@ export type AttendanceLogDto = {
     overtimeMinutes?: number;
     overtimeStatus?: "None" | "Pending" | "Approved";
     renderedMinutes?: number;
+    creditedMinutes?: number;
+    excessMinutes?: number;
+    hasExceededApprovedOvertime?: boolean;
     isPresent?: boolean;
     status?: string;
     totalWorkedMinutes?: number;
@@ -28,6 +31,13 @@ export type AttendanceLogDto = {
     blockReason?: string | null;
     isHoliday?: boolean;
     holidayName?: string | null;
+    shiftName?: string | null;
+    shiftStartTime?: string | null;
+    timeInOpenTime?: string | null;
+    breakStartTime?: string | null;
+    breakEndTime?: string | null;
+    shiftEndTime?: string | null;
+    lateGraceMinutes?: number;
 };
 
 export type AttendanceSummaryDto = {
@@ -188,6 +198,10 @@ export type EmployeeShiftAssignmentDto = {
     id: number;
     employeeId: string;
     shiftId: number;
+    employeeNumber?: string | null;
+    fullName?: string | null;
+    department?: string | null;
+    position?: string | null;
     effectiveFrom: string;
     effectiveTo?: string | null;
     isActive: boolean;
@@ -319,6 +333,23 @@ export async function getCurrentShiftAssignment(
     employeeId: string
 ): Promise<EmployeeShiftAssignmentDto | null> {
     return apiRequest(`/attendance/assignments/current/${employeeId}`);
+}
+
+
+export async function getMyCurrentShift(): Promise<Shift | null> {
+    return apiRequest(`/attendance/assignments/me/current-shift`);
+}
+
+export async function getShiftAssignmentsByShift(
+    shiftId: number
+): Promise<EmployeeShiftAssignmentDto[]> {
+    return apiRequest(`/attendance/assignments/by-shift/${shiftId}`);
+}
+
+export async function unassignShiftAssignment(assignmentId: number): Promise<void> {
+    return apiRequest(`/attendance/assignments/${assignmentId}`, {
+        method: "DELETE",
+    });
 }
 
 /* =========================

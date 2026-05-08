@@ -19,6 +19,7 @@ public class AttendanceHolidayProvider : IAttendanceHolidayProvider
         [new DateOnly(2026, 11, 30)] = "Bonifacio Day",
         [new DateOnly(2026, 12, 25)] = "Christmas Day",
         [new DateOnly(2026, 12, 30)] = "Rizal Day",
+        //[new DateOnly(2026, 5, 7)] = "Test Holiday",
     };
 
     public string? GetHolidayName(DateOnly date)

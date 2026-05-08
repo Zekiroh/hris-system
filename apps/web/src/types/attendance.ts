@@ -39,6 +39,7 @@ export type DtrFilters = {
     dateTo: string;
     search: string;
     status: '' | 'Present' | 'Late' | 'Absent' | 'Undertime' | 'Overtime';
+    sort: 'latest' | 'oldest';
 };
 
 export type AdminDtrRecord = {

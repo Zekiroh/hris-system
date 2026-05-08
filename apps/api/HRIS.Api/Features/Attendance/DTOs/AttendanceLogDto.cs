@@ -21,6 +21,9 @@ public class AttendanceLogDto
     public string OvertimeStatus { get; set; } = "None";
 
     public int RenderedMinutes { get; set; }
+    public int CreditedMinutes { get; set; }
+    public int ExcessMinutes { get; set; }
+    public bool HasExceededApprovedOvertime { get; set; }
 
     public bool IsPresent { get; set; }
 
@@ -33,4 +36,12 @@ public class AttendanceLogDto
 
     public bool IsHoliday { get; set; }
     public string? HolidayName { get; set; }
+
+    public string? ShiftName { get; set; }
+    public TimeOnly? ShiftStartTime { get; set; }
+    public TimeOnly? TimeInOpenTime { get; set; }
+    public TimeOnly? BreakStartTime { get; set; }
+    public TimeOnly? BreakEndTime { get; set; }
+    public TimeOnly? ShiftEndTime { get; set; }
+    public int LateGraceMinutes { get; set; }
 }

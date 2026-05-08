@@ -2,6 +2,12 @@ import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import type { AdminDtrRecord, StatusBadgeMap } from '../../../types/attendance';
 
+type AdminDtrRecordWithCredits = AdminDtrRecord & {
+    creditedMinutes?: number;
+    excessMinutes?: number;
+    hasExceededApprovedOvertime?: boolean;
+};
+
 type Props = {
     isOpen: boolean;
     record: AdminDtrRecord | null;
@@ -58,8 +64,13 @@ const DetailItem = ({
 const ViewAttendanceModal = ({ isOpen, record, statusBadge, onClose }: Props) => {
     if (!isOpen || !record) return null;
 
+    const recordWithCredits = record as AdminDtrRecordWithCredits;
     const hasApprovedOT = record.overtimeStatus === 'Approved';
     const hasPendingOT = record.overtimeStatus === 'Pending';
+    const shouldShowCredited =
+        recordWithCredits.hasExceededApprovedOvertime === true &&
+        typeof recordWithCredits.creditedMinutes === 'number' &&
+        recordWithCredits.creditedMinutes > 0;
 
     return createPortal(
         <div
@@ -111,9 +122,9 @@ const ViewAttendanceModal = ({ isOpen, record, statusBadge, onClose }: Props) =>
                                 )}
 
                                 {hasPendingOT && (
-                                    <span className="badge badge-info">
+                                    <span className="badge badge-warning">
                                         <span className="badge-dot" />
-                                        Pending
+                                        Pending OT
                                     </span>
                                 )}
 
@@ -142,7 +153,14 @@ const ViewAttendanceModal = ({ isOpen, record, statusBadge, onClose }: Props) =>
 
                         <DetailItem label="Undertime">{formatMinutes(record.undertimeMinutes)}</DetailItem>
 
-                        <DetailItem label="Total">{formatMinutes(record.renderedMinutes)}</DetailItem>
+                        <DetailItem label="Total">
+                            <div>{formatMinutes(record.renderedMinutes)}</div>
+                            {shouldShowCredited && (
+                                <div className="mt-1 text-[12px] font-semibold text-slate-400">
+                                    Credited: {formatMinutes(recordWithCredits.creditedMinutes)}
+                                </div>
+                            )}
+                        </DetailItem>
 
                         <DetailItem label="Overtime">
                             {hasApprovedOT ? formatMinutes(record.overtimeMinutes) : '--'}

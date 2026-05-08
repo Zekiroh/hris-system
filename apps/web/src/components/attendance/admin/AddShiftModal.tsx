@@ -1,15 +1,13 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import { toast } from 'sonner';
-import type { Shift, ShiftDay } from '../../../lib/attendance';
+import type { ShiftDay } from '../../../lib/attendance';
 
 type ShiftDayField = 'isWorkingDay' | 'startTime' | 'breakStartTime' | 'breakEndTime' | 'endTime';
 type ShiftDayValue = boolean | string | null;
 
 type Props = {
     open: boolean;
-    shift: Shift | null;
     days: ShiftDay[];
     name: string;
     graceMinutes: string;
@@ -21,7 +19,7 @@ type Props = {
     onGraceMinutesChange: (value: string) => void;
     onIsActiveChange: (value: boolean) => void;
     onChangeDay: (dayId: number, field: ShiftDayField, value: ShiftDayValue) => void;
-    onSave: () => void | Promise<void>;
+    onSave: () => void;
 };
 
 const DAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -56,7 +54,7 @@ const toMinutes = (value?: string | null) => {
 
 const formatDayLabel = (dayOfWeek: number) => DAY_LABELS[dayOfWeek] ?? 'Selected day';
 
-const normalizeInsideShift = (
+const normalizeTimeWithinShift = (
     valueMinutes: number,
     shiftStartMinutes: number,
     normalizedShiftEndMinutes: number
@@ -75,7 +73,7 @@ const normalizeInsideShift = (
     return null;
 };
 
-const normalizeAfterInsideShift = (
+const normalizeTimeAfterWithinShift = (
     valueMinutes: number,
     afterMinutes: number,
     normalizedShiftEndMinutes: number
@@ -97,12 +95,19 @@ const normalizeAfterInsideShift = (
 const validateShift = (name: string, graceMinutes: string, days: ShiftDay[]) => {
     const trimmedName = name.trim();
 
-    if (!trimmedName) return 'Shift name is required.';
-    if (trimmedName.length < 3) return 'Shift name must be at least 3 characters.';
+    if (!trimmedName) {
+        return 'Shift name is required.';
+    }
+
+    if (trimmedName.length < 3) {
+        return 'Shift name must be at least 3 characters.';
+    }
 
     const normalizedGraceMinutes = graceMinutes.trim();
 
-    if (normalizedGraceMinutes === '') return 'Grace period is required.';
+    if (normalizedGraceMinutes === '') {
+        return 'Grace period is required.';
+    }
 
     const graceValue = Number(normalizedGraceMinutes);
 
@@ -124,15 +129,19 @@ const validateShift = (name: string, graceMinutes: string, days: ShiftDay[]) => 
         const breakEndMinutes = toMinutes(day.breakEndTime);
         const endMinutes = toMinutes(day.endTime);
 
-        if (startMinutes === null) return `${dayLabel}: Start time is required.`;
-        if (endMinutes === null) return `${dayLabel}: End time is required.`;
+        if (startMinutes === null) {
+            return `${dayLabel}: Start time is required.`;
+        }
+
+        if (endMinutes === null) {
+            return `${dayLabel}: End time is required.`;
+        }
 
         if (startMinutes === endMinutes) {
             return `${dayLabel}: Start time and end time cannot be the same.`;
         }
 
         const normalizedEndMinutes = endMinutes <= startMinutes ? endMinutes + 1440 : endMinutes;
-
         const hasBreakStart = breakStartMinutes !== null;
         const hasBreakEnd = breakEndMinutes !== null;
 
@@ -143,7 +152,7 @@ const validateShift = (name: string, graceMinutes: string, days: ShiftDay[]) => 
         let breakDuration = 0;
 
         if (hasBreakStart && hasBreakEnd && breakStartMinutes !== null && breakEndMinutes !== null) {
-            const normalizedBreakStartMinutes = normalizeInsideShift(
+            const normalizedBreakStartMinutes = normalizeTimeWithinShift(
                 breakStartMinutes,
                 startMinutes,
                 normalizedEndMinutes
@@ -153,7 +162,7 @@ const validateShift = (name: string, graceMinutes: string, days: ShiftDay[]) => 
                 return `${dayLabel}: Break start must be within shift hours.`;
             }
 
-            const normalizedBreakEndMinutes = normalizeAfterInsideShift(
+            const normalizedBreakEndMinutes = normalizeTimeAfterWithinShift(
                 breakEndMinutes,
                 normalizedBreakStartMinutes,
                 normalizedEndMinutes
@@ -176,9 +185,8 @@ const validateShift = (name: string, graceMinutes: string, days: ShiftDay[]) => 
     return null;
 };
 
-const EditShiftModal = ({
+const AddShiftModal = ({
     open,
-    shift,
     days,
     name,
     graceMinutes,
@@ -205,7 +213,7 @@ const EditShiftModal = ({
         };
     }, [open]);
 
-    if (!open || !shift) return null;
+    if (!open) return null;
 
     const sortedDays = days.slice().sort((a, b) => a.dayOfWeek - b.dayOfWeek);
     const displayError = validationError ?? error;
@@ -269,7 +277,7 @@ const EditShiftModal = ({
         }
     };
 
-    const handleSave = async () => {
+    const handleSave = () => {
         const validationMessage = validateShift(name, graceMinutes, days);
 
         if (validationMessage) {
@@ -277,14 +285,8 @@ const EditShiftModal = ({
             return;
         }
 
-        try {
-            setValidationError(null);
-            await onSave();
-            toast.success('Shift updated successfully');
-        } catch (saveError) {
-            const message = saveError instanceof Error ? saveError.message : 'Failed to update shift';
-            toast.error(message);
-        }
+        setValidationError(null);
+        onSave();
     };
 
     return createPortal(
@@ -292,9 +294,9 @@ const EditShiftModal = ({
             <div className="flex max-h-[92vh] w-full max-w-[980px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
                 <div className="flex items-start justify-between border-b border-gray-100 px-6 py-5">
                     <div>
-                        <h2 className="text-lg font-bold text-gray-900">Edit Shift</h2>
+                        <h2 className="text-lg font-bold text-gray-900">Add Shift</h2>
                         <p className="mt-1 text-sm font-medium text-slate-500">
-                            Update shift details and working-day schedule. Changes become the basis for DTR rules.
+                            Create shift details and working-day schedule. This becomes the basis for DTR rules.
                         </p>
                     </div>
 
@@ -302,7 +304,7 @@ const EditShiftModal = ({
                         type="button"
                         onClick={handleClose}
                         className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                        aria-label="Close edit shift modal"
+                        aria-label="Close add shift modal"
                     >
                         <X className="h-5 w-5" />
                     </button>
@@ -494,7 +496,7 @@ const EditShiftModal = ({
                         disabled={saving}
                         className="btn btn-primary h-[42px] min-w-[140px] disabled:cursor-not-allowed disabled:opacity-70"
                     >
-                        {saving ? 'Saving...' : 'Save Changes'}
+                        {saving ? 'Creating...' : 'Add Shift'}
                     </button>
                 </div>
             </div>
@@ -503,4 +505,4 @@ const EditShiftModal = ({
     );
 };
 
-export default EditShiftModal;
+export default AddShiftModal;

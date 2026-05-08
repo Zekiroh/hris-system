@@ -1,9 +1,6 @@
 import { CalendarDays, Check, Clock3, Edit, Eye, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type {
-  AdminDtrRecord,
-  StatusBadgeMap,
-} from "../../../types/attendance";
+import type { AdminDtrRecord, StatusBadgeMap } from "../../../types/attendance";
 
 type Props = {
   records: AdminDtrRecord[];
@@ -144,6 +141,30 @@ const createPlaceholderRow = (id: number): AdminDtrRecord => ({
 
 const normalizeTimeInput = (value: string) => value.trim().toUpperCase();
 
+const normalizeOvertimeStatus = (value?: string | null) => {
+  const normalized = value?.trim().toLowerCase();
+
+  if (normalized === "approved") return "Approved";
+
+  return "None";
+};
+
+const getStableRowKey = (record: AdminDtrRecord, index: number) => {
+  const isPlaceholder = record.id < 0;
+
+  if (isPlaceholder) {
+    return `placeholder-${index}-${record.id}`;
+  }
+
+  const employeeId = record.empId || "employee";
+  const date = record.date || "date";
+  const timeIn = record.timeIn || "no-time-in";
+  const timeOut = record.timeOut || "no-time-out";
+  const status = record.status || "status";
+
+  return `dtr-${record.id}-${employeeId}-${date}-${timeIn}-${timeOut}-${status}-${index}`;
+};
+
 const AdminDtrTable = ({
   records,
   loading,
@@ -156,7 +177,7 @@ const AdminDtrTable = ({
   onNext,
   recentlyEditedRowId,
 }: Props) => {
-  const [editingRowId, setEditingRowId] = useState<number | null>(null);
+  const [editingRowKey, setEditingRowKey] = useState<string | null>(null);
   const [editedTimeIn, setEditedTimeIn] = useState("");
   const [editedTimeOut, setEditedTimeOut] = useState("");
 
@@ -169,23 +190,29 @@ const AdminDtrTable = ({
   const hasRecords = records.length > 0;
 
   useEffect(() => {
-    if (editingRowId === null) return;
+    if (editingRowKey === null) return;
 
-    const rowStillExists = records.some((record) => record.id === editingRowId);
+    const rowStillExists = records.some(
+      (record, index) => getStableRowKey(record, index) === editingRowKey,
+    );
+
     if (rowStillExists) return;
 
     const timeout = window.setTimeout(() => {
-      setEditingRowId(null);
+      setEditingRowKey(null);
       setEditedTimeIn("");
       setEditedTimeOut("");
     }, 0);
 
     return () => window.clearTimeout(timeout);
-  }, [records, editingRowId]);
+  }, [records, editingRowKey]);
 
   const editingSourceRecord = useMemo(
-    () => records.find((record) => record.id === editingRowId) ?? null,
-    [records, editingRowId]
+    () =>
+      records.find(
+        (record, index) => getStableRowKey(record, index) === editingRowKey,
+      ) ?? null,
+    [records, editingRowKey],
   );
 
   const isDirty = editingSourceRecord
@@ -200,21 +227,21 @@ const AdminDtrTable = ({
         ...records,
         ...Array.from(
           { length: Math.max(0, DEFAULT_PAGE_SIZE - records.length) },
-          (_, i) => createPlaceholderRow(-(i + 1))
+          (_, i) => createPlaceholderRow(-(i + 1)),
         ),
       ]
     : Array.from({ length: DEFAULT_PAGE_SIZE - 1 }, (_, i) =>
-        createPlaceholderRow(-(i + 1))
+        createPlaceholderRow(-(i + 1)),
       );
 
-  const startInlineEdit = (row: AdminDtrRecord) => {
-    setEditingRowId(row.id);
+  const startInlineEdit = (row: AdminDtrRecord, rowKey: string) => {
+    setEditingRowKey(rowKey);
     setEditedTimeIn(formatTimeDisplay(row.timeIn));
     setEditedTimeOut(formatTimeDisplay(row.timeOut));
   };
 
   const cancelInlineEdit = () => {
-    setEditingRowId(null);
+    setEditingRowKey(null);
     setEditedTimeIn("");
     setEditedTimeOut("");
   };
@@ -228,7 +255,7 @@ const AdminDtrTable = ({
       timeOut: editedTimeOut.trim(),
     });
 
-    setEditingRowId(null);
+    setEditingRowKey(null);
     setEditedTimeIn("");
     setEditedTimeOut("");
   };
@@ -273,21 +300,22 @@ const AdminDtrTable = ({
                   </tr>
                 )}
 
-                {dataRows.map((row) => {
+                {dataRows.map((row, index) => {
+                  const rowKey = getStableRowKey(row, index);
                   const isPlaceholder = row.id < 0;
-                  const isEditing = editingRowId === row.id;
+                  const isEditing = editingRowKey === rowKey;
                   const formattedName = formatAttendanceName(row.name, row.suffix);
                   const avatarInitial = getAvatarInitial(row.name, row.suffix);
                   const formattedDate = formatAttendanceDate(row.date);
                   const formattedTimeIn = formatTimeDisplay(row.timeIn);
                   const formattedTimeOut = formatTimeDisplay(row.timeOut);
                   const formattedTotal = formatMinutes(row.renderedMinutes);
-                  const hasApprovedOT = row.overtimeStatus === "Approved";
-                  const hasPendingOT = row.overtimeStatus === "Pending";
+                  const hasApprovedOT =
+                    normalizeOvertimeStatus(row.overtimeStatus) === "Approved";
 
                   return (
                     <tr
-                      key={row.id}
+                      key={rowKey}
                       className={`
                         transition-all duration-500
                         ${
@@ -422,13 +450,6 @@ const AdminDtrTable = ({
                                 Overtime
                               </span>
                             )}
-
-                            {hasPendingOT && (
-                              <span className="badge badge-info">
-                                <span className="badge-dot" />
-                                Pending
-                              </span>
-                            )}
                           </div>
                         )}
                       </td>
@@ -504,7 +525,7 @@ const AdminDtrTable = ({
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                startInlineEdit(row);
+                                startInlineEdit(row, rowKey);
                               }}
                               className="inline-flex cursor-pointer items-center justify-center text-slate-500 transition hover:text-slate-700"
                               title="Edit"

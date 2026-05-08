@@ -11,4 +11,6 @@ public class UpdateShiftRequest
     public int LateGraceMinutes { get; set; }
 
     public bool IsFlexible { get; set; }
+
+    public List<ShiftDayRequest> Days { get; set; } = new();
 }

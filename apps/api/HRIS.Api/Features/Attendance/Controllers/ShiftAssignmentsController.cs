@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using HRIS.Api.Features.Attendance.DTOs;
 using HRIS.Api.Features.Attendance.Services;
 using HRIS.Api.Features.IAM.Controllers;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HRIS.Api.Features.Attendance.Controllers;
@@ -30,5 +32,36 @@ public class ShiftAssignmentsController : ControllerBase
     {
         var result = await _service.GetCurrentAsync(employeeId, ct);
         return result == null ? NotFound() : Ok(result);
+    }
+
+    [HttpGet("me/current-shift")]
+    [Authorize]
+    public async Task<IActionResult> GetMyCurrentShift(CancellationToken ct)
+    {
+        var userIdRaw =
+            User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+            User.FindFirstValue("sub");
+
+        if (!long.TryParse(userIdRaw, out var userId))
+            return Unauthorized();
+
+        var result = await _service.GetCurrentUserShiftAsync(userId, ct);
+        return Ok(result);
+    }
+
+    [HttpGet("by-shift/{shiftId:int}")]
+    [PermissionAuthorize("ATTENDANCE", "View")]
+    public async Task<IActionResult> GetByShift(int shiftId, CancellationToken ct)
+    {
+        var result = await _service.GetByShiftAsync(shiftId, ct);
+        return Ok(result);
+    }
+
+    [HttpDelete("{assignmentId:int}")]
+    [PermissionAuthorize("ATTENDANCE", "Update")]
+    public async Task<IActionResult> Unassign(int assignmentId, CancellationToken ct)
+    {
+        await _service.UnassignAsync(assignmentId, ct);
+        return NoContent();
     }
 }

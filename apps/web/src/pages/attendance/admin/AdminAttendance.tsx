@@ -15,6 +15,8 @@ import {
     getAttendanceLogs,
     getAttendanceSummary,
     getOvertimeRequests,
+    getShifts,
+    getShiftAssignmentsByShift,
     reviewOvertimeRequest,
     updateAttendanceLog,
     toApiDateString,
@@ -55,6 +57,16 @@ type ShiftFormModalProps = {
 };
 
 const DEFAULT_PAGE_SIZE = 10;
+const DTR_HISTORY_START_DATE = '2000-01-01';
+
+const getTodayDateKey = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+};
 
 type EmployeeApiItem = {
     id: string;
@@ -92,7 +104,6 @@ type ShiftsResponse = {
     items?: ShiftApiItem[];
 };
 
-
 const getErrorMessage = (error: unknown, fallback: string) => {
     if (error instanceof Error && error.message) {
         return error.message;
@@ -108,6 +119,15 @@ const getErrorMessage = (error: unknown, fallback: string) => {
     }
 
     return fallback;
+};
+
+const normalizeOvertimeStatus = (value?: string | null): 'None' | 'Pending' | 'Approved' => {
+    const normalized = value?.trim().toLowerCase();
+
+    if (normalized === 'approved') return 'Approved';
+    if (normalized === 'pending') return 'Pending';
+
+    return 'None';
 };
 
 const normalizeDateKey = (value?: string | null) => {
@@ -188,7 +208,6 @@ const formatApiTimeToDisplay = (value?: string | null) => {
 
     return `${String(hour).padStart(2, '0')}:${minute.padStart(2, '0')} ${modifier}`;
 };
-
 
 type ConfirmAttendanceUpdateModalProps = {
     isOpen: boolean;
@@ -325,6 +344,7 @@ const AdminAttendance = () => {
         dateTo: '',
         search: '',
         status: '',
+        sort: 'latest',
     });
 
     const [summary, setSummary] = useState<AttendanceSummaryDto | null>(null);
@@ -349,7 +369,9 @@ const AdminAttendance = () => {
             const status: AdminDtrRecord['status'] = mapAttendanceStatus(log);
             const lateMinutes = Number(log.lateMinutes ?? 0);
             const undertimeMinutes = Number(log.undertimeMinutes ?? 0);
-            const overtimeMinutes = Number(log.overtimeMinutes ?? 0);
+            const overtimeStatus = normalizeOvertimeStatus(log.overtimeStatus);
+            const rawOvertimeMinutes = Number(log.overtimeMinutes ?? 0);
+            const overtimeMinutes = overtimeStatus === 'Approved' ? rawOvertimeMinutes : 0;
             const renderedMinutes = Number(log.renderedMinutes ?? 0);
 
             return {
@@ -361,8 +383,8 @@ const AdminAttendance = () => {
                 timeIn: formatAttendanceTime(log.timeIn),
                 timeOut: formatAttendanceTime(log.timeOut),
                 status,
-                isOT: log.overtimeStatus === 'Approved',
-                overtimeStatus: log.overtimeStatus ?? 'None',
+                isOT: overtimeStatus === 'Approved',
+                overtimeStatus,
                 isUndertime: undertimeMinutes > 0,
                 task: log.task?.trim() || '--',
                 accomplished: log.accomplished?.trim() || '--',
@@ -380,15 +402,19 @@ const AdminAttendance = () => {
             try {
                 setLoadingDtr(true);
 
+                const dateFrom = filters.dateFrom || DTR_HISTORY_START_DATE;
+                const dateTo = filters.dateTo || getTodayDateKey();
+
                 const res = await getAttendanceLogs({
                     page: 1,
-                    pageSize: 100,
-                    dateFrom: filters.dateFrom || undefined,
-                    dateTo: filters.dateTo || undefined,
+                    pageSize: 1000,
+                    dateFrom,
+                    dateTo,
                 });
 
                 setDtrRecords((res.items || []).map(mapAttendanceRecord));
                 setDtrPageSize(DEFAULT_PAGE_SIZE);
+                setDtrPage(1);
             } catch (error: unknown) {
                 console.error(error);
                 alert(getErrorMessage(error, 'Failed to load attendance records.'));
@@ -463,23 +489,50 @@ const AdminAttendance = () => {
         try {
             setLoadingAssignOtEmployees(true);
 
-            const res = (await getEmployees({ page: 1, pageSize: 100 })) as EmployeesResponse;
+            const [employeesResponse, shiftsResponse] = await Promise.all([
+                getEmployees({ page: 1, pageSize: 100, isActive: true }) as Promise<EmployeesResponse>,
+                getShifts(),
+            ]);
 
-            setAssignOtEmployees(
-                (res.items || [])
-                    .filter((employee) => !!employee.id)
-                    .map((employee) => ({
-                        id: employee.id,
-                        employeeNumber: employee.employeeNumber ?? null,
-                        firstName: employee.firstName ?? null,
-                        lastName: employee.lastName ?? null,
-                        middleName: employee.middleName ?? null,
-                        suffix: employee.suffix ?? null,
-                    }))
+            const activeShifts = (shiftsResponse.items || []).filter(
+                (shift) => shift.isActive !== false && Number(shift.assignedCount ?? 0) > 0
             );
+
+            const assignmentResponses = await Promise.all(
+                activeShifts.map((shift) => getShiftAssignmentsByShift(shift.id))
+            );
+
+            const assignedEmployeeIds = new Set<string>();
+
+            assignmentResponses.forEach((assignments) => {
+                assignments.forEach((assignment) => {
+                    if (assignment.isActive !== false && assignment.employeeId) {
+                        assignedEmployeeIds.add(String(assignment.employeeId));
+                    }
+                });
+            });
+
+            const mappedEmployees = (employeesResponse.items || [])
+                .filter((employee) => !!employee.id && assignedEmployeeIds.has(String(employee.id)))
+                .map((employee) => ({
+                    id: String(employee.id),
+                    employeeNumber: employee.employeeNumber ?? null,
+                    firstName: employee.firstName ?? null,
+                    lastName: employee.lastName ?? null,
+                    middleName: employee.middleName ?? null,
+                    suffix: employee.suffix ?? null,
+                }))
+                .sort((a, b) => {
+                    const left = `${a.lastName ?? ''}, ${a.firstName ?? ''}`.trim();
+                    const right = `${b.lastName ?? ''}, ${b.firstName ?? ''}`.trim();
+
+                    return left.localeCompare(right);
+                });
+
+            setAssignOtEmployees(mappedEmployees);
         } catch (error: unknown) {
             console.error(error);
-            toast.error(getErrorMessage(error, 'Failed to load employees.'));
+            toast.error(getErrorMessage(error, 'Failed to load employees with assigned shifts.'));
         } finally {
             setLoadingAssignOtEmployees(false);
         }
@@ -489,6 +542,44 @@ const AdminAttendance = () => {
         if (!showAssignOvertimeModal) return;
         void fetchAssignOtEmployees();
     }, [fetchAssignOtEmployees, showAssignOvertimeModal]);
+
+
+    useEffect(() => {
+        const handleViewEmployeeLogs = (event: Event) => {
+            const customEvent = event as CustomEvent<{
+                employeeId?: string | null;
+                employeeNumber?: string | null;
+                employeeName?: string | null;
+            }>;
+
+            const searchValue =
+                customEvent.detail?.employeeNumber ||
+                customEvent.detail?.employeeName ||
+                customEvent.detail?.employeeId ||
+                '';
+
+            if (!searchValue.trim()) return;
+
+            const nextFilters: DtrFilters = {
+                ...dtrFilters,
+                search: searchValue.trim(),
+                status: '',
+                dateFrom: dtrFilters.dateFrom || DTR_HISTORY_START_DATE,
+                dateTo: dtrFilters.dateTo || getTodayDateKey(),
+            };
+
+            setActiveTab('dtr');
+            setDtrFilters(nextFilters);
+            setDtrPage(1);
+            void fetchDtr(1, nextFilters);
+        };
+
+        window.addEventListener('attendance:view-employee-logs', handleViewEmployeeLogs);
+
+        return () => {
+            window.removeEventListener('attendance:view-employee-logs', handleViewEmployeeLogs);
+        };
+    }, [dtrFilters, fetchDtr]);
 
     useEffect(() => {
         void fetchOt();
@@ -520,8 +611,8 @@ const AdminAttendance = () => {
     };
 
     const search = dtrFilters.search.trim().toLowerCase();
-    const rawStatus = ((dtrFilters as DtrFilters & { sortBy?: string }).status ?? '').trim();
-    const sortBy = ((dtrFilters as DtrFilters & { sortBy?: string }).sortBy ?? 'latest').trim();
+    const rawStatus = (dtrFilters.status ?? '').trim();
+    const sortBy = (dtrFilters.sort ?? 'latest').trim();
 
     const processedDtrRecords = dtrRecords
         .filter((record) => {
@@ -537,7 +628,7 @@ const AdminAttendance = () => {
                 (rawStatus === 'Late' && record.status === 'Late') ||
                 (rawStatus === 'Absent' && record.status === 'Absent') ||
                 (rawStatus === 'Undertime' && record.isUndertime) ||
-                (rawStatus === 'Overtime' && record.isOT);
+                (rawStatus === 'Overtime' && record.overtimeStatus === 'Approved');
 
             return matchesSearch && matchesStatus;
         })
@@ -585,7 +676,7 @@ const AdminAttendance = () => {
         },
         {
             label: 'Absent',
-            value: Math.max(0, (summary?.totalRecords ?? 0) - (summary?.presentCount ?? 0)),
+            value: summary?.absentCount ?? 0,
             icon: XCircle,
             gradient: 'linear-gradient(135deg, #dc2626, #ef4444)',
         },
@@ -643,7 +734,7 @@ const AdminAttendance = () => {
                 timeIn: toApiTimeString(pendingEditRecord.timeIn),
                 timeOut: toApiTimeString(pendingEditRecord.timeOut),
                 status: pendingEditRecord.status,
-                isOT: pendingEditRecord.isOT,
+                isOT: pendingEditRecord.overtimeStatus === 'Approved',
             });
 
             setShowConfirmEditModal(false);
@@ -680,6 +771,7 @@ const AdminAttendance = () => {
             });
 
             await fetchOt();
+            await fetchDtr(1, dtrFilters);
             await fetchSummary();
         } catch (error: unknown) {
             console.error(error);
@@ -727,6 +819,7 @@ const AdminAttendance = () => {
             });
 
             await fetchOt();
+            await fetchDtr(1, dtrFilters);
             await fetchSummary();
         } catch (error: unknown) {
             console.error(error);
@@ -803,7 +896,7 @@ const AdminAttendance = () => {
     };
 
     const handleExportCsv = () => {
-        if (filteredDtrRecords.length === 0) {
+        if (processedDtrRecords.length === 0) {
             alert('No data to export.');
             return;
         }
@@ -822,7 +915,7 @@ const AdminAttendance = () => {
             'Rendered Minutes',
         ];
 
-        const rows = filteredDtrRecords.map((record) => [
+        const rows = processedDtrRecords.map((record) => [
             record.empId,
             record.name,
             record.date,

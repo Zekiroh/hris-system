@@ -2,7 +2,6 @@ import type { Shift } from '../../../lib/attendance';
 
 export type EmployeeOption = {
     id: string;
-    employeeNumber: string;
     fullName: string;
 };
 
@@ -17,7 +16,7 @@ type Props = {
     assignMessage: string | null;
     assignError: string | null;
     onSelectedEmployeeChange: (value: string) => void;
-    onSelectedAssignShiftChange: (value: number | null) => void;
+    onSelectedAssignShiftChange: (value: number) => void;
     onEffectiveFromChange: (value: string) => void;
     onAssignShift: () => void;
 };
@@ -38,96 +37,87 @@ const AssignShiftForm = ({
     onAssignShift,
 }: Props) => {
     return (
-        <div className="rounded-xl border border-gray-100 bg-white p-5">
-            <div className="mb-4">
-                <h4 className="text-sm font-bold text-gray-800">Assign Shift to Employee</h4>
-                <p className="mt-1 text-sm text-slate-500">
-                    Assign an active shift schedule to an employee. This becomes the basis for time
-                    in, late, undertime, and overtime rules.
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+
+            <div className="mb-3">
+                <h2 className="text-sm font-semibold text-gray-800">
+                    Assign Shift
+                </h2>
+                <p className="text-xs text-gray-500">
+                    Assign a shift schedule to an employee
                 </p>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-[1.4fr_1.2fr_1fr_auto]">
-                <div>
-                    <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        Employee
-                    </label>
+            {/* INLINE LAYOUT (IMPORTANT FIX) */}
+            <div className="flex flex-col md:flex-row md:items-end gap-3">
+
+                {/* Employee */}
+                <div className="flex flex-col flex-1">
+                    <label className="mb-1 text-xs text-gray-600">Employee</label>
                     <select
-                        className="pro-input w-full"
+                        className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                         value={selectedEmployeeId}
-                        onChange={(event) => onSelectedEmployeeChange(event.target.value)}
-                        disabled={loadingEmployees || assigning}
+                        onChange={(e) => onSelectedEmployeeChange(e.target.value)}
+                        disabled={loadingEmployees}
                     >
                         <option value="">
-                            {loadingEmployees ? 'Loading employees...' : 'Select employee'}
+                            {loadingEmployees ? 'Loading...' : 'Select employee'}
                         </option>
-                        {employees.map((employee) => (
-                            <option key={employee.id} value={employee.id}>
-                                {employee.employeeNumber} — {employee.fullName || 'No name'}
+                        {employees.map((emp) => (
+                            <option key={emp.id} value={emp.id}>
+                                {emp.fullName}
                             </option>
                         ))}
                     </select>
                 </div>
 
-                <div>
-                    <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        Shift
-                    </label>
+                {/* Shift */}
+                <div className="flex flex-col flex-1">
+                    <label className="mb-1 text-xs text-gray-600">Shift</label>
                     <select
-                        className="pro-input w-full"
+                        className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                         value={selectedAssignShiftId ?? ''}
-                        onChange={(event) =>
-                            onSelectedAssignShiftChange(
-                                event.target.value ? Number(event.target.value) : null
-                            )
-                        }
-                        disabled={assigning}
+                        onChange={(e) => onSelectedAssignShiftChange(Number(e.target.value))}
                     >
                         <option value="">Select shift</option>
-                        {apiShifts
-                            .filter((shift) => shift.isActive)
-                            .map((shift) => (
-                                <option key={shift.id} value={shift.id}>
-                                    {shift.name}
-                                </option>
-                            ))}
+                        {apiShifts.map((shift) => (
+                            <option key={shift.id} value={shift.id}>
+                                {shift.name}
+                            </option>
+                        ))}
                     </select>
                 </div>
 
-                <div>
-                    <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        Effective From
-                    </label>
+                {/* Date */}
+                <div className="flex flex-col w-full md:w-[180px]">
+                    <label className="mb-1 text-xs text-gray-600">Effective Date</label>
                     <input
                         type="date"
-                        className="pro-input w-full"
+                        className="rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                         value={effectiveFrom}
-                        onChange={(event) => onEffectiveFromChange(event.target.value)}
-                        disabled={assigning}
+                        onChange={(e) => onEffectiveFromChange(e.target.value)}
                     />
                 </div>
 
-                <div className="flex items-end">
-                    <button
-                        type="button"
-                        className="btn btn-primary h-[44px] w-full lg:w-auto"
-                        onClick={onAssignShift}
-                        disabled={assigning}
-                    >
-                        {assigning ? 'Assigning...' : 'Assign'}
-                    </button>
-                </div>
+                {/* BUTTON INLINE */}
+                <button
+                    onClick={onAssignShift}
+                    disabled={assigning}
+                    className="h-[38px] px-4 rounded-md bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-60"
+                >
+                    {assigning ? 'Assigning...' : 'Assign'}
+                </button>
             </div>
 
-            {assignMessage && (
-                <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-                    {assignMessage}
+            {assignError && (
+                <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {assignError}
                 </div>
             )}
 
-            {assignError && (
-                <div className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-                    {assignError}
+            {assignMessage && (
+                <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                    {assignMessage}
                 </div>
             )}
         </div>

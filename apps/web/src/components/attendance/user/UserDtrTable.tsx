@@ -12,6 +12,9 @@ export interface AttendanceRow {
     overtimeStatus?: 'None' | 'Pending' | 'Approved';
     hours: string;
     renderedMinutes: number;
+    creditedMinutes?: number;
+    excessMinutes?: number;
+    hasExceededApprovedOvertime?: boolean;
     lateMinutes: number;
     undertimeMinutes: number;
     overtimeMinutes: number;
@@ -71,6 +74,9 @@ const createPlaceholderRow = (id: number): AttendanceRow => ({
     overtimeStatus: 'None',
     hours: '--',
     renderedMinutes: 0,
+    creditedMinutes: 0,
+    excessMinutes: 0,
+    hasExceededApprovedOvertime: false,
     lateMinutes: 0,
     undertimeMinutes: 0,
     overtimeMinutes: 0,
@@ -96,6 +102,15 @@ const formatTimeDisplay = (value: string | null | undefined) => {
     }
 
     return normalized;
+};
+
+const normalizeOvertimeStatus = (value?: string | null): 'None' | 'Pending' | 'Approved' => {
+    const normalized = value?.trim().toLowerCase();
+
+    if (normalized === 'approved') return 'Approved';
+    if (normalized === 'pending') return 'Pending';
+
+    return 'None';
 };
 
 const UserDtrTable = ({
@@ -124,7 +139,7 @@ const UserDtrTable = ({
                   (_, i) => createPlaceholderRow(-(i + 1))
               ),
           ]
-        : Array.from({ length: DEFAULT_PAGE_SIZE - 1 }, (_, i) => createPlaceholderRow(-(i + 1)));
+        : Array.from({ length: DEFAULT_PAGE_SIZE }, (_, i) => createPlaceholderRow(-(i + 1)));
 
     return (
         <div className="mt-6 overflow-hidden rounded-2xl border border-gray-100">
@@ -158,19 +173,27 @@ const UserDtrTable = ({
                                     </tr>
                                 )}
 
-                                {dataRows.map((row) => {
+                                {dataRows.map((row, index) => {
                                     const isPlaceholder = row.id < 0;
                                     const isTimedOut = hasActualTimeOut(row.timeOut);
                                     const formattedDate = formatAttendanceDate(row.date);
                                     const formattedTimeIn = formatTimeDisplay(row.timeIn);
                                     const formattedTimeOut = formatTimeDisplay(row.timeOut);
                                     const formattedTotal = formatMinutes(row.renderedMinutes);
-                                    const hasApprovedOT = row.overtimeStatus === 'Approved';
-                                    const hasPendingOT = row.overtimeStatus === 'Pending';
+                                    const formattedCredited = formatMinutes(row.creditedMinutes ?? row.renderedMinutes);
+                                    const hasExceededApprovedOvertime = Boolean(row.hasExceededApprovedOvertime);
+                                    const overtimeStatus = normalizeOvertimeStatus(row.overtimeStatus);
+                                    const hasApprovedOT = overtimeStatus === 'Approved';
+                                    const hasPendingOT = overtimeStatus === 'Pending';
+
+                                    // ✅ FIXED KEY (no duplicates anymore)
+                                    const rowKey = isPlaceholder
+                                        ? `placeholder-${index}`
+                                        : `log-${row.id}-${row.date}-${index}`;
 
                                     return (
                                         <tr
-                                            key={row.id}
+                                            key={rowKey}
                                             className={`
                                                 transition-all duration-500
                                                 ${
@@ -182,128 +205,97 @@ const UserDtrTable = ({
                                         >
                                             <td className={`px-6 py-4 whitespace-nowrap font-medium ${isPlaceholder ? 'text-gray-300' : 'text-slate-700'}`}>
                                                 <div className="flex min-h-8 items-center gap-2">
-                                                    <CalendarDays
-                                                        className={`h-4 w-4 shrink-0 ${
-                                                            isPlaceholder ? 'text-gray-300' : 'text-slate-400'
-                                                        }`}
-                                                    />
+                                                    <CalendarDays className={`h-4 w-4 shrink-0 ${isPlaceholder ? 'text-gray-300' : 'text-slate-400'}`} />
                                                     <span>{formattedDate}</span>
                                                 </div>
                                             </td>
 
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex min-h-8 items-center">
-                                                    <span className={`font-mono text-sm font-semibold ${isPlaceholder ? 'text-gray-300' : 'text-slate-600'}`}>
-                                                        {isPlaceholder ? '--:-- --' : formattedTimeIn}
-                                                    </span>
-                                                </div>
+                                                <span className={`font-mono text-sm font-semibold ${isPlaceholder ? 'text-gray-300' : 'text-slate-600'}`}>
+                                                    {isPlaceholder ? '--:-- --' : formattedTimeIn}
+                                                </span>
                                             </td>
 
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex min-h-8 items-center">
-                                                    <span className={`font-mono text-sm font-semibold ${isPlaceholder ? 'text-gray-300' : 'text-slate-600'}`}>
-                                                        {isPlaceholder ? '--:-- --' : formattedTimeOut}
-                                                    </span>
-                                                </div>
+                                                <span className={`font-mono text-sm font-semibold ${isPlaceholder ? 'text-gray-300' : 'text-slate-600'}`}>
+                                                    {isPlaceholder ? '--:-- --' : formattedTimeOut}
+                                                </span>
                                             </td>
 
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex min-h-8 items-center gap-2">
-                                                    <Clock3
-                                                        className={`h-4 w-4 shrink-0 ${
-                                                            isPlaceholder ? 'text-gray-300' : 'text-slate-400'
-                                                        }`}
-                                                    />
-                                                    <span className={`font-mono text-sm font-semibold ${isPlaceholder ? 'text-gray-300' : 'text-slate-700'}`}>
-                                                        {isPlaceholder ? '--' : formattedTotal}
-                                                    </span>
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <Clock3 className={`h-4 w-4 ${isPlaceholder ? 'text-gray-300' : 'text-slate-400'}`} />
+                                                        <span className={`font-mono text-sm font-semibold ${isPlaceholder ? 'text-gray-300' : 'text-slate-700'}`}>
+                                                            {isPlaceholder ? '--' : formattedTotal}
+                                                        </span>
+                                                    </div>
+
+                                                    {!isPlaceholder && hasExceededApprovedOvertime && (
+                                                        <span className="pl-6 text-[11px] font-semibold text-slate-400">
+                                                            Credited: {formattedCredited}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </td>
 
                                             <td className="px-6 py-4">
-                                                <div className="flex min-h-8 items-center">
-                                                    {isPlaceholder ? (
-                                                        <span className="text-gray-300">--</span>
-                                                    ) : (
-                                                        <div className="flex flex-wrap items-center gap-2">
-                                                            <span className={`badge ${statusBadge[row.status]}`}>
+                                                {isPlaceholder ? (
+                                                    <span className="text-gray-300">--</span>
+                                                ) : (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <span className={`badge ${statusBadge[row.status]}`}>
+                                                            <span className="badge-dot" />
+                                                            {row.status}
+                                                        </span>
+
+                                                        {row.isUndertime && row.status !== 'Absent' && (
+                                                            <span className="badge badge-undertime">
                                                                 <span className="badge-dot" />
-                                                                {row.status}
+                                                                Undertime
                                                             </span>
+                                                        )}
 
-                                                            {row.isUndertime && (
-                                                                <span className="badge badge-undertime">
-                                                                    <span className="badge-dot" />
-                                                                    Undertime
-                                                                </span>
-                                                            )}
+                                                        {hasApprovedOT && (
+                                                            <span className="badge badge-info">
+                                                                <span className="badge-dot" />
+                                                                Overtime
+                                                            </span>
+                                                        )}
 
-                                                            {hasApprovedOT && (
-                                                                <span className="badge badge-info">
-                                                                    <span className="badge-dot" />
-                                                                    Overtime
-                                                                </span>
-                                                            )}
-
-                                                            {hasPendingOT && (
-                                                                <span className="badge badge-info">
-                                                                    <span className="badge-dot" />
-                                                                    Pending
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                        {hasPendingOT && (
+                                                            <span className="badge badge-warning">
+                                                                <span className="badge-dot" />
+                                                                Pending OT
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </td>
 
-                                            <td className="relative px-6 py-4">
-                                                <div className="flex min-h-8 items-center justify-center">
-                                                    {isPlaceholder ? (
-                                                        <div className="flex items-center justify-center gap-5">
-                                                            <button type="button" disabled className="cursor-not-allowed text-slate-300">
-                                                                <Eye className="h-4 w-4" />
-                                                            </button>
-                                                            <button type="button" disabled className="cursor-not-allowed text-slate-300">
-                                                                <Edit className="h-4 w-4" />
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="relative z-[5] flex items-center justify-center gap-5">
-                                                            <button
-                                                                type="button"
-                                                                onClick={(e) => {
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-                                                                    onView(row);
-                                                                }}
-                                                                className="inline-flex cursor-pointer items-center justify-center text-slate-500 transition hover:text-slate-700"
-                                                                title="View"
-                                                            >
-                                                                <Eye className="pointer-events-none h-4 w-4" />
-                                                            </button>
+                                            <td className="px-6 py-4">
+                                                <div className="flex justify-center gap-5">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (!isPlaceholder) onView(row);
+                                                        }}
+                                                        disabled={isPlaceholder}
+                                                        className="text-slate-500 hover:text-slate-700 disabled:opacity-30"
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </button>
 
-                                                            <button
-                                                                type="button"
-                                                                onClick={(e) => {
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-
-                                                                    if (isTimedOut) return;
-
-                                                                    onEdit(row);
-                                                                }}
-                                                                disabled={isTimedOut}
-                                                                className={`inline-flex items-center justify-center text-slate-500 transition ${
-                                                                    isTimedOut
-                                                                        ? 'cursor-not-allowed opacity-40'
-                                                                        : 'cursor-pointer hover:text-slate-700'
-                                                                }`}
-                                                                title="Edit"
-                                                            >
-                                                                <Edit className="pointer-events-none h-4 w-4" />
-                                                            </button>
-                                                        </div>
-                                                    )}
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (!isPlaceholder && !isTimedOut) onEdit(row);
+                                                        }}
+                                                        disabled={isPlaceholder || isTimedOut}
+                                                        className="text-slate-500 hover:text-slate-700 disabled:opacity-30"
+                                                    >
+                                                        <Edit className="h-4 w-4" />
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -316,12 +308,7 @@ const UserDtrTable = ({
             </div>
 
             <div className="flex items-center justify-between border-t border-gray-100 px-6 py-4">
-                <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={onPrev}
-                    disabled={!canPrev || (!hasRecords && !loadingDtr)}
-                >
+                <button className="btn btn-secondary" onClick={onPrev} disabled={!canPrev}>
                     Prev
                 </button>
 
@@ -329,12 +316,7 @@ const UserDtrTable = ({
                     Page {safePage} of {safeTotalPages}
                 </div>
 
-                <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={onNext}
-                    disabled={!canNext || (!hasRecords && !loadingDtr)}
-                >
+                <button className="btn btn-secondary" onClick={onNext} disabled={!canNext}>
                     Next
                 </button>
             </div>
