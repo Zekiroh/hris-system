@@ -1,5 +1,6 @@
 using HRIS.Api.Data;
 using HRIS.Api.Features.Attendance.DTOs;
+using HRIS.Api.Features.Attendance.Services.Validation;
 using HRIS.Api.Features.Common.Exceptions;
 using HRIS.Api.Models;
 using HRIS.Api.Utils;
@@ -10,10 +11,14 @@ namespace HRIS.Api.Features.Attendance.Services;
 public class ShiftAssignmentsService : IShiftAssignmentsService
 {
     private readonly AppDbContext _context;
+    private readonly IShiftValidationService _shiftValidationService;
 
-    public ShiftAssignmentsService(AppDbContext context)
+    public ShiftAssignmentsService(
+        AppDbContext context,
+        IShiftValidationService shiftValidationService)
     {
         _context = context;
+        _shiftValidationService = shiftValidationService;
     }
 
     public async Task<EmployeeShiftAssignmentDto> AssignAsync(AssignShiftRequest request, CancellationToken ct)
@@ -33,10 +38,21 @@ public class ShiftAssignmentsService : IShiftAssignmentsService
         if (shift == null)
             throw new ApiException("Shift not found.");
 
-        if (!shift.IsActive)
-            throw new ApiException("Cannot assign an inactive shift.");
-
-        ValidateShiftForAssignment(shift);
+        _shiftValidationService.ValidateShiftForAssignment(
+            shift.IsActive,
+            shift.ShiftDays
+                .OrderBy(x => x.DayOfWeek)
+                .Select(x => new ShiftDayRequest
+                {
+                    DayOfWeek = x.DayOfWeek,
+                    IsWorkingDay = x.IsWorkingDay,
+                    StartTime = x.StartTime,
+                    BreakStartTime = x.BreakStartTime,
+                    BreakEndTime = x.BreakEndTime,
+                    EndTime = x.EndTime
+                })
+                .ToList()
+        );
 
         await using var transaction = await _context.Database.BeginTransactionAsync(ct);
 

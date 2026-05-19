@@ -1,5 +1,6 @@
 using HRIS.Api.Data;
 using HRIS.Api.Features.Attendance.DTOs;
+using HRIS.Api.Features.Attendance.Services.Validation;
 using HRIS.Api.Features.Common.Exceptions;
 using HRIS.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -9,10 +10,14 @@ namespace HRIS.Api.Features.Attendance.Services;
 public class ShiftsService : IShiftsService
 {
     private readonly AppDbContext _context;
+    private readonly IShiftValidationService _shiftValidationService;
 
-    public ShiftsService(AppDbContext context)
+    public ShiftsService(
+        AppDbContext context,
+        IShiftValidationService shiftValidationService)
     {
         _context = context;
+        _shiftValidationService = shiftValidationService;
     }
 
     public async Task<PagedShiftsResponse> GetShiftsAsync(GetShiftQuery query, CancellationToken ct)
@@ -94,7 +99,7 @@ public class ShiftsService : IShiftsService
 
         var shiftDays = BuildShiftDays(request.Days);
 
-        ValidateShiftDays(shiftDays);
+        _shiftValidationService.ValidateShiftDays(request.Days);
 
         var shift = new Shift
         {
@@ -139,7 +144,7 @@ public class ShiftsService : IShiftsService
 
         var shiftDays = BuildShiftDays(request.Days);
 
-        ValidateShiftDays(shiftDays);
+        _shiftValidationService.ValidateShiftDays(request.Days);
 
         shift.Code = code;
         shift.Name = name;
