@@ -1073,7 +1073,7 @@ public class AttendanceLogsService : IAttendanceLogsService
             {
                 item.OvertimeMinutes = item.OvertimeMinutes > 0
                     ? Math.Min(item.OvertimeMinutes, approvedItem.RequestedMinutes)
-                    : approvedItem.RequestedMinutes;
+                    : 0;
             }
             else
             {
@@ -1134,7 +1134,7 @@ public class AttendanceLogsService : IAttendanceLogsService
                 {
                     item.OvertimeMinutes = item.OvertimeMinutes > 0
                         ? Math.Min(item.OvertimeMinutes, approvedItem.RequestedMinutes)
-                        : approvedItem.RequestedMinutes;
+                        : 0;
                 }
                 else
                 {
