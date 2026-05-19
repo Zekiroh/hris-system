@@ -46,15 +46,13 @@ public class AttendanceLogsService : IAttendanceLogsService
             requireActiveAssignment: true,
             ct);
 
+        if (shiftDay == null)
+            throw new ApiException("No active shift.", StatusCodes.Status400BadRequest);
+
         var availability = ResolveTimeInAvailability(nowLocal, today, shiftDay, holidayName);
 
         if (!availability.CanTimeIn)
             throw new ApiException(availability.BlockReason ?? "Time in is unavailable.", StatusCodes.Status400BadRequest);
-
-        if (shiftDay == null)
-        {
-            throw new ApiException("No active shift.", StatusCodes.Status400BadRequest);
-        }
 
         if (existing == null)
         {
