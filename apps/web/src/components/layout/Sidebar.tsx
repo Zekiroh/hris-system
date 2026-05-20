@@ -14,6 +14,7 @@ import {
   BarChart3,
   Building2,
   HelpCircle,
+  ClipboardList,
   X,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -123,6 +124,7 @@ const Sidebar = ({
     { icon: FileText, label: "Leave Management", path: "/dashboard/leave" },
     { icon: DollarSign, label: "My Pay Slips", path: "/dashboard/my-payslips" },
     { icon: BarChart3, label: "My Performance", path: "/dashboard/my-performance" },
+    { icon: ClipboardList, label: "Daily Report", path: "/dashboard/daily-report" },
     { icon: Building2, label: "Company Directory", path: "/dashboard/company-directory" },
     { icon: HelpCircle, label: "Help & Support", path: "/dashboard/help-support" },
   ];
