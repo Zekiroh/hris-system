@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import {
   Clock, CheckCircle, AlertTriangle, Lock,
-  Plus, Send, Save, Eye, X, FileText,
+  Plus, Send, Eye, X, FileText,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -140,50 +140,6 @@ export default function DailyAccomplishmentReport() {
   const [dateSubmitted, setDateSubmitted] = useState(today);
 
   const [showPreview, setShowPreview]       = useState(false);
-  const [draftStatus, setDraftStatus]       = useState<"idle" | "saving" | "saved">("idle");
-
-  // ── Load draft on mount ──
-  useState(() => {
-    try {
-      const saved = localStorage.getItem("dar_draft");
-      if (!saved) return;
-      const d = JSON.parse(saved);
-      if (d.devName)      setDevName(d.devName);
-      if (d.date)         setDate(d.date);
-      if (d.workArr)      setWorkArr(d.workArr);
-      if (d.project)      setProject(d.project);
-      if (d.sprint)       setSprint(d.sprint);
-      if (d.team)         setTeam(d.team);
-      if (d.submittedTo)  setSubmittedTo(d.submittedTo);
-      if (d.timeIn)       setTimeIn(d.timeIn);
-      if (d.timeOut)      setTimeOut(d.timeOut);
-      if (d.breakMins)    setBreakMins(d.breakMins);
-      if (d.subTime)      setSubTime(d.subTime);
-      if (d.standup)      setStandup(d.standup);
-      if (d.reachable)    setReachable(d.reachable);
-      if (d.avgResponse)  setAvgResponse(d.avgResponse);
-      if (d.connIssues)   setConnIssues(d.connIssues);
-      if (d.collabLog)    setCollabLog(d.collabLog);
-      if (d.tasks?.length) setTasks(d.tasks);
-      if (d.devHrs)       setDevHrs(d.devHrs);
-      if (d.meetingHrs)   setMeetingHrs(d.meetingHrs);
-      if (d.idleHrs)      setIdleHrs(d.idleHrs);
-      if (d.keyAccomp)    setKeyAccomp(d.keyAccomp);
-      if (d.blockers)     setBlockers(d.blockers);
-      if (d.risks)        setRisks(d.risks);
-      if (d.planTmr)      setPlanTmr(d.planTmr);
-      if (d.escalation)   setEscalation(d.escalation);
-      if (d.checklist)    setChecklist(d.checklist);
-      if (d.tmrArr)       setTmrArr(d.tmrArr);
-      if (d.tmrTimeIn)    setTmrTimeIn(d.tmrTimeIn);
-      if (d.leaveNotice)  setLeaveNotice(d.leaveNotice);
-      if (d.preparedBy)   setPreparedBy(d.preparedBy);
-      if (d.preparedSig)  setPreparedSig(d.preparedSig);
-      if (d.dateSubmitted) setDateSubmitted(d.dateSubmitted);
-    } catch {
-      // ignore corrupted draft
-    }
-  });
 
   // ── Computed ──
   const { gross, net } = calcHours(timeIn, timeOut, breakMins);
@@ -211,32 +167,9 @@ export default function DailyAccomplishmentReport() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ devName, date, workArr, project, sprint, team, submittedTo, timeIn, timeOut, breakMins, tasks, checklist }),
       });
-      localStorage.removeItem("dar_draft");
       alert("Report submitted successfully!");
     } catch {
       alert("Could not reach server. Check your connection.");
-    }
-  };
-
-  const handleSaveDraft = () => {
-    setDraftStatus("saving");
-    const draft = {
-      savedAt: new Date().toISOString(),
-      devName, date, workArr, project, sprint, team, submittedTo,
-      timeIn, timeOut, breakMins, subTime,
-      standup, reachable, avgResponse, connIssues, collabLog,
-      tasks, devHrs, meetingHrs, idleHrs,
-      keyAccomp, blockers, risks, planTmr, escalation,
-      checklist, tmrArr, tmrTimeIn, leaveNotice,
-      preparedBy, preparedSig, dateSubmitted,
-    };
-    try {
-      localStorage.setItem("dar_draft", JSON.stringify(draft));
-      setTimeout(() => setDraftStatus("saved"), 400);
-      setTimeout(() => setDraftStatus("idle"), 2500);
-    } catch {
-      setDraftStatus("idle");
-      alert("Failed to save draft. Storage may be full.");
     }
   };
 
@@ -527,15 +460,7 @@ export default function DailyAccomplishmentReport() {
           <strong className="text-gray-700">Reminder:</strong> Submit before end of work day. Late submissions must include justification.
         </p>
         <div className="flex gap-3 flex-shrink-0">
-          <button
-            type="button"
-            className={`btn ${draftStatus === "saved" ? "btn-primary" : "btn-secondary"} transition-all`}
-            onClick={handleSaveDraft}
-            disabled={draftStatus === "saving"}
-          >
-            <Save className="w-4 h-4" />
-            {draftStatus === "saving" ? "Saving…" : draftStatus === "saved" ? "Draft Saved ✓" : "Save Draft"}
-          </button>
+
           <button type="button" className="btn btn-secondary" onClick={() => setShowPreview(true)}><Eye className="w-4 h-4" /> Preview</button>
           <button type="button" className="btn btn-primary" onClick={handleSubmit}><Send className="w-4 h-4" /> Submit Report</button>
         </div>
