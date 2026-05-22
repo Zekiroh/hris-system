@@ -2,18 +2,18 @@
 
 import { useState, useCallback } from "react";
 import {
-  ClipboardList, Clock, CheckCircle, AlertTriangle, Lock,
-  Plus, Send, Save, Eye, ChevronDown,
+  Clock, CheckCircle, AlertTriangle, Lock,
+  Plus, Send, Save, Eye, X, FileText,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type WorkArrangement = "On-site" | "Remote" | "Hybrid";
-type StandupAttended  = "Yes" | "No" | "N/A";
-type Reachable        = "Yes" | "Partial" | "No";
-type TaskStatus       = "" | "done" | "ip" | "blocked" | "todo";
-type Priority         = "" | "High" | "Medium" | "Low";
-type TaskType         = "" | "Development" | "Bug Fix" | "Testing" | "Review" | "Documentation" | "Meeting" | "Research";
+type StandupAttended = "Yes" | "No" | "N/A";
+type Reachable       = "Yes" | "Partial" | "No";
+type TaskStatus      = "" | "done" | "ip" | "blocked" | "todo";
+type Priority        = "" | "High" | "Medium" | "Low";
+type TaskType        = "" | "Development" | "Bug Fix" | "Testing" | "Review" | "Documentation" | "Meeting" | "Research";
 
 interface TaskRow {
   id: number;
@@ -49,22 +49,18 @@ function calcHours(timeIn: string, timeOut: string, breakMins: number) {
   return { gross: fmt(grossMins), net: netMins > 0 ? fmt(netMins) : "0h 0m" };
 }
 
-// ─── Radio Pills ──────────────────────────────────────────────────────────────
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function RadioPills<T extends string>({ options, value, onChange }: { options: T[]; value: T; onChange: (v: T) => void }) {
   return (
     <div className="flex gap-2 flex-wrap mt-1">
       {options.map((opt) => (
-        <button
-          key={opt}
-          type="button"
-          onClick={() => onChange(opt)}
+        <button key={opt} type="button" onClick={() => onChange(opt)}
           className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
             value === opt
               ? "bg-emerald-600 border-emerald-600 text-white"
               : "border-gray-200 text-gray-600 hover:border-emerald-400 hover:bg-emerald-50"
-          }`}
-        >
+          }`}>
           {opt}
         </button>
       ))}
@@ -72,26 +68,21 @@ function RadioPills<T extends string>({ options, value, onChange }: { options: T
   );
 }
 
-// ─── Section Card ─────────────────────────────────────────────────────────────
-
-function SectionCard({ num, title, amber, children }: { num: number; title: string; amber?: boolean; children: React.ReactNode }) {
+function SectionCard({ num, title, amber, children, delay = 0 }: { num: number; title: string; amber?: boolean; children: React.ReactNode; delay?: number }) {
   return (
-    <div className={`pro-card overflow-hidden ${amber ? "border-l-4 border-l-amber-400" : ""}`}>
+    <div className={`pro-card overflow-hidden animate-fade-in-up ${amber ? "border-l-4 border-l-amber-400" : ""}`} style={{ animationDelay: `${delay}s`, opacity: 0 }}>
       <div className={`flex items-center gap-3 px-6 py-3 border-b border-gray-100 ${amber ? "bg-amber-50" : "bg-gray-50"}`}>
         <span className={`w-6 h-6 rounded-md flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0 ${amber ? "bg-amber-500" : "bg-emerald-600"}`}>
           {num}
         </span>
         <span className={`text-xs font-bold uppercase tracking-widest ${amber ? "text-amber-800" : "text-emerald-800"}`}>
           {title}
-          {amber && <span className="ml-1 text-amber-500 normal-case font-normal tracking-normal">(Manager Use Only)</span>}
         </span>
       </div>
       <div className="p-6">{children}</div>
     </div>
   );
 }
-
-// ─── Form Field ───────────────────────────────────────────────────────────────
 
 function Field({ label, hint, children, col2 }: { label: string; hint?: string; children: React.ReactNode; col2?: boolean }) {
   return (
@@ -109,72 +100,108 @@ export default function DailyAccomplishmentReport() {
   const today = new Date().toISOString().split("T")[0];
 
   // ── State ──
-  const [devName, setDevName]           = useState("");
-  const [date, setDate]                 = useState(today);
-  const [workArr, setWorkArr]           = useState<WorkArrangement>("On-site");
-  const [project, setProject]           = useState("");
-  const [sprint, setSprint]             = useState("");
-  const [team, setTeam]                 = useState("");
-  const [submittedTo, setSubmittedTo]   = useState("");
-  const [timeIn, setTimeIn]             = useState("08:00");
-  const [timeOut, setTimeOut]           = useState("17:00");
-  const [breakMins, setBreakMins]       = useState(60);
-  const [subTime, setSubTime]           = useState("");
+  const [devName, setDevName]             = useState("");
+  const [date, setDate]                   = useState(today);
+  const [workArr, setWorkArr]             = useState<WorkArrangement>("On-site");
+  const [project, setProject]             = useState("");
+  const [sprint, setSprint]               = useState("");
+  const [team, setTeam]                   = useState("");
+  const [submittedTo, setSubmittedTo]     = useState("");
+  const [timeIn, setTimeIn]               = useState("08:00");
+  const [timeOut, setTimeOut]             = useState("17:00");
+  const [breakMins, setBreakMins]         = useState(60);
+  const [subTime, setSubTime]             = useState("");
 
-  const [standup, setStandup]           = useState<StandupAttended>("Yes");
-  const [reachable, setReachable]       = useState<Reachable>("Yes");
-  const [avgResponse, setAvgResponse]   = useState("");
-  const [connIssues, setConnIssues]     = useState("");
-  const [collabLog, setCollabLog]       = useState("");
+  const [standup, setStandup]             = useState<StandupAttended>("Yes");
+  const [reachable, setReachable]         = useState<Reachable>("Yes");
+  const [avgResponse, setAvgResponse]     = useState("");
+  const [connIssues, setConnIssues]       = useState("");
+  const [collabLog, setCollabLog]         = useState("");
 
-  const [tasks, setTasks]               = useState<TaskRow[]>(() => Array.from({ length: 5 }, (_, i) => createEmptyTask(i + 1)));
-  const [devHrs, setDevHrs]             = useState("");
-  const [meetingHrs, setMeetingHrs]     = useState("");
-  const [idleHrs, setIdleHrs]           = useState("");
+  const [tasks, setTasks]                 = useState<TaskRow[]>(() => [createEmptyTask(1)]);
+  const [devHrs, setDevHrs]               = useState("");
+  const [meetingHrs, setMeetingHrs]       = useState("");
+  const [idleHrs, setIdleHrs]             = useState("");
 
-  const [keyAccomp, setKeyAccomp]       = useState("");
-  const [blockers, setBlockers]         = useState("");
-  const [risks, setRisks]               = useState("");
-  const [planTmr, setPlanTmr]           = useState("");
-  const [escalation, setEscalation]     = useState("");
+  const [keyAccomp, setKeyAccomp]         = useState("");
+  const [blockers, setBlockers]           = useState("");
+  const [risks, setRisks]                 = useState("");
+  const [planTmr, setPlanTmr]             = useState("");
+  const [escalation, setEscalation]       = useState("");
 
-  const [checklist, setChecklist]       = useState<boolean[]>(Array(6).fill(false));
+  const [checklist, setChecklist]         = useState<boolean[]>(Array(6).fill(false));
 
-  const [tmrArr, setTmrArr]             = useState<WorkArrangement>("On-site");
-  const [tmrTimeIn, setTmrTimeIn]       = useState("08:00");
-  const [leaveNotice, setLeaveNotice]   = useState("");
+  const [tmrArr, setTmrArr]               = useState<WorkArrangement>("On-site");
+  const [tmrTimeIn, setTmrTimeIn]         = useState("08:00");
+  const [leaveNotice, setLeaveNotice]     = useState("");
 
-  const [supNotes, setSupNotes]         = useState("");
-  const [rating, setRating]             = useState(0);
-  const [followUp, setFollowUp]         = useState<"No"|"Yes">("No");
-  const [reviewDate, setReviewDate]     = useState("");
-  const [actionItems, setActionItems]   = useState("");
-
-  const [preparedBy, setPreparedBy]     = useState("");
-  const [preparedSig, setPreparedSig]   = useState("");
+  const [preparedBy, setPreparedBy]       = useState("");
+  const [preparedSig, setPreparedSig]     = useState("");
   const [dateSubmitted, setDateSubmitted] = useState(today);
-  const [reviewedBy, setReviewedBy]     = useState("");
-  const [reviewedSig, setReviewedSig]   = useState("");
-  const [dateReviewed, setDateReviewed] = useState("");
+
+  const [showPreview, setShowPreview]       = useState(false);
+  const [draftStatus, setDraftStatus]       = useState<"idle" | "saving" | "saved">("idle");
+
+  // ── Load draft on mount ──
+  useState(() => {
+    try {
+      const saved = localStorage.getItem("dar_draft");
+      if (!saved) return;
+      const d = JSON.parse(saved);
+      if (d.devName)      setDevName(d.devName);
+      if (d.date)         setDate(d.date);
+      if (d.workArr)      setWorkArr(d.workArr);
+      if (d.project)      setProject(d.project);
+      if (d.sprint)       setSprint(d.sprint);
+      if (d.team)         setTeam(d.team);
+      if (d.submittedTo)  setSubmittedTo(d.submittedTo);
+      if (d.timeIn)       setTimeIn(d.timeIn);
+      if (d.timeOut)      setTimeOut(d.timeOut);
+      if (d.breakMins)    setBreakMins(d.breakMins);
+      if (d.subTime)      setSubTime(d.subTime);
+      if (d.standup)      setStandup(d.standup);
+      if (d.reachable)    setReachable(d.reachable);
+      if (d.avgResponse)  setAvgResponse(d.avgResponse);
+      if (d.connIssues)   setConnIssues(d.connIssues);
+      if (d.collabLog)    setCollabLog(d.collabLog);
+      if (d.tasks?.length) setTasks(d.tasks);
+      if (d.devHrs)       setDevHrs(d.devHrs);
+      if (d.meetingHrs)   setMeetingHrs(d.meetingHrs);
+      if (d.idleHrs)      setIdleHrs(d.idleHrs);
+      if (d.keyAccomp)    setKeyAccomp(d.keyAccomp);
+      if (d.blockers)     setBlockers(d.blockers);
+      if (d.risks)        setRisks(d.risks);
+      if (d.planTmr)      setPlanTmr(d.planTmr);
+      if (d.escalation)   setEscalation(d.escalation);
+      if (d.checklist)    setChecklist(d.checklist);
+      if (d.tmrArr)       setTmrArr(d.tmrArr);
+      if (d.tmrTimeIn)    setTmrTimeIn(d.tmrTimeIn);
+      if (d.leaveNotice)  setLeaveNotice(d.leaveNotice);
+      if (d.preparedBy)   setPreparedBy(d.preparedBy);
+      if (d.preparedSig)  setPreparedSig(d.preparedSig);
+      if (d.dateSubmitted) setDateSubmitted(d.dateSubmitted);
+    } catch {
+      // ignore corrupted draft
+    }
+  });
 
   // ── Computed ──
   const { gross, net } = calcHours(timeIn, timeOut, breakMins);
-  const tasksDone     = tasks.filter(t => t.status === "done").length;
-  const tasksIP       = tasks.filter(t => t.status === "ip").length;
-  const tasksBlocked  = tasks.filter(t => t.status === "blocked").length;
-  const tasksCarry    = tasks.filter(t => t.carryOver === "Yes").length;
-  const totalActual   = tasks.reduce((s, t) => s + (parseFloat(t.actualHrs) || 0), 0);
-  const totalEst      = tasks.reduce((s, t) => s + (parseFloat(t.estHrs) || 0), 0);
-  const variance      = totalActual - totalEst;
-  const checkCount    = checklist.filter(Boolean).length;
-  const checkPct      = Math.round((checkCount / 6) * 100);
+  const tasksDone    = tasks.filter(t => t.status === "done").length;
+  const tasksIP      = tasks.filter(t => t.status === "ip").length;
+  const tasksBlocked = tasks.filter(t => t.status === "blocked").length;
+  const tasksCarry   = tasks.filter(t => t.carryOver === "Yes").length;
+  const totalActual  = tasks.reduce((s, t) => s + (parseFloat(t.actualHrs) || 0), 0);
+  const totalEst     = tasks.reduce((s, t) => s + (parseFloat(t.estHrs) || 0), 0);
+  const variance     = totalActual - totalEst;
+  const checkCount   = checklist.filter(Boolean).length;
+  const checkPct     = Math.round((checkCount / 6) * 100);
 
   const updateTask = useCallback((id: number, field: keyof TaskRow, value: string) => {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, [field]: value } : t));
   }, []);
 
   const addRow = () => setTasks(prev => [...prev, createEmptyTask(prev.length + 1)]);
-
   const toggleCheck = (i: number) => setChecklist(prev => prev.map((v, idx) => idx === i ? !v : v));
 
   const handleSubmit = async () => {
@@ -184,9 +211,32 @@ export default function DailyAccomplishmentReport() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ devName, date, workArr, project, sprint, team, submittedTo, timeIn, timeOut, breakMins, tasks, checklist }),
       });
+      localStorage.removeItem("dar_draft");
       alert("Report submitted successfully!");
     } catch {
       alert("Could not reach server. Check your connection.");
+    }
+  };
+
+  const handleSaveDraft = () => {
+    setDraftStatus("saving");
+    const draft = {
+      savedAt: new Date().toISOString(),
+      devName, date, workArr, project, sprint, team, submittedTo,
+      timeIn, timeOut, breakMins, subTime,
+      standup, reachable, avgResponse, connIssues, collabLog,
+      tasks, devHrs, meetingHrs, idleHrs,
+      keyAccomp, blockers, risks, planTmr, escalation,
+      checklist, tmrArr, tmrTimeIn, leaveNotice,
+      preparedBy, preparedSig, dateSubmitted,
+    };
+    try {
+      localStorage.setItem("dar_draft", JSON.stringify(draft));
+      setTimeout(() => setDraftStatus("saved"), 400);
+      setTimeout(() => setDraftStatus("idle"), 2500);
+    } catch {
+      setDraftStatus("idle");
+      alert("Failed to save draft. Storage may be full.");
     }
   };
 
@@ -210,19 +260,19 @@ export default function DailyAccomplishmentReport() {
   return (
     <div className="space-y-6">
 
-      {/* ── Page Header ── */}
+      {/* Page Header */}
       <div className="page-header animate-fade-in-up">
         <h1>Daily Accomplishment Report</h1>
         <p>Software Development — Individual Submission. Submit before end of work day.</p>
       </div>
 
-      {/* ── Stat Cards ── */}
+      {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Tasks Done",    value: tasksDone,                     icon: CheckCircle,  gradient: "linear-gradient(135deg, #059669, #10b981)" },
-          { label: "Actual Hours",  value: totalActual.toFixed(1) + "h",  icon: Clock,        gradient: "linear-gradient(135deg, #6366f1, #818cf8)" },
-          { label: "Blocked",       value: tasksBlocked,                  icon: AlertTriangle,gradient: "linear-gradient(135deg, #dc2626, #ef4444)" },
-          { label: "Checklist",     value: `${checkCount}/6`,             icon: Lock,         gradient: "linear-gradient(135deg, #0891b2, #22d3ee)" },
+          { label: "Tasks Done",   value: tasksDone,                    icon: CheckCircle,   gradient: "linear-gradient(135deg, #059669, #10b981)" },
+          { label: "Actual Hours", value: totalActual.toFixed(1) + "h", icon: Clock,         gradient: "linear-gradient(135deg, #6366f1, #818cf8)" },
+          { label: "Blocked",      value: tasksBlocked,                 icon: AlertTriangle, gradient: "linear-gradient(135deg, #dc2626, #ef4444)" },
+          { label: "Checklist",    value: `${checkCount}/6`,            icon: Lock,          gradient: "linear-gradient(135deg, #0891b2, #22d3ee)" },
         ].map((card, i) => (
           <div key={card.label} className="stat-card animate-fade-in-up" style={{ background: card.gradient, animationDelay: `${i * 0.1}s`, opacity: 0 }}>
             <div className="flex items-center justify-between relative z-10">
@@ -230,16 +280,14 @@ export default function DailyAccomplishmentReport() {
                 <p className="stat-label">{card.label}</p>
                 <p className="stat-value">{card.value}</p>
               </div>
-              <div className="stat-icon">
-                <card.icon className="w-5 h-5" />
-              </div>
+              <div className="stat-icon"><card.icon className="w-5 h-5" /></div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* ── Section 1: Developer Info ── */}
-      <SectionCard num={1} title="Developer Information">
+      {/* Section 1: Developer Info */}
+      <SectionCard num={1} title="Developer Information" delay={0.1}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Field label="Developer Name">
             <input className="pro-input" type="text" placeholder="Enter full name" value={devName} onChange={e => setDevName(e.target.value)} />
@@ -251,7 +299,6 @@ export default function DailyAccomplishmentReport() {
             <RadioPills options={["On-site","Remote","Hybrid"] as WorkArrangement[]} value={workArr} onChange={setWorkArr} />
           </Field>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
           <Field label="Project / System">
             <input className="pro-input" type="text" placeholder="e.g. SIMPLEVIA HRIS" value={project} onChange={e => setProject(e.target.value)} />
@@ -266,7 +313,6 @@ export default function DailyAccomplishmentReport() {
             <input className="pro-input" type="text" placeholder="Supervisor name" value={submittedTo} onChange={e => setSubmittedTo(e.target.value)} />
           </Field>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
           <Field label="Time In">
             <input className="pro-input" type="time" value={timeIn} onChange={e => setTimeIn(e.target.value)} />
@@ -281,7 +327,6 @@ export default function DailyAccomplishmentReport() {
             <input className="pro-input" type="text" placeholder="e.g. 5:15 PM" value={subTime} onChange={e => setSubTime(e.target.value)} />
           </Field>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
           <Field label="Gross Duration">
             <input className="pro-input bg-gray-50" type="text" readOnly value={gross} placeholder="Auto-calculated" />
@@ -292,8 +337,8 @@ export default function DailyAccomplishmentReport() {
         </div>
       </SectionCard>
 
-      {/* ── Section 2: Availability ── */}
-      <SectionCard num={2} title="Availability & Connectivity">
+      {/* Section 2: Availability */}
+      <SectionCard num={2} title="Availability & Connectivity" delay={0.2}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Field label="Attended Standup?">
             <RadioPills options={["Yes","No","N/A"] as StandupAttended[]} value={standup} onChange={setStandup} />
@@ -315,8 +360,8 @@ export default function DailyAccomplishmentReport() {
         </div>
       </SectionCard>
 
-      {/* ── Section 3: Tasks ── */}
-      <SectionCard num={3} title="Tasks & Activities">
+      {/* Section 3: Tasks */}
+      <SectionCard num={3} title="Tasks & Activities" delay={0.3}>
         <div className="overflow-x-auto rounded-xl border border-gray-100">
           <table className="pro-table">
             <thead>
@@ -369,41 +414,33 @@ export default function DailyAccomplishmentReport() {
             </tbody>
           </table>
         </div>
-
         <button type="button" onClick={addRow} className="btn btn-secondary mt-3 text-sm">
           <Plus className="w-4 h-4" /> Add Task Row
         </button>
-
-        {/* Time Breakdown */}
         <div className="mt-5 pt-5 border-t border-gray-100">
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Time Breakdown</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              ["Dev Hours (coding / testing / review)", devHrs, setDevHrs],
-              ["Meeting / Admin Hours", meetingHrs, setMeetingHrs],
-              ["Waiting / Idle Hours", idleHrs, setIdleHrs],
-            ].map(([lbl, val, setter]) => (
-              <div key={lbl as string} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                <label className="pro-label">{lbl as string}</label>
-                <input className="pro-input mt-1" type="number" min={0} step={0.5} placeholder="0.0" value={val as string} onChange={e => (setter as (v: string) => void)(e.target.value)} />
+            {([["Dev Hours (coding / testing / review)", devHrs, setDevHrs], ["Meeting / Admin Hours", meetingHrs, setMeetingHrs], ["Waiting / Idle Hours", idleHrs, setIdleHrs]] as [string, string, (v: string) => void][]).map(([lbl, val, setter]) => (
+              <div key={lbl} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                <label className="pro-label">{lbl}</label>
+                <input className="pro-input mt-1" type="number" min={0} step={0.5} placeholder="0.0" value={val} onChange={e => setter(e.target.value)} />
               </div>
             ))}
           </div>
         </div>
       </SectionCard>
 
-      {/* ── Section 4: End-of-Day Summary ── */}
-      <SectionCard num={4} title="End-of-Day Summary">
-        {/* Summary Stats */}
+      {/* Section 4: End-of-Day Summary */}
+      <SectionCard num={4} title="End-of-Day Summary" delay={0.4}>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
           {[
             { val: totalActual.toFixed(1), lbl: "Total Actual Hours", hi: true },
             { val: totalEst.toFixed(1),    lbl: "Total Estimated Hours" },
             { val: (variance >= 0 ? "+" : "") + variance.toFixed(1), lbl: "Variance" },
-            { val: tasksDone,  lbl: "Tasks Completed" },
-            { val: tasksIP,    lbl: "In Progress" },
-            { val: tasksBlocked, lbl: "Blocked" },
-            { val: tasksCarry, lbl: "Carry-Over" },
+            { val: tasksDone,   lbl: "Tasks Completed" },
+            { val: tasksIP,     lbl: "In Progress" },
+            { val: tasksBlocked,lbl: "Blocked" },
+            { val: tasksCarry,  lbl: "Carry-Over" },
           ].map(({ val, lbl, hi }) => (
             <div key={lbl} className={`rounded-xl p-4 text-center border ${hi ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-100"}`}>
               <p className={`text-2xl font-bold ${hi ? "text-emerald-700" : "text-gray-800"}`}>{val}</p>
@@ -411,7 +448,6 @@ export default function DailyAccomplishmentReport() {
             </div>
           ))}
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Key Accomplishments">
             <textarea className="pro-input resize-none" rows={3} placeholder="Summarize what was accomplished today…" value={keyAccomp} onChange={e => setKeyAccomp(e.target.value)} />
@@ -431,29 +467,16 @@ export default function DailyAccomplishmentReport() {
         </div>
       </SectionCard>
 
-      {/* ── Section 5: Checklist ── */}
-      <SectionCard num={5} title="End-of-Day Checklist">
+      {/* Section 5: Checklist */}
+      <SectionCard num={5} title="End-of-Day Checklist" delay={0.5}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {checklistItems.map((item, i) => (
-            <label
-              key={item}
-              className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                checklist[i]
-                  ? "bg-emerald-50 border-emerald-200"
-                  : "bg-gray-50 border-gray-100 hover:border-emerald-200"
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={checklist[i]}
-                onChange={() => toggleCheck(i)}
-                className="accent-emerald-600 w-4 h-4 flex-shrink-0"
-              />
+            <label key={item} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${checklist[i] ? "bg-emerald-50 border-emerald-200" : "bg-gray-50 border-gray-100 hover:border-emerald-200"}`}>
+              <input type="checkbox" checked={checklist[i]} onChange={() => toggleCheck(i)} className="accent-emerald-600 w-4 h-4 flex-shrink-0" />
               <span className={`text-sm ${checklist[i] ? "text-emerald-700 font-medium" : "text-gray-600"}`}>{item}</span>
             </label>
           ))}
         </div>
-        {/* Progress Bar */}
         <div className="mt-4">
           <div className="flex justify-between text-xs text-gray-500 mb-1">
             <span>{checkCount} / 6 items checked</span>
@@ -465,8 +488,8 @@ export default function DailyAccomplishmentReport() {
         </div>
       </SectionCard>
 
-      {/* ── Section 6: Tomorrow's Plan ── */}
-      <SectionCard num={6} title="Tomorrow's Plan">
+      {/* Section 6: Tomorrow's Plan */}
+      <SectionCard num={6} title="Tomorrow's Plan" delay={0.6}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Field label="Work Arrangement Tomorrow">
             <RadioPills options={["On-site","Remote","Hybrid"] as WorkArrangement[]} value={tmrArr} onChange={setTmrArr} />
@@ -480,36 +503,8 @@ export default function DailyAccomplishmentReport() {
         </div>
       </SectionCard>
 
-      {/* ── Section 7: Supervisor Remarks ── */}
-      <SectionCard num={7} title="Supervisor Remarks" amber>
-        <Field label="Supervisor Notes / Feedback">
-          <textarea className="pro-input resize-none" rows={3} placeholder="Manager comments, guidance, or observations…" value={supNotes} onChange={e => setSupNotes(e.target.value)} />
-        </Field>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-          <Field label="Performance Rating">
-            <div className="flex gap-1 mt-1">
-              {[1,2,3,4,5].map(n => (
-                <button key={n} type="button" onClick={() => setRating(n)}
-                  className={`text-2xl transition-colors ${rating >= n ? "text-amber-400" : "text-gray-200"}`}>★</button>
-              ))}
-            </div>
-          </Field>
-          <Field label="Follow-Up Required?">
-            <RadioPills options={["No","Yes"]} value={followUp} onChange={v => setFollowUp(v as "No"|"Yes")} />
-          </Field>
-          <Field label="Review Date">
-            <input className="pro-input" type="date" value={reviewDate} onChange={e => setReviewDate(e.target.value)} />
-          </Field>
-        </div>
-        <div className="mt-4">
-          <Field label="Manager Action Items">
-            <textarea className="pro-input resize-none" rows={2} placeholder='e.g. "Schedule 1-on-1 Thursday", "Reassign FMIS-342 to Dev B"' value={actionItems} onChange={e => setActionItems(e.target.value)} />
-          </Field>
-        </div>
-      </SectionCard>
-
-      {/* ── Section 8: Acknowledgment ── */}
-      <SectionCard num={8} title="Acknowledgment">
+      {/* Section 7: Acknowledgment */}
+      <SectionCard num={7} title="Acknowledgment" delay={0.7}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Field label="Prepared by">
             <input className="pro-input" type="text" placeholder="Developer's full name" value={preparedBy} onChange={e => setPreparedBy(e.target.value)} />
@@ -521,33 +516,224 @@ export default function DailyAccomplishmentReport() {
             <input className="pro-input" type="date" value={dateSubmitted} onChange={e => setDateSubmitted(e.target.value)} />
           </Field>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-          <Field label="Reviewed by">
-            <input className="pro-input" type="text" placeholder="Supervisor's full name" value={reviewedBy} onChange={e => setReviewedBy(e.target.value)} />
-          </Field>
-          <Field label="Signature (type full name)">
-            <input className="pro-input" type="text" placeholder="Type name as signature" value={reviewedSig} onChange={e => setReviewedSig(e.target.value)} />
-          </Field>
-          <Field label="Date Reviewed">
-            <input className="pro-input" type="date" value={dateReviewed} onChange={e => setDateReviewed(e.target.value)} />
-          </Field>
-        </div>
         <div className="mt-4 bg-gray-50 rounded-xl p-4 border border-gray-100 text-sm text-gray-500 leading-relaxed">
           <strong className="text-gray-700">Note:</strong> Submit this report to your immediate supervisor before end of work day. Late submissions must be justified. Submission timestamp is mandatory.
         </div>
       </SectionCard>
 
-      {/* ── Submit Bar ── */}
-      <div className="pro-card p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      {/* Submit Bar */}
+      <div className="pro-card p-4 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in-up" style={{ animationDelay: "0.8s", opacity: 0 }}>
         <p className="text-sm text-gray-500">
           <strong className="text-gray-700">Reminder:</strong> Submit before end of work day. Late submissions must include justification.
         </p>
         <div className="flex gap-3 flex-shrink-0">
-          <button type="button" className="btn btn-secondary"><Save className="w-4 h-4" /> Save Draft</button>
-          <button type="button" className="btn btn-secondary"><Eye className="w-4 h-4" /> Preview</button>
+          <button
+            type="button"
+            className={`btn ${draftStatus === "saved" ? "btn-primary" : "btn-secondary"} transition-all`}
+            onClick={handleSaveDraft}
+            disabled={draftStatus === "saving"}
+          >
+            <Save className="w-4 h-4" />
+            {draftStatus === "saving" ? "Saving…" : draftStatus === "saved" ? "Draft Saved ✓" : "Save Draft"}
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={() => setShowPreview(true)}><Eye className="w-4 h-4" /> Preview</button>
           <button type="button" className="btn btn-primary" onClick={handleSubmit}><Send className="w-4 h-4" /> Submit Report</button>
         </div>
       </div>
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <div className="pro-modal-overlay" onClick={() => setShowPreview(false)}>
+          <div
+            className="pro-modal"
+            style={{ maxWidth: "860px", width: "100%", maxHeight: "90vh", display: "flex", flexDirection: "column" }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="pro-modal-header">
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5 text-emerald-600" />
+                <h3>Daily Accomplishment Report — Preview</h3>
+              </div>
+              <button onClick={() => setShowPreview(false)} className="btn-ghost btn-icon">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="pro-modal-body overflow-y-auto" style={{ flex: 1 }}>
+
+              {/* Banner */}
+              <div className="rounded-xl p-5 mb-5 text-white" style={{ background: "linear-gradient(135deg, #064e3b 0%, #047857 100%)" }}>
+                <p className="text-xs font-semibold uppercase tracking-widest text-emerald-300 mb-1">SIMPLEVIA HRIS</p>
+                <h2 className="text-lg font-bold">Daily Accomplishment Report</h2>
+                <p className="text-xs text-emerald-200 mt-0.5">Software Development — Individual Submission</p>
+                <div className="flex flex-wrap gap-4 mt-3 text-xs text-emerald-100">
+                  <span>{date || "—"}</span>
+                  <span>{devName || "—"}</span>
+                  <span>{workArr}</span>
+                  <span>{project || "—"}</span>
+                </div>
+              </div>
+
+              {/* Quick Stats */}
+              <div className="grid grid-cols-4 gap-3 mb-5">
+                {[
+                  { lbl: "Tasks Done",   val: tasksDone,                    color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+                  { lbl: "Actual Hours", val: totalActual.toFixed(1) + "h", color: "text-indigo-700 bg-indigo-50 border-indigo-200" },
+                  { lbl: "Blocked",      val: tasksBlocked,                 color: "text-rose-700 bg-rose-50 border-rose-200" },
+                  { lbl: "Checklist",    val: `${checkCount}/6`,            color: "text-cyan-700 bg-cyan-50 border-cyan-200" },
+                ].map(({ lbl, val, color }) => (
+                  <div key={lbl} className={`rounded-xl p-3 text-center border ${color}`}>
+                    <p className="text-xl font-bold">{val}</p>
+                    <p className="text-[10px] font-medium mt-0.5">{lbl}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Developer Info */}
+              <div className="mb-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 mb-2 flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-emerald-600 text-white text-[9px] flex items-center justify-center">1</span>
+                  Developer Information
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    ["Project", project], ["Sprint", sprint], ["Team", team], ["Submitted To", submittedTo],
+                    ["Time In", timeIn], ["Time Out", timeOut], ["Gross", gross], ["Net Hours", net],
+                    ["Standup", standup], ["Reachable", reachable], ["Avg Response", avgResponse], ["Work Arrangement", workArr],
+                  ].map(([lbl, val]) => (
+                    <div key={lbl} className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
+                      <p className="text-[10px] text-gray-400 font-medium">{lbl}</p>
+                      <p className="text-gray-800 font-semibold text-xs mt-0.5">{val || "—"}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tasks */}
+              <div className="mb-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 mb-2 flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-emerald-600 text-white text-[9px] flex items-center justify-center">3</span>
+                  Tasks & Activities
+                </p>
+                <div className="overflow-x-auto rounded-xl border border-gray-100">
+                  <table className="pro-table text-xs">
+                    <thead>
+                      <tr>
+                        {["#","Type","Ticket","Description","Module","Status","% Done","Est.","Actual","Output"].map(h => (
+                          <th key={h}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tasks.filter(t => t.description || t.ticketRef || t.status).map(t => (
+                        <tr key={t.id}>
+                          <td className="text-center text-gray-400">{t.id}</td>
+                          <td>{t.taskType || "—"}</td>
+                          <td className="font-mono">{t.ticketRef || "—"}</td>
+                          <td>{t.description || "—"}</td>
+                          <td>{t.module || "—"}</td>
+                          <td>{t.status ? <span className={`badge ${statusBadge[t.status]}`}><span className="badge-dot" />{statusLabel[t.status]}</span> : "—"}</td>
+                          <td className="text-center">{t.percentDone ? t.percentDone + "%" : "—"}</td>
+                          <td className="text-center">{t.estHrs || "—"}</td>
+                          <td className="text-center">{t.actualHrs || "—"}</td>
+                          <td>{t.output || "—"}</td>
+                        </tr>
+                      ))}
+                      {tasks.filter(t => t.description || t.ticketRef || t.status).length === 0 && (
+                        <tr><td colSpan={10} className="text-center text-gray-400 py-4 text-xs">No tasks entered</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="grid grid-cols-3 gap-3 mt-3">
+                  {[["Dev Hours", devHrs], ["Meeting Hours", meetingHrs], ["Idle Hours", idleHrs]].map(([lbl, val]) => (
+                    <div key={lbl} className="bg-gray-50 rounded-lg p-2.5 border border-gray-100 text-center">
+                      <p className="text-[10px] text-gray-400 font-medium">{lbl}</p>
+                      <p className="text-gray-800 font-bold text-sm mt-0.5">{val || "0"}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div className="mb-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 mb-2 flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-emerald-600 text-white text-[9px] flex items-center justify-center">4</span>
+                  End-of-Day Summary
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {[["Key Accomplishments", keyAccomp], ["Blockers / Issues", blockers], ["Risks / Early Warnings", risks], ["Plan for Tomorrow", planTmr]].map(([lbl, val]) => (
+                    <div key={lbl} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                      <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide mb-1">{lbl}</p>
+                      <p className="text-xs text-gray-700 leading-relaxed">{val || <span className="text-gray-300 italic">Not provided</span>}</p>
+                    </div>
+                  ))}
+                  {escalation && (
+                    <div className="md:col-span-2 bg-amber-50 rounded-lg p-3 border border-amber-100">
+                      <p className="text-[10px] text-amber-600 font-semibold uppercase tracking-wide mb-1">Support / Escalation Needed</p>
+                      <p className="text-xs text-gray-700">{escalation}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Checklist */}
+              <div className="mb-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 mb-2 flex items-center gap-2">
+                  <span className="w-4 h-4 rounded bg-emerald-600 text-white text-[9px] flex items-center justify-center">5</span>
+                  End-of-Day Checklist — {checkCount}/6 ({checkPct}%)
+                </p>
+                <div className="h-1.5 bg-gray-100 rounded-full mb-3 overflow-hidden">
+                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${checkPct}%` }} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {checklistItems.map((item, i) => (
+                    <div key={item} className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs ${checklist[i] ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-gray-50 border-gray-100 text-gray-400"}`}>
+                      <span className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold ${checklist[i] ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-400"}`}>
+                        {checklist[i] ? "✓" : "○"}
+                      </span>
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tomorrow & Acknowledgment */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 mb-2">Tomorrow's Plan</p>
+                  <div className="space-y-1 text-xs text-gray-700">
+                    <p><span className="text-gray-400">Arrangement:</span> {tmrArr}</p>
+                    <p><span className="text-gray-400">Expected In:</span> {tmrTimeIn || "—"}</p>
+                    <p><span className="text-gray-400">Leave Notice:</span> {leaveNotice || "—"}</p>
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 mb-2">Acknowledgment</p>
+                  <div className="space-y-1 text-xs text-gray-700">
+                    <p><span className="text-gray-400">Prepared by:</span> {preparedBy || "—"}</p>
+                    <p><span className="text-gray-400">Signature:</span> {preparedSig || "—"}</p>
+                    <p><span className="text-gray-400">Date Submitted:</span> {dateSubmitted || "—"}</p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pro-modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setShowPreview(false)}>
+                Close
+              </button>
+              <button type="button" className="btn btn-primary" onClick={handleSubmit}>
+                <Send className="w-4 h-4" /> Submit Report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
