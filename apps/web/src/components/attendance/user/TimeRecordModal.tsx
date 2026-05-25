@@ -183,16 +183,19 @@ const determineTimeOutStatus = (
     shiftStartMinutes,
     shiftEndMinutes,
   );
+
   const normalizedCurrentMinutes = normalizePointWithinRange(
     currentMinutes,
     shiftStartMinutes,
     normalizedShiftEndMinutes + DAY_MINUTES,
   );
 
+  if (normalizedCurrentMinutes > normalizedShiftEndMinutes) {
+    return "Pending Overtime";
+  }
+
   if (timeInMinutes === null) {
-    return normalizedCurrentMinutes > normalizedShiftEndMinutes
-      ? "Pending Overtime"
-      : "Regular";
+    return "Regular";
   }
 
   const normalizedTimeInMinutes = normalizePointWithinRange(
@@ -227,10 +230,6 @@ const determineTimeOutStatus = (
 
   if (renderedMinutes < requiredMinutes) {
     return "Undertime";
-  }
-
-  if (normalizedCurrentMinutes > normalizedShiftEndMinutes) {
-    return "Pending Overtime";
   }
 
   return "Regular";

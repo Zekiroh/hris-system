@@ -550,7 +550,7 @@ const UserAttendance = () => {
     Present: "badge-success",
     Late: "badge-warning",
     Absent: "badge-danger",
-    Incomplete: "badge-warning",
+    Incomplete: "badge-neutral",
     OnLeave: "badge-primary",
   };
 
@@ -1310,6 +1310,7 @@ const UserAttendance = () => {
         isWorkingDay={isWorkingDay}
         breakEndTime={todayShiftTimes?.breakEndTime ?? null}
         shiftEndTime={todayShiftTimes?.shiftEndTime ?? null}
+        shiftDays={currentShift?.days ?? []}
       />
     </div>
   );

@@ -1,85 +1,46 @@
-export type AttendanceStatus =
-    | 'Present'
-    | 'Late'
-    | 'Absent'
-    | 'Incomplete'
-    | 'OnLeave';
+export type AttendanceOvertimeStatus =
+    | 'None'
+    | 'Pending'
+    | 'Approved'
+    | 'Rejected';
+
+export type StatusBadgeMap = Record<string, string>;
+
+export type AttendanceSummaryCard = {
+    label: string;
+    value: number;
+    icon: React.ComponentType<{ className?: string }>;
+    variant: 'success' | 'info' | 'warning' | 'danger';
+};
+
+export type AttendanceFilter = 'all' | 'present' | 'late' | 'absent';
 
 export type AttendanceTab = 'dtr' | 'ot' | 'setup';
 
-export type OvertimeRequestStatus =
-    | 'Pending'
-    | 'Approved'
-    | 'Rejected'
-    | 'Cancelled';
+export type AdminAttendanceTab = AttendanceTab;
 
-export type AttendanceOvertimeStatus = 'Approved' | 'Pending' | 'None';
+export type AttendanceStatus =
+    | 'Present'
+    | 'Late'
+    | 'Absent';
 
-export type ShiftStatus = 'Active' | 'Inactive';
+export type DtrStatusFilter =
+    | ''
+    | 'All'
+    | 'Present'
+    | 'Late'
+    | 'Undertime'
+    | 'Overtime'
+    | 'Absent';
 
-export type AttendanceRecord = {
-    id: string | number;
-    empId: string;
-    name: string;
-    date: string;
-    timeIn: string;
-    timeOut: string;
-    status: 'Present' | 'Late' | 'Absent';
-    isOT: boolean;
-    overtimeStatus?: AttendanceOvertimeStatus;
-    remarks: string;
-    lateMinutes: number;
-    undertimeMinutes: number;
-    overtimeMinutes: number;
-    renderedMinutes: number;
-};
+export type DtrSortFilter = 'latest' | 'oldest';
 
 export type DtrFilters = {
     dateFrom: string;
     dateTo: string;
     search: string;
-    status: '' | 'Present' | 'Late' | 'Absent' | 'Undertime' | 'Overtime';
-    sort: 'latest' | 'oldest';
-};
-
-export type AdminDtrRecord = {
-    id: number;
-    empId: string;
-    name: string;
-    suffix?: string;
-    date: string;
-    timeIn: string;
-    timeOut: string;
-    status: string;
-    isOT: boolean;
-    isUndertime: boolean;
-    overtimeStatus: AttendanceOvertimeStatus;
-    task: string;
-    accomplished: string;
-    lateMinutes: number;
-    undertimeMinutes: number;
-    overtimeMinutes: number;
-    renderedMinutes: number;
-};
-
-export type OvertimeRequestRow = {
-    id: number;
-    date: string;
-    employee: string;
-    duration: string;
-    reason: string;
-    status: 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
-};
-
-export type ShiftRecord = {
-    id: number;
-    name: string;
-    timeIn: string;
-    timeOut: string;
-    grace: string;
-    employees: number;
-    assignedCount: number;
-    status: ShiftStatus;
+    status: DtrStatusFilter;
+    sort: DtrSortFilter;
 };
 
 export type ShiftFormState = {
@@ -87,11 +48,167 @@ export type ShiftFormState = {
     timeIn: string;
     timeOut: string;
     grace: string;
-    status: ShiftStatus;
+    status: 'Active' | 'Inactive';
 };
 
-export type StatusBadgeMap = Record<string, string>;
+export type AdminOvertimeRequestRow = {
+    id: number;
+    date: string;
+    employee: string;
+    duration: string;
+    reason: string;
+    status: 'Pending' | 'Approved' | 'Rejected';
+};
 
-export type AdminAttendanceTab = AttendanceTab;
-export type AdminOvertimeRequestRow = OvertimeRequestRow;
-export type AdminShiftRecord = ShiftRecord;
+
+export type AdminDtrRecord = {
+    id: number;
+
+    empId: string;
+    name: string;
+    suffix?: string;
+
+    date: string;
+
+    timeIn: string;
+    timeOut: string;
+
+    status: AttendanceStatus;
+
+    isOT: boolean;
+    isUndertime: boolean;
+
+    overtimeStatus: AttendanceOvertimeStatus;
+
+    task: string;
+    accomplished: string;
+
+    lateMinutes: number;
+    undertimeMinutes: number;
+    overtimeMinutes: number;
+
+    renderedMinutes: number;
+
+    requiredMinutes: number;
+    regularCreditedMinutes: number;
+    overtimeCreditedMinutes: number;
+
+    creditedMinutes: number;
+    excessMinutes: number;
+    hasExceededApprovedOvertime: boolean;
+};
+
+
+export type AdminShiftRecord = {
+    id: number;
+    name: string;
+    timeIn: string;
+    timeOut: string;
+    grace: string;
+    employees: number;
+    assignedCount?: number;
+    status: 'Active' | 'Inactive';
+};
+
+export type UserAttendanceRecord = {
+    id: number;
+
+    date: string;
+
+    timeIn: string;
+    timeOut: string;
+
+    total: string;
+
+    status: string;
+
+    overtimeStatus: AttendanceOvertimeStatus;
+
+    lateMinutes: number;
+    undertimeMinutes: number;
+    overtimeMinutes: number;
+
+    renderedMinutes: number;
+
+    requiredMinutes: number;
+    regularCreditedMinutes: number;
+    overtimeCreditedMinutes: number;
+
+    creditedMinutes: number;
+    excessMinutes: number;
+    hasExceededApprovedOvertime: boolean;
+
+    task: string;
+    accomplished: string;
+};
+
+export type OvertimeRequestRecord = {
+    id: number;
+
+    employeeId: string;
+    employeeName: string;
+
+    date: string;
+
+    duration: string;
+
+    reason: string;
+
+    status: AttendanceOvertimeStatus;
+
+    task?: string;
+    accomplished?: string;
+};
+
+export type ShiftScheduleRecord = {
+    id: number;
+
+    code: string;
+    name: string;
+
+    description?: string;
+
+    lateGraceMinutes: number;
+
+    isFlexible: boolean;
+    isActive: boolean;
+
+    assignedCount: number;
+
+    createdAtUtc?: string;
+    updatedAtUtc?: string;
+
+    days: ShiftDayRecord[];
+};
+
+export type ShiftDayRecord = {
+    id: number;
+
+    dayOfWeek: string;
+
+    startTime?: string;
+    endTime?: string;
+
+    breakStartTime?: string;
+    breakEndTime?: string;
+
+    isRestDay: boolean;
+};
+
+export type ShiftAssignmentRecord = {
+    id: number;
+
+    employeeId: string;
+    employeeName: string;
+
+    employeeNumber: string;
+
+    shiftId: number;
+    shiftName: string;
+
+    effectiveFrom: string;
+
+    employmentType?: string;
+
+    isActive: boolean;
+};

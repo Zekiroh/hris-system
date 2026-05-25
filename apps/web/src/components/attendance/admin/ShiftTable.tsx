@@ -83,11 +83,20 @@ const ShiftTable = ({
     return (
         <section className="space-y-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                    <h3 className="text-base font-bold text-gray-800">Shift Schedules</h3>
-                    <p className="text-xs font-medium text-slate-500">
-                        Manage available work schedules used by employee assignments.
-                    </p>
+                <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+                        <CalendarClock className="h-5 w-5" />
+                    </div>
+
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-800">
+                            Shift Schedules
+                        </h3>
+
+                        <p className="mt-1 text-sm text-slate-500">
+                            Manage available work schedules used by employee assignments.
+                        </p>
+                    </div>
                 </div>
 
                 <button onClick={onAddShift} className="btn btn-primary">

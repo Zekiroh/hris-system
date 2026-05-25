@@ -48,12 +48,12 @@ const AdminOtTab = ({
           </div>
 
           <div>
-            <h3 className="text-[1.75rem] font-black tracking-[-0.02em] text-slate-800">
+            <h3 className="text-xl font-bold text-slate-800">
               Overtime Management
             </h3>
 
-            <p className="mt-1 text-sm font-medium text-slate-500">
-              Review, approve, reject, and assign employee overtime requests.
+            <p className="mt-1 text-sm text-slate-500">
+              Review, approve, reject, and assign overtime requests.
             </p>
           </div>
         </div>

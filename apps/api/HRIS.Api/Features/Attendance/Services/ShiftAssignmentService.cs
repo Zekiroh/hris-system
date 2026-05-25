@@ -384,6 +384,7 @@ public class ShiftAssignmentsService : IShiftAssignmentsService
         FullName = FormatEmployeeName(x.Employee),
         Department = x.Employee?.Department,
         Position = x.Employee?.Position,
+        EmploymentType = x.Employee?.EmploymentType,
         EffectiveFrom = x.EffectiveFrom,
         EffectiveTo = x.EffectiveTo,
         IsActive = x.IsActive
