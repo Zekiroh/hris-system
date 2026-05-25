@@ -37,6 +37,7 @@ const routeLabels: Record<string, string> = {
   "/dashboard/my-performance": "My Performance",
   "/dashboard/company-directory": "Company Directory",
   "/dashboard/help-support": "Help & Support",
+  "/dashboard/daily-report": "Daily Report",
 };
 
 const TopBar = ({ onMenuClick }: TopBarProps) => {

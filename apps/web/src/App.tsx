@@ -33,6 +33,9 @@ import MyPerformance from "./pages/user/MyPerformance";
 import CompanyNews from "./pages/user/CompanyNews";
 import HelpSupport from "./pages/user/HelpSupport";
 
+// Daily Accomplishment Report
+import DailyAccomplishmentReport from "./pages/DailyReport/DailyAccomplishmentReport";
+
 // Asset Management
 import AssetManagement from "./pages/assets/AssetManagement";
 
@@ -204,6 +207,9 @@ export default function App() {
           <Route path="my-performance" element={<MyPerformance />} />
           <Route path="company-news" element={<CompanyNews />} />
           <Route path="help-support" element={<HelpSupport />} />
+
+          {/* Daily Accomplishment Report */}
+          <Route path="daily-report" element={<DailyAccomplishmentReport />} />
         </Route>
       </Route>
 
