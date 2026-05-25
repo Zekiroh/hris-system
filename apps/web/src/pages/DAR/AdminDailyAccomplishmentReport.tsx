@@ -891,8 +891,21 @@ const AdminDailyAccomplishmentReport = () => {
                     </td>
 
                     {/* Employee */}
-                    <td style={{ whiteSpace: "nowrap", fontWeight: 600, color: "#111827" }}>
-                      {r.employeeName}
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{
+                          width: 34, height: 34, borderRadius: "10px", flexShrink: 0,
+                          background: "linear-gradient(135deg, #059669, #10b981)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          color: "#fff", fontWeight: 800, fontSize: 13,
+                        }}>
+                          {r.employeeName.trim().charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p style={{ fontWeight: 700, fontSize: 13, color: "#111827", lineHeight: 1.2 }}>{r.employeeName}</p>
+                          <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 1 }}>{r.department}</p>
+                        </div>
+                      </div>
                     </td>
 
                     {/* Department */}
@@ -1034,3 +1047,4 @@ const AdminDailyAccomplishmentReport = () => {
 };
 
 export default AdminDailyAccomplishmentReport;
+

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -10,15 +10,8 @@ namespace HRIS.Api.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.RenameColumn(
-                name: "TINNumber",
-                table: "Employees",
-                newName: "TinNumber");
-
-            migrationBuilder.RenameColumn(
-                name: "SSSNumber",
-                table: "Employees",
-                newName: "SssNumber");
+            migrationBuilder.Sql("ALTER TABLE `Employees` CHANGE `TINNumber` `TinNumber` VARCHAR(255)");
+            migrationBuilder.Sql("ALTER TABLE `Employees` CHANGE `SSSNumber` `SssNumber` VARCHAR(255)");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Employees_PagIbigNumber",
@@ -64,15 +57,8 @@ namespace HRIS.Api.Migrations
                 name: "IX_Employees_TinNumber",
                 table: "Employees");
 
-            migrationBuilder.RenameColumn(
-                name: "TinNumber",
-                table: "Employees",
-                newName: "TINNumber");
-
-            migrationBuilder.RenameColumn(
-                name: "SssNumber",
-                table: "Employees",
-                newName: "SSSNumber");
+            migrationBuilder.Sql("ALTER TABLE `Employees` CHANGE `TinNumber` `TINNumber` VARCHAR(255)");
+            migrationBuilder.Sql("ALTER TABLE `Employees` CHANGE `SssNumber` `SSSNumber` VARCHAR(255)");
         }
     }
 }

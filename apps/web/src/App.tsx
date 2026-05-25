@@ -34,6 +34,7 @@ import CompanyNews from "./pages/user/CompanyNews";
 import HelpSupport from "./pages/user/HelpSupport";
 
 // Daily Accomplishment Report
+import AdminDailyAccomplishmentReport from "./pages/DAR/AdminDailyAccomplishmentReport";
 import DailyAccomplishmentReport from "./pages/DailyReport/DailyAccomplishmentReport";
 
 // Asset Management
@@ -210,6 +211,7 @@ export default function App() {
 
           {/* Daily Accomplishment Report */}
           <Route path="daily-report" element={<DailyAccomplishmentReport />} />
+          <Route path="admin-dar" element={<AdminOnly><AdminDailyAccomplishmentReport /></AdminOnly>} />
         </Route>
       </Route>
 

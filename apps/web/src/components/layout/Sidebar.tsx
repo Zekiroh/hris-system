@@ -123,7 +123,7 @@ const Sidebar = ({
     { icon: FileText, label: "Leave Management", path: "/dashboard/leave" },
     { icon: BarChart3, label: "My Performance", path: "/dashboard/my-performance" },
     { icon: DollarSign, label: "Payroll", path: "/dashboard/my-payslips" },
-    { icon: ClipboardList, label: "Daily Accomplishment", path: "/dashboard/daily-accomplishment" },
+    { icon: ClipboardList, label: "Daily Accomplishment", path: "/dashboard/daily-report" },
     { icon: Newspaper, label: "Company News", path: "/dashboard/company-news" },
     { icon: Building2, label: "Company Directory", path: "/dashboard/company-directory" },
     { icon: HelpCircle, label: "Help & Support", path: "/dashboard/help-support" },
@@ -131,7 +131,7 @@ const Sidebar = ({
 
   const moduleNav: NavItem[] = [
     { icon: Package, label: "Asset Management", path: "/dashboard/assets" },
-    { icon: ClipboardList, label: "Daily Accomplishment", path: "/dashboard/daily-accomplishment-reports" },
+    { icon: ClipboardList, label: "Daily Accomplishment", path: "/dashboard/admin-dar" },
   ];
 
   const systemNav: NavItem[] = [
