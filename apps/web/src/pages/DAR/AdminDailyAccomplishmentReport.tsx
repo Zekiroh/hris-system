@@ -275,29 +275,10 @@ function ReviewPanel({
   const scoreColor = perfScore >= 90 ? "#059669" : perfScore >= 70 ? "#d97706" : "#dc2626";
 
   return (
-    <div onClick={onClose} style={{
-      position: "fixed",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      margin: 0,
-      padding: 0,
-      width: "100vw",
-      height: "100vh",
-      zIndex: 9999,
-      backgroundColor: "rgba(0,0,0,0.6)",
-      backdropFilter: "blur(6px)",
-      WebkitBackdropFilter: "blur(6px)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      boxSizing: "border-box",
-      overflowY: "auto",
-    }}>
+    <div className="pro-modal-overlay" onClick={onClose}>
       <div
         className="pro-modal"
-        style={{ maxWidth: 740, width: "95vw", maxHeight: "90vh", display: "flex", flexDirection: "column" }}
+        style={{ maxWidth: 740, width: "95vw" }}
         onClick={e => e.stopPropagation()}
       >
         {/* ── Header ── */}
@@ -382,7 +363,7 @@ function ReviewPanel({
         </div>
 
         {/* ── Body ── */}
-        <div className="pro-modal-body" style={{ maxHeight: "45vh", overflowY: "auto" }}>
+        <div className="pro-modal-body" style={{ maxHeight: "58vh", overflowY: "auto" }}>
 
           {/* ══ SECTION 7 ══ */}
           {activeTab === "s7" && (
@@ -403,30 +384,30 @@ function ReviewPanel({
 
               {/* ── Rating + Score side by side ── */}
               <div style={{
-                display: "grid", gridTemplateColumns: "1fr auto", gap: 12,
+                display: "grid", gridTemplateColumns: "1fr auto", gap: 16,
                 background: "#f0fdf4", border: "1px solid #bbf7d0",
-                borderRadius: 12, padding: 14,
+                borderRadius: 12, padding: 20,
               }}>
                 {/* Left: stars + fields */}
                 <div>
-                  <p className="pro-label" style={{ marginBottom: 8, fontSize: 11 }}>Overall Performance Rating</p>
+                  <p className="pro-label" style={{ marginBottom: 10 }}>Overall Performance Rating</p>
 
                   {/* Stars */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
-                    <div style={{ display: "flex", gap: 2 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                    <div style={{ display: "flex", gap: 4 }}>
                       {[1,2,3,4,5].map(i => (
                         <button
                           key={i} type="button"
                           onMouseEnter={() => setHoverRating(i)}
                           onMouseLeave={() => setHoverRating(0)}
                           onClick={() => setRating(i as Rating)}
-                          style={{ background: "none", border: "none", padding: 1, cursor: "pointer",
+                          style={{ background: "none", border: "none", padding: 2, cursor: "pointer",
                             transition: "transform 0.1s" }}
                           onMouseDown={e => (e.currentTarget.style.transform = "scale(1.3)")}
                           onMouseUp={e => (e.currentTarget.style.transform = "scale(1)")}
                         >
                           <Star style={{
-                            width: 18, height: 18,
+                            width: 26, height: 26,
                             fill: i <= displayRating ? "#f59e0b" : "none",
                             color: i <= displayRating ? "#f59e0b" : "#d1d5db",
                             transition: "all 0.1s",
@@ -435,8 +416,8 @@ function ReviewPanel({
                       ))}
                     </div>
                     <span style={{
-                      fontSize: 11, fontWeight: 700,
-                      color: "#059669", padding: "3px 8px",
+                      fontSize: 13, fontWeight: 700,
+                      color: "#059669", padding: "4px 12px",
                       background: "#dcfce7", borderRadius: 20,
                       border: "1px solid #86efac",
                     }}>
@@ -445,18 +426,17 @@ function ReviewPanel({
                   </div>
 
                   {/* Supervisor + Date */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <div>
-                      <label className="pro-label" style={{ fontSize: 10 }}>Supervisor Name</label>
+                      <label className="pro-label">Supervisor Name</label>
                       <input className="pro-input" value={supervisorName}
                         onChange={e => setSupervisorName(e.target.value)}
-                        placeholder="Enter supervisor name"
-                        style={{ fontSize: 12, padding: "6px 10px" }} />
+                        placeholder="Enter supervisor name" />
                     </div>
                     <div>
-                      <label className="pro-label" style={{ fontSize: 10 }}>Review Date & Time</label>
+                      <label className="pro-label">Review Date & Time</label>
                       <input className="pro-input" value={timeStr} readOnly
-                        style={{ background: "#f9fafb", color: "#9ca3af", cursor: "not-allowed", fontSize: 12, padding: "6px 10px" }} />
+                        style={{ background: "#f9fafb", color: "#9ca3af", cursor: "not-allowed" }} />
                     </div>
                   </div>
                 </div>
@@ -464,20 +444,20 @@ function ReviewPanel({
                 {/* Right: Score dial */}
                 <div style={{
                   display: "flex", flexDirection: "column", alignItems: "center",
-                  justifyContent: "center", gap: 4,
+                  justifyContent: "center", gap: 8,
                   background: "#fff", border: "1px solid #bbf7d0",
-                  borderRadius: 12, padding: "10px 14px", minWidth: 80,
+                  borderRadius: 12, padding: "16px 24px", minWidth: 120,
                 }}>
-                  <div style={{ fontSize: 9, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>
                     Score
                   </div>
-                  <div style={{ fontSize: 32, fontWeight: 900, color: scoreColor, lineHeight: 1 }}>
+                  <div style={{ fontSize: 44, fontWeight: 900, color: scoreColor, lineHeight: 1 }}>
                     {perfScore}
                   </div>
-                  <div style={{ fontSize: 9, color: "#9ca3af" }}>out of 100</div>
+                  <div style={{ fontSize: 10, color: "#9ca3af" }}>out of 100</div>
                   <input type="range" min={0} max={100} value={perfScore}
                     onChange={e => setPerfScore(Number(e.target.value))}
-                    style={{ width: 70, accentColor: "#059669", marginTop: 2 }} />
+                    style={{ width: 90, accentColor: "#059669", marginTop: 4 }} />
                 </div>
               </div>
 
@@ -802,40 +782,44 @@ const AdminDailyAccomplishmentReport = () => {
       {/* Table Card */}
       <div className="pro-card animate-fade-in-up" style={{ animationDelay: "0.4s", opacity: 0 }}>
 
-        {/* Card Header */}
-        <div className="px-6 py-4 border-b border-gray-100">
+        {/* Card Header — title left, all filters right, single row */}
+        <div
+          className="px-6 py-4 border-b border-gray-100"
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}
+        >
+          {/* Left: title + badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#1f2937" }}>Submitted Reports</span>
+            <span style={{
+              fontSize: 10, fontWeight: 700, color: "#b45309",
+              background: "#fef3c7", borderRadius: 20, padding: "2px 8px",
+            }}>
+              {filtered.length}
+            </span>
+          </div>
 
-          {/* DESKTOP (lg+): single row */}
-          <div className="hidden lg:flex items-center gap-3">
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#1f2937", whiteSpace: "nowrap" }}>
-                Submitted Reports
-              </span>
-              <span style={{
-                fontSize: 10, fontWeight: 700, color: "#b45309",
-                background: "#fef3c7", borderRadius: 20, padding: "2px 8px",
-              }}>
-                {filtered.length}
-              </span>
-            </div>
+          {/* Right: filters in one row */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
 
-            <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
+            {/* Search */}
+            <div style={{ position: "relative" }}>
               <Search style={{
                 position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
                 width: 14, height: 14, color: "#9ca3af", pointerEvents: "none",
               }} />
               <input
                 className="pro-input"
-                style={{ paddingLeft: 32, width: "100%", boxSizing: "border-box" }}
+                style={{ paddingLeft: 32, width: 200, boxSizing: "border-box" }}
                 placeholder="Search employee, project..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
 
+            {/* Status dropdown */}
             <select
               className="pro-select"
-              style={{ width: 160, flexShrink: 0, boxSizing: "border-box" }}
+              style={{ width: 150, boxSizing: "border-box" }}
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
             >
@@ -845,79 +829,22 @@ const AdminDailyAccomplishmentReport = () => {
               ))}
             </select>
 
+            {/* Department dropdown */}
             <select
               className="pro-select"
-              style={{ width: 180, flexShrink: 0, boxSizing: "border-box" }}
+              style={{ width: 150, boxSizing: "border-box" }}
               value={filterDept}
               onChange={e => setFilterDept(e.target.value)}
             >
               {departments.map(d => <option key={d}>{d}</option>)}
             </select>
 
-            <button
-              className="btn btn-primary"
-              style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0 }}
-            >
+            {/* Export */}
+            <button className="btn btn-primary" style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
               <Download className="w-3.5 h-3.5" /> Export
             </button>
+
           </div>
-
-          {/* MOBILE (< lg): stacked rows, same as dati */}
-          <div className="flex flex-col gap-2 lg:hidden">
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#1f2937" }}>Submitted Reports</span>
-              <span style={{
-                fontSize: 10, fontWeight: 700, color: "#b45309",
-                background: "#fef3c7", borderRadius: 20, padding: "2px 8px",
-              }}>
-                {filtered.length}
-              </span>
-              <div style={{ position: "relative", flex: 1, marginLeft: 4 }}>
-                <Search style={{
-                  position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
-                  width: 14, height: 14, color: "#9ca3af", pointerEvents: "none",
-                }} />
-                <input
-                  className="pro-input"
-                  style={{ paddingLeft: 32, width: "100%", boxSizing: "border-box" }}
-                  placeholder="Search employee, project..."
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <select
-                className="pro-select"
-                style={{ flex: 1, minWidth: 130, boxSizing: "border-box" }}
-                value={filterStatus}
-                onChange={e => setFilterStatus(e.target.value)}
-              >
-                <option value="All">All Status</option>
-                {["Pending Review", "Approved", "Revision Requested", "Rejected"].map(s => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-
-              <select
-                className="pro-select"
-                style={{ flex: 1, minWidth: 130, boxSizing: "border-box" }}
-                value={filterDept}
-                onChange={e => setFilterDept(e.target.value)}
-              >
-                {departments.map(d => <option key={d}>{d}</option>)}
-              </select>
-
-              <button
-                className="btn btn-primary"
-                style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
-              >
-                <Download className="w-3.5 h-3.5" /> Export
-              </button>
-            </div>
-          </div>
-
         </div>
 
         {/* Table */}
@@ -926,45 +853,66 @@ const AdminDailyAccomplishmentReport = () => {
             <table className="pro-table" style={{ tableLayout: "auto", width: "100%" }}>
               <thead>
                 <tr>
+                  <th style={{ whiteSpace: "nowrap", width: 130 }}>Ref #</th>
                   <th style={{ whiteSpace: "nowrap" }}>Employee</th>
-                  <th className="hidden md:table-cell" style={{ whiteSpace: "nowrap" }}>Project</th>
+                  <th style={{ whiteSpace: "nowrap" }}>Department</th>
+                  <th style={{ whiteSpace: "nowrap" }}>Project</th>
+                  <th style={{ whiteSpace: "nowrap" }}>Date</th>
+                  <th style={{ whiteSpace: "nowrap" }}>Submitted</th>
                   <th style={{ whiteSpace: "nowrap" }}>Arrangement</th>
-                  <th className="hidden md:table-cell" style={{ whiteSpace: "nowrap" }}>Rating</th>
-                  <th className="hidden md:table-cell" style={{ whiteSpace: "nowrap" }}>Status</th>
+                  <th style={{ whiteSpace: "nowrap" }}>Hours</th>
+                  <th style={{ whiteSpace: "nowrap", textAlign: "center" }}>Tasks</th>
+                  <th style={{ whiteSpace: "nowrap", textAlign: "center" }}>Checklist</th>
+                  <th style={{ whiteSpace: "nowrap" }}>Rating</th>
+                  <th style={{ whiteSpace: "nowrap" }}>Status</th>
                   <th style={{ whiteSpace: "nowrap", textAlign: "center" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-8 text-gray-400 italic">
+                    <td colSpan={13} className="text-center py-8 text-gray-400 italic">
                       No reports found matching your filters.
                     </td>
                   </tr>
                 ) : filtered.map(r => (
-                  <tr key={r.id} className="cursor-pointer">
+                  <tr key={r.id} className="cursor-pointer" onClick={() => setSelectedReport(r)}>
+                    {/* Ref # — styled like AST-001 */}
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      <span style={{
+                        fontFamily: "monospace",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "#374151",
+                        letterSpacing: "0.03em",
+                      }}>
+                        {r.referenceNo}
+                      </span>
+                    </td>
 
                     {/* Employee */}
-                    <td style={{ whiteSpace: "nowrap" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <div style={{
-                          width: 34, height: 34, borderRadius: "10px", flexShrink: 0,
-                          background: "linear-gradient(135deg, #059669, #10b981)",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          color: "#fff", fontWeight: 800, fontSize: 13,
-                        }}>
-                          {r.employeeName.trim().charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p style={{ fontWeight: 700, fontSize: 13, color: "#111827", lineHeight: 1.2 }}>{r.employeeName}</p>
-                          <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 1 }}>{r.department}</p>
-                        </div>
-                      </div>
+                    <td style={{ whiteSpace: "nowrap", fontWeight: 600, color: "#111827" }}>
+                      {r.employeeName}
+                    </td>
+
+                    {/* Department */}
+                    <td style={{ whiteSpace: "nowrap", color: "#6b7280", fontSize: 13 }}>
+                      {r.department}
                     </td>
 
                     {/* Project */}
-                    <td className="hidden md:table-cell" style={{ whiteSpace: "nowrap", color: "#374151", fontSize: 13 }}>
+                    <td style={{ whiteSpace: "nowrap", color: "#374151", fontSize: 13 }}>
                       {r.project}
+                    </td>
+
+                    {/* Date */}
+                    <td style={{ whiteSpace: "nowrap", fontFamily: "monospace", fontSize: 12, color: "#6b7280" }}>
+                      {r.date}
+                    </td>
+
+                    {/* Submitted */}
+                    <td style={{ whiteSpace: "nowrap", fontSize: 13, color: "#6b7280" }}>
+                      {r.submittedAt}
                     </td>
 
                     {/* Arrangement */}
@@ -972,8 +920,49 @@ const AdminDailyAccomplishmentReport = () => {
                       <ArrangementBadge arr={r.workArrangement} />
                     </td>
 
+                    {/* Hours */}
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      <div className="flex items-center gap-2">
+                        <div className="progress-bar" style={{ width: 52 }}>
+                          <div
+                            className="progress-bar-fill"
+                            style={{
+                              width: `${Math.min(100, (r.totalActualHours / 9) * 100)}%`,
+                              background: "linear-gradient(90deg,#059669,#10b981)",
+                            }}
+                          />
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>
+                          {r.totalActualHours}h
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Tasks */}
+                    <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
+                      <span style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: r.tasksCompleted === r.tasksTotal ? "#059669" : "#374151",
+                      }}>
+                        {r.tasksCompleted}/{r.tasksTotal}
+                      </span>
+                    </td>
+
+                    {/* Checklist */}
+                    <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
+                      <span style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: r.checklistDone === 6 ? "#059669"
+                          : r.checklistDone >= 4 ? "#d97706" : "#ef4444",
+                      }}>
+                        {r.checklistDone}/6
+                      </span>
+                    </td>
+
                     {/* Rating */}
-                    <td className="hidden md:table-cell" style={{ whiteSpace: "nowrap" }}>
+                    <td style={{ whiteSpace: "nowrap" }}>
                       {r.rating
                         ? <StarRow rating={r.rating} />
                         : <span style={{ color: "#d1d5db", fontSize: 13 }}>—</span>
@@ -981,44 +970,22 @@ const AdminDailyAccomplishmentReport = () => {
                     </td>
 
                     {/* Status */}
-                    <td className="hidden md:table-cell" style={{ whiteSpace: "nowrap" }}>
+                    <td style={{ whiteSpace: "nowrap" }}>
                       <StatusBadge status={r.status} />
                     </td>
 
                     {/* Actions */}
                     <td style={{ textAlign: "center", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-
-                        
-
-                        {/* Action Button — Star if Pending, Eye if others */}
-                        <button
-                          onClick={() => setSelectedReport(r)}
-                          title={r.status === "Pending Review" ? "Review" : "View"}
-                          style={{
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            padding: "5px 8px", borderRadius: 8, cursor: "pointer",
-                            border: `1.5px solid ${r.status === "Pending Review" ? "#fde68a" : "#bfdbfe"}`,
-                            background: r.status === "Pending Review" ? "#fffbeb" : "#eff6ff",
-                            color: r.status === "Pending Review" ? "#f59e0b" : "#2563eb",
-                            transition: "all 0.15s",
-                          }}
-                          onMouseEnter={e => {
-                            e.currentTarget.style.background = r.status === "Pending Review" ? "#f59e0b" : "#2563eb";
-                            e.currentTarget.style.color = "#fff";
-                          }}
-                          onMouseLeave={e => {
-                            e.currentTarget.style.background = r.status === "Pending Review" ? "#fffbeb" : "#eff6ff";
-                            e.currentTarget.style.color = r.status === "Pending Review" ? "#f59e0b" : "#2563eb";
-                          }}
-                        >
-                          {r.status === "Pending Review"
-                            ? <Star className="w-4 h-4" />
-                            : <Eye className="w-4 h-4" />
-                          }
-                        </button>
-
-                      </div>
+                      <button
+                        onClick={() => setSelectedReport(r)}
+                        className="btn-ghost btn-icon text-blue-500 hover:bg-blue-50"
+                        title={r.status === "Pending Review" ? "Review" : "View"}
+                      >
+                        {r.status === "Pending Review"
+                          ? <Star className="w-4 h-4" />
+                          : <Eye className="w-4 h-4" />
+                        }
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -1067,4 +1034,3 @@ const AdminDailyAccomplishmentReport = () => {
 };
 
 export default AdminDailyAccomplishmentReport;
-

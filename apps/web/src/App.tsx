@@ -32,10 +32,10 @@ import CompanyDirectory from "./pages/user/CompanyDirectory";
 import MyPerformance from "./pages/user/MyPerformance";
 import CompanyNews from "./pages/user/CompanyNews";
 import HelpSupport from "./pages/user/HelpSupport";
+import DailyAccomplishmentReport from "./pages/user/DailyAccomplishmentReport";
 
-// Daily Accomplishment Report
+// Admin Daily Accomplishment
 import AdminDailyAccomplishmentReport from "./pages/DAR/AdminDailyAccomplishmentReport";
-import DailyAccomplishmentReport from "./pages/DailyReport/DailyAccomplishmentReport";
 
 // Asset Management
 import AssetManagement from "./pages/assets/AssetManagement";
@@ -52,10 +52,6 @@ import AdminSettings from "./pages/admin/AdminSettings";
 
 import "./App.css";
 
-/**
- * Blocks unauthenticated users from accessing protected routes.
- * Redirects to /login and preserves the intended destination in state.
- */
 function RequireAuth() {
   const { isLoggedIn } = useAuth();
   const location = useLocation();
@@ -67,10 +63,6 @@ function RequireAuth() {
   return <Outlet />;
 }
 
-/**
- * Blocks authenticated users from visiting guest-only routes.
- * If already logged in, send them to /dashboard.
- */
 function GuestOnly({ children }: { children: React.ReactNode }) {
   const { isLoggedIn } = useAuth();
 
@@ -81,9 +73,6 @@ function GuestOnly({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/**
- * Blocks non-admin roles from accessing admin-only routes.
- */
 function AdminOnly({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const role = user?.role;
@@ -163,6 +152,15 @@ export default function App() {
               </AdminOnly>
             }
           />
+          {/* ✅ NEW: Admin Daily Accomplishment Reports */}
+          <Route
+            path="daily-accomplishment-reports"
+            element={
+              <AdminOnly>
+                <AdminDailyAccomplishmentReport />
+              </AdminOnly>
+            }
+          />
           <Route
             path="clearance"
             element={
@@ -208,10 +206,7 @@ export default function App() {
           <Route path="my-performance" element={<MyPerformance />} />
           <Route path="company-news" element={<CompanyNews />} />
           <Route path="help-support" element={<HelpSupport />} />
-
-          {/* Daily Accomplishment Report */}
-          <Route path="daily-report" element={<DailyAccomplishmentReport />} />
-          <Route path="admin-dar" element={<AdminOnly><AdminDailyAccomplishmentReport /></AdminOnly>} />
+          <Route path="daily-accomplishment" element={<DailyAccomplishmentReport />} />
         </Route>
       </Route>
 
