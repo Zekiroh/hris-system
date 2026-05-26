@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # HRIS System
 <br>
 
@@ -173,7 +172,3 @@ This keeps feature work isolated and reduces merge conflicts during collaboratio
 ## Project Status
 
 The project is currently under active development as part of an internship program. Core architecture and repository structure have been established, with ongoing feature development and module integration.
-=======
-# HRIS-SYSTEM
-Daily Accomplishment Report
->>>>>>> c4766543eed10950133eafa3b655c32993ec8a9e

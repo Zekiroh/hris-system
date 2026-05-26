@@ -38,6 +38,7 @@ const routeLabels: Record<string, string> = {
   "/dashboard/company-directory": "Company Directory",
   "/dashboard/help-support": "Help & Support",
   "/dashboard/daily-report": "Daily Report",
+ "/dashboard/admin-dar": "Daily Accomplishment Reports",
 };
 
 const TopBar = ({ onMenuClick }: TopBarProps) => {
