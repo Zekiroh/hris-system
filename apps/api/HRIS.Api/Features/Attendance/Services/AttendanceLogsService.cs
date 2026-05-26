@@ -213,6 +213,9 @@ public class AttendanceLogsService : IAttendanceLogsService
                 OvertimeMinutes = 0,
                 OvertimeStatus = "None",
                 RenderedMinutes = 0,
+                RequiredMinutes = 0,
+                RegularCreditedMinutes = 0,
+                OvertimeCreditedMinutes = 0,
                 CreditedMinutes = 0,
                 ExcessMinutes = 0,
                 HasExceededApprovedOvertime = false,
@@ -972,7 +975,6 @@ public class AttendanceLogsService : IAttendanceLogsService
         }
 
         attendanceLog.IsPresent = true;
-
         attendanceLog.LateMinutes = CalculateLateMinutes(attendanceLog.TimeIn.Value, shiftDay);
 
         if (!attendanceLog.TimeOut.HasValue)
@@ -985,67 +987,36 @@ public class AttendanceLogsService : IAttendanceLogsService
 
         ValidateAttendanceDuration(attendanceLog.TimeIn.Value, attendanceLog.TimeOut.Value);
 
-        var renderedMinutes = CalculateDurationMinutes(attendanceLog.TimeIn.Value, attendanceLog.TimeOut.Value);
-
-        var breakOverlapMinutes = CalculateBreakOverlapMinutes(
+        attendanceLog.RenderedMinutes = CalculateRenderedMinutes(
             attendanceLog.TimeIn.Value,
             attendanceLog.TimeOut.Value,
             shiftDay.BreakStartTime,
             shiftDay.BreakEndTime);
 
-        renderedMinutes -= breakOverlapMinutes;
+        var requiredMinutes = CalculateRequiredShiftMinutes(
+            shiftDay.StartTime,
+            shiftDay.EndTime,
+            shiftDay.BreakStartTime,
+            shiftDay.BreakEndTime);
 
-        if (renderedMinutes < 0)
-            renderedMinutes = 0;
+        var regularCreditedMinutes = CalculateRegularCreditedMinutes(
+            attendanceLog.TimeIn.Value,
+            attendanceLog.TimeOut.Value,
+            shiftDay.StartTime,
+            shiftDay.EndTime,
+            shiftDay.BreakStartTime,
+            shiftDay.BreakEndTime,
+            shiftDay.Shift.LateGraceMinutes);
 
-        attendanceLog.RenderedMinutes = renderedMinutes;
+        attendanceLog.UndertimeMinutes = Math.Max(0, requiredMinutes - regularCreditedMinutes);
 
-        var requiredMinutes = 0;
-
-        if (shiftDay.StartTime.HasValue && shiftDay.EndTime.HasValue)
-        {
-            requiredMinutes = CalculateDurationMinutes(shiftDay.StartTime.Value, shiftDay.EndTime.Value);
-
-            var scheduledBreakMinutes = CalculateBreakOverlapMinutes(
-                shiftDay.StartTime.Value,
-                shiftDay.EndTime.Value,
-                shiftDay.BreakStartTime,
-                shiftDay.BreakEndTime);
-
-            requiredMinutes -= scheduledBreakMinutes;
-        }
-
-        if (requiredMinutes < 0)
-            requiredMinutes = 0;
-
-        if (renderedMinutes < requiredMinutes)
-        {
-            attendanceLog.UndertimeMinutes = requiredMinutes - renderedMinutes;
-            attendanceLog.OvertimeMinutes = 0;
-        }
-        else if (renderedMinutes > requiredMinutes)
-        {
-            attendanceLog.UndertimeMinutes = 0;
-
-            var rawOvertime = renderedMinutes - requiredMinutes;
-
-            if (includeOvertime &&
-                shiftDay.StartTime.HasValue &&
-                shiftDay.EndTime.HasValue &&
-                IsAfterShiftEnd(attendanceLog.TimeOut.Value, shiftDay))
-            {
-                attendanceLog.OvertimeMinutes = rawOvertime;
-            }
-            else
-            {
-                attendanceLog.OvertimeMinutes = 0;
-            }
-        }
-        else
-        {
-            attendanceLog.UndertimeMinutes = 0;
-            attendanceLog.OvertimeMinutes = 0;
-        }
+        attendanceLog.OvertimeMinutes = includeOvertime
+            ? CalculateActualOvertimeWorkedMinutes(
+                attendanceLog.TimeIn.Value,
+                attendanceLog.TimeOut.Value,
+                shiftDay.StartTime,
+                shiftDay.EndTime)
+            : 0;
     }
 
     private async Task EnrichOvertimeStatusAsync(AttendanceLogDto item, CancellationToken ct)
@@ -1222,44 +1193,192 @@ public class AttendanceLogsService : IAttendanceLogsService
     {
         var hasActualDtr = item.TimeIn.HasValue && item.TimeOut.HasValue;
 
+        item.RequiredMinutes = CalculateRequiredShiftMinutes(item);
+
         if (!hasActualDtr || item.RenderedMinutes <= 0)
         {
+            item.RegularCreditedMinutes = 0;
+            item.OvertimeCreditedMinutes = 0;
             item.CreditedMinutes = 0;
             item.ExcessMinutes = 0;
             item.HasExceededApprovedOvertime = false;
             return;
         }
 
-        var requiredMinutes = CalculateRequiredShiftMinutes(item);
+        var regularCreditedMinutes = CalculateRegularCreditedMinutes(
+            item.TimeIn!.Value,
+            item.TimeOut!.Value,
+            item.ShiftStartTime,
+            item.ShiftEndTime,
+            item.BreakStartTime,
+            item.BreakEndTime,
+            item.LateGraceMinutes);
+
+        var actualOvertimeWorkedMinutes = CalculateActualOvertimeWorkedMinutes(
+            item.TimeIn.Value,
+            item.TimeOut.Value,
+            item.ShiftStartTime,
+            item.ShiftEndTime);
+
         var approvedOvertimeMinutes = string.Equals(item.OvertimeStatus, "Approved", StringComparison.OrdinalIgnoreCase)
             ? Math.Max(0, item.OvertimeMinutes)
             : 0;
 
-        var creditedMinutes = requiredMinutes > 0
-            ? Math.Min(item.RenderedMinutes, requiredMinutes + approvedOvertimeMinutes)
-            : item.RenderedMinutes;
+        var overtimeCreditedMinutes = Math.Min(actualOvertimeWorkedMinutes, approvedOvertimeMinutes);
+        var exceededApprovedOvertimeMinutes = Math.Max(0, actualOvertimeWorkedMinutes - approvedOvertimeMinutes);
 
-        item.CreditedMinutes = creditedMinutes;
-        item.ExcessMinutes = Math.Max(0, item.RenderedMinutes - creditedMinutes);
-        item.HasExceededApprovedOvertime = item.ExcessMinutes > 0;
+        item.RegularCreditedMinutes = regularCreditedMinutes;
+        item.OvertimeCreditedMinutes = overtimeCreditedMinutes;
+        item.CreditedMinutes = regularCreditedMinutes + overtimeCreditedMinutes;
+        item.ExcessMinutes = Math.Max(0, item.RenderedMinutes - item.CreditedMinutes);
+        item.HasExceededApprovedOvertime = exceededApprovedOvertimeMinutes > 0;
     }
 
     private static int CalculateRequiredShiftMinutes(AttendanceLogDto item)
     {
-        if (!item.ShiftStartTime.HasValue || !item.ShiftEndTime.HasValue)
-            return 0;
-
-        var requiredMinutes = CalculateDurationMinutes(item.ShiftStartTime.Value, item.ShiftEndTime.Value);
-
-        var scheduledBreakMinutes = CalculateBreakOverlapMinutes(
-            item.ShiftStartTime.Value,
-            item.ShiftEndTime.Value,
+        return CalculateRequiredShiftMinutes(
+            item.ShiftStartTime,
+            item.ShiftEndTime,
             item.BreakStartTime,
             item.BreakEndTime);
+    }
+
+    private static int CalculateRequiredShiftMinutes(
+        TimeOnly? shiftStart,
+        TimeOnly? shiftEnd,
+        TimeOnly? breakStart,
+        TimeOnly? breakEnd)
+    {
+        if (!shiftStart.HasValue || !shiftEnd.HasValue)
+            return 0;
+
+        var requiredMinutes = CalculateDurationMinutes(shiftStart.Value, shiftEnd.Value);
+
+        var scheduledBreakMinutes = CalculateBreakOverlapMinutes(
+            shiftStart.Value,
+            shiftEnd.Value,
+            breakStart,
+            breakEnd);
 
         requiredMinutes -= scheduledBreakMinutes;
 
         return Math.Max(0, requiredMinutes);
+    }
+
+    private static int CalculateRenderedMinutes(
+        TimeOnly timeIn,
+        TimeOnly timeOut,
+        TimeOnly? breakStart,
+        TimeOnly? breakEnd)
+    {
+        var renderedMinutes = CalculateDurationMinutes(timeIn, timeOut);
+
+        renderedMinutes -= CalculateBreakOverlapMinutes(
+            timeIn,
+            timeOut,
+            breakStart,
+            breakEnd);
+
+        return Math.Max(0, renderedMinutes);
+    }
+
+    private static int CalculateRegularCreditedMinutes(
+        TimeOnly timeIn,
+        TimeOnly timeOut,
+        TimeOnly? shiftStart,
+        TimeOnly? shiftEnd,
+        TimeOnly? breakStart,
+        TimeOnly? breakEnd,
+        int lateGraceMinutes)
+    {
+        if (!shiftStart.HasValue || !shiftEnd.HasValue)
+            return 0;
+
+        var shiftStartMinute = ToMinuteOfDay(shiftStart.Value);
+        var shiftEndMinute = NormalizeEndMinute(shiftStart.Value, shiftEnd.Value);
+        var actualStartMinute = NormalizeCurrentMinute(timeIn, shiftStart.Value, shiftEnd.Value);
+        var actualEndMinute = NormalizeCurrentMinute(timeOut, shiftStart.Value, shiftEnd.Value);
+
+        if (actualEndMinute <= actualStartMinute)
+            actualEndMinute = NormalizeEndMinute(timeIn, timeOut);
+
+        var lateThresholdMinute = shiftStartMinute + Math.Max(0, lateGraceMinutes);
+        var creditedStartMinute = actualStartMinute <= lateThresholdMinute
+            ? shiftStartMinute
+            : Math.Max(actualStartMinute, shiftStartMinute);
+
+        var creditedEndMinute = Math.Min(actualEndMinute, shiftEndMinute);
+
+        if (creditedEndMinute <= creditedStartMinute)
+            return 0;
+
+        var creditedMinutes = creditedEndMinute - creditedStartMinute;
+
+        creditedMinutes -= CalculateBreakOverlapMinutes(
+            creditedStartMinute,
+            creditedEndMinute,
+            breakStart,
+            breakEnd,
+            shiftStartMinute,
+            shiftEndMinute);
+
+        return Math.Max(0, creditedMinutes);
+    }
+
+    private static int CalculateActualOvertimeWorkedMinutes(
+        TimeOnly timeIn,
+        TimeOnly timeOut,
+        TimeOnly? shiftStart,
+        TimeOnly? shiftEnd)
+    {
+        if (!shiftStart.HasValue || !shiftEnd.HasValue)
+            return 0;
+
+        var shiftEndMinute = NormalizeEndMinute(shiftStart.Value, shiftEnd.Value);
+        var actualStartMinute = NormalizeCurrentMinute(timeIn, shiftStart.Value, shiftEnd.Value);
+        var actualEndMinute = NormalizeCurrentMinute(timeOut, shiftStart.Value, shiftEnd.Value);
+
+        if (actualEndMinute <= actualStartMinute)
+            actualEndMinute = NormalizeEndMinute(timeIn, timeOut);
+
+        if (actualEndMinute <= shiftEndMinute)
+            return 0;
+
+        var overtimeStartMinute = Math.Max(actualStartMinute, shiftEndMinute);
+
+        return Math.Max(0, actualEndMinute - overtimeStartMinute);
+    }
+
+    private static int CalculateBreakOverlapMinutes(
+        int rangeStartMinute,
+        int rangeEndMinute,
+        TimeOnly? breakStart,
+        TimeOnly? breakEnd,
+        int anchorStartMinute,
+        int anchorEndMinute)
+    {
+        if (!breakStart.HasValue || !breakEnd.HasValue)
+            return 0;
+
+        var breakStartMinute = ToMinuteOfDay(breakStart.Value);
+        var breakEndMinute = NormalizeEndMinute(breakStart.Value, breakEnd.Value);
+
+        if (anchorEndMinute > MinutesPerDay && breakStartMinute < anchorStartMinute)
+        {
+            breakStartMinute += MinutesPerDay;
+            breakEndMinute += MinutesPerDay;
+        }
+
+        if (breakEndMinute <= breakStartMinute)
+            return 0;
+
+        var overlapStart = Math.Max(rangeStartMinute, breakStartMinute);
+        var overlapEnd = Math.Min(rangeEndMinute, breakEndMinute);
+
+        if (overlapEnd <= overlapStart)
+            return 0;
+
+        return overlapEnd - overlapStart;
     }
 
     private static AttendanceLogDto MapToDto(AttendanceLog x)
@@ -1283,7 +1402,10 @@ public class AttendanceLogsService : IAttendanceLogsService
             OvertimeMinutes = x.OvertimeMinutes,
             OvertimeStatus = "None",
             RenderedMinutes = x.RenderedMinutes,
-            CreditedMinutes = x.RenderedMinutes,
+            RequiredMinutes = 0,
+            RegularCreditedMinutes = 0,
+            OvertimeCreditedMinutes = 0,
+            CreditedMinutes = 0,
             ExcessMinutes = 0,
             HasExceededApprovedOvertime = false,
             IsPresent = x.IsPresent,
@@ -1531,7 +1653,8 @@ public class AttendanceLogsService : IAttendanceLogsService
         var startMinute = ToMinuteOfDay(start);
         var endMinute = ToMinuteOfDay(end);
 
-        if (endMinute < startMinute && currentMinute < startMinute)
+        // Overnight shifts: only post-midnight times should be moved to the next day.
+        if (endMinute < startMinute && currentMinute <= endMinute)
             return currentMinute + MinutesPerDay;
 
         return currentMinute;

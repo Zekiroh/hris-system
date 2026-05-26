@@ -89,7 +89,13 @@ const hasActualTimeOut = (value: string | null | undefined) => {
 
     const normalized = value.trim();
 
-    return normalized !== '' && normalized !== '-' && normalized !== '--' && normalized !== '--:-- --';
+    return (
+        normalized !== '' &&
+        normalized !== '-' &&
+        normalized !== '—' &&
+        normalized !== '--' &&
+        normalized !== '--:-- --'
+    );
 };
 
 const formatTimeDisplay = (value: string | null | undefined) => {
@@ -97,7 +103,13 @@ const formatTimeDisplay = (value: string | null | undefined) => {
 
     const normalized = value.trim();
 
-    if (normalized === '' || normalized === '-' || normalized === '--' || normalized === '--:-- --') {
+    if (
+        normalized === '' ||
+        normalized === '-' ||
+        normalized === '—' ||
+        normalized === '--' ||
+        normalized === '--:-- --'
+    ) {
         return '--:-- --';
     }
 
@@ -175,6 +187,8 @@ const UserDtrTable = ({
 
                                 {dataRows.map((row, index) => {
                                     const isPlaceholder = row.id < 0;
+                                    const isAbsent = row.status === 'Absent';
+                                    const isIncomplete = row.status === 'Incomplete';
                                     const isTimedOut = hasActualTimeOut(row.timeOut);
                                     const formattedDate = formatAttendanceDate(row.date);
                                     const formattedTimeIn = formatTimeDisplay(row.timeIn);
@@ -185,8 +199,9 @@ const UserDtrTable = ({
                                     const overtimeStatus = normalizeOvertimeStatus(row.overtimeStatus);
                                     const hasApprovedOT = overtimeStatus === 'Approved';
                                     const hasPendingOT = overtimeStatus === 'Pending';
+                                    const canView = !isPlaceholder && !isAbsent;
+                                    const canEdit = !isPlaceholder && !isAbsent && !isTimedOut;
 
-                                    // ✅ FIXED KEY (no duplicates anymore)
                                     const rowKey = isPlaceholder
                                         ? `placeholder-${index}`
                                         : `log-${row.id}-${row.date}-${index}`;
@@ -223,16 +238,15 @@ const UserDtrTable = ({
                                             </td>
 
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex flex-col gap-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <Clock3 className={`h-4 w-4 ${isPlaceholder ? 'text-gray-300' : 'text-slate-400'}`} />
-                                                        <span className={`font-mono text-sm font-semibold ${isPlaceholder ? 'text-gray-300' : 'text-slate-700'}`}>
-                                                            {isPlaceholder ? '--' : formattedTotal}
-                                                        </span>
-                                                    </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Clock3 className={`h-4 w-4 ${isPlaceholder ? 'text-gray-300' : 'text-slate-400'}`} />
+
+                                                    <span className={`font-mono text-sm font-semibold ${isPlaceholder ? 'text-gray-300' : 'text-slate-700'}`}>
+                                                        {isPlaceholder ? '--' : formattedTotal}
+                                                    </span>
 
                                                     {!isPlaceholder && hasExceededApprovedOvertime && (
-                                                        <span className="pl-6 text-[11px] font-semibold text-slate-400">
+                                                        <span className="text-[11px] font-semibold text-slate-400">
                                                             Credited: {formattedCredited}
                                                         </span>
                                                     )}
@@ -249,21 +263,21 @@ const UserDtrTable = ({
                                                             {row.status}
                                                         </span>
 
-                                                        {row.isUndertime && row.status !== 'Absent' && (
+                                                        {row.isUndertime && !isAbsent && !isIncomplete && (
                                                             <span className="badge badge-undertime">
                                                                 <span className="badge-dot" />
                                                                 Undertime
                                                             </span>
                                                         )}
 
-                                                        {hasApprovedOT && (
+                                                        {hasApprovedOT && !isIncomplete && (
                                                             <span className="badge badge-info">
                                                                 <span className="badge-dot" />
                                                                 Overtime
                                                             </span>
                                                         )}
 
-                                                        {hasPendingOT && (
+                                                        {hasPendingOT && !isIncomplete && (
                                                             <span className="badge badge-warning">
                                                                 <span className="badge-dot" />
                                                                 Pending OT
@@ -278,10 +292,12 @@ const UserDtrTable = ({
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            if (!isPlaceholder) onView(row);
+                                                            if (canView) onView(row);
                                                         }}
-                                                        disabled={isPlaceholder}
-                                                        className="text-slate-500 hover:text-slate-700 disabled:opacity-30"
+                                                        disabled={!canView}
+                                                        aria-label="View attendance record"
+                                                        title="View attendance record"
+                                                        className="text-slate-500 hover:text-slate-700 disabled:cursor-not-allowed disabled:text-gray-300 disabled:opacity-50"
                                                     >
                                                         <Eye className="h-4 w-4" />
                                                     </button>
@@ -289,10 +305,12 @@ const UserDtrTable = ({
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            if (!isPlaceholder && !isTimedOut) onEdit(row);
+                                                            if (canEdit) onEdit(row);
                                                         }}
-                                                        disabled={isPlaceholder || isTimedOut}
-                                                        className="text-slate-500 hover:text-slate-700 disabled:opacity-30"
+                                                        disabled={!canEdit}
+                                                        aria-label="Edit attendance record"
+                                                        title="Edit attendance record"
+                                                        className="text-slate-500 hover:text-slate-700 disabled:cursor-not-allowed disabled:text-gray-300 disabled:opacity-50"
                                                     >
                                                         <Edit className="h-4 w-4" />
                                                     </button>

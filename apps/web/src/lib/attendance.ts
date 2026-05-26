@@ -18,6 +18,9 @@ export type AttendanceLogDto = {
     overtimeMinutes?: number;
     overtimeStatus?: "None" | "Pending" | "Approved";
     renderedMinutes?: number;
+    requiredMinutes?: number;
+    regularCreditedMinutes?: number;
+    overtimeCreditedMinutes?: number;
     creditedMinutes?: number;
     excessMinutes?: number;
     hasExceededApprovedOvertime?: boolean;

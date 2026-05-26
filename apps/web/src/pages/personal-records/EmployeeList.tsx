@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import {
@@ -84,6 +84,7 @@ function parseEmploymentTypeParam(
 
 const EmployeeList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
 
   const employmentTypeFilter = useMemo(
     () => parseEmploymentTypeParam(searchParams.get("employmentType")),
@@ -502,7 +503,14 @@ const EmployeeList = () => {
 
   useEffect(() => {
     void fetchEmployees();
-  }, [page, searchTerm, isActiveQuery, isNewHireQuery, sortBy, employmentTypeFilter]);
+  }, [
+    page,
+    searchTerm,
+    isActiveQuery,
+    isNewHireQuery,
+    sortBy,
+    employmentTypeFilter,
+  ]);
 
   useEffect(() => {
     void fetchEmployeeSummaryOnly();
@@ -597,7 +605,6 @@ const EmployeeList = () => {
     }
   };
 
-
   useEffect(() => {
     const employeeId = searchParams.get("employeeId");
     const shouldOpenView = searchParams.get("view") === "1";
@@ -608,13 +615,37 @@ const EmployeeList = () => {
     profileViewRequestRef.current = employeeId;
     void openView(employeeId);
 
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.delete("employeeId");
-      next.delete("view");
-      return next;
-    }, { replace: true });
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        next.delete("employeeId");
+        next.delete("view");
+        return next;
+      },
+      { replace: true }
+    );
   }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const state = location.state as
+      | {
+          viewEmployeeId?: string | number;
+        }
+      | null
+      | undefined;
+
+    if (!state?.viewEmployeeId) return;
+
+    const employeeId = String(state.viewEmployeeId);
+    const requestKey = `state:${employeeId}`;
+
+    if (profileViewRequestRef.current === requestKey) return;
+
+    profileViewRequestRef.current = requestKey;
+    void openView(employeeId);
+
+    window.history.replaceState({}, document.title);
+  }, [location.state]);
 
   const handleViewRow = async (row: EmployeeRow) => {
     if (detailsLoading || loading) return;
