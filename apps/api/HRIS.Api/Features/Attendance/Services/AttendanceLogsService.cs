@@ -1225,12 +1225,13 @@ public class AttendanceLogsService : IAttendanceLogsService
             : 0;
 
         var overtimeCreditedMinutes = Math.Min(actualOvertimeWorkedMinutes, approvedOvertimeMinutes);
+        var exceededApprovedOvertimeMinutes = Math.Max(0, actualOvertimeWorkedMinutes - approvedOvertimeMinutes);
 
         item.RegularCreditedMinutes = regularCreditedMinutes;
         item.OvertimeCreditedMinutes = overtimeCreditedMinutes;
         item.CreditedMinutes = regularCreditedMinutes + overtimeCreditedMinutes;
         item.ExcessMinutes = Math.Max(0, item.RenderedMinutes - item.CreditedMinutes);
-        item.HasExceededApprovedOvertime = item.ExcessMinutes > 0;
+        item.HasExceededApprovedOvertime = exceededApprovedOvertimeMinutes > 0;
     }
 
     private static int CalculateRequiredShiftMinutes(AttendanceLogDto item)

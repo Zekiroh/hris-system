@@ -89,7 +89,13 @@ const hasActualTimeOut = (value: string | null | undefined) => {
 
     const normalized = value.trim();
 
-    return normalized !== '' && normalized !== '-' && normalized !== '--' && normalized !== '--:-- --';
+    return (
+        normalized !== '' &&
+        normalized !== '-' &&
+        normalized !== '—' &&
+        normalized !== '--' &&
+        normalized !== '--:-- --'
+    );
 };
 
 const formatTimeDisplay = (value: string | null | undefined) => {
@@ -97,7 +103,13 @@ const formatTimeDisplay = (value: string | null | undefined) => {
 
     const normalized = value.trim();
 
-    if (normalized === '' || normalized === '-' || normalized === '--' || normalized === '--:-- --') {
+    if (
+        normalized === '' ||
+        normalized === '-' ||
+        normalized === '—' ||
+        normalized === '--' ||
+        normalized === '--:-- --'
+    ) {
         return '--:-- --';
     }
 
@@ -183,12 +195,7 @@ const UserDtrTable = ({
                                     const formattedTimeOut = formatTimeDisplay(row.timeOut);
                                     const formattedTotal = formatMinutes(row.renderedMinutes);
                                     const formattedCredited = formatMinutes(row.creditedMinutes ?? row.renderedMinutes);
-                                    const shouldShowCredited =
-                                        !isPlaceholder &&
-                                        row.creditedMinutes !== undefined &&
-                                        row.creditedMinutes > 0 &&
-                                        row.renderedMinutes > 0 &&
-                                        row.creditedMinutes !== row.renderedMinutes;
+                                    const hasExceededApprovedOvertime = Boolean(row.hasExceededApprovedOvertime);
                                     const overtimeStatus = normalizeOvertimeStatus(row.overtimeStatus);
                                     const hasApprovedOT = overtimeStatus === 'Approved';
                                     const hasPendingOT = overtimeStatus === 'Pending';
@@ -238,9 +245,9 @@ const UserDtrTable = ({
                                                         {isPlaceholder ? '--' : formattedTotal}
                                                     </span>
 
-                                                    {shouldShowCredited && (
+                                                    {!isPlaceholder && hasExceededApprovedOvertime && (
                                                         <span className="text-[11px] font-semibold text-slate-400">
-                                                            · {formattedCredited} credited
+                                                            Credited: {formattedCredited}
                                                         </span>
                                                     )}
                                                 </div>
@@ -288,6 +295,8 @@ const UserDtrTable = ({
                                                             if (canView) onView(row);
                                                         }}
                                                         disabled={!canView}
+                                                        aria-label="View attendance record"
+                                                        title="View attendance record"
                                                         className="text-slate-500 hover:text-slate-700 disabled:cursor-not-allowed disabled:text-gray-300 disabled:opacity-50"
                                                     >
                                                         <Eye className="h-4 w-4" />
@@ -299,6 +308,8 @@ const UserDtrTable = ({
                                                             if (canEdit) onEdit(row);
                                                         }}
                                                         disabled={!canEdit}
+                                                        aria-label="Edit attendance record"
+                                                        title="Edit attendance record"
                                                         className="text-slate-500 hover:text-slate-700 disabled:cursor-not-allowed disabled:text-gray-300 disabled:opacity-50"
                                                     >
                                                         <Edit className="h-4 w-4" />

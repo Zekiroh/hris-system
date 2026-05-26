@@ -237,10 +237,6 @@ body {
   color: #e2e8f0 !important;
 }
 
-.swagger-ui .live-responses-table tbody tr td:first-child:contains("401") {
-  color: #fb7185 !important;
-}
-
 /* Fallback undocumented */
 
 .swagger-ui .response-undocumented {

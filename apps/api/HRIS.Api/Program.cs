@@ -145,15 +145,17 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
 
+    var swaggerAssetsPath = Path.Combine(app.Environment.ContentRootPath, "SwaggerAssets");
+
     app.UseStaticFiles(new StaticFileOptions
     {
-        FileProvider = new PhysicalFileProvider(app.Environment.ContentRootPath),
-        RequestPath = ""
+        FileProvider = new PhysicalFileProvider(swaggerAssetsPath),
+        RequestPath = "/swagger-assets"
     });
 
     app.UseSwaggerUI(options =>
     {
-        options.InjectStylesheet("/SwaggerDark.css");
+        options.InjectStylesheet("/swagger-assets/SwaggerDark.css");
     });
 }
 

@@ -89,9 +89,9 @@ export type AdminDtrRecord = {
 
     renderedMinutes: number;
 
-    requiredMinutes: number;
-    regularCreditedMinutes: number;
-    overtimeCreditedMinutes: number;
+    requiredMinutes?: number;
+    regularCreditedMinutes?: number;
+    overtimeCreditedMinutes?: number;
 
     creditedMinutes: number;
     excessMinutes: number;
@@ -130,9 +130,9 @@ export type UserAttendanceRecord = {
 
     renderedMinutes: number;
 
-    requiredMinutes: number;
-    regularCreditedMinutes: number;
-    overtimeCreditedMinutes: number;
+    requiredMinutes?: number;
+    regularCreditedMinutes?: number;
+    overtimeCreditedMinutes?: number;
 
     creditedMinutes: number;
     excessMinutes: number;
@@ -184,7 +184,7 @@ export type ShiftScheduleRecord = {
 export type ShiftDayRecord = {
     id: number;
 
-    dayOfWeek: string;
+    dayOfWeek: number;
 
     startTime?: string;
     endTime?: string;
