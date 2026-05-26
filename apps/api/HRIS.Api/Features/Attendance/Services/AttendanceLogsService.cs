@@ -1653,7 +1653,8 @@ public class AttendanceLogsService : IAttendanceLogsService
         var startMinute = ToMinuteOfDay(start);
         var endMinute = ToMinuteOfDay(end);
 
-        if (endMinute < startMinute && currentMinute < startMinute)
+        // Overnight shifts: only post-midnight times should be moved to the next day.
+        if (endMinute < startMinute && currentMinute <= endMinute)
             return currentMinute + MinutesPerDay;
 
         return currentMinute;

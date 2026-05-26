@@ -463,15 +463,9 @@ const normalizeOvertimeStatus = (
 const getDtrStatus = (
   log: AttendanceLogApiDto,
 ): AssignmentDtrActivity["status"] => {
-  if (log.isPresent === false) return "Absent";
-
-  const hasTimeIn = Boolean(log.timeIn);
-  const hasTimeOut = Boolean(log.timeOut);
-
-  if (!hasTimeIn && !hasTimeOut) return "Absent";
-  if (!hasTimeOut) return "Incomplete";
+  if (!log.isPresent) return "Absent";
+  if (!log.timeOut) return "Incomplete";
   if ((log.lateMinutes ?? 0) > 0) return "Late";
-
   return "Present";
 };
 
@@ -1389,7 +1383,7 @@ const AdminSetupTab = ({ shifts, statusBadge }: Props) => {
   };
 
   const handleViewEmployeeLogs = async (assignment: ShiftAssignmentRow) => {
-    if (!assignment.employeeNumber || assignment.employeeNumber === "--")
+    if (!assignment.employeeId)
       return;
 
     setViewingAssignment({
