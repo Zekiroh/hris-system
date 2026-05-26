@@ -802,21 +802,24 @@ const AdminDailyAccomplishmentReport = () => {
       {/* Table Card */}
       <div className="pro-card animate-fade-in-up" style={{ animationDelay: "0.4s", opacity: 0 }}>
 
-        {/* Card Header — responsive: stacked on mobile, single row on desktop */}
+        {/* Card Header */}
         <div className="px-6 py-4 border-b border-gray-100">
-          
-          {/* Row 1: Title + Search */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "#1f2937" }}>Submitted Reports</span>
-            <span style={{
-              fontSize: 10, fontWeight: 700, color: "#b45309",
-              background: "#fef3c7", borderRadius: 20, padding: "2px 8px",
-            }}>
-              {filtered.length}
-            </span>
 
-            {/* Search — flex:1 para mag-fill ng remaining space */}
-            <div style={{ position: "relative", flex: 1, marginLeft: 8 }}>
+          {/* DESKTOP (lg+): single row */}
+          <div className="hidden lg:flex items-center gap-3">
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#1f2937", whiteSpace: "nowrap" }}>
+                Submitted Reports
+              </span>
+              <span style={{
+                fontSize: 10, fontWeight: 700, color: "#b45309",
+                background: "#fef3c7", borderRadius: 20, padding: "2px 8px",
+              }}>
+                {filtered.length}
+              </span>
+            </div>
+
+            <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
               <Search style={{
                 position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
                 width: 14, height: 14, color: "#9ca3af", pointerEvents: "none",
@@ -829,15 +832,10 @@ const AdminDailyAccomplishmentReport = () => {
                 onChange={e => setSearch(e.target.value)}
               />
             </div>
-          </div>
 
-          {/* Row 2: Filters + Export — wraps on mobile */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            
-            {/* Status dropdown */}
             <select
               className="pro-select"
-              style={{ flex: 1, minWidth: 130, boxSizing: "border-box" }}
+              style={{ width: 160, flexShrink: 0, boxSizing: "border-box" }}
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
             >
@@ -847,25 +845,79 @@ const AdminDailyAccomplishmentReport = () => {
               ))}
             </select>
 
-            {/* Department dropdown */}
             <select
               className="pro-select"
-              style={{ flex: 1, minWidth: 130, boxSizing: "border-box" }}
+              style={{ width: 180, flexShrink: 0, boxSizing: "border-box" }}
               value={filterDept}
               onChange={e => setFilterDept(e.target.value)}
             >
               {departments.map(d => <option key={d}>{d}</option>)}
             </select>
 
-            {/* Export */}
             <button
               className="btn btn-primary"
-              style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
+              style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0 }}
             >
               <Download className="w-3.5 h-3.5" /> Export
             </button>
-
           </div>
+
+          {/* MOBILE (< lg): stacked rows, same as dati */}
+          <div className="flex flex-col gap-2 lg:hidden">
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#1f2937" }}>Submitted Reports</span>
+              <span style={{
+                fontSize: 10, fontWeight: 700, color: "#b45309",
+                background: "#fef3c7", borderRadius: 20, padding: "2px 8px",
+              }}>
+                {filtered.length}
+              </span>
+              <div style={{ position: "relative", flex: 1, marginLeft: 4 }}>
+                <Search style={{
+                  position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
+                  width: 14, height: 14, color: "#9ca3af", pointerEvents: "none",
+                }} />
+                <input
+                  className="pro-input"
+                  style={{ paddingLeft: 32, width: "100%", boxSizing: "border-box" }}
+                  placeholder="Search employee, project..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <select
+                className="pro-select"
+                style={{ flex: 1, minWidth: 130, boxSizing: "border-box" }}
+                value={filterStatus}
+                onChange={e => setFilterStatus(e.target.value)}
+              >
+                <option value="All">All Status</option>
+                {["Pending Review", "Approved", "Revision Requested", "Rejected"].map(s => (
+                  <option key={s}>{s}</option>
+                ))}
+              </select>
+
+              <select
+                className="pro-select"
+                style={{ flex: 1, minWidth: 130, boxSizing: "border-box" }}
+                value={filterDept}
+                onChange={e => setFilterDept(e.target.value)}
+              >
+                {departments.map(d => <option key={d}>{d}</option>)}
+              </select>
+
+              <button
+                className="btn btn-primary"
+                style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
+              >
+                <Download className="w-3.5 h-3.5" /> Export
+              </button>
+            </div>
+          </div>
+
         </div>
 
         {/* Table */}
