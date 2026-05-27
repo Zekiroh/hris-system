@@ -46,12 +46,12 @@ const UserOtTab = ({
             </div>
 
             <div>
-              <h3 className="text-[1.75rem] font-black tracking-[-0.02em] text-slate-800">
-                My Overtime Requests
+              <h3 className="text-xl font-bold text-slate-800">
+                Overtime Requests
               </h3>
 
-              <p className="mt-1 text-sm font-medium text-slate-500">
-                Track submitted overtime requests and approval progress.
+              <p className="mt-1 text-sm text-slate-500">
+                Submit and track your overtime requests.
               </p>
             </div>
           </div>
@@ -82,7 +82,7 @@ const UserOtTab = ({
               className="btn btn-primary h-10 px-5 shadow-[0_8px_20px_rgba(16,185,129,0.18)]"
             >
               <CalendarClock className="h-4 w-4" />
-              Request OT
+              Request Overtime
             </button>
           </div>
         </div>

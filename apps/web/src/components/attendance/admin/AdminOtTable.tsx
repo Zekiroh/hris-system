@@ -232,8 +232,8 @@ const AdminOtTable = ({
         <table className="pro-table min-w-full">
           <thead>
             <tr>
-              <th className="text-left">DATE</th>
               <th className="text-left">EMPLOYEE</th>
+              <th className="text-left">DATE</th>
               <th className="text-left">DURATION</th>
               <th className="text-left">REASON</th>
               <th>STATUS</th>
@@ -279,23 +279,6 @@ const AdminOtTable = ({
                     >
                       <td
                         className={`px-6 py-4 ${
-                          isPlaceholder ? 'text-gray-300' : 'text-slate-700'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <CalendarDays
-                            className={`h-4 w-4 shrink-0 ${
-                              isPlaceholder ? 'text-gray-300' : 'text-slate-400'
-                            }`}
-                          />
-                          <span className="font-medium">
-                            {formatDate(row.displayDate)}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td
-                        className={`px-6 py-4 ${
                           isPlaceholder ? 'text-gray-300' : 'text-gray-800'
                         }`}
                       >
@@ -311,6 +294,23 @@ const AdminOtTable = ({
                           )}
 
                           <span className="font-medium">{row.employee || '--'}</span>
+                        </div>
+                      </td>
+
+                      <td
+                        className={`px-6 py-4 ${
+                          isPlaceholder ? 'text-gray-300' : 'text-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <CalendarDays
+                            className={`h-4 w-4 shrink-0 ${
+                              isPlaceholder ? 'text-gray-300' : 'text-slate-400'
+                            }`}
+                          />
+                          <span className="font-medium">
+                            {formatDate(row.displayDate)}
+                          </span>
                         </div>
                       </td>
 

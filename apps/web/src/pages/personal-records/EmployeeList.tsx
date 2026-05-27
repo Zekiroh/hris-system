@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import {
@@ -84,6 +84,8 @@ function parseEmploymentTypeParam(
 
 const EmployeeList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const employmentTypeFilter = useMemo(
     () => parseEmploymentTypeParam(searchParams.get("employmentType")),
@@ -433,10 +435,10 @@ const EmployeeList = () => {
     }
   }
 
-  async function fetchEmployeeDtoById(id: string) {
+  const fetchEmployeeDtoById = useCallback(async (id: string) => {
     const res = await getEmployeeById(id);
     return unwrapData<EmployeeDto>(res);
-  }
+  }, []);
 
   async function handleLinkedUserChange(userId: string) {
     clearFieldError("userId");
@@ -502,7 +504,14 @@ const EmployeeList = () => {
 
   useEffect(() => {
     void fetchEmployees();
-  }, [page, searchTerm, isActiveQuery, isNewHireQuery, sortBy, employmentTypeFilter]);
+  }, [
+    page,
+    searchTerm,
+    isActiveQuery,
+    isNewHireQuery,
+    sortBy,
+    employmentTypeFilter,
+  ]);
 
   useEffect(() => {
     void fetchEmployeeSummaryOnly();
@@ -580,7 +589,7 @@ const EmployeeList = () => {
     }
   };
 
-  const openView = async (id: string) => {
+  const openView = useCallback(async (id: string) => {
     setEmployeesError(null);
     setDetailsLoading(true);
 
@@ -595,8 +604,7 @@ const EmployeeList = () => {
     } finally {
       setDetailsLoading(false);
     }
-  };
-
+  }, [fetchEmployeeDtoById]);
 
   useEffect(() => {
     const employeeId = searchParams.get("employeeId");
@@ -608,13 +616,47 @@ const EmployeeList = () => {
     profileViewRequestRef.current = employeeId;
     void openView(employeeId);
 
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.delete("employeeId");
-      next.delete("view");
-      return next;
-    }, { replace: true });
-  }, [searchParams, setSearchParams]);
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        next.delete("employeeId");
+        next.delete("view");
+        return next;
+      },
+      { replace: true }
+    );
+  }, [openView, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const state = location.state as
+      | {
+          viewEmployeeId?: string | number;
+        }
+      | null
+      | undefined;
+
+    if (!state?.viewEmployeeId) return;
+
+    const employeeId = String(state.viewEmployeeId);
+    const requestKey = `state:${employeeId}`;
+
+    if (profileViewRequestRef.current === requestKey) return;
+
+    profileViewRequestRef.current = requestKey;
+    void openView(employeeId);
+
+    navigate(
+      {
+        pathname: location.pathname,
+        search: location.search,
+        hash: location.hash,
+      },
+      {
+        replace: true,
+        state: null,
+      },
+    );
+  }, [location, navigate, openView]);
 
   const handleViewRow = async (row: EmployeeRow) => {
     if (detailsLoading || loading) return;
