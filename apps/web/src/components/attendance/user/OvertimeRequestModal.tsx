@@ -314,7 +314,7 @@ const OvertimeRequestModal = ({
                 return isWorkingDay;
             }
 
-            return true;
+            return isWorkingDay;
         },
         [normalizedShiftDays, today, isWorkingDay]
     );

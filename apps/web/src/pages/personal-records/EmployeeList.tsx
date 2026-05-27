@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import {
@@ -85,6 +85,7 @@ function parseEmploymentTypeParam(
 const EmployeeList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const employmentTypeFilter = useMemo(
     () => parseEmploymentTypeParam(searchParams.get("employmentType")),
@@ -434,10 +435,10 @@ const EmployeeList = () => {
     }
   }
 
-  async function fetchEmployeeDtoById(id: string) {
+  const fetchEmployeeDtoById = useCallback(async (id: string) => {
     const res = await getEmployeeById(id);
     return unwrapData<EmployeeDto>(res);
-  }
+  }, []);
 
   async function handleLinkedUserChange(userId: string) {
     clearFieldError("userId");
@@ -588,7 +589,7 @@ const EmployeeList = () => {
     }
   };
 
-  const openView = async (id: string) => {
+  const openView = useCallback(async (id: string) => {
     setEmployeesError(null);
     setDetailsLoading(true);
 
@@ -603,7 +604,7 @@ const EmployeeList = () => {
     } finally {
       setDetailsLoading(false);
     }
-  };
+  }, [fetchEmployeeDtoById]);
 
   useEffect(() => {
     const employeeId = searchParams.get("employeeId");
@@ -624,7 +625,7 @@ const EmployeeList = () => {
       },
       { replace: true }
     );
-  }, [searchParams, setSearchParams]);
+  }, [openView, searchParams, setSearchParams]);
 
   useEffect(() => {
     const state = location.state as
@@ -644,8 +645,18 @@ const EmployeeList = () => {
     profileViewRequestRef.current = requestKey;
     void openView(employeeId);
 
-    window.history.replaceState({}, document.title);
-  }, [location.state]);
+    navigate(
+      {
+        pathname: location.pathname,
+        search: location.search,
+        hash: location.hash,
+      },
+      {
+        replace: true,
+        state: null,
+      },
+    );
+  }, [location, navigate, openView]);
 
   const handleViewRow = async (row: EmployeeRow) => {
     if (detailsLoading || loading) return;

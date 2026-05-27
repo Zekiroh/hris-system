@@ -113,10 +113,7 @@ const ViewAttendanceModal = ({
     const renderedMinutes = Number(record.renderedMinutes ?? 0);
     const creditedMinutes = Number(record.creditedMinutes ?? 0);
 
-    const hasInvalidTimeOut =
-        creditedMinutes > 0 &&
-        renderedMinutes > 0 &&
-        creditedMinutes < renderedMinutes;
+    const hasInvalidTimeOut = Boolean(record.hasExceededApprovedOvertime);
 
     return createPortal(
         <div

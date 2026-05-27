@@ -217,14 +217,7 @@ body {
   font-weight: 700 !important;
 }
 
-/* Success 2xx */
-
-.swagger-ui .live-responses-table tbody tr td.response-col_status:has(span),
-.swagger-ui .responses-wrapper .responses-table tbody tr td.response-col_status:has(span) {
-  color: #22c55e !important;
-}
-
-/* 401 Unauthorized */
+/* Keep live response statuses neutral unless a status-specific selector is available */
 
 .swagger-ui .live-responses-table tbody tr td.response-col_status,
 .swagger-ui .responses-wrapper .responses-table tbody tr td.response-col_status {
