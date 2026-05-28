@@ -546,8 +546,8 @@ export default function DailyAccomplishmentReport() {
         </div>
       </SectionCard>
 
-      {/* Section 7: Acknowledgment */}
-      <SectionCard num={7} title="Acknowledgment" delay={0.7}>
+      {/* Section 8: Acknowledgment */}
+      <SectionCard num={8} title="Acknowledgment" delay={0.8}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Field label="Prepared by">
             <input className="pro-input" type="text" placeholder="Developer's full name" value={preparedBy} onChange={e => setPreparedBy(e.target.value)} />
