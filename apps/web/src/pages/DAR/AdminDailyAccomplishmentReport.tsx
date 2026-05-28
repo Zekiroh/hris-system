@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   ClipboardList,
   Clock,
@@ -219,11 +220,11 @@ function ReviewPanel({
   const timeStr = now.toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" });
 
   const [activeTab, setActiveTab]           = useState<"s7" | "s8">("s7");
-  const [rating, setRating]                 = useState<Rating>(report.rating || 3);
+  const [rating, setRating]                 = useState<Rating>(report.rating || 0 as Rating);
   const [hoverRating, setHoverRating]       = useState(0);
   const [supervisorName, setSupervisorName] = useState(report.supervisorName || "");
   const [comment, setComment]               = useState(report.supervisorComment || "");
-  const [perfScore, setPerfScore]           = useState(report.performanceScore || 80);
+  const [perfScore, setPerfScore]           = useState(report.performanceScore || 0);
   const [taskVerif, setTaskVerif]           = useState(report.taskVerification || "Verified");
   const [attendVerif, setAttendVerif]       = useState(report.attendanceVerified ?? true);
   const [outputQuality, setOutputQuality]   = useState(report.outputQuality || "Meets Expectations");
@@ -233,35 +234,36 @@ function ReviewPanel({
   const [empAck, setEmpAck]                 = useState(report.acknowledgedByEmployee ?? false);
   const [adminAck, setAdminAck]             = useState(report.acknowledgedByAdmin ?? false);
   const [finalRemarks, setFinalRemarks]     = useState(report.finalRemarks || "");
+  const [isEditing, setIsEditing] = useState(report.status === "Pending Review");
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const handleSave = () => {
-    onSave({
-      rating, supervisorName, supervisorComment: comment,
-      performanceScore: perfScore, taskVerification: taskVerif,
-      attendanceVerified: attendVerif, outputQuality,
-      status: decision,
-      acknowledgedByEmployee: empAck, acknowledgedByAdmin: adminAck,
-      finalRemarks,
-    });
+  const handleSave = () => setConfirmOpen(true); // ← ito nalang
 
-    // Trigger notification sa TopBar
-    const notif = {
-      id: Date.now(),
-      title: decision === "Approved"
-        ? "✓ Report Approved"
-        : decision === "Revision Requested"
-        ? "↩ Revision Requested"
-        : decision === "Rejected"
-        ? "✕ Report Rejected"
-        : "Report Reviewed",
-      message: `${report.employeeName}'s DAR (${report.referenceNo}) has been ${decision.toLowerCase()} by ${supervisorName || "Supervisor"}.`,
-      time: "Just now",
-      type: "system",
-    };
-    localStorage.setItem("attendance_notification", JSON.stringify(notif));
-
-    onClose();
+const handleConfirmSave = () => {
+  setConfirmOpen(false);
+  onSave({
+    rating, supervisorName, supervisorComment: comment,
+    performanceScore: perfScore, taskVerification: taskVerif,
+    attendanceVerified: attendVerif, outputQuality,
+    status: decision,
+    acknowledgedByEmployee: empAck, acknowledgedByAdmin: adminAck,
+    finalRemarks,
+  });
+  const notif = {
+    id: Date.now(),
+    title: decision === "Approved" ? "✓ Report Approved"
+      : decision === "Revision Requested" ? "↩ Revision Requested"
+      : decision === "Rejected" ? "✕ Report Rejected"
+      : "Report Reviewed",
+    message: `${report.employeeName}'s DAR (${report.referenceNo}) has been ${decision.toLowerCase()} by ${supervisorName || "Supervisor"}.`,
+    time: "Just now", type: "system",
   };
+  localStorage.setItem("attendance_notification", JSON.stringify(notif));
+
+  toast.success(`${report.employeeName}'s report has been ${decision.toLowerCase()}.`); 
+
+  onClose();
+};
 
   const displayRating = hoverRating || rating;
 
@@ -419,9 +421,13 @@ function ReviewPanel({
                           key={i} type="button"
                           onMouseEnter={() => setHoverRating(i)}
                           onMouseLeave={() => setHoverRating(0)}
-                          onClick={() => setRating(i as Rating)}
-                          style={{ background: "none", border: "none", padding: 1, cursor: "pointer",
-                            transition: "transform 0.1s" }}
+                          onClick={() => {
+                          setRating(i as Rating);
+                          setPerfScore(i * 20);
+                        }}
+                        disabled={!isEditing}
+                          style={{ background: "none", border: "none", padding: 1, cursor: !isEditing ? "not-allowed" : "pointer", 
+                            opacity: !isEditing ? 0.6 : 1, transition: "transform 0.1s" }}
                           onMouseDown={e => (e.currentTarget.style.transform = "scale(1.3)")}
                           onMouseUp={e => (e.currentTarget.style.transform = "scale(1)")}
                         >
@@ -451,7 +457,8 @@ function ReviewPanel({
                       <input className="pro-input" value={supervisorName}
                         onChange={e => setSupervisorName(e.target.value)}
                         placeholder="Enter supervisor name"
-                        style={{ fontSize: 12, padding: "6px 10px" }} />
+                        disabled={!isEditing}
+                        style={{ fontSize: 12, padding: "6px 10px", opacity: !isEditing ? 0.6 : 1, cursor: !isEditing ? "not-allowed" : "text" }} />
                     </div>
                     <div>
                       <label className="pro-label" style={{ fontSize: 10 }}>Review Date & Time</label>
@@ -471,13 +478,54 @@ function ReviewPanel({
                   <div style={{ fontSize: 9, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>
                     Score
                   </div>
-                  <div style={{ fontSize: 32, fontWeight: 900, color: scoreColor, lineHeight: 1 }}>
-                    {perfScore}
+
+                  {/* ── + / − buttons ── */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <button type="button"
+                      disabled={!isEditing || perfScore <= 0}
+                      onClick={() => {
+                        const val = Math.max(0, perfScore - 1);
+                        setPerfScore(val);
+                        const newRating = val <= 20 ? 1 : val <= 40 ? 2 : val <= 60 ? 3 : val <= 80 ? 4 : 5;
+                        setRating(newRating as Rating);
+                      }}
+                      style={{width: 20, height: 20, borderRadius: "50%", border: "1.5px solid #bbf7d0",
+                        background: "#f0fdf4", color: "#059669", fontWeight: 700, fontSize: 14,
+                        cursor: !isEditing || perfScore <= 0 ? "not-allowed" : "pointer",
+                        opacity: !isEditing || perfScore <= 0 ? 0.4 : 1,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}>−</button>
+
+                    <div style={{ fontSize: 32, fontWeight: 900, color: scoreColor, lineHeight: 1 }}>
+                      {perfScore}
+                    </div>
+
+                    <button type="button"
+                      disabled={!isEditing || perfScore >= 100}
+                      onClick={() => {
+                        const val = Math.min(100, perfScore + 1);
+                        setPerfScore(val);
+                        const newRating = val <= 20 ? 1 : val <= 40 ? 2 : val <= 60 ? 3 : val <= 80 ? 4 : 5;
+                        setRating(newRating as Rating);
+                      }}
+                      style={{width: 20, height: 20, borderRadius: "50%", border: "1.5px solid #bbf7d0",
+                        background: "#f0fdf4", color: "#059669", fontWeight: 700, fontSize: 14,
+                        cursor: !isEditing || perfScore >= 100 ? "not-allowed" : "pointer",
+                        opacity: !isEditing || perfScore >= 100 ? 0.4 : 1,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}>+</button>
                   </div>
+
                   <div style={{ fontSize: 9, color: "#9ca3af" }}>out of 100</div>
                   <input type="range" min={0} max={100} value={perfScore}
-                    onChange={e => setPerfScore(Number(e.target.value))}
-                    style={{ width: 70, accentColor: "#059669", marginTop: 2 }} />
+                    onChange={e => {
+                      const val = Number(e.target.value);
+                      setPerfScore(val);
+                      const newRating = val <= 20 ? 1 : val <= 40 ? 2 : val <= 60 ? 3 : val <= 80 ? 4 : 5;
+                      setRating(newRating as Rating);
+                    }}
+                    disabled={!isEditing}
+                    style={{ width: 70, accentColor: "#0b6346", marginTop: 2, opacity: !isEditing ? 0.6 : 1, cursor: !isEditing ? "not-allowed" : "pointer" }} />
                 </div>
               </div>
 
@@ -502,7 +550,8 @@ function ReviewPanel({
                       <label className="pro-label">{f.label}</label>
                       <select className="pro-select"
                         value={f.val} onChange={e => f.set(e.target.value)}
-                        style={f.color ? { color: f.color, fontWeight: 700 } : {}}
+                        style={{ ...(f.color ? { color: f.color, fontWeight: 700 } : {}), opacity: !isEditing ? 0.6 : 1, cursor: !isEditing ? "not-allowed" : "pointer" }}
+                        disabled={!isEditing}
                       >
                         {f.opts.map(o => <option key={o}>{o}</option>)}
                       </select>
@@ -514,11 +563,13 @@ function ReviewPanel({
                 <button type="button" onClick={() => setAttendVerif(v => !v)}
                   style={{
                     width: "100%", display: "flex", alignItems: "center", gap: 10,
-                    padding: "11px 16px", borderRadius: 10, cursor: "pointer", textAlign: "left",
+                    padding: "11px 16px", borderRadius: 10, cursor: !isEditing ? "not-allowed" : "pointer", textAlign: "left",
                     border: `1.5px solid ${attendVerif ? "#6ee7b7" : "#e5e7eb"}`,
                     background: attendVerif ? "#f0fdf4" : "#f9fafb",
-                    transition: "all 0.15s",
+                    transition: "all 0.15s", opacity: !isEditing ? 0.6 : 1,
+                    
                   }}
+                  disabled={!isEditing}
                 >
                   {attendVerif
                     ? <CheckSquare style={{ width: 16, height: 16, color: "#059669", flexShrink: 0 }} />
@@ -538,7 +589,8 @@ function ReviewPanel({
                 <textarea className="pro-input" rows={4} value={comment}
                   onChange={e => setComment(e.target.value)}
                   placeholder="Provide detailed feedback on employee performance, quality of work, areas for improvement..."
-                  style={{ resize: "vertical", marginTop: 4 }}
+                  disabled={!isEditing}
+                  style={{ resize: "vertical", marginTop: 4, opacity: !isEditing ? 0.6 : 1, cursor: !isEditing ? "not-allowed" : "text" }}
                 />
                 <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 6 }}>
                   This comment will be visible to the employee once the report is approved.
@@ -601,7 +653,8 @@ function ReviewPanel({
                 <textarea className="pro-input" rows={3} value={finalRemarks}
                   onChange={e => setFinalRemarks(e.target.value)}
                   placeholder="Any final remarks or instructions for the employee..."
-                  style={{ resize: "vertical" }}
+                  disabled={!isEditing}
+                  style={{ resize: "vertical", opacity: !isEditing ? 0.6 : 1, cursor: !isEditing ? "not-allowed" : "text" }}
                 />
               </div>
 
@@ -617,9 +670,11 @@ function ReviewPanel({
                   ].map(sig => (
                     <div key={sig.title}>
                       <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>{sig.title}</p>
-                      <button type="button" onClick={sig.toggle} style={{
+                      <button type="button" onClick={sig.toggle} 
+                      disabled={!isEditing}
+                      style={{
                         width: "100%", display: "flex", alignItems: "center", gap: 8,
-                        padding: "9px 12px", borderRadius: 8, cursor: "pointer", textAlign: "left",
+                        padding: "9px 12px", borderRadius: 8, cursor: !isEditing ? "not-allowed" : "pointer", textAlign: "left",
                         marginBottom: 8, fontSize: 12, fontWeight: 500,
                         border: `1.5px solid ${sig.checked ? "#6ee7b7" : "#e5e7eb"}`,
                         background: sig.checked ? "#f0fdf4" : "#f9fafb",
@@ -674,11 +729,6 @@ function ReviewPanel({
 
         {/* ── Footer ── */}
         <div className="pro-modal-footer" style={{ borderTop: "1px solid #f1f5f9", gap: 8 }}>
-          {activeTab === "s8" && (
-            <button onClick={() => setActiveTab("s7")} className="btn btn-secondary">
-              ← Back
-            </button>
-          )}
           <div style={{ flex: 1 }} />
           <button onClick={onClose} className="btn btn-secondary">
             Cancel
@@ -690,20 +740,78 @@ function ReviewPanel({
             >
               Next → Section 8
             </button>
-          ) : (
-            <button
-              onClick={handleSave}
-              className="btn flex items-center gap-2 text-white font-semibold px-5 py-2 rounded-xl"
-              style={{ background: "linear-gradient(135deg, #059669, #047857)" }}
-            >
-              <CheckSquare className="w-4 h-4" /> Save & Finalize
-            </button>
-          )}
+          ) : isEditing ? (
+              <button
+                onClick={handleSave}
+                className="btn flex items-center gap-2 text-white font-semibold px-5 py-2 rounded-xl"
+                style={{ background: "linear-gradient(135deg, #059669, #047857)" }}
+              >
+                <CheckSquare className="w-4 h-4" /> Save & Finalize
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="btn flex items-center gap-2 text-white font-semibold px-5 py-2 rounded-xl"
+                style={{ background: "linear-gradient(135deg, #2563eb, #1d4ed8)" }}
+              >
+                <RefreshCw className="w-4 h-4" /> Edit
+              </button>
+            )}
         </div>
       </div>
+
+      {/* ── Confirmation Modal ── */}
+      {confirmOpen && (
+        <div
+          onClick={() => setConfirmOpen(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 10000,
+            backgroundColor: "rgba(0,0,0,0.4)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: "#fff", borderRadius: 14, padding: "28px 24px",
+              maxWidth: 340, width: "90vw", textAlign: "center",
+              boxShadow: "0 8px 40px rgba(0,0,0,0.18)",
+            }}
+          >
+            <p style={{ fontSize: 16, fontWeight: 800, color: "#111827", marginBottom: 8 }}>
+              Save this review?
+            </p>
+            <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 24 }}>
+              This will finalize the review for <strong>{report.employeeName}</strong> and notify them of the result.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setConfirmOpen(false)}
+                className="btn btn-secondary"
+                style={{ flex: 1 }}
+              >
+                No
+              </button>
+              <button
+                onClick={handleConfirmSave}
+                className="btn"
+                style={{
+                  flex: 1, background: "linear-gradient(135deg, #059669, #047857)",
+                  color: "#fff", fontWeight: 700, borderRadius: 10,
+                }}
+              >
+                Yes, Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+    
   );
 }
+
+
 
 // ─── Main Admin Page ──────────────────────────────────────────────────────────
 
@@ -811,12 +919,12 @@ const AdminDailyAccomplishmentReport = () => {
               <span style={{ fontSize: 14, fontWeight: 700, color: "#1f2937", whiteSpace: "nowrap" }}>
                 Submitted Reports
               </span>
-              <span style={{
+              {/* <span style={{
                 fontSize: 10, fontWeight: 700, color: "#b45309",
                 background: "#fef3c7", borderRadius: 20, padding: "2px 8px",
               }}>
                 {filtered.length}
-              </span>
+              </span> */}
             </div>
 
             <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
@@ -866,12 +974,12 @@ const AdminDailyAccomplishmentReport = () => {
           <div className="flex flex-col gap-2 lg:hidden">
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: "#1f2937" }}>Submitted Reports</span>
-              <span style={{
+              {/* <span style={{
                 fontSize: 10, fontWeight: 700, color: "#b45309",
                 background: "#fef3c7", borderRadius: 20, padding: "2px 8px",
               }}>
                 {filtered.length}
-              </span>
+              </span> */}
               <div style={{ position: "relative", flex: 1, marginLeft: 4 }}>
                 <Search style={{
                   position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
@@ -1067,4 +1175,3 @@ const AdminDailyAccomplishmentReport = () => {
 };
 
 export default AdminDailyAccomplishmentReport;
-
