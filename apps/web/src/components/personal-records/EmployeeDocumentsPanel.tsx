@@ -1,5 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
+  ChevronDown,
   Download,
   Eye,
   EyeOff,
@@ -13,7 +15,6 @@ import type {
   EmployeeDocumentType,
 } from "../../lib/employees";
 import { EMPLOYEE_DOCUMENT_TYPES } from "../../lib/employees";
-import { DropdownMenu } from "./EmployeeFormFields";
 import { useAuth } from "../../context/AuthContext";
 
 type Props = {
@@ -33,6 +34,144 @@ type Props = {
   onPreviewSelect?: (doc: EmployeeDocumentDto) => void | Promise<void>;
   activeDocumentId?: string | null;
 };
+
+
+type DocumentTypeDropdownProps = {
+  value: EmployeeDocumentType;
+  options: readonly EmployeeDocumentType[];
+  disabled?: boolean;
+  onSelect: (value: EmployeeDocumentType) => void;
+};
+
+function DocumentTypeDropdown({
+  value,
+  options,
+  disabled,
+  onSelect,
+}: DocumentTypeDropdownProps) {
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({
+    top: 0,
+    left: 0,
+    width: 0,
+  });
+
+  const updateMenuPosition = () => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    setMenuPosition({
+      top: rect.bottom + 6,
+      left: rect.left,
+      width: rect.width,
+    });
+  };
+
+  const handleToggle = () => {
+    if (disabled) return;
+
+    updateMenuPosition();
+    setOpen((current) => !current);
+  };
+
+  const handleSelect = (selectedValue: EmployeeDocumentType) => {
+    onSelect(selectedValue);
+    setOpen(false);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      if (triggerRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+
+      setOpen(false);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    const handleWindowChange = () => {
+      updateMenuPosition();
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", handleWindowChange);
+    window.addEventListener("scroll", handleWindowChange, true);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", handleWindowChange);
+      window.removeEventListener("scroll", handleWindowChange, true);
+    };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        disabled={disabled}
+        onClick={handleToggle}
+        className={`flex h-12 w-full items-center justify-between rounded-xl border bg-white px-4 text-left text-sm transition ${
+          open
+            ? "border-green-500 ring-2 ring-green-500/10"
+            : "border-gray-200 hover:border-gray-300"
+        } ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+      >
+        <span className="truncate text-gray-700">{value}</span>
+        <ChevronDown
+          className={`h-4 w-4 text-gray-400 transition ${
+            open ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {open &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="fixed z-[9999] overflow-hidden rounded-xl border border-gray-200 bg-white py-2 shadow-xl"
+            style={{
+              top: menuPosition.top,
+              left: menuPosition.left,
+              width: menuPosition.width,
+            }}
+          >
+            {options.map((option) => {
+              const isSelected = option === value;
+
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  className={`block w-full px-4 py-3 text-left text-sm transition ${
+                    isSelected
+                      ? "bg-green-50 font-medium text-green-700"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                  onClick={() => handleSelect(option)}
+                >
+                  {option}
+                </button>
+              );
+            })}
+          </div>,
+          document.body
+        )}
+    </>
+  );
+}
 
 function getDocumentTypeLabel(doc: EmployeeDocumentDto): string {
   return doc.documentType?.trim() || "Document";
@@ -218,10 +357,6 @@ export function EmployeeDocumentsPanel({
 
   const canDeleteDocuments = !readOnly && user?.role === "SUPER_ADMIN";
 
-  const documentTypeOptions = EMPLOYEE_DOCUMENT_TYPES.map((type) => ({
-    label: type,
-    value: type,
-  }));
 
   const handleChooseFile = () => {
     if (readOnly || uploading) return;
@@ -268,14 +403,11 @@ export function EmployeeDocumentsPanel({
         {!readOnly && (
           <>
             <div className="overflow-visible">
-              <DropdownMenu
+              <DocumentTypeDropdown
                 value={selectedDocumentType}
-                options={documentTypeOptions}
-                placeholder="Select document type"
+                options={EMPLOYEE_DOCUMENT_TYPES}
                 disabled={uploading}
-                onSelect={(value) =>
-                  onSelectedDocumentTypeChange(value as EmployeeDocumentType)
-                }
+                onSelect={onSelectedDocumentTypeChange}
               />
             </div>
 

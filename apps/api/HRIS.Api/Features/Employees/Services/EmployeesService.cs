@@ -4,6 +4,7 @@ using HRIS.Api.Features.IAM.Services;
 using HRIS.Api.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using System.Linq.Expressions;
 
 namespace HRIS.Api.Features.Employees.Services;
@@ -213,12 +214,14 @@ public class EmployeesService
 
     public async Task<(bool ok, string? error, (Stream Stream, string ContentType, string OriginalFileName)? file)>
         DownloadDocumentAsync(
+            ClaimsPrincipal user,
             Guid employeeId,
             Guid documentId,
             CancellationToken ct = default)
     {
         var document = await _db.EmployeeDocuments
-            .AsNoTracking()
+            .Include(d => d.Employee)
+            .ThenInclude(e => e.User)
             .FirstOrDefaultAsync(d => d.Id == documentId && d.EmployeeId == employeeId, ct);
 
         if (document is null)
@@ -229,25 +232,73 @@ public class EmployeesService
         if (!System.IO.File.Exists(absolutePath))
             return (false, "File not found on server.", null);
 
+        var httpContext = _httpContextAccessor.HttpContext;
+        var employeeName = BuildDisplayName(
+            document.Employee.FirstName,
+            document.Employee.MiddleName,
+            document.Employee.LastName,
+            document.Employee.User?.Suffix);
+
+        var log = _activityLogger.Build(
+            user: user,
+            action: "EMPLOYEE_DOCUMENT_DOWNLOADED",
+            module: "EMPLOYEES",
+            targetType: "EmployeeDocument",
+            targetId: document.Id.ToString(),
+            summary: $"{employeeName} document downloaded: {document.DocumentType} ({document.OriginalFileName}) for {document.Employee.EmployeeNumber}",
+            ipAddress: httpContext?.Connection.RemoteIpAddress?.ToString(),
+            userAgent: httpContext?.Request.Headers["User-Agent"].ToString()
+        );
+
+        if (log is not null)
+        {
+            _db.ActivityLogs.Add(log);
+            await _db.SaveChangesAsync(ct);
+        }
+
         var stream = new FileStream(absolutePath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
         return (true, null, (stream, document.ContentType, document.OriginalFileName));
     }
 
     public async Task<(bool ok, string? error)> DeleteDocumentAsync(
+        ClaimsPrincipal user,
         Guid employeeId,
         Guid documentId,
         CancellationToken ct = default)
     {
         var document = await _db.EmployeeDocuments
+            .Include(d => d.Employee)
+            .ThenInclude(e => e.User)
             .FirstOrDefaultAsync(d => d.Id == documentId && d.EmployeeId == employeeId, ct);
 
         if (document is null)
             return (false, "Document not found.");
 
         var absolutePath = Path.Combine(Directory.GetCurrentDirectory(), document.StoragePath);
+        var httpContext = _httpContextAccessor.HttpContext;
+        var employeeName = BuildDisplayName(
+            document.Employee.FirstName,
+            document.Employee.MiddleName,
+            document.Employee.LastName,
+            document.Employee.User?.Suffix);
+
+        var log = _activityLogger.Build(
+            user: user,
+            action: "EMPLOYEE_DOCUMENT_DELETED",
+            module: "EMPLOYEES",
+            targetType: "EmployeeDocument",
+            targetId: document.Id.ToString(),
+            summary: $"{employeeName} document deleted: {document.DocumentType} ({document.OriginalFileName}) for {document.Employee.EmployeeNumber}",
+            ipAddress: httpContext?.Connection.RemoteIpAddress?.ToString(),
+            userAgent: httpContext?.Request.Headers["User-Agent"].ToString()
+        );
 
         _db.EmployeeDocuments.Remove(document);
+
+        if (log is not null)
+            _db.ActivityLogs.Add(log);
+
         await _db.SaveChangesAsync(ct);
 
         if (System.IO.File.Exists(absolutePath))
@@ -373,12 +424,16 @@ public class EmployeesService
     }
 
     public async Task<(bool ok, string? error, EmployeeDocument? document)> UploadDocumentAsync(
+        ClaimsPrincipal user,
         Guid employeeId,
         string? documentType,
         IFormFile? file,
         CancellationToken ct = default)
     {
-        var employee = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId, ct);
+        var employee = await _db.Employees
+            .Include(e => e.User)
+            .FirstOrDefaultAsync(e => e.Id == employeeId, ct);
+
         if (employee is null)
             return (false, "Employee not found.", null);
 
@@ -427,7 +482,29 @@ public class EmployeesService
             UploadedAtUtc = DateTime.UtcNow
         };
 
+        var httpContext = _httpContextAccessor.HttpContext;
+        var employeeName = BuildDisplayName(
+            employee.FirstName,
+            employee.MiddleName,
+            employee.LastName,
+            employee.User?.Suffix);
+
+        var log = _activityLogger.Build(
+            user: user,
+            action: "EMPLOYEE_DOCUMENT_UPLOADED",
+            module: "EMPLOYEES",
+            targetType: "EmployeeDocument",
+            targetId: document.Id.ToString(),
+            summary: $"{employeeName} document uploaded: {document.DocumentType} ({document.OriginalFileName}) for {employee.EmployeeNumber}",
+            ipAddress: httpContext?.Connection.RemoteIpAddress?.ToString(),
+            userAgent: httpContext?.Request.Headers["User-Agent"].ToString()
+        );
+
         _db.EmployeeDocuments.Add(document);
+
+        if (log is not null)
+            _db.ActivityLogs.Add(log);
+
         await _db.SaveChangesAsync(ct);
 
         return (true, null, document);
