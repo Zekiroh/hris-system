@@ -38,6 +38,8 @@ const routeLabels: Record<string, string> = {
   "/dashboard/company-directory": "Company Directory",
   "/dashboard/help-support": "Help & Support",
  "/dashboard/daily-accomplishment": "Daily Accomplishment Report",
+  "/dashboard/daily-accomplishment-reports": "Daily Accomplishment Reports",  // ← idagdag
+
 };
 
 const TopBar = ({ onMenuClick }: TopBarProps) => {
