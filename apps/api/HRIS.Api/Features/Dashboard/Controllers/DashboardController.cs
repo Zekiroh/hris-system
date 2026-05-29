@@ -22,4 +22,19 @@ public class DashboardController : ControllerBase
         var result = await _dashboard.GetMonthlyAttendanceTrendsAsync(year, ct);
         return Ok(result);
     }
+
+    [HttpGet("user/attendance-summary")]
+    public async Task<IActionResult> GetMyAttendanceSummary(
+        [FromQuery] int? year,
+        CancellationToken ct)
+    {
+        var selectedYear = year ?? DateTime.UtcNow.Year;
+
+        var result = await _dashboard.GetMyMonthlyAttendanceTrendsAsync(
+            User,
+            selectedYear,
+            ct);
+
+        return Ok(result);
+    }
 }
