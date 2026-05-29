@@ -5,7 +5,6 @@ import {
   UserCheck,
   UserX,
   UserPlus,
-  TrendingUp,
   Clock,
   FileText,
   DollarSign,
@@ -33,6 +32,10 @@ import {
 } from "../../lib/activityLogs";
 import { getAdminUsers, type AdminUserDto } from "../../lib/adminUsers";
 import {
+  getAttendanceTrends,
+  type MonthlyAttendanceTrendDto,
+} from "../../lib/dashboard";
+import {
   getEmployees,
   type EmployeeSummaryDto,
   type PagedEmployeesResponse,
@@ -55,6 +58,8 @@ ChartJS.register(
   Tooltip,
   Legend
 );
+
+const RECENT_ACTIVITY_LIMIT = 5;
 
 const extractRecentLogs = (response: unknown): ActivityLogItemDto[] => {
   if (!response || typeof response !== "object") return [];
@@ -202,6 +207,31 @@ const emptyEmployeeSummary = (): EmployeeSummaryDto => ({
   newHires: 0,
 });
 
+const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+const emptyMonthlyAttendanceTrends = (): MonthlyAttendanceTrendDto[] =>
+  MONTH_LABELS.map((monthLabel, index) => ({
+    month: index + 1,
+    monthLabel,
+    presentCount: 0,
+    lateCount: 0,
+    overtimeCount: 0,
+    absentCount: 0,
+  }));
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const employmentChartRef =
@@ -217,46 +247,14 @@ const AdminDashboard = () => {
   const [employmentSummary, setEmploymentSummary] =
     useState<EmploymentTypeSummary>(emptyEmploymentSummary());
 
+  const [attendanceTrends, setAttendanceTrends] = useState<
+    MonthlyAttendanceTrendDto[]
+  >(emptyMonthlyAttendanceTrends());
+
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
-
-  const activities = useMemo(
-    () => [
-      {
-        icon: UserPlus,
-        text: "New employee Maria Santos was onboarded",
-        time: "2 hours ago",
-        color: "#059669",
-      },
-      {
-        icon: Clock,
-        text: "Attendance report generated for January",
-        time: "4 hours ago",
-        color: "#3b82f6",
-      },
-      {
-        icon: FileText,
-        text: "Leave request approved for Juan Dela Cruz",
-        time: "5 hours ago",
-        color: "#f59e0b",
-      },
-      {
-        icon: TrendingUp,
-        text: "Payroll processing completed for January",
-        time: "1 day ago",
-        color: "#059669",
-      },
-      {
-        icon: Users,
-        text: "3 employees completed probationary period",
-        time: "2 days ago",
-        color: "#8b5cf6",
-      },
-    ],
-    []
-  );
 
   useEffect(() => {
     if (!canLoadDashboard) return;
@@ -268,7 +266,7 @@ const AdminDashboard = () => {
         const [logsResponse, usersResponse] = await Promise.all([
           getActivityLogs({
             page: 1,
-            pageSize: activities.length,
+            pageSize: RECENT_ACTIVITY_LIMIT,
           }),
           getAdminUsers({
             page: 1,
@@ -280,7 +278,7 @@ const AdminDashboard = () => {
 
         const extractedLogs = extractRecentLogs(logsResponse).slice(
           0,
-          activities.length
+          RECENT_ACTIVITY_LIMIT
         );
         const extractedUsers = extractAdminUsers(usersResponse);
 
@@ -301,7 +299,7 @@ const AdminDashboard = () => {
     return () => {
       isMounted = false;
     };
-  }, [activities.length, canLoadDashboard]);
+  }, [canLoadDashboard]);
 
   const fetchEmployeeDashboardData = useCallback(async () => {
     if (!canLoadDashboard) return;
@@ -386,14 +384,55 @@ const AdminDashboard = () => {
     };
   }, [fetchEmployeeDashboardData, canLoadDashboard]);
 
+  const fetchAttendanceDashboardData = useCallback(async () => {
+    if (!canLoadDashboard) return;
+
+    try {
+      const currentYear = new Date().getFullYear();
+      const trends = await getAttendanceTrends(currentYear);
+
+      setAttendanceTrends(
+        Array.isArray(trends) && trends.length === 12
+          ? trends
+          : emptyMonthlyAttendanceTrends()
+      );
+    } catch (error) {
+      console.error("Failed to fetch dashboard attendance trends:", error);
+      setAttendanceTrends(emptyMonthlyAttendanceTrends());
+    }
+  }, [canLoadDashboard]);
+
+  useEffect(() => {
+    if (!canLoadDashboard) return;
+
+    let isMounted = true;
+
+    const runFetch = async () => {
+      if (!isMounted) return;
+      await fetchAttendanceDashboardData();
+    };
+
+    Promise.resolve().then(() => {
+      void runFetch();
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchAttendanceDashboardData, canLoadDashboard]);
+
   const safeRecentLogs = canLoadDashboard ? recentLogs : [];
-  const safeAdminUsers = canLoadDashboard ? adminUsers : [];
+  const safeAdminUsers = adminUsers;
   const safeEmployeeSummary = canLoadDashboard
     ? (employeeSummary ?? emptyEmployeeSummary())
     : emptyEmployeeSummary();
   const safeEmploymentSummary = canLoadDashboard
     ? employmentSummary
     : emptyEmploymentSummary();
+
+  const safeAttendanceTrends = canLoadDashboard
+    ? attendanceTrends
+    : emptyMonthlyAttendanceTrends();
 
   const userNameByEmail = useMemo(
     () => buildUserNameByEmail(safeAdminUsers),
@@ -432,38 +471,32 @@ const AdminDashboard = () => {
   ];
 
   const attendanceData = {
-    labels: [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ],
+    labels: safeAttendanceTrends.map((item) => item.monthLabel),
     datasets: [
       {
         label: "Present",
-        data: [220, 225, 230, 228, 232, 235, 230, 228, 233, 231, 229, 235],
+        data: safeAttendanceTrends.map((item) => item.presentCount),
         backgroundColor: "#059669",
         borderRadius: 6,
         borderSkipped: false as const,
       },
       {
         label: "Late",
-        data: [15, 12, 8, 10, 7, 5, 9, 11, 6, 8, 10, 5],
+        data: safeAttendanceTrends.map((item) => item.lateCount),
         backgroundColor: "#f59e0b",
         borderRadius: 6,
         borderSkipped: false as const,
       },
       {
+        label: "Overtime",
+        data: safeAttendanceTrends.map((item) => item.overtimeCount),
+        backgroundColor: "#3b82f6",
+        borderRadius: 6,
+        borderSkipped: false as const,
+      },
+      {
         label: "Absent",
-        data: [10, 8, 7, 7, 6, 5, 6, 6, 6, 6, 6, 5],
+        data: safeAttendanceTrends.map((item) => item.absentCount),
         backgroundColor: "#ef4444",
         borderRadius: 6,
         borderSkipped: false as const,

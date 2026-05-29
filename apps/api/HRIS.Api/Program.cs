@@ -2,6 +2,7 @@ using System.Text;
 using HRIS.Api.Data;
 using HRIS.Api.Features.Attendance.Services;
 using HRIS.Api.Features.Attendance.Services.Validation;
+using HRIS.Api.Features.Dashboard.Services;
 using HRIS.Api.Features.Employees.Services;
 using HRIS.Api.Features.IAM.Services;
 using HRIS.Api.Middleware;
@@ -105,6 +106,12 @@ builder.Services.AddScoped<IAttendanceLogsService, AttendanceLogsService>();
 
 // Overtime Request
 builder.Services.AddScoped<OvertimeRequestService>();
+
+// =====================
+// Dashboard Services
+// =====================
+
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 // =====================
 // JWT Auth (locked)
