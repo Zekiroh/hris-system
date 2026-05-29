@@ -37,8 +37,7 @@ const routeLabels: Record<string, string> = {
   "/dashboard/my-performance": "My Performance",
   "/dashboard/company-directory": "Company Directory",
   "/dashboard/help-support": "Help & Support",
-  "/dashboard/daily-accomplishment": "Daily Accomplishment",
-  "/dashboard/daily-accomplishment-reports": "Daily Accomplishment Reports",
+ "/dashboard/daily-accomplishment": "Daily Accomplishment Report",
 };
 
 const TopBar = ({ onMenuClick }: TopBarProps) => {
@@ -105,12 +104,6 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
     },
   ]);
 
-  // ─── Use a ref so handleStorageChange always sees latest isAdmin value ───
-  const isAdminRef = React.useRef(isAdmin);
-  useEffect(() => {
-    isAdminRef.current = isAdmin;
-  }, [isAdmin]);
-
   const fetchSummary = useCallback(async () => {
     if (!isAdmin || !user || !token) {
       setActiveEmployees(0);
@@ -150,35 +143,10 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
       try {
         const parsed = JSON.parse(newNotif);
 
-        // Read role DIRECTLY from storage — never stale, no ref needed
-        const rawUser =
-          localStorage.getItem("auth.user") ||
-          sessionStorage.getItem("auth.user");
-        const currentUser = rawUser ? JSON.parse(rawUser) : null;
-        const currentIsAdmin =
-          currentUser?.role === "SUPER_ADMIN" ||
-          currentUser?.role === "ADMIN";
-
         setNotifications((prev) => {
           if (prev.find((n) => n.id === parsed.id)) return prev;
 
-          // Role-based filtering:
-          // dar_submit → only ADMIN should receive
-          // dar_review → only USER should receive
-          if (parsed.type === "dar_submit" && !currentIsAdmin) return prev;
-          if (parsed.type === "dar_review" && currentIsAdmin) return prev;
-
-          // Route to correct page based on type
-          let path: string;
-          if (parsed.type === "dar_submit") {
-            path = "/dashboard/daily-accomplishment-reports";
-          } else if (parsed.type === "dar_review") {
-            path = "/dashboard/daily-accomplishment";
-          } else {
-            path = currentIsAdmin
-              ? "/dashboard/attendance"
-              : "/dashboard/my-attendance";
-          }
+          const path = isAdmin ? "/dashboard/attendance" : "/dashboard/my-attendance";
 
           return [
             {
@@ -186,7 +154,7 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
               title: parsed.title,
               message: parsed.message,
               time: parsed.time,
-              type: "system",
+              type: parsed.type,
               read: false,
               path,
             },
@@ -198,18 +166,15 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
       }
     };
 
-    // ─── Listen to both storage (cross-tab) AND custom event (same-tab) ───
     window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("dar_notification", handleStorageChange);
     const checkInterval = setInterval(handleStorageChange, 2000);
 
     return () => {
       clearInterval(timer);
       clearInterval(checkInterval);
       window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("dar_notification", handleStorageChange);
     };
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!isAdmin || !user || !token) {
