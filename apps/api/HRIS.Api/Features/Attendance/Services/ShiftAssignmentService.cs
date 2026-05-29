@@ -1,7 +1,9 @@
+using System.Security.Claims;
 using HRIS.Api.Data;
 using HRIS.Api.Features.Attendance.DTOs;
 using HRIS.Api.Features.Attendance.Services.Validation;
 using HRIS.Api.Features.Common.Exceptions;
+using HRIS.Api.Features.IAM.Services;
 using HRIS.Api.Models;
 using HRIS.Api.Utils;
 using Microsoft.EntityFrameworkCore;
@@ -12,23 +14,29 @@ public class ShiftAssignmentsService : IShiftAssignmentsService
 {
     private readonly AppDbContext _context;
     private readonly IShiftValidationService _shiftValidationService;
+    private readonly IActivityLogger _activityLogger;
 
     public ShiftAssignmentsService(
         AppDbContext context,
-        IShiftValidationService shiftValidationService)
+        IShiftValidationService shiftValidationService,
+        IActivityLogger activityLogger)
     {
         _context = context;
         _shiftValidationService = shiftValidationService;
+        _activityLogger = activityLogger;
     }
 
-    public async Task<EmployeeShiftAssignmentDto> AssignAsync(AssignShiftRequest request, CancellationToken ct)
+    public async Task<EmployeeShiftAssignmentDto> AssignAsync(
+        ClaimsPrincipal user,
+        AssignShiftRequest request,
+        CancellationToken ct)
     {
         ValidateRequest(request);
 
-        var employeeExists = await _context.Employees
-            .AnyAsync(x => x.Id == request.EmployeeId, ct);
+        var employee = await _context.Employees
+            .FirstOrDefaultAsync(x => x.Id == request.EmployeeId, ct);
 
-        if (!employeeExists)
+        if (employee == null)
             throw new ApiException("Employee not found.");
 
         var shift = await _context.Shifts
@@ -82,6 +90,8 @@ public class ShiftAssignmentsService : IShiftAssignmentsService
             .OrderByDescending(x => x.EffectiveFrom)
             .ToList();
 
+        var isReassignment = activeAssignments.Any();
+
         foreach (var activeAssignment in activeAssignments)
         {
             if (request.EffectiveFrom <= activeAssignment.EffectiveFrom)
@@ -108,6 +118,30 @@ public class ShiftAssignmentsService : IShiftAssignmentsService
         _context.EmployeeShiftAssignments.Add(assignment);
 
         await _context.SaveChangesAsync(ct);
+
+        var employeeName = FormatEmployeeName(employee) ?? "Employee";
+        var action = isReassignment ? "SHIFT_REASSIGNED" : "SHIFT_ASSIGNED";
+        var summary = isReassignment
+            ? $"{employeeName} was reassigned to {shift.Name}"
+            : $"{employeeName} was assigned to {shift.Name}";
+
+        var log = _activityLogger.Build(
+            user,
+            action,
+            "ATTENDANCE",
+            "EmployeeShiftAssignment",
+            assignment.Id.ToString(),
+            summary,
+            null,
+            null
+        );
+
+        if (log != null)
+        {
+            _context.ActivityLogs.Add(log);
+            await _context.SaveChangesAsync(ct);
+        }
+
         await transaction.CommitAsync(ct);
 
         var createdAssignment = await _context.EmployeeShiftAssignments
@@ -217,12 +251,17 @@ public class ShiftAssignmentsService : IShiftAssignmentsService
             .ToList();
     }
 
-    public async Task UnassignAsync(int assignmentId, CancellationToken ct)
+    public async Task UnassignAsync(
+        ClaimsPrincipal user,
+        int assignmentId,
+        CancellationToken ct)
     {
         if (assignmentId <= 0)
             throw new ApiException("Assignment is required.");
 
         var assignment = await _context.EmployeeShiftAssignments
+            .Include(x => x.Employee)
+            .Include(x => x.Shift)
             .FirstOrDefaultAsync(x => x.Id == assignmentId && x.IsActive, ct);
 
         if (assignment == null)
@@ -235,6 +274,23 @@ public class ShiftAssignmentsService : IShiftAssignmentsService
             ? assignment.EffectiveFrom
             : today;
         assignment.UpdatedAtUtc = DateTime.UtcNow;
+
+        var employeeName = FormatEmployeeName(assignment.Employee) ?? "Employee";
+        var shiftName = assignment.Shift?.Name ?? "shift";
+
+        var log = _activityLogger.Build(
+            user,
+            "SHIFT_UNASSIGNED",
+            "ATTENDANCE",
+            "EmployeeShiftAssignment",
+            assignment.Id.ToString(),
+            $"{employeeName} was unassigned from {shiftName}",
+            null,
+            null
+        );
+
+        if (log != null)
+            _context.ActivityLogs.Add(log);
 
         await _context.SaveChangesAsync(ct);
     }
