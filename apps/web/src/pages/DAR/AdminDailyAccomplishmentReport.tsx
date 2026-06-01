@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { toast } from "sonner";
 import {
   ClipboardList,
@@ -237,7 +237,29 @@ function ReviewPanel({
   const [isEditing, setIsEditing] = useState(report.status === "Pending Review");
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const handleSave = () => setConfirmOpen(true); // ← ito nalang
+  const handleSave = () => {
+    if (!rating || rating === 0) {
+      toast.error("Please provide a performance rating before saving.");
+      return;
+    }
+    if (!decision || decision === "Pending Review") {
+      toast.error("Please select a Review Decision (Approved, Revision Requested, or Rejected).");
+      return;
+    }
+    if (!supervisorName.trim()) {
+      toast.error("Please enter the Supervisor Name before saving.");
+      return;
+    }
+    if (!empAck) {
+      toast.error("Employee acknowledgment is required before finalizing.");
+      return;
+    }
+    if (!adminAck) {
+      toast.error("Supervisor sign-off is required before finalizing.");
+      return;
+    }
+    setConfirmOpen(true);
+  };
 
 const handleConfirmSave = () => {
   setConfirmOpen(false);
@@ -735,7 +757,21 @@ const handleConfirmSave = () => {
           </button>
           {activeTab === "s7" ? (
             <button
-              onClick={() => setActiveTab("s8")}
+              onClick={() => {
+                if (!rating || rating === 0) {
+                  toast.error("Please provide a performance rating first.");
+                  return;
+                }
+                if (!decision || decision === "Pending Review") {
+                  toast.error("Please select a Review Decision (not Pending Review).");
+                  return;
+                }
+                if (!supervisorName.trim()) {
+                  toast.error("Please enter the Supervisor Name.");
+                  return;
+                }
+                setActiveTab("s8");
+              }}
               className="btn btn-primary"
             >
               Next → Section 8
@@ -815,12 +851,50 @@ const handleConfirmSave = () => {
 
 // ─── Main Admin Page ──────────────────────────────────────────────────────────
 
+const loadReports = () => {
+    try {
+      const subs = JSON.parse(localStorage.getItem("dar_submissions") || "[]");
+      const fromStorage: SubmittedReport[] = subs.map((s: any, i: number) => ({
+        id: `DAR-LS-${i}`,
+        referenceNo: `DAR-LS-${String(i + 1).padStart(3, "0")}`,
+        employeeName: s.devName || "Unknown",
+        department: s.team || "—",
+        project: s.project || "—",
+        date: s.date || "—",
+        submittedAt: s.submittedAt || "—",
+        workArrangement: s.workArr || "On-site",
+        totalActualHours: parseFloat(s.actualHrs) || 0,
+        totalEstHours: parseFloat(s.estHrs) || 0,
+        tasksCompleted: (s.taskDetails || []).filter((t: any) => t.status === "done").length,
+        tasksTotal: (s.taskDetails || []).length,
+        checklistDone: s.checklist ? s.checklist.filter(Boolean).length : 0,
+        status: (s.status as ReportStatus) || "Pending Review",
+      }));
+  return [...fromStorage, ...MOCK_REPORTS];
+  } catch {
+    return MOCK_REPORTS;
+  }
+};
+
 const AdminDailyAccomplishmentReport = () => {
-  const [reports, setReports]               = useState<SubmittedReport[]>(MOCK_REPORTS);
+  const [reports, setReports] = useState<SubmittedReport[]>(loadReports);
   const [selectedReport, setSelectedReport] = useState<SubmittedReport | null>(null);
   const [search, setSearch]                 = useState("");
   const [filterStatus, setFilterStatus]     = useState("All");
   const [filterDept, setFilterDept]         = useState("All");
+  const [currentPage, setCurrentPage]       = useState(1);
+
+  // Listen for new DAR submissions
+  React.useEffect(() => {
+    const handler = () => setReports(loadReports());
+    window.addEventListener("dar_submitted", handler);
+    window.addEventListener("storage", handler);
+    return () => {
+      window.removeEventListener("dar_submitted", handler);
+      window.removeEventListener("storage", handler);
+    };
+  }, []);
+  const PAGE_SIZE = 10;
 
   const pending  = reports.filter(r => r.status === "Pending Review").length;
   const approved = reports.filter(r => r.status === "Approved").length;
@@ -828,6 +902,11 @@ const AdminDailyAccomplishmentReport = () => {
   const total    = reports.length;
 
   const departments = ["All", ...Array.from(new Set(reports.map(r => r.department)))];
+
+  // Reset to page 1 on filter change
+  const handleSearch = (v: string) => { setSearch(v); setCurrentPage(1); };
+  const handleFilterStatus = (v: string) => { setFilterStatus(v); setCurrentPage(1); };
+  const handleFilterDept = (v: string) => { setFilterDept(v); setCurrentPage(1); };
 
   const filtered = reports.filter(r => {
     const q = search.toLowerCase();
@@ -839,6 +918,9 @@ const AdminDailyAccomplishmentReport = () => {
       (filterDept   === "All" || r.department === filterDept)
     );
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const handleSaveReview = (updated: Partial<SubmittedReport>) => {
     if (!selectedReport) return;
@@ -937,7 +1019,7 @@ const AdminDailyAccomplishmentReport = () => {
                 style={{ paddingLeft: 32, width: "100%", boxSizing: "border-box" }}
                 placeholder="Search employee, project..."
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={e => handleSearch(e.target.value)}
               />
             </div>
 
@@ -945,7 +1027,7 @@ const AdminDailyAccomplishmentReport = () => {
               className="pro-select"
               style={{ width: 160, flexShrink: 0, boxSizing: "border-box" }}
               value={filterStatus}
-              onChange={e => setFilterStatus(e.target.value)}
+              onChange={e => handleFilterStatus(e.target.value)}
             >
               <option value="All">All Status</option>
               {["Pending Review", "Approved", "Revision Requested", "Rejected"].map(s => (
@@ -957,7 +1039,7 @@ const AdminDailyAccomplishmentReport = () => {
               className="pro-select"
               style={{ width: 180, flexShrink: 0, boxSizing: "border-box" }}
               value={filterDept}
-              onChange={e => setFilterDept(e.target.value)}
+              onChange={e => handleFilterDept(e.target.value)}
             >
               {departments.map(d => <option key={d}>{d}</option>)}
             </select>
@@ -990,7 +1072,7 @@ const AdminDailyAccomplishmentReport = () => {
                   style={{ paddingLeft: 32, width: "100%", boxSizing: "border-box" }}
                   placeholder="Search employee, project..."
                   value={search}
-                  onChange={e => setSearch(e.target.value)}
+                  onChange={e => handleSearch(e.target.value)}
                 />
               </div>
             </div>
@@ -1049,7 +1131,7 @@ const AdminDailyAccomplishmentReport = () => {
                       No reports found matching your filters.
                     </td>
                   </tr>
-                ) : filtered.map(r => (
+                ) : paginated.map(r => (
                   <tr key={r.id} className="cursor-pointer">
 
                     {/* Employee */}
@@ -1135,28 +1217,39 @@ const AdminDailyAccomplishmentReport = () => {
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between mt-4">
+          <div className="flex items-center justify-between mt-4 flex-wrap gap-2">
             <span className="text-xs text-gray-400">
-              Showing {filtered.length} of {total} submissions
+              Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, filtered.length)}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length} submissions
             </span>
-            <div className="flex gap-1">
-              {[
-                { label: <ChevronLeft className="w-4 h-4" />, active: false },
-                { label: "1", active: true },
-                { label: <ChevronRight className="w-4 h-4" />, active: false },
-              ].map((b, i) => (
+            <div className="flex gap-1 flex-wrap">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center transition-colors text-gray-600 border-gray-200 bg-gray-50 hover:bg-gray-100 disabled:opacity-40"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
                 <button
-                  key={i}
+                  key={p}
+                  onClick={() => setCurrentPage(p)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center transition-colors ${
-                    b.active
+                    p === currentPage
                       ? "text-white border-transparent"
                       : "text-gray-600 border-gray-200 bg-gray-50 hover:bg-gray-100"
                   }`}
-                  style={b.active ? { background: "linear-gradient(90deg,#059669,#047857)" } : {}}
+                  style={p === currentPage ? { background: "linear-gradient(90deg,#059669,#047857)" } : {}}
                 >
-                  {b.label}
+                  {p}
                 </button>
               ))}
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center transition-colors text-gray-600 border-gray-200 bg-gray-50 hover:bg-gray-100 disabled:opacity-40"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>

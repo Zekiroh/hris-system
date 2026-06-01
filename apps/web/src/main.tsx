@@ -19,7 +19,7 @@ createRoot(document.getElementById("root")!).render(
             richColors
             expand={false}
             closeButton
-            toastOptions={{ duration: 3000 }}
+            toastOptions={{ duration: 3000, style: { marginTop: "60px" } }}
           />
         </LeaveProvider>
       </AuthProvider>

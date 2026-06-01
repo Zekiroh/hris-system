@@ -162,7 +162,9 @@ export default function DailyAccomplishmentReport() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [selectedSub, setSelectedSub] = React.useState<any>(null);
+  const [deleteIdx, setDeleteIdx] = React.useState<number | null>(null);
   const [subSearch, setSubSearch] = React.useState("");
+  const [submissions, setSubmissions] = React.useState<any[]>(() => JSON.parse(localStorage.getItem("dar_submissions") || "[]"));
   const [subFilter, setSubFilter] = React.useState("All Status");
   const [empSuggestions, setEmpSuggestions] = React.useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = React.useState(false);
@@ -346,7 +348,9 @@ export default function DailyAccomplishmentReport() {
       dateSubmitted,
     };
     const subs = JSON.parse(localStorage.getItem("dar_submissions") || "[]");
-    localStorage.setItem("dar_submissions", JSON.stringify([sub, ...subs]));
+    const newSubs = [sub, ...subs];
+    localStorage.setItem("dar_submissions", JSON.stringify(newSubs));
+    setSubmissions(newSubs);
     setShowConfirm(false);
     setShowSuccess(true);
 
@@ -827,6 +831,31 @@ export default function DailyAccomplishmentReport() {
       )}
 
 
+      {/* Delete Confirm Modal */}
+      {deleteIdx !== null && (
+        <div className="pro-modal-overlay" onClick={() => setDeleteIdx(null)}>
+          <div className="pro-modal" style={{ maxWidth: "360px", width: "100%", textAlign: "center", padding: "2rem 1.75rem 1.5rem" }} onClick={e => e.stopPropagation()}>
+            <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem" }}>
+              <X className="w-6 h-6" style={{ color: "#dc2626" }} />
+            </div>
+            <p style={{ fontSize: "17px", fontWeight: 600, marginBottom: "0.5rem", color: "#111827" }}>Delete Submission?</p>
+            <p style={{ fontSize: "13px", color: "#6b7280", lineHeight: 1.6, marginBottom: "1.5rem" }}>This action cannot be undone. The submission will be permanently removed.</p>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setDeleteIdx(null)}>Cancel</button>
+              <button type="button" style={{ flex: 1, background: "#dc2626", color: "white", border: "none", borderRadius: "12px", padding: "10px", fontSize: "14px", fontWeight: 600, cursor: "pointer" }} onClick={() => {
+                try {
+                  const subs = JSON.parse(localStorage.getItem("dar_submissions") || "[]");
+                  subs.splice(deleteIdx, 1);
+                  localStorage.setItem("dar_submissions", JSON.stringify(subs));
+                  setSubmissions([...subs]);
+                } catch {}
+                setDeleteIdx(null);
+              }}>Yes, Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Submission View Modal */}
       {selectedSub && (
         <div className="pro-modal-overlay" onClick={() => setSelectedSub(null)}>
@@ -1119,8 +1148,7 @@ export default function DailyAccomplishmentReport() {
       {/* My DAR Submissions */}
       <SectionCard num={9} title="My DAR Submissions" delay={0.9}>
         {(() => {
-          const submissions: Array<{ date: string; project: string; tasks: number; checklist: number; status: string; submittedAt: string; workArr?: string }> =
-            JSON.parse(localStorage.getItem("dar_submissions") || "[]");
+          // submissions loaded from state
 
           const statusStyle: Record<string, { bg: string; text: string; dot: string }> = {
             "Approved":           { bg: "bg-emerald-50 border border-emerald-200", text: "text-emerald-700", dot: "bg-emerald-500" },
@@ -1203,10 +1231,15 @@ export default function DailyAccomplishmentReport() {
                                 {s.status}
                               </span>
                             </td>
-                            <td className="text-center" style={{ width: "40px" }}>
-                              <button type="button" title="View" onClick={() => setSelectedSub(s)} className="text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg p-1.5 transition-all">
-                                <Eye className="w-4 h-4" />
-                              </button>
+                            <td className="text-center" style={{ width: "80px" }}>
+                              <div className="flex items-center justify-center gap-1">
+                                <button type="button" title="View" onClick={() => setSelectedSub(s)} className="text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg p-1.5 transition-all">
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                                <button type="button" title="Delete" onClick={() => setDeleteIdx(i)} className="text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg p-1.5 transition-all">
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
