@@ -1,6 +1,14 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   Calendar,
+  Check,
+  ChevronDown,
   ChevronRight,
   Clock,
   DollarSign,
@@ -12,25 +20,36 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import {
   getMyAttendanceLogs,
+  getMyCurrentShift,
   getMyOvertimeRequests,
   getTodayMyAttendanceLog,
   type AttendanceLogDto,
   type OvertimeRequestDto,
+  type Shift,
 } from "../../lib/attendance";
-import { apiRequest } from "../../lib/api";
 
-type MyMonthlyAttendanceTrendDto = {
-  month: number;
-  monthLabel: string;
-  presentCount: number;
-  lateCount: number;
-  overtimeCount: number;
+type MyOvertimeDashboardRow = {
+  id: number;
+  status: string;
 };
 
-const getMyAttendanceSummary = (year: number) =>
-  apiRequest<MyMonthlyAttendanceTrendDto[]>(
-    `/dashboard/user/attendance-summary?year=${year}`
-  );
+type AttendanceSummaryRange =
+  | "latest-month"
+  | "this-month"
+  | "last-month"
+  | "this-year";
+
+type AttendanceSummaryBucket = "present" | "late" | "overtime" | "absent";
+
+const attendanceSummaryRangeOptions: {
+  value: AttendanceSummaryRange;
+  label: string;
+}[] = [
+  { value: "latest-month", label: "Latest Month" },
+  { value: "this-month", label: "This Month" },
+  { value: "last-month", label: "Last Month" },
+  { value: "this-year", label: "This Year" },
+];
 
 const formatDisplayName = (
   user: Partial<{
@@ -117,6 +136,17 @@ const formatDateValue = (value?: string | null) => {
   });
 };
 
+const formatWeekdayValue = (value?: string | null) => {
+  if (!value?.trim()) return "Attendance Record";
+
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return "Attendance Record";
+
+  return parsed.toLocaleDateString("en-US", {
+    weekday: "long",
+  });
+};
+
 const formatMinutes = (minutes?: number | null) => {
   if (!minutes || minutes <= 0) return "0h 0m";
 
@@ -146,6 +176,9 @@ const getPagedItems = <T,>(response: unknown): T[] => {
   return [];
 };
 
+const normalizeStatus = (status?: string | null) =>
+  status?.trim().toLowerCase() ?? "";
+
 const getAttendanceStatus = (todayLog: AttendanceLogDto | null) => {
   if (!todayLog) return "No Record";
   if (todayLog.timeOut) return "Completed";
@@ -155,10 +188,23 @@ const getAttendanceStatus = (todayLog: AttendanceLogDto | null) => {
 };
 
 const getRecordStatus = (log: AttendanceLogDto) => {
-  if (log.status?.trim()) return log.status;
-  if (log.timeOut) return "Completed";
-  if (log.timeIn) return "Timed In";
-  return "Pending";
+  if (log.status?.trim()) {
+    return log.status;
+  }
+
+  if (!log.isPresent && !log.timeIn && !log.timeOut) {
+    return "Absent";
+  }
+
+  if (log.timeOut) {
+    return "Completed";
+  }
+
+  if (log.timeIn) {
+    return "Timed In";
+  }
+
+  return "No Record";
 };
 
 const getStatusBadgeClass = (status: string) => {
@@ -169,6 +215,9 @@ const getStatusBadgeClass = (status: string) => {
     case "timed in":
       return "bg-blue-50 text-blue-600";
 
+    case "absent":
+      return "bg-red-50 text-red-600";
+
     case "pending":
       return "bg-slate-100 text-slate-600";
 
@@ -176,11 +225,139 @@ const getStatusBadgeClass = (status: string) => {
       return "bg-gray-100 text-gray-600";
 
     case "no record":
-      return "bg-gray-100 text-gray-600";
+      return "bg-slate-100 text-slate-500";
 
     default:
       return "bg-slate-100 text-slate-600";
   }
+};
+
+const normalizeDateKey = (value?: string | null) => {
+  if (!value || value === "-" || value === "--" || value === "—") return "";
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10);
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
+const isDateWithinRange = (dateKey: string, startDate: Date, endDate: Date) => {
+  const date = new Date(`${dateKey}T00:00:00`);
+
+  if (Number.isNaN(date.getTime())) return false;
+
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(endDate);
+  end.setHours(23, 59, 59, 999);
+
+  return date >= start && date <= end;
+};
+
+const classifyAttendanceDay = (
+  logs: AttendanceLogDto[]
+): AttendanceSummaryBucket | null => {
+  if (logs.length === 0) return null;
+
+  const hasAbsent = logs.some(
+    (log) =>
+      normalizeStatus(log.status) === "absent" ||
+      (!log.isPresent && !log.timeIn && !log.timeOut)
+  );
+
+  if (hasAbsent) return "absent";
+
+  const hasLate = logs.some((log) => (log.lateMinutes ?? 0) > 0);
+
+  if (hasLate) return "late";
+
+  const hasOvertime = logs.some(
+    (log) =>
+      (log.overtimeCreditedMinutes ?? 0) > 0 ||
+      (log.overtimeMinutes ?? 0) > 0 ||
+      normalizeStatus(log.overtimeStatus) === "approved"
+  );
+
+  if (hasOvertime) return "overtime";
+
+  const hasPresent = logs.some(
+    (log) =>
+      !!log.timeIn ||
+      !!log.timeOut ||
+      log.isPresent ||
+      normalizeStatus(log.status) === "present" ||
+      normalizeStatus(log.status) === "completed"
+  );
+
+  if (hasPresent) return "present";
+
+  return null;
+};
+
+const getOvertimeRequestDateRange = (request: OvertimeRequestDto) => {
+  const dateFrom = normalizeDateKey(
+    request.dateFrom || request.attendanceDate || ""
+  );
+  const dateTo = normalizeDateKey(
+    request.dateTo || request.dateFrom || request.attendanceDate || ""
+  );
+
+  if (!dateFrom && !dateTo) return [];
+  if (!dateFrom) return [dateTo];
+  if (!dateTo) return [dateFrom];
+
+  const start = new Date(`${dateFrom}T00:00:00`);
+  const end = new Date(`${dateTo}T00:00:00`);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return [dateFrom];
+  }
+
+  if (start > end) return [dateFrom];
+
+  const dates: string[] = [];
+  const cursor = new Date(end);
+
+  while (cursor >= start) {
+    const year = cursor.getFullYear();
+    const month = String(cursor.getMonth() + 1).padStart(2, "0");
+    const day = String(cursor.getDate()).padStart(2, "0");
+
+    dates.push(`${year}-${month}-${day}`);
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  return dates;
+};
+
+const expandOvertimeRequestRows = (
+  request: OvertimeRequestDto
+): MyOvertimeDashboardRow[] => {
+  const dates = getOvertimeRequestDateRange(request);
+  const status = request.status || "Pending";
+
+  if (dates.length === 0) {
+    return [
+      {
+        id: request.id,
+        status,
+      },
+    ];
+  }
+
+  return dates.map((_, index) => ({
+    id: request.id * 1000 + index,
+    status,
+  }));
 };
 
 const UserDashboard = () => {
@@ -188,19 +365,95 @@ const UserDashboard = () => {
   const { user, token } = useAuth();
 
   const [todayLog, setTodayLog] = useState<AttendanceLogDto | null>(null);
+  const [currentShift, setCurrentShift] = useState<Shift | null>(null);
   const [attendanceLogs, setAttendanceLogs] = useState<AttendanceLogDto[]>([]);
   const [overtimeRequests, setOvertimeRequests] = useState<OvertimeRequestDto[]>(
     []
   );
-  const [attendanceSummary, setAttendanceSummary] = useState<
-    MyMonthlyAttendanceTrendDto[]
-  >([]);
+  const [attendanceSummaryRange, setAttendanceSummaryRange] =
+    useState<AttendanceSummaryRange>("latest-month");
   const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const [isSummaryRangeOpen, setIsSummaryRangeOpen] = useState(false);
+  const summaryRangeDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const displayName = formatDisplayName(user);
-  const currentDate = new Date();
-  const currentYear = currentDate.getFullYear();
-  const currentMonth = currentDate.getMonth() + 1;
+  const today = useMemo(() => new Date(), []);
+
+  const latestAttendanceDate = useMemo(() => {
+    return attendanceLogs
+      .map((log) => (log.date ? new Date(`${log.date}T00:00:00`) : null))
+      .filter(
+        (date): date is Date => !!date && !Number.isNaN(date.getTime())
+      )
+      .sort((a, b) => b.getTime() - a.getTime())[0];
+  }, [attendanceLogs]);
+
+  const summaryPeriod = useMemo(() => {
+    if (attendanceSummaryRange === "this-year") {
+      return {
+        label: "This Year",
+        year: today.getFullYear(),
+        month: null as number | null,
+        startDate: new Date(today.getFullYear(), 0, 1),
+        endDate: today,
+      };
+    }
+
+    if (attendanceSummaryRange === "this-month") {
+      return {
+        label: "This Month",
+        year: today.getFullYear(),
+        month: today.getMonth() + 1,
+        startDate: new Date(today.getFullYear(), today.getMonth(), 1),
+        endDate: today,
+      };
+    }
+
+    if (attendanceSummaryRange === "last-month") {
+      const lastMonthDate = new Date(
+        today.getFullYear(),
+        today.getMonth() - 1,
+        1
+      );
+
+      return {
+        label: "Last Month",
+        year: lastMonthDate.getFullYear(),
+        month: lastMonthDate.getMonth() + 1,
+        startDate: new Date(
+          lastMonthDate.getFullYear(),
+          lastMonthDate.getMonth(),
+          1
+        ),
+        endDate: new Date(
+          lastMonthDate.getFullYear(),
+          lastMonthDate.getMonth() + 1,
+          0
+        ),
+      };
+    }
+
+    const referenceDate = latestAttendanceDate ?? today;
+
+    return {
+      label: "Latest Month",
+      year: referenceDate.getFullYear(),
+      month: referenceDate.getMonth() + 1,
+      startDate: new Date(
+        referenceDate.getFullYear(),
+        referenceDate.getMonth(),
+        1
+      ),
+      endDate: referenceDate,
+    };
+  }, [attendanceSummaryRange, latestAttendanceDate, today]);
+
+  const summaryYear = summaryPeriod.year;
+
+  const selectedSummaryRangeLabel =
+    attendanceSummaryRangeOptions.find(
+      (option) => option.value === attendanceSummaryRange
+    )?.label ?? "Latest Month";
 
   useEffect(() => {
     if (!token) return;
@@ -211,33 +464,33 @@ const UserDashboard = () => {
       try {
         const [
           todayResponse,
+          currentShiftResponse,
           attendanceResponse,
           overtimeResponse,
-          summaryResponse,
         ] = await Promise.all([
           getTodayMyAttendanceLog(),
-          getMyAttendanceLogs({ page: 1, pageSize: 20 }),
-          getMyOvertimeRequests({ page: 1, pageSize: 20 }),
-          getMyAttendanceSummary(currentYear),
+          getMyCurrentShift(),
+          getMyAttendanceLogs({ page: 1, pageSize: 1000 }),
+          getMyOvertimeRequests(),
         ]);
 
         if (!isMounted) return;
 
         setTodayLog(todayResponse);
+        setCurrentShift(currentShiftResponse);
         setAttendanceLogs(getPagedItems<AttendanceLogDto>(attendanceResponse));
         setOvertimeRequests(
           getPagedItems<OvertimeRequestDto>(overtimeResponse)
         );
-        setAttendanceSummary(summaryResponse);
         setDashboardError(null);
       } catch (error) {
         if (!isMounted) return;
 
         console.error("Failed to load user dashboard data:", error);
         setTodayLog(null);
+        setCurrentShift(null);
         setAttendanceLogs([]);
         setOvertimeRequests([]);
-        setAttendanceSummary([]);
         setDashboardError("Unable to load latest dashboard data.");
       }
     };
@@ -247,31 +500,85 @@ const UserDashboard = () => {
     return () => {
       isMounted = false;
     };
-  }, [token, currentYear]);
+  }, [token]);
+
+  useEffect(() => {
+    if (!isSummaryRangeOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        summaryRangeDropdownRef.current &&
+        !summaryRangeDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsSummaryRangeOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isSummaryRangeOpen]);
 
   const overtimeSummary = useMemo(() => {
-    const pending = overtimeRequests.filter(
-      (item) => item.status?.toLowerCase() === "pending"
-    ).length;
-    const approved = overtimeRequests.filter(
-      (item) => item.status?.toLowerCase() === "approved"
-    ).length;
-    const rejected = overtimeRequests.filter(
-      (item) => item.status?.toLowerCase() === "rejected"
+    const overtimeRows = overtimeRequests.flatMap((request) =>
+      expandOvertimeRequestRows(request)
+    );
+
+    const pending = overtimeRows.filter(
+      (item) => normalizeStatus(item.status) === "pending"
     ).length;
 
-    return { pending, approved, rejected };
+    const approved = overtimeRows.filter(
+      (item) => normalizeStatus(item.status) === "approved"
+    ).length;
+
+    const rejected = overtimeRows.filter(
+      (item) => normalizeStatus(item.status) === "rejected"
+    ).length;
+
+    return { pending, approved, rejected, total: overtimeRows.length };
   }, [overtimeRequests]);
 
   const currentMonthSummary = useMemo(() => {
-    const summary = attendanceSummary.find((item) => item.month === currentMonth);
+    const summaryLogsByDate = new Map<string, AttendanceLogDto[]>();
 
-    return {
-      present: summary?.presentCount ?? 0,
-      late: summary?.lateCount ?? 0,
-      overtime: summary?.overtimeCount ?? 0,
+    attendanceLogs.forEach((log) => {
+      const dateKey = normalizeDateKey(log.date);
+
+      if (
+        !dateKey ||
+        !isDateWithinRange(
+          dateKey,
+          summaryPeriod.startDate,
+          summaryPeriod.endDate
+        )
+      ) {
+        return;
+      }
+
+      const existingLogs = summaryLogsByDate.get(dateKey) ?? [];
+      summaryLogsByDate.set(dateKey, [...existingLogs, log]);
+    });
+
+    const summary = {
+      present: 0,
+      late: 0,
+      overtime: 0,
+      absent: 0,
     };
-  }, [attendanceSummary, currentMonth]);
+
+    summaryLogsByDate.forEach((logs) => {
+      const classification = classifyAttendanceDay(logs);
+
+      if (!classification) return;
+
+      summary[classification] += 1;
+    });
+
+    return summary;
+  }, [attendanceLogs, summaryPeriod.endDate, summaryPeriod.startDate]);
 
   const chartItems = useMemo(
     () => [
@@ -289,6 +596,11 @@ const UserDashboard = () => {
         label: "Overtime",
         value: currentMonthSummary.overtime,
         color: "#3b82f6",
+      },
+      {
+        label: "Absent",
+        value: currentMonthSummary.absent,
+        color: "#ef4444",
       },
     ],
     [currentMonthSummary]
@@ -318,11 +630,14 @@ const UserDashboard = () => {
   }, [chartItems, totalChartDays]);
 
   const currentShiftValue =
-    todayLog?.shiftStartTime && todayLog?.shiftEndTime
-      ? `${parseTimeValue(todayLog.shiftStartTime)} - ${parseTimeValue(
-          todayLog.shiftEndTime
-        )}`
-      : "No active shift";
+    currentShift?.name ?? currentShift?.code ?? "No assigned shift";
+
+  const currentShiftSub =
+    todayLog?.isWorkingDay === false
+      ? "Rest Day Today"
+      : currentShift
+        ? "Active Shift Assignment"
+        : "No assigned shift";
 
   const todaysWorkedMinutes =
     todayLog?.creditedMinutes ??
@@ -341,7 +656,7 @@ const UserDashboard = () => {
     {
       label: "Current Shift",
       value: currentShiftValue,
-      sub: todayLog?.shiftName ?? "Assigned shift appears here",
+      sub: currentShiftSub,
       icon: Clock,
       gradient: "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)",
     },
@@ -386,8 +701,8 @@ const UserDashboard = () => {
 
   const recentAttendance = attendanceLogs.slice(0, 5);
 
-  const summaryStartDate = new Date(currentYear, currentMonth - 1, 1);
-  const summaryEndDate = new Date();
+  const summaryStartDate = summaryPeriod.startDate;
+  const summaryEndDate = summaryPeriod.endDate;
 
   return (
     <DashboardClock>
@@ -496,14 +811,59 @@ const UserDashboard = () => {
                       Attendance Summary
                     </h3>
                     <p className="text-xs text-gray-400 mt-1">
-                      Monthly attendance overview for {currentYear}
+                      {summaryPeriod.label} attendance overview for {summaryYear}
                     </p>
                   </div>
 
-                  <div className="hidden sm:flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-3 py-2 text-xs font-semibold text-gray-600 shadow-sm">
-                    <Calendar className="w-4 h-4 text-gray-500" />
-                    This Month
-                    <ChevronRight className="w-4 h-4 rotate-90 text-gray-400" />
+                  <div
+                    ref={summaryRangeDropdownRef}
+                    className="relative hidden sm:block"
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setIsSummaryRangeOpen((current) => !current)
+                      }
+                      className="flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-3 py-2 text-xs font-semibold text-gray-600 shadow-sm transition-colors hover:border-gray-200 hover:text-gray-700"
+                    >
+                      <Calendar className="w-4 h-4 text-gray-500" />
+                      <span>{selectedSummaryRangeLabel}</span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-gray-500 transition-transform ${
+                          isSummaryRangeOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {isSummaryRangeOpen && (
+                      <div className="absolute right-0 top-full z-30 mt-2 w-44 overflow-hidden rounded-xl border border-gray-100 bg-white py-1 shadow-xl shadow-slate-200/70">
+                        {attendanceSummaryRangeOptions.map((option) => {
+                          const isSelected =
+                            option.value === attendanceSummaryRange;
+
+                          return (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => {
+                                setAttendanceSummaryRange(option.value);
+                                setIsSummaryRangeOpen(false);
+                              }}
+                              className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-xs font-semibold transition-colors ${
+                                isSelected
+                                  ? "bg-emerald-50 text-emerald-700"
+                                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-800"
+                              }`}
+                            >
+                              <span>{option.label}</span>
+                              {isSelected && (
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -594,12 +954,12 @@ const UserDashboard = () => {
                       No attendance records yet.
                     </div>
                   ) : (
-                    recentAttendance.map((log) => {
+                    recentAttendance.map((log, index) => {
                       const status = getRecordStatus(log);
 
                       return (
                         <div
-                          key={log.id}
+                          key={`${log.id}-${log.date}-${log.timeIn ?? "no-time-in"}-${index}`}
                           className="flex items-center justify-between gap-4 border-l-2 border-emerald-400 bg-gray-50/80 px-4 py-3 min-w-0"
                         >
                           <div className="min-w-0">
@@ -607,7 +967,7 @@ const UserDashboard = () => {
                               {formatDateValue(log.date)}
                             </p>
                             <p className="text-sm font-bold text-gray-800 mt-0.5 break-words">
-                              {log.shiftName ?? "Attendance Record"}
+                              {formatWeekdayValue(log.date)}
                             </p>
                           </div>
 

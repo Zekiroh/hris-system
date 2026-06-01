@@ -11,4 +11,6 @@ public class MyMonthlyAttendanceTrendDto
     public int LateCount { get; set; }
 
     public int OvertimeCount { get; set; }
+
+    public int AbsentCount { get; set; }
 }
