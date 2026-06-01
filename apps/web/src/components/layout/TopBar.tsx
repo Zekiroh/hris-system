@@ -139,6 +139,20 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
     const timer = setInterval(() => setTime(new Date()), 1000);
 
     const handleStorageChange = () => {
+      // Check DAR submissions
+      const darNotifs = JSON.parse(localStorage.getItem("dar_notifications") || "[]");
+      const unread = darNotifs.filter((n: any) => !n.read);
+      if (unread.length > 0 && isAdmin) {
+        unread.forEach((parsed: any) => {
+          setNotifications((prev) => {
+            if (prev.find((n) => n.id === parsed.id)) return prev;
+            return [{ ...parsed, path: "/dashboard/daily-accomplishment-reports" }, ...prev];
+          });
+        });
+        const marked = darNotifs.map((n: any) => ({ ...n, read: true }));
+        localStorage.setItem("dar_notifications", JSON.stringify(marked));
+      }
+
       const newNotif = localStorage.getItem("attendance_notification");
       if (!newNotif) return;
 

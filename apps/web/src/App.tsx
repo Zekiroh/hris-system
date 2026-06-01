@@ -32,7 +32,7 @@ import CompanyDirectory from "./pages/user/CompanyDirectory";
 import MyPerformance from "./pages/user/MyPerformance";
 import CompanyNews from "./pages/user/CompanyNews";
 import HelpSupport from "./pages/user/HelpSupport";
-import DailyAccomplishmentReport from "./pages/user/DailyAccomplishmentReport";
+import DailyAccomplishmentReport from "./pages/DailyReport/DailyAccomplishmentReport";
 
 // Admin Daily Accomplishment
 import AdminDailyAccomplishmentReport from "./pages/DAR/AdminDailyAccomplishmentReport";
