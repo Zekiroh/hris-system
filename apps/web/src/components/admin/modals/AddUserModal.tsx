@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { useEffect, useRef, useState } from 'react';
-import { X, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, X, UserPlus } from 'lucide-react';
 import type { UserFormState } from '../userManagement.shared';
 import { USER_SUFFIX_OPTIONS } from '../userManagement.shared';
 
@@ -95,7 +95,7 @@ function ModalDropdown({
         menuPosition &&
         createPortal(
           <div
-            className="fixed z-[500] max-h-60 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-xl"
+            className="fixed z-[10000] max-h-60 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-xl"
             style={{
               top: menuPosition.top,
               left: menuPosition.left,
@@ -135,6 +135,7 @@ const AddUserModal = ({
   onSubmit,
 }: Props) => {
   const [openDropdown, setOpenDropdown] = useState<DropdownKey>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const dropdownContainerRef = useRef<HTMLDivElement | null>(null);
   const roleTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -171,6 +172,7 @@ const AddUserModal = ({
 
   const handleClose = () => {
     setOpenDropdown(null);
+    setShowPassword(false);
     onClose();
   };
 
@@ -316,17 +318,36 @@ const AddUserModal = ({
                 <label className="pro-label">
                   Password <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="password"
-                  name="admin-create-password"
-                  autoComplete="new-password"
-                  className="pro-input"
-                  value={formData.password}
-                  onChange={(e) => {
-                    onClearError();
-                    onChange((prev) => ({ ...prev, password: e.target.value }));
-                  }}
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    name="admin-create-user-passcode"
+                    autoComplete="new-password"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    className="pro-input pr-11"
+                    value={formData.password}
+                    onChange={(e) => {
+                      onClearError();
+                      onChange((prev) => ({ ...prev, password: e.target.value }));
+                    }}
+                  />
+
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition hover:text-gray-600"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    tabIndex={-1}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <ModalDropdown

@@ -42,7 +42,7 @@ public class OvertimeRequestsController : ControllerBase
     {
         var userId = GetUserId();
 
-        await _service.SubmitAsync(userId, request);
+        await _service.SubmitAsync(User, userId, request);
 
         return Ok(new
         {
@@ -56,7 +56,7 @@ public class OvertimeRequestsController : ControllerBase
     {
         var userId = GetUserId();
 
-        await _service.AdminAssignAsync(userId, request);
+        await _service.AdminAssignAsync(User, userId, request);
 
         return Ok(new
         {
@@ -70,7 +70,7 @@ public class OvertimeRequestsController : ControllerBase
     {
         var userId = GetUserId();
 
-        await _service.ReviewAsync(userId, id, request.Action, request.Remarks);
+        await _service.ReviewAsync(User, userId, id, request.Action, request.Remarks);
 
         var actionWord = string.Equals(request.Action, "Approve", StringComparison.OrdinalIgnoreCase)
             ? "approved"

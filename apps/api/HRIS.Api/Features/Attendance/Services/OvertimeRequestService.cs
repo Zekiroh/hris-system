@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using HRIS.Api.Data;
 using HRIS.Api.Features.Attendance.DTOs;
 using HRIS.Api.Features.Common.Exceptions;
+using HRIS.Api.Features.IAM.Services;
 using HRIS.Api.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -10,17 +12,20 @@ namespace HRIS.Api.Features.Attendance.Services;
 public class OvertimeRequestService
 {
     private readonly AppDbContext _context;
+    private readonly IActivityLogger _activityLogger;
 
     private const int MaxEmployeeOtMinutes = 180;
     private const int MaxAdminOtMinutes = 600;
     private const int MaxEmployeeRequestDays = 5;
-    private const int EmployeeOvertimeAdvanceWindowMinutes = 180;
     private const int MinutesPerDay = 24 * 60;
     private static readonly TimeZoneInfo ManilaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila");
 
-    public OvertimeRequestService(AppDbContext context)
+    public OvertimeRequestService(
+        AppDbContext context,
+        IActivityLogger activityLogger)
     {
         _context = context;
+        _activityLogger = activityLogger;
     }
 
     public async Task<PagedOvertimeRequestsResponse> GetAllAsync(GetOvertimeRequestsQuery query)
@@ -214,7 +219,10 @@ public class OvertimeRequestService
         };
     }
 
-    public async Task SubmitAsync(long userId, SubmitOvertimeRequest request)
+    public async Task SubmitAsync(
+        ClaimsPrincipal user,
+        long userId,
+        SubmitOvertimeRequest request)
     {
         var employee = await _context.Employees
             .AsNoTracking()
@@ -275,13 +283,12 @@ public class OvertimeRequestService
                     ? 0
                     : CalculateRawRenderedOvertimeMinutes(attendanceLog, shiftDay);
 
-                var isWithinAdvanceWindow = IsWithinOvertimeAdvanceWindow(
+                var isWithinRequestWindow = IsWithinOvertimeRequestWindow(
                     nowTime,
-                    shiftDay,
-                    EmployeeOvertimeAdvanceWindowMinutes);
+                    shiftDay);
 
-                if (rawRenderedOvertime <= 0 && !isWithinAdvanceWindow)
-                    throw new ApiException("Overtime request for today is only allowed within 3 hours before shift end or after overtime is rendered.", StatusCodes.Status400BadRequest);
+                if (rawRenderedOvertime <= 0 && !isWithinRequestWindow)
+                    throw new ApiException("Overtime request for today is only allowed within the assigned shift overtime request window or after overtime is rendered.", StatusCodes.Status400BadRequest);
 
                 if (rawRenderedOvertime > 0 && request.RequestedMinutes > rawRenderedOvertime)
                     throw new ApiException($"Requested minutes exceed rendered overtime for {date:yyyy-MM-dd}.", StatusCodes.Status400BadRequest);
@@ -310,11 +317,34 @@ public class OvertimeRequestService
             Items = items
         };
 
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+
         _context.OvertimeRequests.Add(entity);
         await _context.SaveChangesAsync();
+
+        var log = _activityLogger.Build(
+            user,
+            "OVERTIME_REQUEST_SUBMITTED",
+            "ATTENDANCE",
+            "OvertimeRequest",
+            entity.Id.ToString(),
+            $"{BuildEmployeeName(employee.FirstName, employee.LastName)} submitted overtime request from {entity.DateFrom:yyyy-MM-dd} to {entity.DateTo:yyyy-MM-dd}.",
+            null,
+            null);
+
+        if (log != null)
+        {
+            _context.ActivityLogs.Add(log);
+            await _context.SaveChangesAsync();
+        }
+
+        await transaction.CommitAsync();
     }
 
-    public async Task AdminAssignAsync(long adminUserId, AdminAssignOvertimeRequest request)
+    public async Task AdminAssignAsync(
+        ClaimsPrincipal user,
+        long adminUserId,
+        AdminAssignOvertimeRequest request)
     {
         if (request.EmployeeId == Guid.Empty)
             throw new ApiException("Employee is required.", StatusCodes.Status400BadRequest);
@@ -325,11 +355,11 @@ public class OvertimeRequestService
         if (request.DateFrom > request.DateTo)
             throw new ApiException("Date From cannot be later than Date To.", StatusCodes.Status400BadRequest);
 
-        var employeeExists = await _context.Employees
+        var employee = await _context.Employees
             .AsNoTracking()
-            .AnyAsync(x => x.Id == request.EmployeeId);
+            .FirstOrDefaultAsync(x => x.Id == request.EmployeeId);
 
-        if (!employeeExists)
+        if (employee == null)
             throw new ApiException("Employee not found.", StatusCodes.Status404NotFound);
 
         var attendance = await _context.AttendanceLogs
@@ -388,13 +418,39 @@ public class OvertimeRequestService
             Items = items
         };
 
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+
         _context.OvertimeRequests.Add(entity);
         await _context.SaveChangesAsync();
+
+        var log = _activityLogger.Build(
+            user,
+            "OVERTIME_ASSIGNED",
+            "ATTENDANCE",
+            "OvertimeRequest",
+            entity.Id.ToString(),
+            $"{BuildEmployeeName(employee.FirstName, employee.LastName)} was assigned overtime from {entity.DateFrom:yyyy-MM-dd} to {entity.DateTo:yyyy-MM-dd}.",
+            null,
+            null);
+
+        if (log != null)
+        {
+            _context.ActivityLogs.Add(log);
+            await _context.SaveChangesAsync();
+        }
+
+        await transaction.CommitAsync();
     }
 
-    public async Task ReviewAsync(long reviewerUserId, int requestId, string action, string? remarks)
+    public async Task ReviewAsync(
+        ClaimsPrincipal user,
+        long reviewerUserId,
+        int requestId,
+        string action,
+        string? remarks)
     {
         var request = await _context.OvertimeRequests
+            .Include(x => x.Employee)
             .Include(x => x.Items)
             .FirstOrDefaultAsync(x => x.Id == requestId);
 
@@ -418,6 +474,23 @@ public class OvertimeRequestService
         request.ReviewedAtUtc = DateTime.UtcNow;
         request.ReviewRemarks = NormalizeNullableText(remarks);
         request.UpdatedAtUtc = DateTime.UtcNow;
+
+        var detailMessage = request.Status == "Approved"
+            ? $"{BuildEmployeeName(request.Employee.FirstName, request.Employee.LastName)} overtime request was approved."
+            : $"{BuildEmployeeName(request.Employee.FirstName, request.Employee.LastName)} overtime request was rejected.";
+
+        var log = _activityLogger.Build(
+            user,
+            request.Status == "Approved" ? "OVERTIME_REQUEST_APPROVED" : "OVERTIME_REQUEST_REJECTED",
+            "ATTENDANCE",
+            "OvertimeRequest",
+            request.Id.ToString(),
+            detailMessage,
+            null,
+            null);
+
+        if (log != null)
+            _context.ActivityLogs.Add(log);
 
         await _context.SaveChangesAsync();
     }
@@ -493,10 +566,9 @@ public class OvertimeRequestService
         return Math.Max(0, renderedMinutes - requiredMinutes);
     }
 
-    private static bool IsWithinOvertimeAdvanceWindow(
+    private static bool IsWithinOvertimeRequestWindow(
         TimeOnly currentTime,
-        ShiftDay shiftDay,
-        int minutesBeforeShiftEnd)
+        ShiftDay shiftDay)
     {
         if (!shiftDay.StartTime.HasValue || !shiftDay.EndTime.HasValue)
             return false;
@@ -508,9 +580,18 @@ public class OvertimeRequestService
         if (shiftEndMinute > MinutesPerDay && currentMinute < shiftStartMinute)
             currentMinute += MinutesPerDay;
 
-        var advanceWindowStart = shiftEndMinute - minutesBeforeShiftEnd;
+        var grossShiftMinutes = shiftEndMinute - shiftStartMinute;
 
-        return currentMinute >= advanceWindowStart && currentMinute <= shiftEndMinute;
+        if (grossShiftMinutes <= 0)
+            return false;
+
+        var requestWindowStart = shiftStartMinute + (grossShiftMinutes / 2);
+        var requestWindowEnd = shiftEndMinute - 60;
+
+        if (requestWindowEnd < requestWindowStart)
+            return false;
+
+        return currentMinute >= requestWindowStart && currentMinute <= requestWindowEnd;
     }
 
     private static int CalculateDurationMinutes(TimeOnly start, TimeOnly end)
