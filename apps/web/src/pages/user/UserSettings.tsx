@@ -35,6 +35,11 @@ function useAutoHide(visible: boolean, hide: () => void, isEditing: boolean = fa
     const [remaining, setRemaining] = useState<number | null>(null);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const timeoutRef  = useRef<ReturnType<typeof setTimeout>  | null>(null);
+    const hideRef     = useRef(hide);
+
+    useEffect(() => {
+        hideRef.current = hide;
+    }, [hide]);
 
     useEffect(() => {
         if (!visible || isEditing) {
@@ -43,17 +48,18 @@ function useAutoHide(visible: boolean, hide: () => void, isEditing: boolean = fa
             if (timeoutRef.current)  clearTimeout(timeoutRef.current);
             return;
         }
+
         setRemaining(AUTO_HIDE_MS / 1000);
         intervalRef.current = setInterval(() => {
             setRemaining(prev => (prev !== null && prev > 1 ? prev - 1 : null));
         }, 1000);
-        timeoutRef.current = setTimeout(() => { hide(); }, AUTO_HIDE_MS);
+        timeoutRef.current = setTimeout(() => { hideRef.current(); }, AUTO_HIDE_MS);
+
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
             if (timeoutRef.current)  clearTimeout(timeoutRef.current);
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [visible]);
+    }, [visible, isEditing]);
 
     return remaining;
 }
@@ -241,6 +247,7 @@ const GovernmentInfoSection = ({ form, onChange, isEditing }: GovernmentInfoSect
     useEffect(() => () => { if (sessionTimer.current) clearTimeout(sessionTimer.current); }, []);
 
     const handleVerify = async (password: string): Promise<boolean> => {
+        // TODO: Replace this frontend placeholder with a backend password verification endpoint.
         if (password.length > 0) {
             setIsVerified(true);
             setModalOpen(false);
@@ -370,11 +377,26 @@ const ProfileTab = ({ user }: { user: any }) => {
     const [isEditing,   setIsEditing]   = useState(false);
     const [avatar,      setAvatar]      = useState<AvatarState>({ url: null });
     const avatarInputRef = useRef<HTMLInputElement>(null);
+    const avatarObjectUrlRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        return () => {
+            if (avatarObjectUrlRef.current) {
+                URL.revokeObjectURL(avatarObjectUrlRef.current);
+            }
+        };
+    }, []);
 
     const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
+
+        if (avatarObjectUrlRef.current) {
+            URL.revokeObjectURL(avatarObjectUrlRef.current);
+        }
+
         const url = URL.createObjectURL(file);
+        avatarObjectUrlRef.current = url;
         setAvatar({ url });
         toast.success('Profile photo updated.');
     };
