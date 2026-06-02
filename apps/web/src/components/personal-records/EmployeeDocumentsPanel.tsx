@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ChevronDown,
@@ -35,7 +35,6 @@ type Props = {
   activeDocumentId?: string | null;
 };
 
-
 type DocumentTypeDropdownProps = {
   value: EmployeeDocumentType;
   options: readonly EmployeeDocumentType[];
@@ -51,12 +50,23 @@ function DocumentTypeDropdown({
 }: DocumentTypeDropdownProps) {
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [open, setOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(() =>
+    Math.max(0, options.indexOf(value))
+  );
   const [menuPosition, setMenuPosition] = useState({
     top: 0,
     left: 0,
     width: 0,
   });
+
+  const listboxId = "employee-document-type-listbox";
+
+  const getSelectedIndex = () => {
+    const selectedIndex = options.indexOf(value);
+    return selectedIndex >= 0 ? selectedIndex : 0;
+  };
 
   const updateMenuPosition = () => {
     const rect = triggerRef.current?.getBoundingClientRect();
@@ -69,16 +79,71 @@ function DocumentTypeDropdown({
     });
   };
 
-  const handleToggle = () => {
+  const focusHighlightedOption = (index: number) => {
+    window.requestAnimationFrame(() => {
+      optionRefs.current[index]?.focus();
+    });
+  };
+
+  const openMenu = (index = getSelectedIndex()) => {
     if (disabled) return;
 
     updateMenuPosition();
-    setOpen((current) => !current);
+    setHighlightedIndex(index);
+    setOpen(true);
+    focusHighlightedOption(index);
   };
 
-  const handleSelect = (selectedValue: EmployeeDocumentType) => {
-    onSelect(selectedValue);
+  const closeMenu = (restoreFocus = false) => {
     setOpen(false);
+
+    if (restoreFocus) {
+      window.requestAnimationFrame(() => {
+        triggerRef.current?.focus();
+      });
+    }
+  };
+
+  const handleToggle = () => {
+    if (disabled) return;
+
+    if (open) {
+      closeMenu();
+      return;
+    }
+
+    openMenu();
+  };
+
+  const handleSelect = useCallback(
+    (selectedValue: EmployeeDocumentType) => {
+      onSelect(selectedValue);
+      closeMenu(true);
+    },
+    [onSelect]
+  );
+
+  const handleTriggerKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>
+  ) => {
+    if (disabled) return;
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      openMenu(getSelectedIndex());
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      openMenu(options.length - 1);
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleToggle();
+    }
   };
 
   useEffect(() => {
@@ -95,7 +160,52 @@ function DocumentTypeDropdown({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setOpen(false);
+        closeMenu(true);
+        return;
+      }
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setHighlightedIndex((current) => {
+          const nextIndex = current >= options.length - 1 ? 0 : current + 1;
+          focusHighlightedOption(nextIndex);
+          return nextIndex;
+        });
+        return;
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setHighlightedIndex((current) => {
+          const nextIndex = current <= 0 ? options.length - 1 : current - 1;
+          focusHighlightedOption(nextIndex);
+          return nextIndex;
+        });
+        return;
+      }
+
+      if (event.key === "Home") {
+        event.preventDefault();
+        setHighlightedIndex(0);
+        focusHighlightedOption(0);
+        return;
+      }
+
+      if (event.key === "End") {
+        event.preventDefault();
+        const lastIndex = options.length - 1;
+        setHighlightedIndex(lastIndex);
+        focusHighlightedOption(lastIndex);
+        return;
+      }
+
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        const selectedOption = options[highlightedIndex];
+
+        if (selectedOption) {
+          handleSelect(selectedOption);
+        }
       }
     };
 
@@ -114,6 +224,12 @@ function DocumentTypeDropdown({
       window.removeEventListener("resize", handleWindowChange);
       window.removeEventListener("scroll", handleWindowChange, true);
     };
+  }, [highlightedIndex, open, options, handleSelect]);
+
+  useEffect(() => {
+    if (!open) {
+      optionRefs.current = [];
+    }
   }, [open]);
 
   return (
@@ -123,6 +239,10 @@ function DocumentTypeDropdown({
         type="button"
         disabled={disabled}
         onClick={handleToggle}
+        onKeyDown={handleTriggerKeyDown}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listboxId}
         className={`flex h-12 w-full items-center justify-between rounded-xl border bg-white px-4 text-left text-sm transition ${
           open
             ? "border-green-500 ring-2 ring-green-500/10"
@@ -141,6 +261,9 @@ function DocumentTypeDropdown({
         createPortal(
           <div
             ref={menuRef}
+            id={listboxId}
+            role="listbox"
+            aria-label="Document type options"
             className="fixed z-[9999] overflow-hidden rounded-xl border border-gray-200 bg-white py-2 shadow-xl"
             style={{
               top: menuPosition.top,
@@ -148,18 +271,27 @@ function DocumentTypeDropdown({
               width: menuPosition.width,
             }}
           >
-            {options.map((option) => {
+            {options.map((option, index) => {
               const isSelected = option === value;
+              const isHighlighted = index === highlightedIndex;
 
               return (
                 <button
                   key={option}
+                  ref={(element) => {
+                    optionRefs.current[index] = element;
+                  }}
                   type="button"
+                  id={`${listboxId}-${index}`}
+                  role="option"
+                  aria-selected={isSelected}
+                  tabIndex={isHighlighted ? 0 : -1}
                   className={`block w-full px-4 py-3 text-left text-sm transition ${
                     isSelected
                       ? "bg-green-50 font-medium text-green-700"
                       : "text-gray-700 hover:bg-gray-50"
                   }`}
+                  onMouseEnter={() => setHighlightedIndex(index)}
                   onClick={() => handleSelect(option)}
                 >
                   {option}
@@ -334,6 +466,7 @@ function getDocumentMeta(doc: EmployeeDocumentDto): string {
 }
 
 export function EmployeeDocumentsPanel({
+  employeeId,
   documents,
   documentsLoading,
   documentsError,
@@ -353,152 +486,110 @@ export function EmployeeDocumentsPanel({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [pendingDeleteDoc, setPendingDeleteDoc] =
     useState<EmployeeDocumentDto | null>(null);
-  const [isDragActive, setIsDragActive] = useState(false);
+  const [showGovernmentNumbers, setShowGovernmentNumbers] = useState(false);
 
-  const canDeleteDocuments = !readOnly && user?.role === "SUPER_ADMIN";
+  const isAdminLike = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
 
+  const canModify = !readOnly && Boolean(employeeId);
+  const canViewGovernmentNumbers = isAdminLike && showGovernmentNumbers;
 
-  const handleChooseFile = () => {
-    if (readOnly || uploading) return;
-    fileInputRef.current?.click();
-  };
+  const handleFileSelect = (file: File | null | undefined) => {
+    if (!file || !canModify || uploading) return;
+    void onUpload(file);
 
-  const handleFileChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    await onUpload(file);
-    e.target.value = "";
-  };
-
-  const handleDeleteClick = (doc: EmployeeDocumentDto) => {
-    if (!canDeleteDocuments) return;
-    setPendingDeleteDoc(doc);
-  };
-
-  const handleCancelDelete = () => {
-    if (deletingDocumentId) return;
-    setPendingDeleteDoc(null);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!pendingDeleteDoc || !canDeleteDocuments) return;
-
-    try {
-      await onDelete(pendingDeleteDoc.id);
-      setPendingDeleteDoc(null);
-    } catch {
-      // parent hook already handles error toast
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
-  const isConfirmDeleting =
-    !!pendingDeleteDoc && deletingDocumentId === pendingDeleteDoc.id;
+  const handleDrop = (event: React.DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    handleFileSelect(event.dataTransfer.files?.[0]);
+  };
+
+  const handleDownload = (doc: EmployeeDocumentDto) => {
+    void onDownload(doc);
+  };
+
+  const handlePreview = (doc: EmployeeDocumentDto) => {
+    if (onPreviewSelect) {
+      void onPreviewSelect(doc);
+      return;
+    }
+
+    void onDownload(doc);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!pendingDeleteDoc) return;
+    void onDelete(pendingDeleteDoc.id);
+    setPendingDeleteDoc(null);
+  };
 
   return (
     <>
       <div className="space-y-4">
-        {!readOnly && (
-          <>
-            <div className="overflow-visible">
-              <DocumentTypeDropdown
-                value={selectedDocumentType}
-                options={EMPLOYEE_DOCUMENT_TYPES}
-                disabled={uploading}
-                onSelect={onSelectedDocumentTypeChange}
-              />
-            </div>
+        {documentsError ? (
+          <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+            {documentsError}
+          </div>
+        ) : null}
 
-            <div className="flex justify-center">
+        {canModify ? (
+          <div className="space-y-4">
+            <DocumentTypeDropdown
+              value={selectedDocumentType}
+              options={EMPLOYEE_DOCUMENT_TYPES}
+              disabled={uploading}
+              onSelect={onSelectedDocumentTypeChange}
+            />
+
+            <label
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={handleDrop}
+              className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-4 py-8 text-center transition ${
+                uploading
+                  ? "cursor-wait border-gray-200 bg-gray-50 text-gray-400"
+                  : "border-gray-300 bg-white text-gray-500 hover:border-green-500 hover:bg-green-50"
+              }`}
+            >
+              {uploading ? (
+                <Loader2 className="mb-3 h-6 w-6 animate-spin text-green-600" />
+              ) : (
+                <Upload className="mb-3 h-6 w-6 text-gray-400" />
+              )}
+
+              <span className="text-sm">
+                {uploading ? (
+                  "Uploading document..."
+                ) : (
+                  <>
+                    Drag and drop file here or{" "}
+                    <span className="font-semibold text-green-600">
+                      browse
+                    </span>
+                  </>
+                )}
+              </span>
+              <span className="mt-1 text-xs text-gray-400">
+                Supports PDF, PNG, JPG
+              </span>
+
               <input
                 ref={fileInputRef}
                 type="file"
                 className="hidden"
                 accept=".pdf,.png,.jpg,.jpeg"
-                onChange={handleFileChange}
+                disabled={uploading}
+                onChange={(event) => handleFileSelect(event.target.files?.[0])}
               />
-
-              <div
-                onClick={handleChooseFile}
-                onDragEnter={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (readOnly || uploading) return;
-                  setIsDragActive(true);
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (readOnly || uploading) return;
-                  setIsDragActive(true);
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                    setIsDragActive(false);
-                  }
-                }}
-                onDrop={async (e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsDragActive(false);
-
-                  if (readOnly || uploading) return;
-
-                  const file = e.dataTransfer.files?.[0];
-                  if (!file) return;
-
-                  await onUpload(file);
-                }}
-                className={`w-full max-w-xl rounded-xl border-2 border-dashed px-6 py-8 text-center transition ${
-                  uploading
-                    ? "cursor-not-allowed border-gray-200 bg-gray-50"
-                    : isDragActive
-                      ? "cursor-pointer border-green-400 bg-green-50"
-                      : "cursor-pointer border-gray-300 bg-white hover:border-green-400 hover:bg-green-50"
-                }`}
-              >
-                {uploading ? (
-                  <div className="flex flex-col items-center gap-2 text-sm text-gray-500">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                    Uploading...
-                  </div>
-                ) : (
-                  <>
-                    <div className="mb-3 flex justify-center">
-                      <Upload
-                        className={`h-6 w-6 ${
-                          isDragActive ? "text-green-600" : "text-gray-400"
-                        }`}
-                      />
-                    </div>
-
-                    <p className="text-sm text-gray-600">
-                      Drag and drop file here or{" "}
-                      <span className="font-medium text-green-600">browse</span>
-                    </p>
-
-                    <p className="mt-1 text-xs text-gray-400">
-                      Supports PDF, PNG, JPG
-                    </p>
-                  </>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-
-        {documentsError && (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600">
-            {documentsError}
+            </label>
           </div>
-        )}
+        ) : null}
 
         {documentsLoading ? (
-          <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500">
+          <div className="flex items-center justify-center rounded-xl border border-gray-100 bg-gray-50 px-4 py-6 text-sm text-gray-500">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Loading documents...
           </div>
         ) : documents.length === 0 ? (
@@ -511,138 +602,144 @@ export function EmployeeDocumentsPanel({
               const isDownloading = downloadingDocumentId === doc.id;
               const isDeleting = deletingDocumentId === doc.id;
               const isActive = activeDocumentId === doc.id;
+              const typeLabel = getDocumentTypeLabel(doc);
+              const meta = getDocumentMeta(doc);
 
               return (
                 <div
                   key={doc.id}
-                  className={`flex items-center justify-between rounded-xl px-4 py-3 transition ${
+                  className={`rounded-xl border bg-white p-4 transition ${
                     isActive
-                      ? "bg-green-50 ring-1 ring-green-200"
-                      : "bg-gray-50 hover:bg-gray-100"
+                      ? "border-green-300 ring-2 ring-green-500/10"
+                      : "border-gray-100 hover:border-green-200"
                   }`}
                 >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
-                        {getDocumentTypeLabel(doc)}
-                      </span>
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-600">
+                      <FileText className="h-5 w-5" />
                     </div>
 
-                    <div className="mt-1 flex items-start gap-2">
-                      <FileText className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400" />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-gray-800">
-                          {doc.fileName}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate text-sm font-semibold text-gray-800">
+                          {doc.fileName || typeLabel}
                         </p>
-
-                        <p className="text-xs text-gray-400">
-                          {getDocumentMeta(doc)}
-                        </p>
-
-                        <p className="text-xs text-gray-400">
-                          Uploaded {formatUploadedDate(doc.uploadedAtUtc)}
-                        </p>
+                        <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
+                          {typeLabel}
+                        </span>
                       </div>
+
+                      <p className="mt-1 text-xs text-gray-500">{meta}</p>
+                      <p className="mt-1 text-xs text-gray-400">
+                        Uploaded {formatUploadedDate(doc.uploadedAtUtc)}
+                      </p>
                     </div>
-                  </div>
 
-                  <div className="ml-4 flex items-center gap-3">
-                    {readOnly && onPreviewSelect && (
+                    <div className="flex shrink-0 items-center gap-1">
                       <button
                         type="button"
-                        className="btn-ghost btn-icon"
-                        onClick={() => void onPreviewSelect(doc)}
-                        title={isActive ? "Hide Preview" : "Preview"}
+                        onClick={() => handlePreview(doc)}
+                        className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+                        title="Preview document"
                       >
-                        {isActive ? (
-                          <EyeOff className="h-4 w-4 text-gray-500" />
-                        ) : (
-                          <Eye className="h-4 w-4 text-gray-500" />
-                        )}
+                        <Eye className="h-4 w-4" />
                       </button>
-                    )}
 
-                    {!readOnly && (
                       <button
                         type="button"
-                        className="btn-ghost btn-icon"
-                        onClick={() => onDownload(doc)}
+                        onClick={() => handleDownload(doc)}
                         disabled={isDownloading}
-                        title="Download"
+                        className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-wait disabled:opacity-60"
+                        title="Download document"
                       >
                         {isDownloading ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                          <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          <Download className="h-4 w-4 text-gray-500" />
+                          <Download className="h-4 w-4" />
                         )}
                       </button>
-                    )}
 
-                    {canDeleteDocuments && (
-                      <button
-                        type="button"
-                        className="btn-ghost btn-icon"
-                        onClick={() => handleDeleteClick(doc)}
-                        disabled={isDeleting}
-                        title="Delete"
-                      >
-                        {isDeleting ? (
-                          <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
-                        ) : (
-                          <Trash2 className="h-4 w-4 text-gray-500" />
-                        )}
-                      </button>
-                    )}
+                      {canModify ? (
+                        <button
+                          type="button"
+                          onClick={() => setPendingDeleteDoc(doc)}
+                          disabled={isDeleting}
+                          className="rounded-lg p-2 text-gray-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-wait disabled:opacity-60"
+                          title="Delete document"
+                        >
+                          {isDeleting ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
         )}
+
+        {isAdminLike ? (
+          <button
+            type="button"
+            onClick={() => setShowGovernmentNumbers((current) => !current)}
+            className="ml-auto flex items-center gap-2 text-xs font-semibold text-green-600 transition hover:text-green-700"
+          >
+            {showGovernmentNumbers ? (
+              <>
+                <EyeOff className="h-4 w-4" />
+                Hide government numbers
+              </>
+            ) : (
+              <>
+                <Eye className="h-4 w-4" />
+                Show government numbers
+              </>
+            )}
+          </button>
+        ) : null}
+
+        {canViewGovernmentNumbers ? (
+          <div className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-xs text-green-700">
+            Government number visibility is enabled for this session.
+          </div>
+        ) : null}
       </div>
 
-      {pendingDeleteDoc && canDeleteDocuments && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
-            <div className="border-b px-6 py-4">
-              <h3 className="text-lg font-bold text-gray-900">
-                Delete Document
-              </h3>
-            </div>
+      {pendingDeleteDoc ? (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/50 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
+            <h3 className="text-base font-bold text-gray-900">
+              Delete Document
+            </h3>
+            <p className="mt-2 text-sm text-gray-500">
+              Are you sure you want to delete{" "}
+              <span className="font-semibold text-gray-800">
+                {pendingDeleteDoc.fileName ||
+                  getDocumentTypeLabel(pendingDeleteDoc)}
+              </span>
+              ?
+            </p>
 
-            <div className="px-6 py-5">
-              <p className="text-sm text-gray-600">
-                Are you sure you want to delete this document? This action
-                cannot be undone.
-              </p>
-
-              <div className="mt-3 rounded-xl bg-gray-50 px-4 py-3">
-                <p className="truncate text-sm font-medium text-gray-800">
-                  {pendingDeleteDoc.fileName}
-                </p>
-                <p className="mt-1 text-xs text-gray-400">
-                  {getDocumentTypeLabel(pendingDeleteDoc)}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 border-t px-6 py-4">
+            <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
-                className="btn btn-secondary"
-                onClick={handleCancelDelete}
-                disabled={isConfirmDeleting}
+                onClick={() => setPendingDeleteDoc(null)}
+                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
               >
                 Cancel
               </button>
 
               <button
                 type="button"
-                className="btn btn-danger"
-                onClick={() => void handleConfirmDelete()}
-                disabled={isConfirmDeleting}
+                onClick={handleConfirmDelete}
+                disabled={deletingDocumentId === pendingDeleteDoc.id}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-wait disabled:opacity-60"
               >
-                {isConfirmDeleting ? (
+                {deletingDocumentId === pendingDeleteDoc.id ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Deleting...
@@ -654,7 +751,7 @@ export function EmployeeDocumentsPanel({
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </>
   );
 }

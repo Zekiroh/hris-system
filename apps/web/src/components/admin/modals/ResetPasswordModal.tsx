@@ -72,21 +72,13 @@ const ResetPasswordModal = ({
 
             <div className="relative">
               <input
-                type="text"
+                type={showPassword ? 'text' : 'password'}
                 name="reset-user-access-code"
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="none"
                 spellCheck={false}
-                inputMode="text"
                 className="pro-input pr-11"
-                style={
-                  showPassword
-                    ? undefined
-                    : ({
-                        WebkitTextSecurity: 'disc',
-                      } as React.CSSProperties)
-                }
                 placeholder="Minimum 8 characters"
                 value={data.newPassword}
                 onChange={(e) => {

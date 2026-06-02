@@ -252,8 +252,15 @@ public class EmployeesService
 
         if (log is not null)
         {
-            _db.ActivityLogs.Add(log);
-            await _db.SaveChangesAsync(ct);
+            try
+            {
+                _db.ActivityLogs.Add(log);
+                await _db.SaveChangesAsync(ct);
+            }
+            catch
+            {
+                _db.Entry(log).State = EntityState.Detached;
+            }
         }
 
         var stream = new FileStream(absolutePath, FileMode.Open, FileAccess.Read, FileShare.Read);

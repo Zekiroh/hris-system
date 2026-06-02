@@ -469,7 +469,7 @@ const UserDashboard = () => {
           overtimeResponse,
         ] = await Promise.all([
           getTodayMyAttendanceLog(),
-          getMyCurrentShift(),
+          getMyCurrentShift().catch(() => null),
           getMyAttendanceLogs({ page: 1, pageSize: 1000 }),
           getMyOvertimeRequests(),
         ]);
@@ -699,7 +699,14 @@ const UserDashboard = () => {
     },
   ];
 
-  const recentAttendance = attendanceLogs.slice(0, 5);
+  const recentAttendance = [...attendanceLogs]
+    .sort((a, b) => {
+      const aTime = new Date(`${a.date}T00:00:00`).getTime();
+      const bTime = new Date(`${b.date}T00:00:00`).getTime();
+
+      return bTime - aTime;
+    })
+    .slice(0, 5);
 
   const summaryStartDate = summaryPeriod.startDate;
   const summaryEndDate = summaryPeriod.endDate;

@@ -85,8 +85,6 @@ public class AttendanceLogsService : IAttendanceLogsService
         existing.OvertimeMinutes = 0;
         existing.RenderedMinutes = 0;
 
-        await _context.SaveChangesAsync(ct);
-
         var timeInLog = _activityLogger.Build(
             user,
             "ATTENDANCE_TIME_IN",
@@ -100,8 +98,9 @@ public class AttendanceLogsService : IAttendanceLogsService
         if (timeInLog != null)
         {
             _context.ActivityLogs.Add(timeInLog);
-            await _context.SaveChangesAsync(ct);
         }
+
+        await _context.SaveChangesAsync(ct);
 
         return await GetAttendanceLogDtoByIdAsync(existing.Id, ct);
     }
@@ -139,8 +138,6 @@ public class AttendanceLogsService : IAttendanceLogsService
         RecalculateAttendanceFields(existing, shiftDay, includeOvertime: true);
         await ApplyApprovedOvertimeCapAsync(existing, ct);
 
-        await _context.SaveChangesAsync(ct);
-
         var timeOutLog = _activityLogger.Build(
             user,
             "ATTENDANCE_TIME_OUT",
@@ -154,8 +151,9 @@ public class AttendanceLogsService : IAttendanceLogsService
         if (timeOutLog != null)
         {
             _context.ActivityLogs.Add(timeOutLog);
-            await _context.SaveChangesAsync(ct);
         }
+
+        await _context.SaveChangesAsync(ct);
 
         return await GetAttendanceLogDtoByIdAsync(existing.Id, ct);
     }

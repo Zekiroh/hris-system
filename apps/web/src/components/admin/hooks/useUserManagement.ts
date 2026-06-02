@@ -381,7 +381,11 @@ export const useUserManagement = () => {
 
       if (createdUser) {
         setHighlightedUser(createdUser.id);
-      } else if (!postCreateIssue) {
+      } else if (
+        !postCreateIssue &&
+        selectedRole === 'ALL' &&
+        selectedStatus === 'ALL'
+      ) {
         postCreateIssue = 'User created, but the table could not be refreshed.';
       }
 

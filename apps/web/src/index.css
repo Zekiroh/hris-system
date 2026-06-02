@@ -1047,7 +1047,7 @@ input:-webkit-autofill:focus {
 }
 
 .success-toast-progress {
-  animation: successToastProgress 3s linear forwards;
+  animation: successToastProgress 3.5s linear forwards;
 }
 @keyframes successToastPop {
   0% {

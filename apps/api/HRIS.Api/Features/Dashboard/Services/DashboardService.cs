@@ -71,7 +71,8 @@ public class DashboardService : IDashboardService
                 Month = g.Key,
                 PresentCount = g.Count(x => x.IsPresent),
                 LateCount = g.Count(x => x.LateMinutes > 0),
-                OvertimeCount = g.Count(x => x.OvertimeMinutes > 0)
+                OvertimeCount = g.Count(x => x.OvertimeMinutes > 0),
+                AbsentCount = g.Count(x => !x.IsPresent)
             })
             .ToListAsync(ct);
 
@@ -88,7 +89,8 @@ public class DashboardService : IDashboardService
                     MonthLabel = new DateTime(year, month, 1).ToString("MMM"),
                     PresentCount = item?.PresentCount ?? 0,
                     LateCount = item?.LateCount ?? 0,
-                    OvertimeCount = item?.OvertimeCount ?? 0
+                    OvertimeCount = item?.OvertimeCount ?? 0,
+                    AbsentCount = item?.AbsentCount ?? 0
                 };
             })
             .ToList();

@@ -317,6 +317,8 @@ public class OvertimeRequestService
             Items = items
         };
 
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+
         _context.OvertimeRequests.Add(entity);
         await _context.SaveChangesAsync();
 
@@ -335,6 +337,8 @@ public class OvertimeRequestService
             _context.ActivityLogs.Add(log);
             await _context.SaveChangesAsync();
         }
+
+        await transaction.CommitAsync();
     }
 
     public async Task AdminAssignAsync(
@@ -414,6 +418,8 @@ public class OvertimeRequestService
             Items = items
         };
 
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+
         _context.OvertimeRequests.Add(entity);
         await _context.SaveChangesAsync();
 
@@ -432,6 +438,8 @@ public class OvertimeRequestService
             _context.ActivityLogs.Add(log);
             await _context.SaveChangesAsync();
         }
+
+        await transaction.CommitAsync();
     }
 
     public async Task ReviewAsync(

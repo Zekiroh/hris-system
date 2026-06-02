@@ -1,9 +1,11 @@
 using HRIS.Api.Features.Dashboard.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HRIS.Api.Features.Dashboard.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("dashboard")]
 public class DashboardController : ControllerBase
 {
@@ -15,11 +17,18 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("admin/attendance-trends")]
+    [Authorize(Roles = "SUPER_ADMIN,ADMIN")]
     public async Task<IActionResult> GetAttendanceTrends(
         [FromQuery] int year,
         CancellationToken ct)
     {
+        if (year < 2000 || year > DateTime.UtcNow.Year + 1)
+        {
+            return BadRequest("Invalid year.");
+        }
+
         var result = await _dashboard.GetMonthlyAttendanceTrendsAsync(year, ct);
+
         return Ok(result);
     }
 
@@ -29,6 +38,11 @@ public class DashboardController : ControllerBase
         CancellationToken ct)
     {
         var selectedYear = year ?? DateTime.UtcNow.Year;
+
+        if (selectedYear < 2000 || selectedYear > DateTime.UtcNow.Year + 1)
+        {
+            return BadRequest("Invalid year.");
+        }
 
         var result = await _dashboard.GetMyMonthlyAttendanceTrendsAsync(
             User,
