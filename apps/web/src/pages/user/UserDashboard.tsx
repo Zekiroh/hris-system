@@ -29,7 +29,7 @@ import {
 } from "../../lib/attendance";
 
 type MyOvertimeDashboardRow = {
-  id: number;
+  id: string;
   status: string;
 };
 
@@ -348,14 +348,14 @@ const expandOvertimeRequestRows = (
   if (dates.length === 0) {
     return [
       {
-        id: request.id,
+        id: `${request.id}-single`,
         status,
       },
     ];
   }
 
   return dates.map((_, index) => ({
-    id: request.id * 1000 + index,
+    id: `${request.id}-${index}`,
     status,
   }));
 };

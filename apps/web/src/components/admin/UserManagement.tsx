@@ -369,7 +369,11 @@ const UserManagement = () => {
 
       {bannerMessage && bannerType
         ? createPortal(
-            <div className="fixed right-6 top-6 z-[10000]">
+            <div
+              className="fixed right-6 top-6 z-[10000]"
+              role={bannerType === 'error' ? 'alert' : 'status'}
+              aria-live={bannerType === 'error' ? 'assertive' : 'polite'}
+            >
               <div
                 className={`relative w-[340px] overflow-hidden rounded-2xl border bg-white shadow-[0_18px_40px_rgba(5,150,105,0.14)] ${
                   bannerType === 'success'
