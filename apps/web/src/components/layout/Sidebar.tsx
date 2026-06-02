@@ -125,6 +125,7 @@ const Sidebar = ({
     { icon: Newspaper, label: "Company News", path: "/dashboard/company-news" },
     { icon: Building2, label: "Company Directory", path: "/dashboard/company-directory" },
     { icon: HelpCircle, label: "Help & Support", path: "/dashboard/help-support" },
+    { icon: Settings, label: "Settings", path: "/dashboard/settings" },
   ];
 
   const moduleNav: NavItem[] = [
