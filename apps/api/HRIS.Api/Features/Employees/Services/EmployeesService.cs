@@ -4,6 +4,7 @@ using HRIS.Api.Features.IAM.Services;
 using HRIS.Api.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System.Security.Claims;
 using System.Linq.Expressions;
 
@@ -14,15 +15,18 @@ public class EmployeesService
     private readonly AppDbContext _db;
     private readonly IActivityLogger _activityLogger;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly ILogger<EmployeesService> _logger;
 
     public EmployeesService(
         AppDbContext db,
         IActivityLogger activityLogger,
-        IHttpContextAccessor httpContextAccessor)
+        IHttpContextAccessor httpContextAccessor,
+        ILogger<EmployeesService> logger)
     {
         _db = db;
         _activityLogger = activityLogger;
         _httpContextAccessor = httpContextAccessor;
+        _logger = logger;
     }
 
     public async Task<PagedEmployeesResponse> GetAllAsync(GetEmployeesQuery query, CancellationToken ct = default)
@@ -257,8 +261,14 @@ public class EmployeesService
                 _db.ActivityLogs.Add(log);
                 await _db.SaveChangesAsync(ct);
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogWarning(
+                    ex,
+                    "Failed to write employee document audit log for employee {EmployeeId} and document {DocumentId}.",
+                    employeeId,
+                    documentId);
+
                 _db.Entry(log).State = EntityState.Detached;
             }
         }

@@ -22,7 +22,7 @@ public class DashboardController : ControllerBase
         [FromQuery] int year,
         CancellationToken ct)
     {
-        if (year < 2000 || year > DateTime.UtcNow.Year + 1)
+        if (year < 2000 || year > DateTime.UtcNow.Year)
         {
             return BadRequest("Invalid year.");
         }
@@ -39,7 +39,7 @@ public class DashboardController : ControllerBase
     {
         var selectedYear = year ?? DateTime.UtcNow.Year;
 
-        if (selectedYear < 2000 || selectedYear > DateTime.UtcNow.Year + 1)
+        if (selectedYear < 2000 || selectedYear > DateTime.UtcNow.Year)
         {
             return BadRequest("Invalid year.");
         }

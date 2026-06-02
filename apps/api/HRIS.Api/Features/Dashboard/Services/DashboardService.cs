@@ -19,6 +19,8 @@ public class DashboardService : IDashboardService
         int year,
         CancellationToken ct)
     {
+        ValidateYear(year);
+
         var logs = await _db.AttendanceLogs
             .AsNoTracking()
             .Where(x => x.Date.Year == year)
@@ -58,6 +60,8 @@ public class DashboardService : IDashboardService
         int year,
         CancellationToken ct)
     {
+        ValidateYear(year);
+
         var employee = await ResolveEmployeeAsync(user, ct);
 
         var logs = await _db.AttendanceLogs
@@ -96,6 +100,14 @@ public class DashboardService : IDashboardService
             .ToList();
     }
 
+    private static void ValidateYear(int year)
+    {
+        if (year is < 1 or > 9999)
+        {
+            throw new ArgumentOutOfRangeException(nameof(year), "Year must be between 1 and 9999.");
+        }
+    }
+
     private async Task<Employee> ResolveEmployeeAsync(
         ClaimsPrincipal user,
         CancellationToken ct)
@@ -103,7 +115,7 @@ public class DashboardService : IDashboardService
         var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
             ?? user.FindFirst("sub")?.Value;
 
-        if (!int.TryParse(userIdClaim, out var userId))
+        if (!long.TryParse(userIdClaim, out var userId))
         {
             throw new UnauthorizedAccessException("Invalid user.");
         }
