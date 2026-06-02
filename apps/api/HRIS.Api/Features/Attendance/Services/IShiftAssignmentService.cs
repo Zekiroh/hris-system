@@ -1,10 +1,14 @@
+using System.Security.Claims;
 using HRIS.Api.Features.Attendance.DTOs;
 
 namespace HRIS.Api.Features.Attendance.Services;
 
 public interface IShiftAssignmentsService
 {
-    Task<EmployeeShiftAssignmentDto> AssignAsync(AssignShiftRequest request, CancellationToken ct);
+    Task<EmployeeShiftAssignmentDto> AssignAsync(
+        ClaimsPrincipal user,
+        AssignShiftRequest request,
+        CancellationToken ct);
 
     Task<EmployeeShiftAssignmentDto?> GetCurrentAsync(Guid employeeId, CancellationToken ct);
 
@@ -12,5 +16,8 @@ public interface IShiftAssignmentsService
 
     Task<List<EmployeeShiftAssignmentDto>> GetByShiftAsync(int shiftId, CancellationToken ct);
 
-    Task UnassignAsync(int assignmentId, CancellationToken ct);
+    Task UnassignAsync(
+        ClaimsPrincipal user,
+        int assignmentId,
+        CancellationToken ct);
 }

@@ -3,6 +3,7 @@ using System.Text;
 using HRIS.Api.Data;
 using HRIS.Api.Features.Attendance.DTOs;
 using HRIS.Api.Features.Common.Exceptions;
+using HRIS.Api.Features.IAM.Services;
 using HRIS.Api.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -13,14 +14,19 @@ public class AttendanceLogsService : IAttendanceLogsService
 {
     private readonly AppDbContext _context;
     private readonly IAttendanceHolidayProvider _holidayProvider;
+    private readonly IActivityLogger _activityLogger;
     private const int EarlyTimeInBufferMinutes = 10;
     private const int MaxAttendanceDurationHours = 16;
     private static readonly TimeZoneInfo ManilaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila");
 
-    public AttendanceLogsService(AppDbContext context, IAttendanceHolidayProvider holidayProvider)
+    public AttendanceLogsService(
+        AppDbContext context,
+        IAttendanceHolidayProvider holidayProvider,
+        IActivityLogger activityLogger)
     {
         _context = context;
         _holidayProvider = holidayProvider;
+        _activityLogger = activityLogger;
     }
 
     public async Task<AttendanceLogDto> TimeInAsync(ClaimsPrincipal user, TimeInRequest request, CancellationToken ct)
@@ -79,6 +85,21 @@ public class AttendanceLogsService : IAttendanceLogsService
         existing.OvertimeMinutes = 0;
         existing.RenderedMinutes = 0;
 
+        var timeInLog = _activityLogger.Build(
+            user,
+            "ATTENDANCE_TIME_IN",
+            "ATTENDANCE",
+            "AttendanceLog",
+            existing.Id.ToString(),
+            $"{BuildEmployeeName(employee.FirstName, employee.MiddleName, employee.LastName, employee.User?.Suffix)} timed in on {today:MMMM d, yyyy} at {now:hh:mm tt}.",
+            null,
+            null);
+
+        if (timeInLog != null)
+        {
+            _context.ActivityLogs.Add(timeInLog);
+        }
+
         await _context.SaveChangesAsync(ct);
 
         return await GetAttendanceLogDtoByIdAsync(existing.Id, ct);
@@ -116,6 +137,21 @@ public class AttendanceLogsService : IAttendanceLogsService
 
         RecalculateAttendanceFields(existing, shiftDay, includeOvertime: true);
         await ApplyApprovedOvertimeCapAsync(existing, ct);
+
+        var timeOutLog = _activityLogger.Build(
+            user,
+            "ATTENDANCE_TIME_OUT",
+            "ATTENDANCE",
+            "AttendanceLog",
+            existing.Id.ToString(),
+            $"{BuildEmployeeName(employee.FirstName, employee.MiddleName, employee.LastName, employee.User?.Suffix)} timed out on {today:MMMM d, yyyy} at {now:hh:mm tt}.",
+            null,
+            null);
+
+        if (timeOutLog != null)
+        {
+            _context.ActivityLogs.Add(timeOutLog);
+        }
 
         await _context.SaveChangesAsync(ct);
 

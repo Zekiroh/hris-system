@@ -73,7 +73,11 @@ public class EmployeesController : ControllerBase
         Guid documentId,
         CancellationToken ct)
     {
-        var (ok, error, file) = await _employees.DownloadDocumentAsync(employeeId, documentId, ct);
+        var (ok, error, file) = await _employees.DownloadDocumentAsync(
+            User,
+            employeeId,
+            documentId,
+            ct);
 
         if (!ok)
         {
@@ -136,6 +140,7 @@ public class EmployeesController : ControllerBase
         CancellationToken ct)
     {
         var (ok, error, document) = await _employees.UploadDocumentAsync(
+            User,
             id,
             req.DocumentType,
             req.File,
@@ -238,7 +243,11 @@ public class EmployeesController : ControllerBase
         Guid documentId,
         CancellationToken ct)
     {
-        var (ok, error) = await _employees.DeleteDocumentAsync(employeeId, documentId, ct);
+        var (ok, error) = await _employees.DeleteDocumentAsync(
+            User,
+            employeeId,
+            documentId,
+            ct);
 
         if (!ok)
         {

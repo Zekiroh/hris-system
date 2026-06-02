@@ -811,9 +811,20 @@ const AdminAttendance = () => {
             await fetchOt();
             await fetchDtr(1, dtrFilters);
             await fetchSummary();
+
+            toast.success(
+                newStatus === 'Approved'
+                    ? 'Overtime request approved successfully.'
+                    : 'Overtime request rejected successfully.'
+            );
         } catch (error: unknown) {
             console.error(error);
-            alert(getErrorMessage(error, `Failed to ${action.toLowerCase()} overtime request.`));
+            toast.error(
+                getErrorMessage(
+                    error,
+                    `Failed to ${action.toLowerCase()} overtime request.`
+                )
+            );
         } finally {
             setReviewingOtId(null);
         }

@@ -22,7 +22,7 @@ public class ShiftAssignmentsController : ControllerBase
     [PermissionAuthorize("ATTENDANCE", "Create")]
     public async Task<IActionResult> Assign([FromBody] AssignShiftRequest request, CancellationToken ct)
     {
-        var result = await _service.AssignAsync(request, ct);
+        var result = await _service.AssignAsync(User, request, ct);
         return Ok(result);
     }
 
@@ -61,7 +61,7 @@ public class ShiftAssignmentsController : ControllerBase
     [PermissionAuthorize("ATTENDANCE", "Update")]
     public async Task<IActionResult> Unassign(int assignmentId, CancellationToken ct)
     {
-        await _service.UnassignAsync(assignmentId, ct);
+        await _service.UnassignAsync(User, assignmentId, ct);
         return NoContent();
     }
 }
