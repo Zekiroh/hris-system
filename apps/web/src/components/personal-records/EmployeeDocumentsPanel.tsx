@@ -4,7 +4,6 @@ import {
   ChevronDown,
   Download,
   Eye,
-  EyeOff,
   Trash2,
   Upload,
   FileText,
@@ -15,7 +14,6 @@ import type {
   EmployeeDocumentType,
 } from "../../lib/employees";
 import { EMPLOYEE_DOCUMENT_TYPES } from "../../lib/employees";
-import { useAuth } from "../../context/AuthContext";
 
 type Props = {
   employeeId: string | null;
@@ -482,16 +480,11 @@ export function EmployeeDocumentsPanel({
   onPreviewSelect,
   activeDocumentId = null,
 }: Props) {
-  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [pendingDeleteDoc, setPendingDeleteDoc] =
     useState<EmployeeDocumentDto | null>(null);
-  const [showGovernmentNumbers, setShowGovernmentNumbers] = useState(false);
-
-  const isAdminLike = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
 
   const canModify = !readOnly && Boolean(employeeId);
-  const canViewGovernmentNumbers = isAdminLike && showGovernmentNumbers;
 
   const handleFileSelect = (file: File | null | undefined) => {
     if (!file || !canModify || uploading) return;
@@ -681,32 +674,6 @@ export function EmployeeDocumentsPanel({
             })}
           </div>
         )}
-
-        {isAdminLike ? (
-          <button
-            type="button"
-            onClick={() => setShowGovernmentNumbers((current) => !current)}
-            className="ml-auto flex items-center gap-2 text-xs font-semibold text-green-600 transition hover:text-green-700"
-          >
-            {showGovernmentNumbers ? (
-              <>
-                <EyeOff className="h-4 w-4" />
-                Hide government numbers
-              </>
-            ) : (
-              <>
-                <Eye className="h-4 w-4" />
-                Show government numbers
-              </>
-            )}
-          </button>
-        ) : null}
-
-        {canViewGovernmentNumbers ? (
-          <div className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-xs text-green-700">
-            Government number visibility is enabled for this session.
-          </div>
-        ) : null}
       </div>
 
       {pendingDeleteDoc ? (
