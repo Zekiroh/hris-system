@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from 'react';
 import {
   getAdminUsers,
   createAdminUser,
@@ -38,8 +45,15 @@ export const useUserManagement = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
-  const [bannerType, setBannerType] = useState<'success' | 'error' | null>(null);
+  const [bannerType, setBannerType] = useState<'success' | 'error' | null>(
+    null
+  );
   const bannerTimeoutRef = useRef<number | null>(null);
+
+  const [highlightedUserId, setHighlightedUserId] = useState<number | null>(
+    null
+  );
+  const highlightTimeoutRef = useRef<number | null>(null);
 
   const [modalError, setModalError] = useState<string | null>(null);
 
@@ -56,22 +70,51 @@ export const useUserManagement = () => {
   const [statusConfirmData, setStatusConfirmData] =
     useState<StatusConfirmState>(DEFAULT_STATUS_CONFIRM);
 
-  const showBanner = (type: 'success' | 'error', message: string) => {
-    setBannerType(type);
-    setBannerMessage(message);
+  const clearModalError = () => setModalError(null);
+
+  const dismissBanner = useCallback(() => {
+    setBannerMessage(null);
+    setBannerType(null);
 
     if (bannerTimeoutRef.current !== null) {
       window.clearTimeout(bannerTimeoutRef.current);
+      bannerTimeoutRef.current = null;
+    }
+  }, []);
+
+  const showBanner = useCallback(
+    (type: 'success' | 'error', message: string) => {
+      if (bannerTimeoutRef.current !== null) {
+        window.clearTimeout(bannerTimeoutRef.current);
+      }
+
+      setBannerType(type);
+      setBannerMessage(message);
+
+      bannerTimeoutRef.current = window.setTimeout(() => {
+        setBannerMessage(null);
+        setBannerType(null);
+        bannerTimeoutRef.current = null;
+      }, 3500);
+    },
+    []
+  );
+
+  const setHighlightedUser = useCallback((userId: number | null) => {
+    if (highlightTimeoutRef.current !== null) {
+      window.clearTimeout(highlightTimeoutRef.current);
+      highlightTimeoutRef.current = null;
     }
 
-    bannerTimeoutRef.current = window.setTimeout(() => {
-      setBannerMessage(null);
-      setBannerType(null);
-      bannerTimeoutRef.current = null;
-    }, 3500);
-  };
+    setHighlightedUserId(userId);
 
-  const clearModalError = () => setModalError(null);
+    if (userId === null) return;
+
+    highlightTimeoutRef.current = window.setTimeout(() => {
+      setHighlightedUserId(null);
+      highlightTimeoutRef.current = null;
+    }, 3200);
+  }, []);
 
   const mapSelectedRoleToRoleId = (role: string): number | undefined => {
     switch (role) {
@@ -97,35 +140,54 @@ export const useUserManagement = () => {
     }
   };
 
-  const fetchUsers = async (currentSortOrder: UserSortOrder = sortOrder) => {
-    setIsLoading(true);
-    try {
-      const data = await getAdminUsers({
-        page: 1,
-        pageSize: 100,
-        roleId: mapSelectedRoleToRoleId(selectedRole),
-        isActive: mapSelectedStatusToIsActive(selectedStatus),
-        sortBy: 'createdAt',
-        sortOrder: currentSortOrder === 'LATEST' ? 'desc' : 'asc',
-      });
+  const fetchUsers = useCallback(
+    async (currentSortOrder: UserSortOrder = sortOrder) => {
+      setIsLoading(true);
 
-      const items = Array.isArray(data) ? data : data.items;
-      setUsers(mapAdminUsers(items, authUser?.id, nameFormat));
-    } catch {
-      showBanner('error', 'Failed to load users.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      try {
+        const data = await getAdminUsers({
+          page: 1,
+          pageSize: 100,
+          roleId: mapSelectedRoleToRoleId(selectedRole),
+          isActive: mapSelectedStatusToIsActive(selectedStatus),
+          sortBy: 'createdAt',
+          sortOrder: currentSortOrder === 'LATEST' ? 'desc' : 'asc',
+        });
+
+        const items = Array.isArray(data) ? data : data.items;
+        const mappedUsers = mapAdminUsers(items, authUser?.id, nameFormat);
+        setUsers(mappedUsers);
+
+        return mappedUsers;
+      } catch {
+        showBanner('error', 'Failed to load users.');
+        return [];
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [
+      authUser?.id,
+      nameFormat,
+      selectedRole,
+      selectedStatus,
+      showBanner,
+      sortOrder,
+    ]
+  );
 
   useEffect(() => {
     void fetchUsers(sortOrder);
-  }, [authUser?.id, sortOrder, selectedRole, selectedStatus]);
+  }, [fetchUsers, sortOrder]);
 
   useEffect(() => {
     const closeMenu = () => setActiveMenu(null);
+
     document.addEventListener('click', closeMenu);
-    return () => document.removeEventListener('click', closeMenu);
+
+    return () => {
+      document.removeEventListener('click', closeMenu);
+    };
   }, []);
 
   useEffect(() => {
@@ -133,24 +195,24 @@ export const useUserManagement = () => {
       if (bannerTimeoutRef.current !== null) {
         window.clearTimeout(bannerTimeoutRef.current);
       }
+
+      if (highlightTimeoutRef.current !== null) {
+        window.clearTimeout(highlightTimeoutRef.current);
+      }
     };
   }, []);
-
-  useEffect(() => {
-    setUsers((prev) => mapAdminUsers(prev, authUser?.id, nameFormat));
-  }, [nameFormat, authUser?.id]);
 
   const filteredUsers = useMemo(() => {
     const lower = searchTerm.toLowerCase();
 
-    return users.filter((u) => {
+    return users.filter((user) => {
       return (
         !searchTerm.trim() ||
-        u.displayName.toLowerCase().includes(lower) ||
-        u.fullName.toLowerCase().includes(lower) ||
-        u.email.toLowerCase().includes(lower) ||
-        u.roleLabel.toLowerCase().includes(lower) ||
-        u.statusLabel.toLowerCase().includes(lower)
+        user.displayName.toLowerCase().includes(lower) ||
+        user.fullName.toLowerCase().includes(lower) ||
+        user.email.toLowerCase().includes(lower) ||
+        user.roleLabel.toLowerCase().includes(lower) ||
+        user.statusLabel.toLowerCase().includes(lower)
       );
     });
   }, [searchTerm, users]);
@@ -171,8 +233,8 @@ export const useUserManagement = () => {
     return filteredUsers.slice(start, start + DEFAULT_PAGE_SIZE);
   }, [filteredUsers, safePage]);
 
-  const toggleMenu = (e: MouseEvent, id: number) => {
-    e.stopPropagation();
+  const toggleMenu = (event: MouseEvent, id: number) => {
+    event.stopPropagation();
     setActiveMenu((prev) => (prev === id ? null : id));
   };
 
@@ -230,6 +292,7 @@ export const useUserManagement = () => {
       fullName: user.displayName,
       newPassword: '',
     });
+
     clearModalError();
     setShowResetPasswordModal(true);
     setActiveMenu(null);
@@ -241,18 +304,21 @@ export const useUserManagement = () => {
       fullName: user.displayName,
       isActive: user.isActive,
     });
+
     setShowStatusConfirmModal(true);
     setActiveMenu(null);
   };
 
   const handleCreateUser = async () => {
     const formError = validateUserForm(formData);
+
     if (formError) {
       setModalError(formError);
       return;
     }
 
     const passwordError = validateStrongPassword(formData.password);
+
     if (passwordError) {
       setModalError(passwordError);
       return;
@@ -285,7 +351,11 @@ export const useUserManagement = () => {
             sortBy: 'createdAt',
             sortOrder: sortOrder === 'LATEST' ? 'desc' : 'asc',
           });
-          const refreshedItems = Array.isArray(refreshed) ? refreshed : refreshed.items;
+
+          const refreshedItems = Array.isArray(refreshed)
+            ? refreshed
+            : refreshed.items;
+
           const createdUser = refreshedItems.find(
             (user) => user.email.toLowerCase() === normalizedEmail
           );
@@ -293,20 +363,26 @@ export const useUserManagement = () => {
           if (createdUser) {
             await updateAdminUserStatus(createdUser.id, { isActive: false });
           } else {
-            postCreateIssue = 'User created, but inactive status could not be applied.';
+            postCreateIssue =
+              'User created, but inactive status could not be applied.';
           }
         } catch {
-          postCreateIssue = 'User created, but inactive status could not be applied.';
+          postCreateIssue =
+            'User created, but inactive status could not be applied.';
         }
       }
 
       closeAddModal();
 
-      try {
-        await fetchUsers(sortOrder);
-      } catch {
-        postCreateIssue =
-          postCreateIssue ?? 'User created, but the table could not be refreshed.';
+      const refreshedUsers = await fetchUsers(sortOrder);
+      const createdUser = refreshedUsers.find(
+        (user) => user.email.toLowerCase() === normalizedEmail
+      );
+
+      if (createdUser) {
+        setHighlightedUser(createdUser.id);
+      } else if (!postCreateIssue) {
+        postCreateIssue = 'User created, but the table could not be refreshed.';
       }
 
       showBanner(
@@ -322,6 +398,7 @@ export const useUserManagement = () => {
 
   const handleSaveEdit = async () => {
     const formError = validateUserForm(formData);
+
     if (formError) {
       setModalError(formError);
       return;
@@ -348,7 +425,10 @@ export const useUserManagement = () => {
       }
 
       closeEditModal();
+
       await fetchUsers(sortOrder);
+
+      setHighlightedUser(formData.id);
       showBanner('success', 'User updated successfully.');
     } catch {
       setModalError('Failed to update user.');
@@ -361,10 +441,17 @@ export const useUserManagement = () => {
     const nextIsActive = !statusConfirmData.isActive;
 
     setIsSubmitting(true);
+
     try {
-      await updateAdminUserStatus(statusConfirmData.id, { isActive: nextIsActive });
+      await updateAdminUserStatus(statusConfirmData.id, {
+        isActive: nextIsActive,
+      });
+
       closeStatusConfirmModal();
+
       await fetchUsers(sortOrder);
+
+      setHighlightedUser(statusConfirmData.id);
       showBanner(
         'success',
         `User ${nextIsActive ? 'activated' : 'deactivated'} successfully.`
@@ -378,6 +465,7 @@ export const useUserManagement = () => {
 
   const handleResetPassword = async () => {
     const error = validateStrongPassword(passwordResetData.newPassword);
+
     if (error) {
       setModalError(error);
       return;
@@ -392,7 +480,10 @@ export const useUserManagement = () => {
       });
 
       closeResetPasswordModal();
+
       await fetchUsers(sortOrder);
+
+      setHighlightedUser(passwordResetData.id);
       showBanner('success', 'Password reset successful.');
     } catch {
       setModalError('Failed to reset password.');
@@ -417,14 +508,15 @@ export const useUserManagement = () => {
 
       const exportUsers = !searchTerm.trim()
         ? mapped
-        : mapped.filter((u) => {
+        : mapped.filter((user) => {
             const lower = searchTerm.toLowerCase();
+
             return (
-              u.displayName.toLowerCase().includes(lower) ||
-              u.fullName.toLowerCase().includes(lower) ||
-              u.email.toLowerCase().includes(lower) ||
-              u.roleLabel.toLowerCase().includes(lower) ||
-              u.statusLabel.toLowerCase().includes(lower)
+              user.displayName.toLowerCase().includes(lower) ||
+              user.fullName.toLowerCase().includes(lower) ||
+              user.email.toLowerCase().includes(lower) ||
+              user.roleLabel.toLowerCase().includes(lower) ||
+              user.statusLabel.toLowerCase().includes(lower)
             );
           });
 
@@ -457,7 +549,9 @@ export const useUserManagement = () => {
       const sortLabel = sortOrder === 'LATEST' ? 'latest' : 'oldest';
       const fileName = `users-export-${sortLabel}-${year}-${month}-${day}.csv`;
 
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob([csvContent], {
+        type: 'text/csv;charset=utf-8;',
+      });
       const url = URL.createObjectURL(blob);
 
       const link = document.createElement('a');
@@ -484,6 +578,7 @@ export const useUserManagement = () => {
     isSubmitting,
     bannerMessage,
     bannerType,
+    highlightedUserId,
     modalError,
     page,
     showAddModal,
@@ -508,6 +603,7 @@ export const useUserManagement = () => {
     setPasswordResetData,
 
     clearModalError,
+    dismissBanner,
     toggleMenu,
     closeAddModal,
     closeEditModal,

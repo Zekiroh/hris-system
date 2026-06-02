@@ -10,6 +10,7 @@ import {
   KeyRound,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { useAuth } from '../../context/AuthContext';
 import { useUserManagement } from './hooks/useUserManagement';
@@ -101,6 +102,7 @@ const UserManagement = () => {
     isSubmitting,
     bannerMessage,
     bannerType,
+    highlightedUserId,
     modalError,
     showAddModal,
     showEditModal,
@@ -124,6 +126,7 @@ const UserManagement = () => {
     setPasswordResetData,
 
     clearModalError,
+    dismissBanner,
     closeAddModal,
     closeEditModal,
     closeResetPasswordModal,
@@ -364,17 +367,61 @@ const UserManagement = () => {
         </div>
       </div>
 
-      {bannerMessage && bannerType && (
-        <div
-          className={`rounded-xl border px-4 py-3 text-sm font-medium ${
-            bannerType === 'success'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              : 'border-rose-200 bg-rose-50 text-rose-700'
-          }`}
-        >
-          {bannerMessage}
-        </div>
-      )}
+      {bannerMessage && bannerType
+        ? createPortal(
+            <div className="fixed right-6 top-6 z-[10000]">
+              <div
+                className={`relative w-[340px] overflow-hidden rounded-2xl border bg-white shadow-[0_18px_40px_rgba(5,150,105,0.14)] ${
+                  bannerType === 'success'
+                    ? 'border-emerald-100'
+                    : 'border-rose-100'
+                }`}
+              >
+                <div
+                  className={`pointer-events-none absolute inset-0 ${
+                    bannerType === 'success' ? 'bg-emerald-500/5' : 'bg-rose-500/5'
+                  }`}
+                />
+
+                <div className="relative flex items-start gap-3 p-4">
+                  <div
+                    className={`success-toast-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                      bannerType === 'success'
+                        ? 'bg-emerald-100 text-emerald-600'
+                        : 'bg-rose-100 text-rose-600'
+                    }`}
+                  >
+                    {bannerType === 'success' ? (
+                      <CheckCircle className="h-5 w-5" />
+                    ) : (
+                      <Ban className="h-5 w-5" />
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-slate-800">
+                      {bannerMessage}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="rounded-md px-1 text-lg leading-none text-slate-400 transition hover:bg-white/70 hover:text-slate-600"
+                    onClick={dismissBanner}
+                    aria-label="Close notification"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {bannerType === 'success' ? (
+                  <div className="success-toast-progress absolute bottom-0 left-0 h-[3px] bg-emerald-500" />
+                ) : null}
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
 
       <div className="overflow-visible rounded-xl border border-gray-100">
         <table className="pro-table min-w-full">
@@ -422,9 +469,23 @@ const UserManagement = () => {
 
                 const fullName = formatPersonName(user, nameFormat);
                 const avatarInitial = getAvatarInitial(user);
+                const isHighlighted =
+                  highlightedUserId !== null &&
+                  String(highlightedUserId) === String(user.id);
 
                 return (
-                  <tr key={user.id}>
+                  <tr
+                    key={user.id}
+                    className="transition-all duration-500"
+                    style={
+                      isHighlighted
+                        ? {
+                            animation: 'pulseRow 3.2s ease-out',
+                            boxShadow: 'inset 4px 0 0 #10b981',
+                          }
+                        : undefined
+                    }
+                  >
                     <td className="!font-medium !text-gray-800">
                       <div className="flex items-center gap-3">
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-600 shadow-sm">
