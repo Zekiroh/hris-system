@@ -14,6 +14,7 @@ import {
   BarChart3,
   Building2,
   HelpCircle,
+  ClipboardList,
   X,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -117,19 +118,23 @@ const Sidebar = ({
     { icon: Shield, label: "Government Compliance", path: "/dashboard/compliance" },
   ];
 
+  
   const userNav: NavItem[] = [
+    { icon: Newspaper, label: "Company News", path: "/dashboard/company-news" },
     { icon: Clock, label: "Attendance Log", path: "/dashboard/my-attendance" },
     { icon: FileText, label: "Leave Management", path: "/dashboard/leave" },
+    { icon: DollarSign, label: "My Pay Slips", path: "/dashboard/my-payslips" },
     { icon: BarChart3, label: "My Performance", path: "/dashboard/my-performance" },
-    { icon: DollarSign, label: "Payroll", path: "/dashboard/my-payslips" },
-    { icon: Newspaper, label: "Company News", path: "/dashboard/company-news" },
+   { icon: ClipboardList, label: "Daily Accomplishment", path: "/dashboard/daily-accomplishment" },
     { icon: Building2, label: "Company Directory", path: "/dashboard/company-directory" },
     { icon: HelpCircle, label: "Help & Support", path: "/dashboard/help-support" },
-    { icon: Settings, label: "Settings", path: "/dashboard/settings" },
+
   ];
 
   const moduleNav: NavItem[] = [
     { icon: Package, label: "Asset Management", path: "/dashboard/assets" },
+    { icon: ClipboardList, label: "Daily Accomplishment", path: "/dashboard/daily-accomplishment-reports" },  // ← idagdag
+
   ];
 
   const systemNav: NavItem[] = [
