@@ -1,4 +1,14 @@
-import { X } from 'lucide-react';
+import {
+    AlertTriangle,
+    CalendarDays,
+    CheckSquare,
+    ClipboardList,
+    Clock3,
+    LogIn,
+    LogOut,
+    Timer,
+    X,
+} from 'lucide-react';
 import { createPortal } from 'react-dom';
 import type { StatusBadgeMap } from '../../../types/attendance';
 
@@ -65,6 +75,19 @@ const normalizeOvertimeStatus = (value?: string | null): 'None' | 'Pending' | 'A
     return 'None';
 };
 
+const Label = ({
+    icon: Icon,
+    children,
+}: {
+    icon: React.ElementType;
+    children: React.ReactNode;
+}) => (
+    <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
+        <Icon className="h-3.5 w-3.5" />
+        {children}
+    </div>
+);
+
 const ViewAttendanceModal = ({ isOpen, record, statusBadge, onClose }: Props) => {
     if (!isOpen || !record) return null;
 
@@ -73,9 +96,14 @@ const ViewAttendanceModal = ({ isOpen, record, statusBadge, onClose }: Props) =>
     const hasApprovedOT = overtimeStatus === 'Approved';
     const hasPendingOT = overtimeStatus === 'Pending';
     const shouldShowCredited =
-        record.hasExceededApprovedOvertime === true &&
         typeof record.creditedMinutes === 'number' &&
-        record.creditedMinutes > 0;
+        record.creditedMinutes > 0 &&
+        record.renderedMinutes > 0 &&
+        record.creditedMinutes < record.renderedMinutes;
+
+    const timeOutClassName = shouldShowCredited
+        ? 'font-mono text-[14px] font-semibold text-red-500'
+        : 'font-mono text-[14px] text-slate-700';
 
     const modalContent = (
         <div
@@ -102,18 +130,14 @@ const ViewAttendanceModal = ({ isOpen, record, statusBadge, onClose }: Props) =>
                 <div className="px-6 py-7">
                     <div className="grid grid-cols-2 gap-x-10 gap-y-7">
                         <div>
-                            <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
-                                Date
-                            </div>
+                            <Label icon={CalendarDays}>Date</Label>
                             <div className="text-[14px] text-slate-700">
                                 {formatAttendanceDate(record.date)}
                             </div>
                         </div>
 
                         <div>
-                            <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
-                                Status
-                            </div>
+                            <Label icon={Clock3}>Status</Label>
                             <div className="flex flex-wrap items-center gap-2">
                                 <span className={`badge ${statusBadge[record.status]}`}>
                                     <span className="badge-dot" />
@@ -144,77 +168,64 @@ const ViewAttendanceModal = ({ isOpen, record, statusBadge, onClose }: Props) =>
                         </div>
 
                         <div>
-                            <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
-                                Time In
-                            </div>
+                            <Label icon={LogIn}>Time In</Label>
                             <div className="font-mono text-[14px] text-slate-700">
                                 {record.timeIn || '—'}
                             </div>
                         </div>
 
                         <div>
-                            <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
-                                Task
-                            </div>
+                            <Label icon={ClipboardList}>Task</Label>
                             <div className="text-[14px] text-slate-700">
                                 {record.task || '-'}
                             </div>
                         </div>
 
                         <div>
-                            <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
-                                Time Out
-                            </div>
-                            <div className="font-mono text-[14px] text-slate-700">
+                            <Label icon={LogOut}>Time Out</Label>
+                            <div className={timeOutClassName}>
                                 {record.timeOut || '—'}
                             </div>
                         </div>
 
                         <div>
-                            <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
-                                Accomplished
-                            </div>
+                            <Label icon={CheckSquare}>Accomplished</Label>
                             <div className="text-[14px] text-slate-700">
                                 {record.accomplished || '-'}
                             </div>
                         </div>
 
                         <div>
-                            <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
-                                Late
-                            </div>
+                            <Label icon={AlertTriangle}>Late</Label>
                             <div className="text-[14px] text-slate-700">
                                 {formatMinutes(record.lateMinutes)}
                             </div>
                         </div>
 
                         <div>
-                            <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
-                                Undertime
-                            </div>
+                            <Label icon={AlertTriangle}>Undertime</Label>
                             <div className="text-[14px] text-slate-700">
                                 {formatMinutes(record.undertimeMinutes)}
                             </div>
                         </div>
 
                         <div>
-                            <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
-                                Total
+                            <Label icon={Timer}>Total</Label>
+                            <div className="flex items-center gap-2 text-[14px]">
+                                <span className="text-slate-700">
+                                    {formatMinutes(record.renderedMinutes)}
+                                </span>
+
+                                {shouldShowCredited && (
+                                    <span className="text-[12px] font-semibold text-slate-400">
+                                        · {formatMinutes(record.creditedMinutes)} credited
+                                    </span>
+                                )}
                             </div>
-                            <div className="text-[14px] text-slate-700">
-                                {formatMinutes(record.renderedMinutes)}
-                            </div>
-                            {shouldShowCredited && (
-                                <div className="mt-1 text-[12px] font-semibold text-slate-400">
-                                    Credited: {formatMinutes(record.creditedMinutes)}
-                                </div>
-                            )}
                         </div>
 
                         <div>
-                            <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
-                                Overtime
-                            </div>
+                            <Label icon={Clock3}>Overtime</Label>
                             <div className="text-[14px] text-slate-700">
                                 {formatMinutes(record.overtimeMinutes)}
                             </div>

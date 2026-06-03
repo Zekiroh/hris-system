@@ -21,7 +21,7 @@ const AssignOtSummaryCards = ({
           <CheckCircle2 className="h-4 w-4" />
         </div>
         <p className="text-[11px] font-black uppercase tracking-wider text-emerald-700">
-          Valid
+          Eligible
         </p>
         <p className="mt-1 text-xl font-black text-slate-800">{validCount}</p>
       </div>

@@ -373,6 +373,12 @@ const AdminAttendance = () => {
             const rawOvertimeMinutes = Number(log.overtimeMinutes ?? 0);
             const overtimeMinutes = overtimeStatus === 'Approved' ? rawOvertimeMinutes : 0;
             const renderedMinutes = Number(log.renderedMinutes ?? 0);
+            const requiredMinutes = Number(log.requiredMinutes ?? 0);
+            const regularCreditedMinutes = Number(log.regularCreditedMinutes ?? 0);
+            const overtimeCreditedMinutes = Number(log.overtimeCreditedMinutes ?? 0);
+            const creditedMinutes = Number(log.creditedMinutes ?? 0);
+            const excessMinutes = Number(log.excessMinutes ?? 0);
+            const hasExceededApprovedOvertime = Boolean(log.hasExceededApprovedOvertime);
 
             return {
                 id: log.id,
@@ -392,6 +398,12 @@ const AdminAttendance = () => {
                 undertimeMinutes,
                 overtimeMinutes,
                 renderedMinutes,
+                requiredMinutes,
+                regularCreditedMinutes,
+                overtimeCreditedMinutes,
+                creditedMinutes,
+                excessMinutes,
+                hasExceededApprovedOvertime,
             };
         },
         [mapAttendanceStatus]
@@ -499,29 +511,55 @@ const AdminAttendance = () => {
             );
 
             const assignmentResponses = await Promise.all(
-                activeShifts.map((shift) => getShiftAssignmentsByShift(shift.id))
+                activeShifts.map(async (shift) => ({
+                    shift,
+                    assignments: await getShiftAssignmentsByShift(shift.id),
+                }))
             );
 
-            const assignedEmployeeIds = new Set<string>();
+            const assignmentByEmployeeId = new Map<
+                string,
+                {
+                    shift: ShiftApiItem;
+                    effectiveFrom?: string | null;
+                }
+            >();
 
-            assignmentResponses.forEach((assignments) => {
+            assignmentResponses.forEach(({ shift, assignments }) => {
                 assignments.forEach((assignment) => {
-                    if (assignment.isActive !== false && assignment.employeeId) {
-                        assignedEmployeeIds.add(String(assignment.employeeId));
+                    if (assignment.isActive === false || !assignment.employeeId) {
+                        return;
                     }
+
+                    assignmentByEmployeeId.set(String(assignment.employeeId), {
+                        shift,
+                        effectiveFrom: assignment.effectiveFrom ?? null,
+                    });
                 });
             });
 
             const mappedEmployees = (employeesResponse.items || [])
-                .filter((employee) => !!employee.id && assignedEmployeeIds.has(String(employee.id)))
-                .map((employee) => ({
-                    id: String(employee.id),
-                    employeeNumber: employee.employeeNumber ?? null,
-                    firstName: employee.firstName ?? null,
-                    lastName: employee.lastName ?? null,
-                    middleName: employee.middleName ?? null,
-                    suffix: employee.suffix ?? null,
-                }))
+                .filter((employee) => !!employee.id && assignmentByEmployeeId.has(String(employee.id)))
+                .map((employee) => {
+                    const assignment = assignmentByEmployeeId.get(String(employee.id));
+                    const assignedShift = assignment?.shift;
+
+                    return {
+                        id: String(employee.id),
+                        employeeNumber: employee.employeeNumber ?? null,
+                        firstName: employee.firstName ?? null,
+                        lastName: employee.lastName ?? null,
+                        middleName: employee.middleName ?? null,
+                        suffix: employee.suffix ?? null,
+                        hasAssignedShift: !!assignedShift,
+                        isShiftActive: assignedShift?.isActive !== false,
+                        effectiveFrom: assignment?.effectiveFrom ?? null,
+                        shiftDays: (assignedShift?.days ?? []).map((day) => ({
+                            dayOfWeek: Number(day.dayOfWeek),
+                            isWorkingDay: day.isWorkingDay === true,
+                        })),
+                    };
+                })
                 .sort((a, b) => {
                     const left = `${a.lastName ?? ''}, ${a.firstName ?? ''}`.trim();
                     const right = `${b.lastName ?? ''}, ${b.firstName ?? ''}`.trim();
@@ -773,9 +811,20 @@ const AdminAttendance = () => {
             await fetchOt();
             await fetchDtr(1, dtrFilters);
             await fetchSummary();
+
+            toast.success(
+                newStatus === 'Approved'
+                    ? 'Overtime request approved successfully.'
+                    : 'Overtime request rejected successfully.'
+            );
         } catch (error: unknown) {
             console.error(error);
-            alert(getErrorMessage(error, `Failed to ${action.toLowerCase()} overtime request.`));
+            toast.error(
+                getErrorMessage(
+                    error,
+                    `Failed to ${action.toLowerCase()} overtime request.`
+                )
+            );
         } finally {
             setReviewingOtId(null);
         }
@@ -913,6 +962,7 @@ const AdminAttendance = () => {
             'Overtime Minutes',
             'Overtime Status',
             'Rendered Minutes',
+            'Credited Minutes',
         ];
 
         const rows = processedDtrRecords.map((record) => [
@@ -927,6 +977,7 @@ const AdminAttendance = () => {
             record.overtimeMinutes,
             record.overtimeStatus,
             record.renderedMinutes,
+            record.creditedMinutes,
         ]);
 
         const csvContent = [headers, ...rows]

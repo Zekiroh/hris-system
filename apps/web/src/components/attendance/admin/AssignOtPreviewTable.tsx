@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 
 import {
-  formatMinutes,
   MIN_PREVIEW_ROWS,
 } from './assignOvertimeModalUtils';
 
@@ -58,7 +57,7 @@ const getPreviewIcon = (status: PreviewDayStatus, message: string) => {
   return <XCircle className="h-3.5 w-3.5" />;
 };
 
-const AssignOtPreviewTable = ({ previewDays, requestedMinutes }: Props) => {
+const AssignOtPreviewTable = ({ previewDays }: Props) => {
   const rows: PreviewDay[] = [
     ...previewDays,
     ...Array.from(
@@ -94,10 +93,10 @@ const AssignOtPreviewTable = ({ previewDays, requestedMinutes }: Props) => {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200">
-        <div className="grid grid-cols-[1.2fr_0.9fr_1.4fr] bg-slate-50 px-4 py-3 text-[11px] font-black uppercase tracking-wider text-slate-500">
+        <div className="grid grid-cols-[1.1fr_1fr_1.5fr] bg-slate-50 px-4 py-3 text-[11px] font-black uppercase tracking-wider text-slate-500">
           <div>Date</div>
-          <div>OT Hours</div>
           <div>Status</div>
+          <div>Remarks</div>
         </div>
 
         <div>
@@ -116,17 +115,10 @@ const AssignOtPreviewTable = ({ previewDays, requestedMinutes }: Props) => {
           {previewDays.length > 0 &&
             rows.map((day) => {
               const isPlaceholder = day.displayDate === '--';
-              const otDisplay =
-                !isPlaceholder && Number.isFinite(day.otHours) && day.otHours > 0
-                  ? formatMinutes(day.otHours)
-                  : Number.isFinite(requestedMinutes) && requestedMinutes > 0 && !isPlaceholder
-                    ? formatMinutes(requestedMinutes)
-                    : '--';
-
               return (
                 <div
                   key={day.key}
-                  className={`grid min-h-[58px] grid-cols-[1.2fr_0.9fr_1.4fr] items-center border-t border-slate-100 px-4 py-3 text-sm ${
+                  className={`grid min-h-[58px] grid-cols-[1.1fr_1fr_1.5fr] items-center border-t border-slate-100 px-4 py-3 text-sm ${
                     isPlaceholder ? 'text-slate-300' : 'text-slate-700'
                   }`}
                 >
@@ -136,10 +128,6 @@ const AssignOtPreviewTable = ({ previewDays, requestedMinutes }: Props) => {
                     <p className="text-xs font-semibold text-slate-400">
                       {day.dayName}
                     </p>
-                  </div>
-
-                  <div className="font-bold">
-                    {isPlaceholder ? '--' : otDisplay}
                   </div>
 
                   <div>
@@ -152,9 +140,25 @@ const AssignOtPreviewTable = ({ previewDays, requestedMinutes }: Props) => {
                         )}`}
                       >
                         {getPreviewIcon(day.status, day.message)}
-                        <span>{day.message}</span>
+                        <span>
+                          {day.status === 'assignable'
+                            ? 'Eligible'
+                            : day.status === 'needs-dtr'
+                              ? 'Pending'
+                              : 'Blocked'}
+                        </span>
                       </span>
                     )}
+                  </div>
+
+                  <div>
+                    <span
+                      className={`text-xs font-semibold ${
+                        isPlaceholder ? 'text-slate-300' : 'text-slate-500'
+                      }`}
+                    >
+                      {isPlaceholder ? '--' : day.message}
+                    </span>
                   </div>
                 </div>
               );

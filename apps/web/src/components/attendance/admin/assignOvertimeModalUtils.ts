@@ -383,7 +383,7 @@ export const buildPreviewDays = ({
         dayName: getDayName(date),
         otHours: requestedOtMinutes,
         status: 'needs-dtr',
-        message: 'No DTR yet',
+        message: 'Waiting for attendance record',
       };
     }
 
@@ -395,7 +395,7 @@ export const buildPreviewDays = ({
         dayName: getDayName(date),
         otHours: requestedOtMinutes,
         status: 'needs-dtr',
-        message: 'Pending time out',
+        message: 'Waiting for time out',
       };
     }
 
@@ -411,7 +411,7 @@ export const buildPreviewDays = ({
         dayName: getDayName(date),
         otHours: requestedOtMinutes,
         status: 'needs-dtr',
-        message: 'Pending valid time out',
+        message: 'Waiting for valid time out',
       };
     }
 

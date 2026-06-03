@@ -30,7 +30,7 @@ const routeLabels: Record<string, string> = {
   "/dashboard/assets": "Asset Management",
   "/dashboard/clearance": "Clearance",
   "/dashboard/hris": "HRIS System",
-  "/dashboard/settings": "Admin Settings",
+  "/dashboard/settings": "Settings",
   "/dashboard/my-attendance": "Attendance Log",
   "/dashboard/company-news": "Company News",
   "/dashboard/my-payslips": "My Pay Slips",

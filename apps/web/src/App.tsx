@@ -49,6 +49,7 @@ import HRISSystem from "./pages/HRISSystem";
 
 // Admin Settings
 import AdminSettings from "./pages/admin/AdminSettings";
+import UserSettings from "./pages/user/UserSettings";
 
 import "./App.css";
 
@@ -83,6 +84,14 @@ function AdminOnly({ children }: { children: React.ReactNode }) {
   }
 
   return <>{children}</>;
+}
+
+function SettingsPage() {
+  const { user } = useAuth();
+  const role = user?.role;
+  const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
+
+  return isAdmin ? <AdminSettings /> : <UserSettings />;
 }
 
 export default function App() {
@@ -185,14 +194,7 @@ export default function App() {
               </AdminOnly>
             }
           />
-          <Route
-            path="settings"
-            element={
-              <AdminOnly>
-                <AdminSettings />
-              </AdminOnly>
-            }
-          />
+          <Route path="settings" element={<SettingsPage />} />
 
           {/* Shared routes */}
           <Route path="compliance" element={<GovernmentCompliance />} />

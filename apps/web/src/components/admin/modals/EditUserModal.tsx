@@ -37,7 +37,6 @@ function ModalDropdown({
   onToggle,
   onSelect,
   triggerRef,
-  menuRef,
 }: {
   label: string;
   value: string;
@@ -46,7 +45,6 @@ function ModalDropdown({
   onToggle: () => void;
   onSelect: (value: string) => void;
   triggerRef: React.RefObject<HTMLButtonElement | null>;
-  menuRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const selected = options.find((option) => option.value === value);
   const [menuPosition, setMenuPosition] = useState<DropdownMenuPosition | null>(null);
@@ -97,8 +95,7 @@ function ModalDropdown({
         menuPosition &&
         createPortal(
           <div
-            ref={menuRef}
-            className="fixed z-[500] max-h-60 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-xl"
+            className="fixed z-[10000] max-h-60 overflow-y-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-xl"
             style={{
               top: menuPosition.top,
               left: menuPosition.left,
@@ -140,8 +137,6 @@ const EditUserModal = ({
   const [openDropdown, setOpenDropdown] = useState<DropdownKey>(null);
 
   const dropdownContainerRef = useRef<HTMLDivElement | null>(null);
-  const dropdownMenuRef = useRef<HTMLDivElement | null>(null);
-
   const roleTriggerRef = useRef<HTMLButtonElement | null>(null);
   const statusTriggerRef = useRef<HTMLButtonElement | null>(null);
   const suffixTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -157,15 +152,12 @@ const EditUserModal = ({
       const clickedSuffixTrigger = suffixTriggerRef.current?.contains(target);
       const clickedInsideDropdownContainer =
         dropdownContainerRef.current?.contains(target);
-      const clickedInsidePortalMenu =
-        dropdownMenuRef.current?.contains(target);
 
       if (
         !clickedRoleTrigger &&
         !clickedStatusTrigger &&
         !clickedSuffixTrigger &&
-        !clickedInsideDropdownContainer &&
-        !clickedInsidePortalMenu
+        !clickedInsideDropdownContainer
       ) {
         setOpenDropdown(null);
       }
@@ -175,17 +167,10 @@ const EditUserModal = ({
     return () => document.removeEventListener('click', handleClickOutside);
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!openDropdown) {
-      dropdownMenuRef.current = null;
-    }
-  }, [openDropdown]);
-
   if (!isOpen) return null;
 
   const handleClose = () => {
     setOpenDropdown(null);
-    dropdownMenuRef.current = null;
     onClose();
   };
 
@@ -293,7 +278,6 @@ const EditUserModal = ({
                 options={suffixDropdownOptions}
                 isOpen={openDropdown === 'suffix'}
                 triggerRef={suffixTriggerRef}
-                menuRef={dropdownMenuRef}
                 onToggle={() =>
                   setOpenDropdown((prev) => (prev === 'suffix' ? null : 'suffix'))
                 }
@@ -304,7 +288,6 @@ const EditUserModal = ({
                     suffix: value,
                   }));
                   setOpenDropdown(null);
-                  dropdownMenuRef.current = null;
                 }}
               />
             </div>
@@ -333,7 +316,6 @@ const EditUserModal = ({
                 options={roleDropdownOptions}
                 isOpen={openDropdown === 'role'}
                 triggerRef={roleTriggerRef}
-                menuRef={dropdownMenuRef}
                 onToggle={() =>
                   setOpenDropdown((prev) => (prev === 'role' ? null : 'role'))
                 }
@@ -344,7 +326,6 @@ const EditUserModal = ({
                     roleId: Number(value),
                   }));
                   setOpenDropdown(null);
-                  dropdownMenuRef.current = null;
                 }}
               />
 
@@ -354,7 +335,6 @@ const EditUserModal = ({
                 options={statusDropdownOptions}
                 isOpen={openDropdown === 'status'}
                 triggerRef={statusTriggerRef}
-                menuRef={dropdownMenuRef}
                 onToggle={() =>
                   setOpenDropdown((prev) => (prev === 'status' ? null : 'status'))
                 }
@@ -365,7 +345,6 @@ const EditUserModal = ({
                     isActive: value === 'active',
                   }));
                   setOpenDropdown(null);
-                  dropdownMenuRef.current = null;
                 }}
               />
             </div>

@@ -137,6 +137,12 @@ const createPlaceholderRow = (id: number): AdminDtrRecord => ({
   undertimeMinutes: 0,
   overtimeMinutes: 0,
   renderedMinutes: 0,
+  requiredMinutes: 0,
+  regularCreditedMinutes: 0,
+  overtimeCreditedMinutes: 0,
+  creditedMinutes: 0,
+  excessMinutes: 0,
+  hasExceededApprovedOvertime: false,
 });
 
 const normalizeTimeInput = (value: string) => value.trim().toUpperCase();
@@ -303,6 +309,8 @@ const AdminDtrTable = ({
                 {dataRows.map((row, index) => {
                   const rowKey = getStableRowKey(row, index);
                   const isPlaceholder = row.id < 0;
+                  const isAbsent = String(row.status) === "Absent";
+                  const isIncomplete = String(row.status) === "Incomplete";
                   const isEditing = editingRowKey === rowKey;
                   const formattedName = formatAttendanceName(row.name, row.suffix);
                   const avatarInitial = getAvatarInitial(row.name, row.suffix);
@@ -312,6 +320,8 @@ const AdminDtrTable = ({
                   const formattedTotal = formatMinutes(row.renderedMinutes);
                   const hasApprovedOT =
                     normalizeOvertimeStatus(row.overtimeStatus) === "Approved";
+                  const canView = !isPlaceholder && !isAbsent;
+                  const canEdit = !isPlaceholder && !isAbsent;
 
                   return (
                     <tr
@@ -437,14 +447,14 @@ const AdminDtrTable = ({
                               {row.status}
                             </span>
 
-                            {row.isUndertime && row.status !== "Absent" && (
+                            {row.isUndertime && !isAbsent && !isIncomplete && (
                               <span className="badge badge-undertime">
                                 <span className="badge-dot" />
                                 Undertime
                               </span>
                             )}
 
-                            {hasApprovedOT && (
+                            {hasApprovedOT && !isIncomplete && (
                               <span className="badge badge-info">
                                 <span className="badge-dot" />
                                 Overtime
@@ -512,9 +522,10 @@ const AdminDtrTable = ({
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                onView(row);
+                                if (canView) onView(row);
                               }}
-                              className="inline-flex cursor-pointer items-center justify-center text-slate-500 transition hover:text-slate-700"
+                              disabled={!canView}
+                              className="inline-flex cursor-pointer items-center justify-center text-slate-500 transition hover:text-slate-700 disabled:cursor-not-allowed disabled:text-gray-300 disabled:opacity-50"
                               title="View"
                             >
                               <Eye className="pointer-events-none h-4 w-4" />
@@ -525,9 +536,10 @@ const AdminDtrTable = ({
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                startInlineEdit(row, rowKey);
+                                if (canEdit) startInlineEdit(row, rowKey);
                               }}
-                              className="inline-flex cursor-pointer items-center justify-center text-slate-500 transition hover:text-slate-700"
+                              disabled={!canEdit}
+                              className="inline-flex cursor-pointer items-center justify-center text-slate-500 transition hover:text-slate-700 disabled:cursor-not-allowed disabled:text-gray-300 disabled:opacity-50"
                               title="Edit"
                             >
                               <Edit className="pointer-events-none h-4 w-4" />

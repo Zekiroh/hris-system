@@ -1,11 +1,14 @@
 using System.Text;
 using HRIS.Api.Data;
 using HRIS.Api.Features.Attendance.Services;
+using HRIS.Api.Features.Attendance.Services.Validation;
+using HRIS.Api.Features.Dashboard.Services;
 using HRIS.Api.Features.Employees.Services;
 using HRIS.Api.Features.IAM.Services;
 using HRIS.Api.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -95,6 +98,7 @@ builder.Services.AddScoped<EmployeesService>();
 // Attendance Services
 // =====================
 
+builder.Services.AddScoped<IShiftValidationService, ShiftValidationService>();
 builder.Services.AddScoped<IShiftsService, ShiftsService>();
 builder.Services.AddScoped<IShiftAssignmentsService, ShiftAssignmentsService>();
 builder.Services.AddScoped<IAttendanceHolidayProvider, AttendanceHolidayProvider>();
@@ -102,6 +106,12 @@ builder.Services.AddScoped<IAttendanceLogsService, AttendanceLogsService>();
 
 // Overtime Request
 builder.Services.AddScoped<OvertimeRequestService>();
+
+// =====================
+// Dashboard Services
+// =====================
+
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 // =====================
 // JWT Auth (locked)
@@ -141,7 +151,19 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+
+    var swaggerAssetsPath = Path.Combine(app.Environment.ContentRootPath, "SwaggerAssets");
+
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(swaggerAssetsPath),
+        RequestPath = "/swagger-assets"
+    });
+
+    app.UseSwaggerUI(options =>
+    {
+        options.InjectStylesheet("/swagger-assets/SwaggerDark.css");
+    });
 }
 
 // NOTE: Local dev runs on http://localhost:5169 (no https), so skip redirect.

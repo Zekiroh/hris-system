@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import {
+  AlertCircle,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  FileText,
+  ShieldCheck,
+  X,
+} from "lucide-react";
 import { apiRequest } from "../../../lib/api";
 import {
   assignShift,
@@ -56,6 +65,46 @@ type ShiftAssignmentRow = ShiftAssignmentTableRow;
 type AssignmentToast = {
   type: "success" | "error";
   message: string;
+};
+
+type AttendanceLogApiDto = {
+  id: number;
+  employeeId: string;
+  employeeNumber?: string | null;
+  employeeName?: string | null;
+  date: string;
+  timeIn?: string | null;
+  timeOut?: string | null;
+  isPresent?: boolean;
+  lateMinutes?: number | null;
+  undertimeMinutes?: number | null;
+  overtimeMinutes?: number | null;
+  renderedMinutes?: number | null;
+  overtimeStatus?: "Approved" | "Pending" | "None" | string | null;
+};
+
+type PagedAttendanceLogsResponse = {
+  items: AttendanceLogApiDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+};
+
+type AssignmentDtrActivity = {
+  id: number;
+  date: string;
+  timeIn: string;
+  timeOut: string;
+  total: string;
+  status: "Present" | "Late" | "Absent" | "Incomplete";
+  overtimeStatus: "Approved" | "Pending" | "None";
+};
+
+type ViewingAssignmentState = {
+  assignment: ShiftAssignmentRow;
+  logs: AssignmentDtrActivity[];
+  loading: boolean;
+  error: string | null;
 };
 
 type ShiftDayField =
@@ -404,7 +453,307 @@ const createAssignmentPlaceholder = (index: number): ShiftAssignmentRow => ({
   shiftName: "--",
 });
 
+const normalizeOvertimeStatus = (
+  value?: string | null,
+): AssignmentDtrActivity["overtimeStatus"] => {
+  if (value === "Approved" || value === "Pending") return value;
+  return "None";
+};
+
+const getDtrStatus = (
+  log: AttendanceLogApiDto,
+): AssignmentDtrActivity["status"] => {
+  if (log.isPresent === false) return "Absent";
+  if (!log.timeIn) return "Absent";
+  if (!log.timeOut) return "Incomplete";
+  if ((log.lateMinutes ?? 0) > 0) return "Late";
+  return "Present";
+};
+
+const formatDuration = (minutes?: number | null) => {
+  const safeMinutes = Math.max(0, Number(minutes ?? 0));
+
+  if (safeMinutes <= 0) return "--";
+
+  const hours = Math.floor(safeMinutes / 60);
+  const mins = safeMinutes % 60;
+
+  if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
+  if (hours > 0) return `${hours}h`;
+  return `${mins}m`;
+};
+
+const mapDtrActivity = (log: AttendanceLogApiDto): AssignmentDtrActivity => ({
+  id: log.id,
+  date: formatDate(log.date),
+  timeIn: formatTime(log.timeIn),
+  timeOut: formatTime(log.timeOut),
+  total: formatDuration(log.renderedMinutes),
+  status: getDtrStatus(log),
+  overtimeStatus: normalizeOvertimeStatus(log.overtimeStatus),
+});
+
+const getDtrStatusClassName = (status: AssignmentDtrActivity["status"]) => {
+  switch (status) {
+    case "Present":
+      return "border-emerald-100 bg-emerald-50 text-emerald-700";
+    case "Late":
+      return "border-amber-100 bg-amber-50 text-amber-700";
+    case "Incomplete":
+      return "border-blue-100 bg-blue-50 text-blue-700";
+    case "Absent":
+    default:
+      return "border-red-100 bg-red-50 text-red-700";
+  }
+};
+
+const getOvertimeStatusClassName = (
+  status: AssignmentDtrActivity["overtimeStatus"],
+) => {
+  switch (status) {
+    case "Approved":
+      return "border-blue-100 bg-blue-50 text-blue-700";
+    case "Pending":
+      return "border-amber-100 bg-amber-50 text-amber-700";
+    case "None":
+    default:
+      return "border-slate-100 bg-slate-50 text-slate-400";
+  }
+};
+
+type ShiftAssignmentDetailsModalProps = {
+  state: ViewingAssignmentState | null;
+  onClose: () => void;
+  onViewProfile: (assignment: ShiftAssignmentRow) => void;
+  onViewFullDtr: (assignment: ShiftAssignmentRow) => void;
+};
+
+const ShiftAssignmentDetailsModal = ({
+  state,
+  onClose,
+  onViewProfile,
+  onViewFullDtr,
+}: ShiftAssignmentDetailsModalProps) => {
+  if (!state || typeof document === "undefined") return null;
+
+  const { assignment, logs, loading, error } = state;
+  const employeeName = formatEmployeeName(assignment.fullName);
+
+  return createPortal(
+    <div className="fixed inset-0 z-[2147483646] flex items-center justify-center bg-slate-900/45 px-4 py-8 backdrop-blur-sm">
+      <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+              <ShieldCheck className="h-6 w-6" />
+            </div>
+
+            <div>
+              <h3 className="text-xl font-extrabold text-slate-900">
+                Shift Assignment Details
+              </h3>
+              <p className="mt-1 text-sm font-medium text-slate-500">
+                Review assigned shift information and recent DTR activity.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            aria-label="Close shift assignment details"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-5 px-6 py-5">
+          <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-wide text-slate-400">
+                  Employee
+                </p>
+                <h4 className="mt-1 text-lg font-extrabold text-slate-900">
+                  {employeeName}
+                </h4>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  {assignment.employeeNumber || "--"}
+                  {assignment.department ? ` • ${assignment.department}` : ""}
+                  {assignment.position ? ` • ${assignment.position}` : ""}
+                </p>
+              </div>
+
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-extrabold text-emerald-700">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                {assignment.isActive ? "Active" : "Inactive"}
+              </span>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-3">
+              <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <p className="text-xs font-extrabold uppercase tracking-wide text-slate-400">
+                  Assigned Shift
+                </p>
+                <div className="mt-2 flex items-center gap-2 text-sm font-extrabold text-slate-700">
+                  <Clock3 className="h-4 w-4 text-slate-400" />
+                  {assignment.shiftName || "--"}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <p className="text-xs font-extrabold uppercase tracking-wide text-slate-400">
+                  Effective From
+                </p>
+                <div className="mt-2 flex items-center gap-2 text-sm font-extrabold text-slate-700">
+                  <CalendarDays className="h-4 w-4 text-slate-400" />
+                  {formatDate(assignment.effectiveFrom)}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <p className="text-xs font-extrabold uppercase tracking-wide text-slate-400">
+                  Employment Type
+                </p>
+                <div className="mt-2 flex items-center gap-2 text-sm font-extrabold text-slate-700">
+                  <ShieldCheck className="h-4 w-4 text-slate-400" />
+                  {(
+                    assignment as ShiftAssignmentRow & {
+                      employmentType?: string | null;
+                    }
+                  ).employmentType || "--"}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div className="flex items-start justify-between gap-4 px-4 py-4">
+              <div>
+                <h4 className="text-sm font-extrabold uppercase tracking-wide text-slate-700">
+                  Recent DTR Activity
+                </h4>
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  Latest attendance records found for this employee.
+                </p>
+              </div>
+
+              <FileText className="h-5 w-5 text-slate-400" />
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[620px] text-left text-sm">
+                <thead>
+                  <tr className="bg-gradient-to-r from-emerald-700 to-emerald-500 text-xs uppercase tracking-wide text-white">
+                    <th className="px-4 py-3 font-extrabold">Date</th>
+                    <th className="px-4 py-3 font-extrabold">Time In</th>
+                    <th className="px-4 py-3 font-extrabold">Time Out</th>
+                    <th className="px-4 py-3 font-extrabold">Total</th>
+                    <th className="px-4 py-3 font-extrabold">Status</th>
+                    <th className="px-4 py-3 font-extrabold">OT</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-100">
+                  {loading ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-4 py-8 text-center text-sm font-semibold text-slate-500"
+                      >
+                        Loading recent DTR activity...
+                      </td>
+                    </tr>
+                  ) : error ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-4 py-8 text-center text-sm font-semibold text-red-600"
+                      >
+                        {error}
+                      </td>
+                    </tr>
+                  ) : logs.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-4 py-8 text-center text-sm font-semibold text-slate-500"
+                      >
+                        No recent DTR activity found.
+                      </td>
+                    </tr>
+                  ) : (
+                    logs.map((log) => (
+                      <tr key={log.id} className="text-slate-600">
+                        <td className="px-4 py-3 font-semibold">{log.date}</td>
+                        <td className="px-4 py-3 font-mono text-xs">
+                          {log.timeIn}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs">
+                          {log.timeOut}
+                        </td>
+                        <td className="px-4 py-3 font-semibold">{log.total}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex rounded-full border px-3 py-1 text-xs font-extrabold ${getDtrStatusClassName(log.status)}`}
+                          >
+                            {log.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex rounded-full border px-3 py-1 text-xs font-extrabold ${getOvertimeStatusClassName(log.overtimeStatus)}`}
+                          >
+                            {log.overtimeStatus === "None"
+                              ? "--"
+                              : log.overtimeStatus}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-slate-100 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => onViewProfile(assignment)}
+              className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-emerald-200 transition hover:bg-emerald-700"
+            >
+              View Employee Profile
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onViewFullDtr(assignment)}
+              className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-extrabold text-slate-600 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+            >
+              View Full DTR Records
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-extrabold text-slate-600 transition hover:bg-slate-50"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+};
+
 const AdminSetupTab = ({ shifts, statusBadge }: Props) => {
+  const navigate = useNavigate();
   const [apiShifts, setApiShifts] = useState<Shift[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [assignments, setAssignments] = useState<ShiftAssignmentRow[]>([]);
@@ -432,6 +781,8 @@ const AdminSetupTab = ({ shifts, statusBadge }: Props) => {
     useState<ShiftAssignmentRow | null>(null);
   const [unassigningId, setUnassigningId] = useState<number | null>(null);
   const [viewingShift, setViewingShift] = useState<Shift | null>(null);
+  const [viewingAssignment, setViewingAssignment] =
+    useState<ViewingAssignmentState | null>(null);
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
@@ -1032,10 +1383,64 @@ const AdminSetupTab = ({ shifts, statusBadge }: Props) => {
     }
   };
 
-  const handleViewEmployeeLogs = (assignment: ShiftAssignmentRow) => {
+  const handleViewEmployeeLogs = async (assignment: ShiftAssignmentRow) => {
     if (!assignment.employeeNumber || assignment.employeeNumber === "--")
       return;
 
+    setViewingAssignment({
+      assignment,
+      logs: [],
+      loading: true,
+      error: null,
+    });
+
+    try {
+      const query = new URLSearchParams({
+        page: "1",
+        pageSize: "5",
+        employeeId: assignment.employeeId,
+      });
+
+      const response = await apiRequest<PagedAttendanceLogsResponse>(
+        `/attendance/logs/monitoring?${query.toString()}`,
+      );
+
+      setViewingAssignment((current) =>
+        current?.assignment.id === assignment.id
+          ? {
+              ...current,
+              logs: (response.items ?? []).map(mapDtrActivity),
+              loading: false,
+              error: null,
+            }
+          : current,
+      );
+    } catch (error) {
+      console.error("Failed to load employee DTR activity.", error);
+      const message = getErrorMessage(
+        error,
+        "Failed to load recent DTR activity.",
+      );
+
+      setViewingAssignment((current) =>
+        current?.assignment.id === assignment.id
+          ? { ...current, loading: false, error: message }
+          : current,
+      );
+    }
+  };
+
+  const handleViewEmployeeProfile = (assignment: ShiftAssignmentRow) => {
+    if (!assignment.employeeId) return;
+
+    navigate("/dashboard/personal-records", {
+      state: {
+        viewEmployeeId: assignment.employeeId,
+      },
+    });
+  };
+
+  const handleViewFullDtrRecords = (assignment: ShiftAssignmentRow) => {
     window.dispatchEvent(
       new CustomEvent("attendance:view-employee-logs", {
         detail: {
@@ -1046,9 +1451,7 @@ const AdminSetupTab = ({ shifts, statusBadge }: Props) => {
       }),
     );
 
-    setAssignmentMessage(
-      `Open Daily Time Record and search ${formatEmployeeName(assignment.fullName)} to view logs.`,
-    );
+    setViewingAssignment(null);
   };
 
   return (
@@ -1125,6 +1528,13 @@ const AdminSetupTab = ({ shifts, statusBadge }: Props) => {
             {daysError}
           </div>
         )}
+
+        <ShiftAssignmentDetailsModal
+          state={viewingAssignment}
+          onClose={() => setViewingAssignment(null)}
+          onViewProfile={handleViewEmployeeProfile}
+          onViewFullDtr={handleViewFullDtrRecords}
+        />
 
         <AddShiftModal
           open={showAddShiftModal}

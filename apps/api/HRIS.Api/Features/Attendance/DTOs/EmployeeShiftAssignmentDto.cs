@@ -1,6 +1,6 @@
 namespace HRIS.Api.Features.Attendance.DTOs;
 
-public class EmployeeShiftAssignmentDto
+public sealed class EmployeeShiftAssignmentDto
 {
     public int Id { get; set; }
 
@@ -15,6 +15,8 @@ public class EmployeeShiftAssignmentDto
     public string? Department { get; set; }
 
     public string? Position { get; set; }
+
+    public string? EmploymentType { get; set; }
 
     public DateOnly EffectiveFrom { get; set; }
 
