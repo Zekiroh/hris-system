@@ -30,7 +30,6 @@ import UserAttendance from "./pages/attendance/user/UserAttendance";
 import MyPaySlips from "./pages/user/MyPaySlips";
 import CompanyDirectory from "./pages/user/CompanyDirectory";
 import MyPerformance from "./pages/user/MyPerformance";
-import CompanyNews from "./pages/user/CompanyNews";
 import HelpSupport from "./pages/user/HelpSupport";
 import DailyAccomplishmentReport from "./pages/DailyReport/DailyAccomplishmentReport";
 
@@ -206,7 +205,6 @@ export default function App() {
           <Route path="my-payslips" element={<MyPaySlips />} />
           <Route path="company-directory" element={<CompanyDirectory />} />
           <Route path="my-performance" element={<MyPerformance />} />
-          <Route path="company-news" element={<CompanyNews />} />
           <Route path="help-support" element={<HelpSupport />} />
           <Route path="daily-accomplishment" element={<DailyAccomplishmentReport />} />
         </Route>

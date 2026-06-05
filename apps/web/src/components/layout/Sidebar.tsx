@@ -120,7 +120,6 @@ const Sidebar = ({
 
   
   const userNav: NavItem[] = [
-    { icon: Newspaper, label: "Company News", path: "/dashboard/company-news" },
     { icon: Clock, label: "Attendance Log", path: "/dashboard/my-attendance" },
     { icon: FileText, label: "Leave Management", path: "/dashboard/leave" },
     { icon: DollarSign, label: "My Pay Slips", path: "/dashboard/my-payslips" },

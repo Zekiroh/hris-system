@@ -10,21 +10,18 @@ const Layout = () => {
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 1024px)");
-
     const handler = (e: MediaQueryListEvent | MediaQueryList) => {
       setIsDesktop(e.matches);
     };
-
     handler(mq);
     mq.addEventListener("change", handler as (e: MediaQueryListEvent) => void);
-
     return () => {
       mq.removeEventListener("change", handler as (e: MediaQueryListEvent) => void);
     };
   }, []);
 
   return (
-    <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
+    <div className="flex h-screen bg-[#f1f5f9]">
       <Sidebar
         isMobileOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
@@ -33,7 +30,7 @@ const Layout = () => {
       />
 
       <div
-        className="flex-1 flex flex-col h-screen overflow-hidden transition-all duration-300"
+        className="flex-1 flex flex-col h-screen transition-all duration-300"
         style={{
           paddingLeft: isDesktop ? (sidebarCollapsed ? "72px" : "260px") : "0px",
         }}

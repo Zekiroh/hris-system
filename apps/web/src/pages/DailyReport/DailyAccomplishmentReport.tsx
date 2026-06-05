@@ -1,5 +1,6 @@
 // apps/web/src/pages/DailyReport/DailyAccomplishmentReport.tsx
 import React, { useState, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 import {
   Clock, CheckCircle, AlertTriangle, Lock,
@@ -78,7 +79,7 @@ function RadioPills<T extends string>({ options, value, onChange }: { options: T
           }`}>
           {opt}
         </button>
-      ))}
+      ), document.body)}
     </div>
   );
 }
@@ -786,8 +787,8 @@ export default function DailyAccomplishmentReport() {
       </div>
 
       {/* Confirm Modal */}
-      {showConfirm && (
-        <div className="pro-modal-overlay" onClick={() => setShowConfirm(false)}>
+      {showConfirm && createPortal(
+        <div className="pro-modal-overlay" style={{ zIndex: 9999, position: "fixed", inset: 0 }} onClick={() => setShowConfirm(false)}>
           <div className="pro-modal" style={{ maxWidth: "360px", width: "100%", textAlign: "center", padding: "2rem 1.75rem 1.5rem" }} onClick={e => e.stopPropagation()}>
             <p style={{ fontSize: "17px", fontWeight: 600, marginBottom: "0.5rem", color: "#111827" }}>Submit this report?</p>
             <p style={{ fontSize: "13px", color: "#6b7280", lineHeight: 1.6, marginBottom: "1.5rem" }}>
@@ -799,11 +800,11 @@ export default function DailyAccomplishmentReport() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Success Modal */}
-      {showSuccess && (
-        <div className="pro-modal-overlay" onClick={() => setShowSuccess(false)}>
+      {showSuccess && createPortal(
+        <div className="pro-modal-overlay" style={{ zIndex: 9999, position: "fixed", inset: 0 }} onClick={() => setShowSuccess(false)}>
           <div className="pro-modal" style={{ maxWidth: "380px", width: "100%", textAlign: "center", padding: "2rem 1.75rem 1.5rem" }} onClick={e => e.stopPropagation()}>
             <button type="button" onClick={() => setShowSuccess(false)} style={{ position: "absolute", top: "14px", right: "14px", background: "none", border: "none", cursor: "pointer", color: "#9ca3af", padding: "4px", borderRadius: "8px", display: "flex", alignItems: "center" }}>
               <X className="w-4 h-4" />
@@ -828,12 +829,12 @@ export default function DailyAccomplishmentReport() {
             <button type="button" className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={() => setShowSuccess(false)}>Done</button>
           </div>
         </div>
-      )}
+      , document.body)}
 
 
       {/* Delete Confirm Modal */}
-      {deleteIdx !== null && (
-        <div className="pro-modal-overlay" onClick={() => setDeleteIdx(null)}>
+      {deleteIdx !== null && createPortal(
+        <div className="pro-modal-overlay" style={{ zIndex: 9999, position: "fixed", inset: 0 }} onClick={() => setDeleteIdx(null)}>
           <div className="pro-modal" style={{ maxWidth: "360px", width: "100%", textAlign: "center", padding: "2rem 1.75rem 1.5rem" }} onClick={e => e.stopPropagation()}>
             <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem" }}>
               <X className="w-6 h-6" style={{ color: "#dc2626" }} />
@@ -854,11 +855,11 @@ export default function DailyAccomplishmentReport() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Submission View Modal */}
-      {selectedSub && (
-        <div className="pro-modal-overlay" onClick={() => setSelectedSub(null)}>
+      {selectedSub && createPortal(
+        <div className="pro-modal-overlay" style={{ zIndex: 9999, position: "fixed", inset: 0 }} onClick={() => setSelectedSub(null)}>
           <div className="pro-modal" style={{ maxWidth: "760px", width: "100%", maxHeight: "90vh", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
             <div className="pro-modal-header">
               <div className="flex items-center gap-3">
@@ -963,11 +964,11 @@ export default function DailyAccomplishmentReport() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Preview Modal */}
-      {showPreview && (
-        <div className="pro-modal-overlay" onClick={() => setShowPreview(false)}>
+      {showPreview && createPortal(
+        <div className="pro-modal-overlay" style={{ zIndex: 9999, position: "fixed", inset: 0 }} onClick={() => setShowPreview(false)}>
           <div
             className="pro-modal"
             style={{ maxWidth: "860px", width: "100%", maxHeight: "90vh", display: "flex", flexDirection: "column" }}
@@ -1143,7 +1144,7 @@ export default function DailyAccomplishmentReport() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* My DAR Submissions */}
       <SectionCard num={9} title="My DAR Submissions" delay={0.9}>

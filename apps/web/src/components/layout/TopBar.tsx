@@ -265,7 +265,7 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
   const currentPage = routeLabels[location.pathname] || "Page";
 
   return (
-    <header className="h-16 flex items-center justify-between px-4 sm:px-6 sticky top-0 z-20 bg-white/80 backdrop-blur-xl border-b border-gray-100">
+    <header className="h-16 flex items-center justify-between px-4 sm:px-6 relative z-10 bg-white/80 backdrop-blur-xl border-b border-gray-100">
       <div className="flex items-center gap-3 min-w-0">
         <button
           onClick={onMenuClick}
