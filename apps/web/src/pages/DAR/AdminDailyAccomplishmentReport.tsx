@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
   ClipboardList,
@@ -797,50 +798,46 @@ const handleConfirmSave = () => {
       </div>
 
       {/* ── Confirmation Modal ── */}
-      {confirmOpen && (
+      {confirmOpen && createPortal(
         <div
+          className="pro-modal-overlay"
           onClick={() => setConfirmOpen(false)}
-          style={{
-            position: "fixed", inset: 0, zIndex: 10000,
-            backgroundColor: "rgba(0,0,0,0.4)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}
         >
           <div
+            className="pro-modal w-full max-w-sm p-6 space-y-5"
             onClick={e => e.stopPropagation()}
-            style={{
-              background: "#fff", borderRadius: 14, padding: "28px 24px",
-              maxWidth: 340, width: "90vw", textAlign: "center",
-              boxShadow: "0 8px 40px rgba(0,0,0,0.18)",
-            }}
           >
-            <p style={{ fontSize: 16, fontWeight: 800, color: "#111827", marginBottom: 8 }}>
-              Save this review?
-            </p>
-            <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 24 }}>
-              This will finalize the review for <strong>{report.employeeName}</strong> and notify them of the result.
-            </p>
-            <div style={{ display: "flex", gap: 10 }}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                <CheckSquare className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-800">Save this review?</p>
+                <p className="text-xs text-gray-400">
+                  This will finalize the review for <strong>{report.employeeName}</strong> and notify them of the result.
+                </p>
+              </div>
+            </div>
+            <div className="border-t border-gray-100" />
+            <div className="flex gap-2 justify-end">
               <button
+                type="button"
                 onClick={() => setConfirmOpen(false)}
-                className="btn btn-secondary"
-                style={{ flex: 1 }}
+                className="btn btn-secondary text-sm"
               >
-                No
+                Cancel
               </button>
               <button
+                type="button"
                 onClick={handleConfirmSave}
-                className="btn"
-                style={{
-                  flex: 1, background: "linear-gradient(135deg, #059669, #047857)",
-                  color: "#fff", fontWeight: 700, borderRadius: 10,
-                }}
+                className="btn btn-primary flex items-center gap-2 text-sm"
               >
-                Yes, Save
+                <CheckSquare className="w-4 h-4" /> Yes, Save
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
     
