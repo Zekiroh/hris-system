@@ -72,7 +72,7 @@ var connectionString = builder.Configuration.GetConnectionString("Default");
 if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException("ConnectionStrings:Default is missing. Set it via user-secrets.");
 
-var serverVersion = new MySqlServerVersion(new Version(8, 0, 45));
+var serverVersion = new MySqlServerVersion(new Version(8, 0, 0));
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseMySql(connectionString, serverVersion);
