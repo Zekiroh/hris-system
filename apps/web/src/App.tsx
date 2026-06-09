@@ -36,6 +36,7 @@ import CompanyDirectory from "./pages/user/CompanyDirectory";
 import MyPerformance from "./pages/user/MyPerformance";
 import CompanyNews from "./pages/user/CompanyNews";
 import HelpSupport from "./pages/user/HelpSupport";
+import UserAssetManagement from "./pages/user/UserAssetManagement";
 
 // Asset Management
 import AssetManagement from "./pages/assets/AssetManagement";
@@ -215,6 +216,7 @@ export default function App() {
 
           {/* User Pages */}
           <Route path="my-payslips" element={<MyPaySlips />} />
+          <Route path="my-assets" element={<UserAssetManagement />} />
           <Route path="company-directory" element={<CompanyDirectory />} />
           <Route path="my-performance" element={<MyPerformance />} />
           <Route path="company-news" element={<CompanyNews />} />
