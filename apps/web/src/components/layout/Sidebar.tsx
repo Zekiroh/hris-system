@@ -113,6 +113,7 @@ const Sidebar = ({
     { icon: Users, label: "Employee Management", path: "/dashboard/personal-records" },
     { icon: Clock, label: "Attendance Log", path: "/dashboard/attendance" },
     { icon: FileText, label: "Leave Management", path: "/dashboard/leave" },
+    { icon: FileText, label: "Daily Accomplishment", path: "/dashboard/daily-accomplishment" },
     { icon: DollarSign, label: "Payroll", path: "/dashboard/payroll" },
     { icon: Shield, label: "Government Compliance", path: "/dashboard/compliance" },
   ];
@@ -120,6 +121,8 @@ const Sidebar = ({
   const userNav: NavItem[] = [
     { icon: Clock, label: "Attendance Log", path: "/dashboard/my-attendance" },
     { icon: FileText, label: "Leave Management", path: "/dashboard/leave" },
+    { icon: FileText, label: "Daily Accomplishment", path: "/dashboard/my-daily-accomplishment" },
+    { icon: Package, label: "My Assets", path: "/dashboard/my-assets" },
     { icon: BarChart3, label: "My Performance", path: "/dashboard/my-performance" },
     { icon: DollarSign, label: "Payroll", path: "/dashboard/my-payslips" },
     { icon: Newspaper, label: "Company News", path: "/dashboard/company-news" },
