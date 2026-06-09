@@ -6,13 +6,23 @@ import { getEmployees } from "../../lib/employees";
 import { subscribeEmployeeStatsChanged } from "../../lib/events/employeeEvents";
 
 type NotificationItem = {
-  id: number;
+  id: string | number;
   title: string;
   message: string;
   time: string;
   read: boolean;
-  type: "leave" | "payroll" | "attendance" | "system";
+  type: "leave" | "payroll" | "attendance" | "system" | "dar";
   path?: string;
+};
+
+type StoredDarNotification = {
+  id: string | number;
+  title?: string;
+  message?: string;
+  description?: string;
+  time?: string;
+  read?: boolean;
+  type?: "dar" | "system";
 };
 
 type TopBarProps = {
@@ -24,6 +34,8 @@ const routeLabels: Record<string, string> = {
   "/dashboard/personal-records": "Employee Management",
   "/dashboard/attendance": "Attendance Log",
   "/dashboard/leave": "Leave Management",
+  "/dashboard/daily-accomplishment": "Daily Accomplishment Reports",
+  "/dashboard/my-daily-accomplishment": "Daily Accomplishment Report",
   "/dashboard/payroll": "Payroll",
   "/dashboard/compliance": "Government Compliance",
   "/dashboard/self-service": "Employee Self-Service",
@@ -136,6 +148,52 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
     const timer = setInterval(() => setTime(new Date()), 1000);
 
     const handleStorageChange = () => {
+      try {
+        const darNotifications = JSON.parse(
+          localStorage.getItem("dar_notifications") || "[]"
+        ) as StoredDarNotification[];
+
+        const unreadDarNotifications = darNotifications.filter(
+          (notification) => !notification.read
+        );
+
+        if (unreadDarNotifications.length > 0 && isAdmin) {
+          unreadDarNotifications.forEach((notification) => {
+            setNotifications((prev) => {
+              if (prev.find((item) => item.id === notification.id)) return prev;
+
+              return [
+                {
+                  id: notification.id,
+                  title: notification.title || "Daily Accomplishment Submitted",
+                  message:
+                    notification.message ||
+                    notification.description ||
+                    "A daily accomplishment report was submitted.",
+                  time: notification.time || "Just now",
+                  read: false,
+                  type: "dar",
+                  path: "/dashboard/daily-accomplishment",
+                },
+                ...prev,
+              ];
+            });
+          });
+
+          const markedDarNotifications = darNotifications.map((notification) => ({
+            ...notification,
+            read: true,
+          }));
+
+          localStorage.setItem(
+            "dar_notifications",
+            JSON.stringify(markedDarNotifications)
+          );
+        }
+      } catch {
+        localStorage.removeItem("dar_notifications");
+      }
+
       const newNotif = localStorage.getItem("attendance_notification");
       if (!newNotif) return;
 
@@ -210,19 +268,19 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
-  const markAsRead = (id: number, e: React.MouseEvent) => {
+  const markAsRead = (id: string | number, e: React.MouseEvent) => {
     e.stopPropagation();
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
   };
 
-  const deleteNotification = (id: number, e: React.MouseEvent) => {
+  const deleteNotification = (id: string | number, e: React.MouseEvent) => {
     e.stopPropagation();
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
-  const handleNotificationClick = (path: string | undefined, id: number) => {
+  const handleNotificationClick = (path: string | undefined, id: string | number) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
@@ -340,6 +398,8 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
                               ? "bg-emerald-100 text-emerald-600"
                               : n.type === "attendance"
                               ? "bg-rose-100 text-rose-600"
+                              : n.type === "dar"
+                              ? "bg-violet-100 text-violet-600"
                               : "bg-amber-100 text-amber-600"
                           }`}
                         >
