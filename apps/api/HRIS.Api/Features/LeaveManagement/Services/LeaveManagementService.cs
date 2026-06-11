@@ -33,6 +33,7 @@ public class LeaveManagementService : ILeaveManagementService
 
         return await _context.LeaveBalances
             .AsNoTracking()
+            .Include(x => x.Employee)
             .Where(x => x.EmployeeId == employee.Id)
             .OrderBy(x => x.LeaveType)
             .Select(x => ToBalanceDto(x))
@@ -298,6 +299,7 @@ public class LeaveManagementService : ILeaveManagementService
 
         return await _context.LeaveBalances
             .AsNoTracking()
+            .Include(x => x.Employee)
             .Where(x => x.EmployeeId == employeeId)
             .OrderBy(x => x.LeaveType)
             .Select(x => ToBalanceDto(x))
@@ -323,6 +325,7 @@ public class LeaveManagementService : ILeaveManagementService
     {
         return await _context.LeaveBalances
             .AsNoTracking()
+            .Include(x => x.Employee)
             .OrderBy(x => x.Employee.LastName)
             .ThenBy(x => x.Employee.FirstName)
             .ThenBy(x => x.LeaveType)
@@ -376,7 +379,7 @@ public class LeaveManagementService : ILeaveManagementService
         await _context.SaveChangesAsync();
         await transactionScope.CommitAsync();
 
-        return ToBalanceDto(balance);
+        return await GetBalanceDtoByEmployeeAndTypeAsync(dto.EmployeeId, leaveType);
     }
 
     public async Task<LeaveBalanceDto> AdjustBalanceAsync(
@@ -429,7 +432,7 @@ public class LeaveManagementService : ILeaveManagementService
         await _context.SaveChangesAsync();
         await transactionScope.CommitAsync();
 
-        return ToBalanceDto(balance);
+        return await GetBalanceDtoByEmployeeAndTypeAsync(dto.EmployeeId, leaveType);
     }
 
     private async Task<Employee> GetEmployeeByUserIdAsync(long userId)
@@ -540,6 +543,21 @@ public class LeaveManagementService : ILeaveManagementService
         return balance;
     }
 
+    private async Task<LeaveBalanceDto> GetBalanceDtoByEmployeeAndTypeAsync(Guid employeeId, string leaveType)
+    {
+        var balance = await _context.LeaveBalances
+            .AsNoTracking()
+            .Include(x => x.Employee)
+            .FirstOrDefaultAsync(x =>
+                x.EmployeeId == employeeId &&
+                x.LeaveType == leaveType);
+
+        if (balance is null)
+            throw new ApiException($"{leaveType} leave balance not found.");
+
+        return ToBalanceDto(balance);
+    }
+
     private async Task EnsureNoOverlappingRequestAsync(Guid employeeId, DateOnly startDate, DateOnly endDate)
     {
         var hasOverlap = await _context.LeaveRequests.AnyAsync(x =>
@@ -615,6 +633,8 @@ public class LeaveManagementService : ILeaveManagementService
     {
         return new LeaveBalanceDto
         {
+            EmployeeId = balance.EmployeeId,
+            EmployeeName = balance.Employee is null ? string.Empty : FormatEmployeeName(balance.Employee),
             LeaveType = balance.LeaveType,
             TotalCredits = balance.TotalCredits,
             UsedCredits = balance.UsedCredits,
