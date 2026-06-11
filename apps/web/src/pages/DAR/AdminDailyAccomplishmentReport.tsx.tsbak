@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
@@ -21,7 +21,7 @@ import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
-// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type ReportStatus = "Pending Review" | "Approved" | "Revision Requested" | "Rejected";
 type Rating = 1 | 2 | 3 | 4 | 5;
@@ -53,7 +53,7 @@ interface SubmittedReport {
   referenceNo: string;
 }
 
-// â”€â”€â”€ Mock Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Mock Data ────────────────────────────────────────────────────────────────
 
 const MOCK_REPORTS: SubmittedReport[] = [
   {
@@ -146,7 +146,7 @@ const MOCK_REPORTS: SubmittedReport[] = [
   },
 ];
 
-// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const RATING_LABELS: Record<number, string> = {
   1: "Needs Improvement", 2: "Below Expectations", 3: "Meets Expectations",
@@ -180,7 +180,7 @@ function StarRow({ rating, interactive = false, hoverRating = 0, onHover, onClic
 }) {
   const display = hoverRating || rating;
   return (
-    <div style={{ display: "inline-flex", gap: 2 }}>
+    <div className="flex gap-0.5">
       {[1, 2, 3, 4, 5].map(i => (
         <button
           key={i}
@@ -209,7 +209,7 @@ function ArrangementBadge({ arr }: { arr: string }) {
   return <span className={cls}><span className="badge-dot" />{arr}</span>;
 }
 
-// â”€â”€â”€ Review Panel (Section 7 + Section 8) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Review Panel (Section 7 + Section 8) ────────────────────────────────────
 
 function ReviewPanel({
   report,
@@ -242,7 +242,7 @@ function ReviewPanel({
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleSave = () => {
-    if (!rating || (rating as number) === 0) {
+    if (!rating || rating === 0) {
       toast.error("Please provide a performance rating before saving.");
       return;
     }
@@ -277,9 +277,9 @@ const handleConfirmSave = () => {
   });
   const notif = {
     id: Date.now(),
-    title: decision === "Approved" ? "âœ“ Report Approved"
-      : decision === "Revision Requested" ? "â†© Revision Requested"
-      : decision === "Rejected" ? "âœ• Report Rejected"
+    title: decision === "Approved" ? "✓ Report Approved"
+      : decision === "Revision Requested" ? "↩ Revision Requested"
+      : decision === "Rejected" ? "✕ Report Rejected"
       : "Report Reviewed",
     message: `${report.employeeName}'s DAR (${report.referenceNo}) has been ${decision.toLowerCase()} by ${supervisorName || "Supervisor"}.`,
     time: "Just now", type: "system",
@@ -290,24 +290,6 @@ const handleConfirmSave = () => {
 
   onClose();
 };
-
-  const goToTab = (key: "s7" | "s8") => {
-    if (key === "s8") {
-      if (!rating || (rating as number) === 0) {
-        toast.error("Please provide a performance rating first.");
-        return;
-      }
-      if (!decision || decision === "Pending Review") {
-        toast.error("Please select a Review Decision (not Pending Review).");
-        return;
-      }
-      if (!supervisorName.trim()) {
-        toast.error("Please enter the Supervisor Name.");
-        return;
-      }
-    }
-    setActiveTab(key);
-  };
 
   const displayRating = hoverRating || rating;
 
@@ -346,7 +328,7 @@ const handleConfirmSave = () => {
         style={{ maxWidth: 740, width: "95vw", maxHeight: "90vh", display: "flex", flexDirection: "column" }}
         onClick={e => e.stopPropagation()}
       >
-        {/* â”€â”€ Header â”€â”€ */}
+        {/* ── Header ── */}
         <div
           className="pro-modal-header"
           style={{
@@ -382,7 +364,7 @@ const handleConfirmSave = () => {
               {report.employeeName}
             </h3>
             <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 3 }}>
-              {report.department} &nbsp;Â·&nbsp; {report.project} &nbsp;Â·&nbsp; {report.date}
+              {report.department} &nbsp;·&nbsp; {report.project} &nbsp;·&nbsp; {report.date}
             </p>
           </div>
 
@@ -409,7 +391,7 @@ const handleConfirmSave = () => {
           </div>
         </div>
 
-        {/* â”€â”€ Tabs â”€â”€ */}
+        {/* ── Tabs ── */}
         <div className="px-6 pt-3">
           <div className="pro-tabs">
             {[
@@ -418,7 +400,7 @@ const handleConfirmSave = () => {
             ].map(t => (
               <button
                 key={t.key}
-                onClick={() => goToTab(t.key as "s7" | "s8")}
+                onClick={() => setActiveTab(t.key as "s7" | "s8")}
                 className={`pro-tab ${activeTab === t.key ? "active" : ""}`}
               >
                 {t.label}
@@ -427,14 +409,14 @@ const handleConfirmSave = () => {
           </div>
         </div>
 
-        {/* â”€â”€ Body â”€â”€ */}
+        {/* ── Body ── */}
         <div className="pro-modal-body" style={{ maxHeight: "45vh", overflowY: "auto" }}>
 
-          {/* â•â• SECTION 7 â•â• */}
+          {/* ══ SECTION 7 ══ */}
           {activeTab === "s7" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-              {/* Section label â€” left border accent style */}
+              {/* Section label — left border accent style */}
               <div style={{
                 borderLeft: "3px solid #059669", paddingLeft: 12,
                 display: "flex", flexDirection: "column", gap: 1,
@@ -447,7 +429,7 @@ const handleConfirmSave = () => {
                 </span>
               </div>
 
-              {/* â”€â”€ Rating + Score side by side â”€â”€ */}
+              {/* ── Rating + Score side by side ── */}
               <div style={{
                 display: "grid", gridTemplateColumns: "1fr auto", gap: 12,
                 background: "#f0fdf4", border: "1px solid #bbf7d0",
@@ -523,7 +505,7 @@ const handleConfirmSave = () => {
                     Score
                   </div>
 
-                  {/* â”€â”€ + / âˆ’ buttons â”€â”€ */}
+                  {/* ── + / − buttons ── */}
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <button type="button"
                       disabled={!isEditing || perfScore <= 0}
@@ -538,7 +520,7 @@ const handleConfirmSave = () => {
                         cursor: !isEditing || perfScore <= 0 ? "not-allowed" : "pointer",
                         opacity: !isEditing || perfScore <= 0 ? 0.4 : 1,
                         display: "flex", alignItems: "center", justifyContent: "center",
-                      }}>âˆ’</button>
+                      }}>−</button>
 
                     <div style={{ fontSize: 32, fontWeight: 900, color: scoreColor, lineHeight: 1 }}>
                       {perfScore}
@@ -573,7 +555,7 @@ const handleConfirmSave = () => {
                 </div>
               </div>
 
-              {/* â”€â”€ Verification & Decision â”€â”€ */}
+              {/* ── Verification & Decision ── */}
               <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20 }}>
                 <p style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 14, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                   Verification & Decision
@@ -625,7 +607,7 @@ const handleConfirmSave = () => {
                 </button>
               </div>
 
-              {/* â”€â”€ Comments â”€â”€ */}
+              {/* ── Comments ── */}
               <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20 }}>
                 <label className="pro-label" style={{ marginBottom: 8, display: "block" }}>
                   Supervisor Comments & Feedback
@@ -643,7 +625,7 @@ const handleConfirmSave = () => {
             </div>
           )}
 
-          {/* â•â• SECTION 8 â•â• */}
+          {/* ══ SECTION 8 ══ */}
           {activeTab === "s8" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
@@ -744,7 +726,7 @@ const handleConfirmSave = () => {
                             <p style={{ fontWeight: 800, fontStyle: "italic", color: "#065f46", fontSize: 15 }}>
                               {sig.sigName}
                             </p>
-                            <p style={{ fontSize: 10, color: "#9ca3af" }}>âœ“ Acknowledged Â· {timeStr}</p>
+                            <p style={{ fontSize: 10, color: "#9ca3af" }}>✓ Acknowledged · {timeStr}</p>
                           </>
                         ) : (
                           <p style={{ fontSize: 12, color: "#9ca3af" }}>Awaiting acknowledgment</p>
@@ -771,7 +753,7 @@ const handleConfirmSave = () => {
           )}
         </div>
 
-        {/* â”€â”€ Footer â”€â”€ */}
+        {/* ── Footer ── */}
         <div className="pro-modal-footer" style={{ borderTop: "1px solid #f1f5f9", gap: 8 }}>
           <div style={{ flex: 1 }} />
           <button onClick={onClose} className="btn btn-secondary">
@@ -780,7 +762,7 @@ const handleConfirmSave = () => {
           {activeTab === "s7" ? (
             <button
               onClick={() => {
-                if (!rating || (rating as number) === 0) {
+                if (!rating || rating === 0) {
                   toast.error("Please provide a performance rating first.");
                   return;
                 }
@@ -796,7 +778,7 @@ const handleConfirmSave = () => {
               }}
               className="btn btn-primary"
             >
-              Next â†’ Section 8
+              Next → Section 8
             </button>
           ) : isEditing ? (
               <button
@@ -818,7 +800,7 @@ const handleConfirmSave = () => {
         </div>
       </div>
 
-      {/* â”€â”€ Confirmation Modal â”€â”€ */}
+      {/* ── Confirmation Modal ── */}
       {confirmOpen && createPortal(
         <div
           className="pro-modal-overlay"
@@ -867,7 +849,7 @@ const handleConfirmSave = () => {
 
 
 
-// â”€â”€â”€ Main Admin Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Main Admin Page ──────────────────────────────────────────────────────────
 
 const loadReports = () => {
     try {
@@ -876,10 +858,10 @@ const loadReports = () => {
         id: `DAR-LS-${i}`,
         referenceNo: `DAR-LS-${String(i + 1).padStart(3, "0")}`,
         employeeName: s.devName || "Unknown",
-        department: s.team || "â€”",
-        project: s.project || "â€”",
-        date: s.date || "â€”",
-        submittedAt: s.submittedAt || "â€”",
+        department: s.team || "—",
+        project: s.project || "—",
+        date: s.date || "—",
+        submittedAt: s.submittedAt || "—",
         workArrangement: s.workArr || "On-site",
         totalActualHours: parseFloat(s.actualHrs) || 0,
         totalEstHours: parseFloat(s.estHrs) || 0,
@@ -894,13 +876,13 @@ const loadReports = () => {
   }
 };
 
-// â”€â”€ Export helpers (Excel + PDF) â”€â”€
-function buildExportData(rows: SubmittedReport[], mode: string) {
+// ── Export helpers (Excel + PDF) ──
+function buildExportData(rows, mode) {
   const isHistory = mode === "history";
   const headers = isHistory
     ? ["Reference No","Employee","Department","Project","Date","Submitted","Arrangement","Actual Hrs","Est Hrs","Tasks","Checklist","Status","Rating","Score","Supervisor","Output Quality","Remarks"]
     : ["Reference No","Employee","Department","Project","Date","Submitted","Arrangement","Actual Hrs","Est Hrs","Tasks","Checklist","Status"];
-  const body = rows.map((r: SubmittedReport) => {
+  const body = rows.map((r) => {
     const base = [
       r.referenceNo, r.employeeName, r.department, r.project, r.date, r.submittedAt,
       r.workArrangement, r.totalActualHours, r.totalEstHours,
@@ -915,22 +897,22 @@ function buildExportData(rows: SubmittedReport[], mode: string) {
   return { headers, body, isHistory };
 }
 
-function generateExcel(rows: SubmittedReport[], mode: string) {
+function generateExcel(rows, mode) {
   const data = buildExportData(rows, mode);
-  const ws = XLSX.utils.aoa_to_sheet([data.headers, ...data.body.map(row => row.map(String))]);
+  const ws = XLSX.utils.aoa_to_sheet([data.headers].concat(data.body));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, data.isHistory ? "Review History" : "Pending");
   const today = new Date().toISOString().slice(0, 10);
   XLSX.writeFile(wb, "DAR_" + (data.isHistory ? "History" : "Pending") + "_" + today + ".xlsx");
 }
 
-function generatePDF(rows: SubmittedReport[], mode: string) {
+function generatePDF(rows, mode) {
   const data = buildExportData(rows, mode);
   const doc = new jsPDF({ orientation: "landscape" });
   doc.setFontSize(14);
   doc.text("Daily Accomplishment Report", 14, 15);
   doc.setFontSize(10);
-  doc.text((data.isHistory ? "Review History" : "Pending Submissions") + " â€” " + data.body.length + " record(s)", 14, 21);
+  doc.text((data.isHistory ? "Review History" : "Pending Submissions") + " — " + data.body.length + " record(s)", 14, 21);
   doc.setFontSize(8);
   doc.text("Generated: " + new Date().toLocaleString(), 14, 26);
   autoTable(doc, {
@@ -1251,13 +1233,13 @@ const AdminDailyAccomplishmentReport = () => {
                     </td>
 
                     {/* Arrangement */}
-                    <td style={{ whiteSpace: "nowrap", textAlign: "center" }}>
+                    <td style={{ whiteSpace: "nowrap" }}>
                       <ArrangementBadge arr={r.workArrangement} />
                     </td>
 
 
                     {/* Status */}
-                    <td className="hidden md:table-cell" style={{ whiteSpace: "nowrap", textAlign: "center" }}>
+                    <td className="hidden md:table-cell" style={{ whiteSpace: "nowrap" }}>
                       <StatusBadge status={r.status} />
                     </td>
 
@@ -1267,7 +1249,7 @@ const AdminDailyAccomplishmentReport = () => {
 
                         
 
-                        {/* Action Button â€” Star if Pending, Eye if others */}
+                        {/* Action Button — Star if Pending, Eye if others */}
                         <button
                           onClick={() => setSelectedReport(r)}
                           title={r.status === "Pending Review" ? "Review" : "View"}
@@ -1305,7 +1287,7 @@ const AdminDailyAccomplishmentReport = () => {
           {/* Pagination */}
           <div className="flex items-center justify-between mt-4 flex-wrap gap-2">
             <span className="text-xs text-gray-400">
-              Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, activeReports.length)}â€“{Math.min(currentPage * PAGE_SIZE, activeReports.length)} of {activeReports.length} pending
+              Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, activeReports.length)}–{Math.min(currentPage * PAGE_SIZE, activeReports.length)} of {activeReports.length} pending
             </span>
             <div className="flex gap-1 flex-wrap">
               <button
@@ -1438,19 +1420,19 @@ const AdminDailyAccomplishmentReport = () => {
                     </td>
 
                     {/* Rating */}
-                    <td className="hidden md:table-cell" style={{ whiteSpace: "nowrap", textAlign: "center" }}>
+                    <td className="hidden md:table-cell" style={{ whiteSpace: "nowrap" }}>
                       {r.rating
                         ? <StarRow rating={r.rating} />
-                        : <span style={{ color: "#d1d5db", fontSize: 13 }}>â€”</span>
+                        : <span style={{ color: "#d1d5db", fontSize: 13 }}>—</span>
                       }
                     </td>
 
                     {/* Status */}
-                    <td style={{ whiteSpace: "nowrap", textAlign: "center" }}>
+                    <td style={{ whiteSpace: "nowrap" }}>
                       <StatusBadge status={r.status} />
                     </td>
 
-                    {/* Actions â€” View only */}
+                    {/* Actions — View only */}
                     <td style={{ textAlign: "center", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
                       <button
                         onClick={() => setSelectedReport(r)}
@@ -1476,7 +1458,7 @@ const AdminDailyAccomplishmentReport = () => {
           {/* History Pagination */}
           <div className="flex items-center justify-between mt-4 flex-wrap gap-2">
             <span className="text-xs text-gray-400">
-              Showing {Math.min((historyPage - 1) * PAGE_SIZE + 1, historyReports.length)}â€“{Math.min(historyPage * PAGE_SIZE, historyReports.length)} of {historyReports.length} reviewed
+              Showing {Math.min((historyPage - 1) * PAGE_SIZE + 1, historyReports.length)}–{Math.min(historyPage * PAGE_SIZE, historyReports.length)} of {historyReports.length} reviewed
             </span>
             <div className="flex gap-1 flex-wrap">
               <button
@@ -1523,7 +1505,7 @@ const AdminDailyAccomplishmentReport = () => {
 
             <div>
               <p className="pro-label" style={{ marginBottom: 6 }}>
-                {exportMode === "history" ? "Review History" : "Pending Submissions"} Â· {exportRows.length} record(s)
+                {exportMode === "history" ? "Review History" : "Pending Submissions"} · {exportRows.length} record(s)
               </p>
             </div>
 
@@ -1549,10 +1531,10 @@ const AdminDailyAccomplishmentReport = () => {
               <button onClick={() => setExportOpen(false)} className="btn btn-secondary text-sm">Cancel</button>
               <button
                 onClick={() => {
-                  if (exportRows.length === 0) { toast.error("No records available to export."); return; }
+                  if (exportRows.length === 0) { toast.error("Walang record na puwedeng i-export."); return; }
                   if (exportFormat === "excel") generateExcel(exportRows, exportMode);
                   else generatePDF(exportRows, exportMode);
-                  toast.success((exportFormat === "excel" ? "Excel" : "PDF") + " report generated and downloaded.");
+                  toast.success((exportFormat === "excel" ? "Excel" : "PDF") + " report na-generate at na-download.");
                   setExportOpen(false);
                 }}
                 className="btn btn-primary flex items-center gap-2 text-sm text-white"
