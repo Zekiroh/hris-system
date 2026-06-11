@@ -18,7 +18,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// Types
 
 type ReportStatus = "Pending Review" | "Approved" | "Revision Requested" | "Rejected";
 type Rating = 1 | 2 | 3 | 4 | 5;
@@ -48,6 +48,24 @@ interface SubmittedReport {
   acknowledgedByAdmin?: boolean;
   finalRemarks?: string;
   referenceNo: string;
+}
+
+interface StoredTaskDetail {
+  status?: string;
+}
+
+interface StoredDarSubmission {
+  devName?: string;
+  team?: string;
+  project?: string;
+  date?: string;
+  submittedAt?: string;
+  workArr?: string;
+  actualHrs?: string | number;
+  estHrs?: string | number;
+  taskDetails?: StoredTaskDetail[];
+  checklist?: unknown[];
+  status?: ReportStatus;
 }
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
@@ -143,7 +161,7 @@ const MOCK_REPORTS: SubmittedReport[] = [
   },
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 
 const RATING_LABELS: Record<number, string> = {
   1: "Needs Improvement", 2: "Below Expectations", 3: "Meets Expectations",
@@ -221,7 +239,7 @@ function ReviewPanel({
   const timeStr = now.toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" });
 
   const [activeTab, setActiveTab]           = useState<"s7" | "s8">("s7");
-  const [rating, setRating]                 = useState<Rating>((report.rating || 1) as Rating);
+  const [rating, setRating]                 = useState<Rating | 0>(report.rating ?? 0);
   const [hoverRating, setHoverRating]       = useState(0);
   const [supervisorName, setSupervisorName] = useState(report.supervisorName || "");
   const [comment, setComment]               = useState(report.supervisorComment || "");
@@ -265,7 +283,7 @@ function ReviewPanel({
 const handleConfirmSave = () => {
   setConfirmOpen(false);
   onSave({
-    rating, supervisorName, supervisorComment: comment,
+    rating: rating as Rating, supervisorName, supervisorComment: comment,
     performanceScore: perfScore, taskVerification: taskVerif,
     attendanceVerified: attendVerif, outputQuality,
     status: decision,
@@ -851,7 +869,7 @@ const handleConfirmSave = () => {
 const loadReports = () => {
     try {
       const subs = JSON.parse(localStorage.getItem("dar_submissions") || "[]");
-      const fromStorage: SubmittedReport[] = subs.map((s: any, i: number) => ({
+      const fromStorage: SubmittedReport[] = (subs as StoredDarSubmission[]).map((s, i: number) => ({
         id: `DAR-LS-${i}`,
         referenceNo: `DAR-LS-${String(i + 1).padStart(3, "0")}`,
         employeeName: s.devName || "Unknown",
@@ -860,9 +878,9 @@ const loadReports = () => {
         date: s.date || "—",
         submittedAt: s.submittedAt || "—",
         workArrangement: s.workArr || "On-site",
-        totalActualHours: parseFloat(s.actualHrs) || 0,
-        totalEstHours: parseFloat(s.estHrs) || 0,
-        tasksCompleted: (s.taskDetails || []).filter((t: any) => t.status === "done").length,
+        totalActualHours: Number(s.actualHrs ?? 0),
+        totalEstHours: Number(s.estHrs ?? 0),
+        tasksCompleted: (s.taskDetails || []).filter((t) => t.status === "done").length,
         tasksTotal: (s.taskDetails || []).length,
         checklistDone: s.checklist ? s.checklist.filter(Boolean).length : 0,
         status: (s.status as ReportStatus) || "Pending Review",

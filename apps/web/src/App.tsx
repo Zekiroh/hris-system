@@ -13,6 +13,10 @@ import EmployeeProfile from "./pages/personal-records/EmployeeProfile";
 // Attendance
 import AdminAttendance from "./pages/attendance/admin/AdminAttendance";
 
+// DAR
+import AdminDailyAccomplishmentReport from "./pages/DAR/AdminDailyAccomplishmentReport";
+import DailyAccomplishmentReport from "./pages/DailyReport/DailyAccomplishmentReport";
+
 // Leave Management
 import LeaveManagement from "./pages/leave/LeaveManagement";
 
@@ -32,6 +36,7 @@ import CompanyDirectory from "./pages/user/CompanyDirectory";
 import MyPerformance from "./pages/user/MyPerformance";
 import CompanyNews from "./pages/user/CompanyNews";
 import HelpSupport from "./pages/user/HelpSupport";
+import UserAssetManagement from "./pages/user/UserAssetManagement";
 
 // Asset Management
 import AssetManagement from "./pages/assets/AssetManagement";
@@ -153,6 +158,14 @@ export default function App() {
             }
           />
           <Route
+            path="daily-accomplishment"
+            element={
+              <AdminOnly>
+                <AdminDailyAccomplishmentReport />
+              </AdminOnly>
+            }
+          />
+          <Route
             path="payroll"
             element={
               <AdminOnly>
@@ -198,10 +211,12 @@ export default function App() {
           <Route path="compliance" element={<GovernmentCompliance />} />
           <Route path="leave" element={<LeaveManagement />} />
           <Route path="my-attendance" element={<UserAttendance />} />
+          <Route path="my-daily-accomplishment" element={<DailyAccomplishmentReport />} />
           <Route path="self-service" element={<EmployeeSelfService />} />
 
           {/* User Pages */}
           <Route path="my-payslips" element={<MyPaySlips />} />
+          <Route path="my-assets" element={<UserAssetManagement />} />
           <Route path="company-directory" element={<CompanyDirectory />} />
           <Route path="my-performance" element={<MyPerformance />} />
           <Route path="company-news" element={<CompanyNews />} />
