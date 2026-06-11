@@ -1,4 +1,4 @@
-﻿import {
+import {
   Home,
   Users,
   Clock,
@@ -10,10 +10,10 @@
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Newspaper,
   BarChart3,
   Building2,
   HelpCircle,
-  ClipboardList,
   X,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -113,26 +113,28 @@ const Sidebar = ({
     { icon: Users, label: "Employee Management", path: "/dashboard/personal-records" },
     { icon: Clock, label: "Attendance Log", path: "/dashboard/attendance" },
     { icon: FileText, label: "Leave Management", path: "/dashboard/leave" },
+    { icon: FileText, label: "Daily Accomplishment", path: "/dashboard/daily-accomplishment" },
     { icon: DollarSign, label: "Payroll", path: "/dashboard/payroll" },
     { icon: Shield, label: "Government Compliance", path: "/dashboard/compliance" },
   ];
 
-  
   const userNav: NavItem[] = [
     { icon: Clock, label: "Attendance Log", path: "/dashboard/my-attendance" },
     { icon: FileText, label: "Leave Management", path: "/dashboard/leave" },
-    { icon: DollarSign, label: "My Pay Slips", path: "/dashboard/my-payslips" },
+    { icon: FileText, label: "Daily Accomplishment", path: "/dashboard/my-daily-accomplishment" },
+
+    { icon: Package, label: "My Assets", path: "/dashboard/my-assets" },
+
     { icon: BarChart3, label: "My Performance", path: "/dashboard/my-performance" },
-   { icon: ClipboardList, label: "Daily Accomplishment", path: "/dashboard/daily-accomplishment" },
+    { icon: DollarSign, label: "Payroll", path: "/dashboard/my-payslips" },
+    { icon: Newspaper, label: "Company News", path: "/dashboard/company-news" },
     { icon: Building2, label: "Company Directory", path: "/dashboard/company-directory" },
     { icon: HelpCircle, label: "Help & Support", path: "/dashboard/help-support" },
-
+    { icon: Settings, label: "Settings", path: "/dashboard/settings" },
   ];
 
   const moduleNav: NavItem[] = [
     { icon: Package, label: "Asset Management", path: "/dashboard/assets" },
-    { icon: ClipboardList, label: "Daily Accomplishment", path: "/dashboard/daily-accomplishment-reports" },  // â† idagdag
-
   ];
 
   const systemNav: NavItem[] = [
@@ -161,8 +163,7 @@ const Sidebar = ({
           }`}
         >
           <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3"}`}>
-            <NavLink to="/dashboard" onClick={onClose} title="Balik sa Dashboard" className={`flex items-center ${collapsed ? "justify-center" : "gap-3"} flex-1 min-w-0 cursor-pointer rounded-xl transition-opacity hover:opacity-90`}>
-              <div className="w-10 h-10 rounded-xl bg-white/10 p-1.5 flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-white/10 p-1.5 flex-shrink-0">
               <img src={logo} alt="SimpleVia Logo" className="w-full h-full" />
             </div>
 
@@ -176,7 +177,6 @@ const Sidebar = ({
                 </p>
               </div>
             )}
-            </NavLink>
 
             <button
               onClick={onClose}
