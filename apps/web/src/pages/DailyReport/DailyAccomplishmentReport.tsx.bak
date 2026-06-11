@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// Types
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 type WorkArrangement = "On-site" | "Remote" | "Hybrid";
 type StandupAttended = "Yes" | "No" | "N/A";
@@ -35,7 +35,7 @@ interface TaskRow {
   _expanded?: boolean;
 }
 
-// Helpers
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function createEmptyTask(id: number): TaskRow {
   return { id, carryOver: "", priority: "", taskType: "", ticketRef: "", description: "", module: "", status: "", percentDone: "", estHrs: "", actualHrs: "", output: "", commitLink: "", remarks: "" };
@@ -543,11 +543,23 @@ export default function DailyAccomplishmentReport() {
         {/* Time In / Time Out */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
           <Field label="Time In">
-            <input className="pro-input" type="time" value={timeIn} onChange={e => setTimeIn(e.target.value)} />
+            <input
+              className="pro-input"
+              type="text"
+              placeholder="e.g. 08:00 AM"
+              value={timeIn}
+              onChange={e => setTimeIn(e.target.value)}
+            />
           </Field>
 
           <Field label="Time Out">
-            <input className="pro-input" type="time" value={timeOut} onChange={e => setTimeOut(e.target.value)} />
+            <input
+              className="pro-input"
+              type="text"
+              placeholder="e.g. 05:00 PM"
+              value={timeOut}
+              onChange={e => setTimeOut(e.target.value)}
+            />
           </Field>
 
           <Field label="Break Duration (mins)">

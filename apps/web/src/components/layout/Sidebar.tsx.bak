@@ -1,4 +1,4 @@
-﻿import {
+import {
   Home,
   Users,
   Clock,
@@ -10,6 +10,7 @@
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Newspaper,
   BarChart3,
   Building2,
   HelpCircle,
@@ -131,7 +132,7 @@ const Sidebar = ({
 
   const moduleNav: NavItem[] = [
     { icon: Package, label: "Asset Management", path: "/dashboard/assets" },
-    { icon: ClipboardList, label: "Daily Accomplishment", path: "/dashboard/daily-accomplishment-reports" },  // â† idagdag
+    { icon: ClipboardList, label: "Daily Accomplishment", path: "/dashboard/daily-accomplishment-reports" },  // ← idagdag
 
   ];
 
@@ -161,8 +162,7 @@ const Sidebar = ({
           }`}
         >
           <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3"}`}>
-            <NavLink to="/dashboard" onClick={onClose} title="Balik sa Dashboard" className={`flex items-center ${collapsed ? "justify-center" : "gap-3"} flex-1 min-w-0 cursor-pointer rounded-xl transition-opacity hover:opacity-90`}>
-              <div className="w-10 h-10 rounded-xl bg-white/10 p-1.5 flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-white/10 p-1.5 flex-shrink-0">
               <img src={logo} alt="SimpleVia Logo" className="w-full h-full" />
             </div>
 
@@ -176,7 +176,6 @@ const Sidebar = ({
                 </p>
               </div>
             )}
-            </NavLink>
 
             <button
               onClick={onClose}
