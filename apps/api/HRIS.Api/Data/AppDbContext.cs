@@ -21,8 +21,11 @@ public class AppDbContext : DbContext
     public DbSet<AttendanceLog> AttendanceLogs => Set<AttendanceLog>();
 
     public DbSet<OvertimeRequest> OvertimeRequests => Set<OvertimeRequest>();
-
     public DbSet<OvertimeRequestItem> OvertimeRequestItems => Set<OvertimeRequestItem>();
+
+    public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
+    public DbSet<LeaveBalance> LeaveBalances => Set<LeaveBalance>();
+    public DbSet<LeaveBalanceTransaction> LeaveBalanceTransactions => Set<LeaveBalanceTransaction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

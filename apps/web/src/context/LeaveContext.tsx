@@ -1,6 +1,29 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useState,
+    type ReactNode,
+} from "react";
+import { useAuth } from "./AuthContext";
+import {
+    approveLeaveRequest,
+    cancelLeaveRequest,
+    createLeaveRequest,
+    getAdminLeaveBalances,
+    getAdminLeaveRequests,
+    getMyLeaveBalances,
+    getMyLeaveHistory,
+    getMyLeaveRequests,
+    rejectLeaveRequest,
+    type LeaveBalanceDto,
+    type LeaveBalanceTransactionDto,
+    type LeaveRequestDto,
+    type LeaveType,
+} from "../lib/leave";
 
-export type LeaveStatus = 'Pending' | 'Approved' | 'Rejected';
+export type LeaveStatus = "Pending" | "Approved" | "Rejected";
 
 export interface LeaveRequest {
     id: number;
@@ -35,7 +58,7 @@ export interface LeaveBalance {
 export interface LeaveNotification {
     id: number;
     message: string;
-    type: 'success' | 'danger' | 'info';
+    type: "success" | "danger" | "info";
     timestamp: string;
     read: boolean;
 }
@@ -45,7 +68,7 @@ interface LeaveContextType {
     leaveHistory: LeaveHistoryEntry[];
     leaveBalances: LeaveBalance[];
     notifications: LeaveNotification[];
-    submitLeaveRequest: (request: Omit<LeaveRequest, 'id' | 'status' | 'department'>) => void;
+    submitLeaveRequest: (request: Omit<LeaveRequest, "id" | "status" | "department">) => void;
     approveRequest: (id: number) => void;
     rejectRequest: (id: number) => void;
     deleteRequest: (id: number) => void;
@@ -55,170 +78,411 @@ interface LeaveContextType {
 
 const LeaveContext = createContext<LeaveContextType | undefined>(undefined);
 
-// Default data
-const defaultRequests: LeaveRequest[] = [
-    { id: 1, employee: 'Dela Cruz, Juan', department: 'SimpleVia', leaveType: 'Vacation Leave', startDate: '2026-02-26', endDate: '2026-02-28', days: 3, status: 'Pending', reason: 'Family trip to province' },
-    { id: 2, employee: 'Santos, Maria', department: 'SimpleVia', leaveType: 'Sick Leave', startDate: '2026-02-20', endDate: '2026-02-21', days: 2, status: 'Approved', reason: 'Fever and colds' },
-    { id: 3, employee: 'Reyes, Jose', department: 'SimpleVia', leaveType: 'Emergency Leave', startDate: '2026-02-18', endDate: '2026-02-18', days: 1, status: 'Rejected', reason: 'Personal emergency' },
-    { id: 4, employee: 'Garcia, Ana', department: 'SimpleVia', leaveType: 'Vacation Leave', startDate: '2026-03-01', endDate: '2026-03-05', days: 5, status: 'Pending', reason: 'Annual scheduled leave' },
-    { id: 5, employee: 'Fernandez, Rosa', department: 'SimpleVia', leaveType: 'Sick Leave', startDate: '2026-02-24', endDate: '2026-02-25', days: 2, status: 'Approved', reason: 'Dental surgery' },
-];
+const emptyBalance: LeaveBalance = {
+    name: "",
+    id: "",
+    vacation: { total: 0, used: 0 },
+    sick: { total: 0, used: 0 },
+    emergency: { total: 0, used: 0 },
+};
 
-const defaultHistory: LeaveHistoryEntry[] = [
-    { id: 1, dateApplied: '2026-02-15', employee: 'Dela Cruz, Juan', leaveType: 'Vacation Leave', duration: '3 days', status: 'Approved', approver: 'Admin User' },
-    { id: 2, dateApplied: '2026-02-10', employee: 'Santos, Maria', leaveType: 'Sick Leave', duration: '2 days', status: 'Approved', approver: 'Admin User' },
-    { id: 3, dateApplied: '2026-02-08', employee: 'Reyes, Jose', leaveType: 'Emergency Leave', duration: '1 day', status: 'Rejected', approver: 'Admin User' },
-    { id: 4, dateApplied: '2026-01-28', employee: 'Garcia, Ana', leaveType: 'Vacation Leave', duration: '5 days', status: 'Approved', approver: 'Admin User' },
-];
+function toUiLeaveType(leaveType: string): string {
+    if (leaveType === "Vacation") return "Vacation Leave";
+    if (leaveType === "Sick") return "Sick Leave";
+    if (leaveType === "Emergency") return "Emergency Leave";
+    return leaveType;
+}
 
-const defaultBalances: LeaveBalance[] = [
-    { name: 'Dela Cruz, Juan', id: 'EMP-001', vacation: { total: 15, used: 5 }, sick: { total: 15, used: 3 }, emergency: { total: 5, used: 1 } },
-    { name: 'Santos, Maria', id: 'EMP-002', vacation: { total: 15, used: 8 }, sick: { total: 15, used: 6 }, emergency: { total: 5, used: 0 } },
-    { name: 'Reyes, Jose', id: 'EMP-003', vacation: { total: 15, used: 2 }, sick: { total: 15, used: 1 }, emergency: { total: 5, used: 2 } },
-    { name: 'Garcia, Ana', id: 'EMP-004', vacation: { total: 15, used: 10 }, sick: { total: 15, used: 4 }, emergency: { total: 5, used: 0 } },
-];
+function toApiLeaveType(leaveType: string): LeaveType {
+    if (leaveType === "Vacation Leave") return "Vacation";
+    if (leaveType === "Sick Leave") return "Sick";
+    if (leaveType === "Emergency Leave") return "Emergency";
 
-// Helper: load from localStorage or use default
-function loadFromStorage<T>(key: string, fallback: T): T {
+    if (leaveType === "Vacation" || leaveType === "Sick" || leaveType === "Emergency") {
+        return leaveType;
+    }
+
+    return "Vacation";
+}
+
+function toUiStatus(status: string): LeaveStatus {
+    if (status === "Approved") return "Approved";
+    if (status === "Rejected") return "Rejected";
+    return "Pending";
+}
+
+function formatDate(value: string): string {
+    if (!value) return "";
+    return value.slice(0, 10);
+}
+
+function formatDuration(days: number): string {
+    return `${days} ${days === 1 ? "day" : "days"}`;
+}
+
+function buildEmptyEmployeeBalance(name: string, id: string): LeaveBalance {
+    return {
+        ...emptyBalance,
+        name,
+        id,
+        vacation: { total: 0, used: 0 },
+        sick: { total: 0, used: 0 },
+        emergency: { total: 0, used: 0 },
+    };
+}
+
+function applyBalanceDto(target: LeaveBalance, dto: LeaveBalanceDto): LeaveBalance {
+    const next = {
+        ...target,
+        vacation: { ...target.vacation },
+        sick: { ...target.sick },
+        emergency: { ...target.emergency },
+    };
+
+    if (dto.leaveType === "Vacation") {
+        next.vacation = {
+            total: dto.totalCredits,
+            used: dto.usedCredits,
+        };
+    }
+
+    if (dto.leaveType === "Sick") {
+        next.sick = {
+            total: dto.totalCredits,
+            used: dto.usedCredits,
+        };
+    }
+
+    if (dto.leaveType === "Emergency") {
+        next.emergency = {
+            total: dto.totalCredits,
+            used: dto.usedCredits,
+        };
+    }
+
+    return next;
+}
+
+function mapRequestDto(dto: LeaveRequestDto): LeaveRequest {
+    return {
+        id: dto.id,
+        employee: dto.employeeName || "Unknown Employee",
+        department: "SimpleVia",
+        leaveType: toUiLeaveType(dto.leaveType),
+        startDate: formatDate(dto.startDate),
+        endDate: formatDate(dto.endDate),
+        days: dto.daysRequested,
+        status: toUiStatus(dto.status),
+        reason: dto.reason ?? "",
+    };
+}
+
+function mapHistoryFromRequest(dto: LeaveRequestDto): LeaveHistoryEntry {
+    return {
+        id: dto.id,
+        dateApplied: formatDate(dto.createdAtUtc),
+        employee: dto.employeeName || "Unknown Employee",
+        leaveType: toUiLeaveType(dto.leaveType),
+        duration: formatDuration(dto.daysRequested),
+        status: toUiStatus(dto.status),
+        approver: dto.reviewedByName || "Admin User",
+    };
+}
+
+function mapHistoryFromTransaction(dto: LeaveBalanceTransactionDto): LeaveHistoryEntry {
+    return {
+        id: dto.id,
+        dateApplied: formatDate(dto.createdAtUtc),
+        employee: "Current User",
+        leaveType: toUiLeaveType(dto.leaveType),
+        duration: formatDuration(dto.days),
+        status: "Approved",
+        approver: dto.createdByName || "Admin User",
+    };
+}
+
+function mapMyBalances(name: string, balances: LeaveBalanceDto[]): LeaveBalance[] {
+    const current = balances.reduce(
+        (acc, balance) => applyBalanceDto(acc, balance),
+        buildEmptyEmployeeBalance(name, "Current User")
+    );
+
+    return [current];
+}
+
+function mapAdminBalances(requests: LeaveRequestDto[], balances: LeaveBalanceDto[]): LeaveBalance[] {
+    const firstRequest = requests[0];
+
+    if (!firstRequest) {
+        return balances.length > 0
+            ? balances.reduce<LeaveBalance[]>(
+                  (items, balance) => {
+                      const current =
+                          items[0] ?? buildEmptyEmployeeBalance("Leave Balances", "LeaveBalances");
+
+                      items[0] = applyBalanceDto(current, balance);
+                      return items;
+                  },
+                  []
+              )
+            : [];
+    }
+
+    const employeeBalance = balances.reduce(
+        (acc, balance) => applyBalanceDto(acc, balance),
+        buildEmptyEmployeeBalance(firstRequest.employeeName || "Unknown Employee", firstRequest.employeeId)
+    );
+
+    return [employeeBalance];
+}
+
+function loadNotifications(): LeaveNotification[] {
     try {
-        const stored = localStorage.getItem(key);
-        if (stored) return JSON.parse(stored);
-    } catch { /* ignore parse errors */ }
-    return fallback;
+        const stored = localStorage.getItem("leave_notifications");
+        if (!stored) return [];
+
+        return JSON.parse(stored) as LeaveNotification[];
+    } catch {
+        return [];
+    }
 }
 
 export const LeaveProvider = ({ children }: { children: ReactNode }) => {
-    const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>(
-        () => loadFromStorage('leave_requests', defaultRequests)
-    );
+    const { user } = useAuth();
 
-    const [leaveHistory, setLeaveHistory] = useState<LeaveHistoryEntry[]>(
-        () => loadFromStorage('leave_history', defaultHistory)
-    );
+    const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+    const [leaveHistory, setLeaveHistory] = useState<LeaveHistoryEntry[]>([]);
+    const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
+    const [notifications, setNotifications] = useState<LeaveNotification[]>(loadNotifications);
 
-    const [leaveBalances] = useState<LeaveBalance[]>(
-        () => loadFromStorage('leave_balances', defaultBalances)
-    );
+    const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
 
-    const [notifications, setNotifications] = useState<LeaveNotification[]>(
-        () => loadFromStorage('leave_notifications', [])
-    );
+    const refreshLeaveData = useCallback(async () => {
+        if (!user) {
+            setLeaveRequests([]);
+            setLeaveHistory([]);
+            setLeaveBalances([]);
+            return;
+        }
 
-    // Persist to localStorage whenever data changes
+        try {
+            if (isAdmin) {
+                const [adminRequestsResult, adminBalancesResult] = await Promise.allSettled([
+                    getAdminLeaveRequests(),
+                    getAdminLeaveBalances(),
+                ]);
+
+                const adminRequests =
+                    adminRequestsResult.status === "fulfilled" ? adminRequestsResult.value : [];
+
+                const adminBalances =
+                    adminBalancesResult.status === "fulfilled" ? adminBalancesResult.value : [];
+
+                setLeaveRequests(adminRequests.map(mapRequestDto));
+
+                setLeaveHistory(
+                    adminRequests
+                        .filter(
+                            (request) =>
+                                request.status === "Approved" || request.status === "Rejected"
+                        )
+                        .map(mapHistoryFromRequest)
+                );
+
+                setLeaveBalances(mapAdminBalances(adminRequests, adminBalances));
+                return;
+            }
+
+            const [myBalancesResult, myRequestsResult, myHistoryResult] = await Promise.allSettled([
+                getMyLeaveBalances(),
+                getMyLeaveRequests(),
+                getMyLeaveHistory(),
+            ]);
+
+            const myRequests =
+                myRequestsResult.status === "fulfilled" ? myRequestsResult.value : [];
+
+            const myBalances =
+                myBalancesResult.status === "fulfilled" ? myBalancesResult.value : [];
+
+            const myHistory =
+                myHistoryResult.status === "fulfilled" ? myHistoryResult.value : [];
+
+            setLeaveRequests(myRequests.map(mapRequestDto));
+
+            const finalizedRequests = myRequests.filter(
+                (request) => request.status === "Approved" || request.status === "Rejected"
+            );
+
+            const requestHistory = finalizedRequests.map(mapHistoryFromRequest);
+            const transactionHistory = myHistory.map(mapHistoryFromTransaction);
+
+            setLeaveHistory(requestHistory.length > 0 ? requestHistory : transactionHistory);
+
+            setLeaveBalances(mapMyBalances(user.fullName || "Current User", myBalances));
+        } catch (error) {
+            console.error("Failed to load leave management data", error);
+        }
+    }, [isAdmin, user]);
+
     useEffect(() => {
-        localStorage.setItem('leave_requests', JSON.stringify(leaveRequests));
-    }, [leaveRequests]);
+        void refreshLeaveData();
+    }, [refreshLeaveData]);
 
     useEffect(() => {
-        localStorage.setItem('leave_history', JSON.stringify(leaveHistory));
-    }, [leaveHistory]);
-
-    useEffect(() => {
-        localStorage.setItem('leave_notifications', JSON.stringify(notifications));
+        localStorage.setItem("leave_notifications", JSON.stringify(notifications));
     }, [notifications]);
 
-    // User submits a leave request → shows as Pending in both user & admin
-    const submitLeaveRequest = (request: Omit<LeaveRequest, 'id' | 'status' | 'department'>) => {
-        const newRequest: LeaveRequest = {
-            ...request,
-            id: Date.now(),
-            status: 'Pending',
-            department: 'SimpleVia',
-        };
-        setLeaveRequests(prev => [newRequest, ...prev]);
+    const submitLeaveRequest = (request: Omit<LeaveRequest, "id" | "status" | "department">) => {
+        void (async () => {
+            try {
+                await createLeaveRequest({
+                    leaveType: toApiLeaveType(request.leaveType),
+                    startDate: request.startDate,
+                    endDate: request.endDate,
+                    reason: request.reason,
+                });
+
+                setNotifications((prev) => [
+                    {
+                        id: Date.now(),
+                        message: `Your ${request.leaveType} request has been submitted.`,
+                        type: "success",
+                        timestamp: new Date().toLocaleString(),
+                        read: false,
+                    },
+                    ...prev,
+                ]);
+
+                await refreshLeaveData();
+            } catch (error) {
+                setNotifications((prev) => [
+                    {
+                        id: Date.now(),
+                        message:
+                            error instanceof Error
+                                ? error.message
+                                : "Failed to submit leave request.",
+                        type: "danger",
+                        timestamp: new Date().toLocaleString(),
+                        read: false,
+                    },
+                    ...prev,
+                ]);
+            }
+        })();
     };
 
-    // Admin approves a pending request
     const approveRequest = (id: number) => {
-        const request = leaveRequests.find(r => r.id === id);
+        void (async () => {
+            try {
+                await approveLeaveRequest(id, {});
 
-        setLeaveRequests(prev => prev.map(r =>
-            r.id === id ? { ...r, status: 'Approved' as LeaveStatus } : r
-        ));
+                setNotifications((prev) => [
+                    {
+                        id: Date.now(),
+                        message: "Leave request approved.",
+                        type: "success",
+                        timestamp: new Date().toLocaleString(),
+                        read: false,
+                    },
+                    ...prev,
+                ]);
 
-        if (request) {
-            const historyEntry: LeaveHistoryEntry = {
-                id: Date.now(),
-                dateApplied: request.startDate,
-                employee: request.employee,
-                leaveType: request.leaveType,
-                duration: `${request.days} day(s)`,
-                status: 'Approved',
-                approver: 'Admin User',
-            };
-            setLeaveHistory(prev => [historyEntry, ...prev]);
-
-            const notification: LeaveNotification = {
-                id: Date.now() + 1,
-                message: `Your ${request.leaveType} request (${request.startDate} to ${request.endDate}) has been Approved by Admin.`,
-                type: 'success',
-                timestamp: new Date().toLocaleString(),
-                read: false,
-            };
-            setNotifications(prev => [notification, ...prev]);
-        }
+                await refreshLeaveData();
+            } catch (error) {
+                setNotifications((prev) => [
+                    {
+                        id: Date.now(),
+                        message:
+                            error instanceof Error
+                                ? error.message
+                                : "Failed to approve leave request.",
+                        type: "danger",
+                        timestamp: new Date().toLocaleString(),
+                        read: false,
+                    },
+                    ...prev,
+                ]);
+            }
+        })();
     };
 
-    // Admin rejects a pending request
     const rejectRequest = (id: number) => {
-        const request = leaveRequests.find(r => r.id === id);
+        void (async () => {
+            try {
+                await rejectLeaveRequest(id, {});
 
-        setLeaveRequests(prev => prev.map(r =>
-            r.id === id ? { ...r, status: 'Rejected' as LeaveStatus } : r
-        ));
+                setNotifications((prev) => [
+                    {
+                        id: Date.now(),
+                        message: "Leave request rejected.",
+                        type: "danger",
+                        timestamp: new Date().toLocaleString(),
+                        read: false,
+                    },
+                    ...prev,
+                ]);
 
-        if (request) {
-            const historyEntry: LeaveHistoryEntry = {
-                id: Date.now(),
-                dateApplied: request.startDate,
-                employee: request.employee,
-                leaveType: request.leaveType,
-                duration: `${request.days} day(s)`,
-                status: 'Rejected',
-                approver: 'Admin User',
-            };
-            setLeaveHistory(prev => [historyEntry, ...prev]);
-
-            const notification: LeaveNotification = {
-                id: Date.now() + 1,
-                message: `Your ${request.leaveType} request (${request.startDate} to ${request.endDate}) has been Denied by Admin.`,
-                type: 'danger',
-                timestamp: new Date().toLocaleString(),
-                read: false,
-            };
-            setNotifications(prev => [notification, ...prev]);
-        }
+                await refreshLeaveData();
+            } catch (error) {
+                setNotifications((prev) => [
+                    {
+                        id: Date.now(),
+                        message:
+                            error instanceof Error
+                                ? error.message
+                                : "Failed to reject leave request.",
+                        type: "danger",
+                        timestamp: new Date().toLocaleString(),
+                        read: false,
+                    },
+                    ...prev,
+                ]);
+            }
+        })();
     };
 
-    // Admin deletes a request
     const deleteRequest = (id: number) => {
-        setLeaveRequests(prev => prev.filter(r => r.id !== id));
+        void (async () => {
+            try {
+                await cancelLeaveRequest(id);
+                await refreshLeaveData();
+            } catch {
+                setLeaveRequests((prev) => prev.filter((request) => request.id !== id));
+            }
+        })();
     };
 
-    // Notification helpers
     const markNotificationRead = (id: number) => {
-        setNotifications(prev => prev.map(n =>
-            n.id === id ? { ...n, read: true } : n
-        ));
+        setNotifications((prev) =>
+            prev.map((notification) =>
+                notification.id === id ? { ...notification, read: true } : notification
+            )
+        );
     };
 
     const clearNotifications = () => {
-        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        setNotifications((prev) =>
+            prev.map((notification) => ({ ...notification, read: true }))
+        );
     };
 
     return (
-        <LeaveContext.Provider value={{
-            leaveRequests,
-            leaveHistory,
-            leaveBalances,
-            notifications,
-            submitLeaveRequest,
-            approveRequest,
-            rejectRequest,
-            deleteRequest,
-            markNotificationRead,
-            clearNotifications,
-        }}>
+        <LeaveContext.Provider
+            value={{
+                leaveRequests,
+                leaveHistory,
+                leaveBalances,
+                notifications,
+                submitLeaveRequest,
+                approveRequest,
+                rejectRequest,
+                deleteRequest,
+                markNotificationRead,
+                clearNotifications,
+            }}
+        >
             {children}
         </LeaveContext.Provider>
     );
@@ -226,6 +490,6 @@ export const LeaveProvider = ({ children }: { children: ReactNode }) => {
 
 export const useLeave = () => {
     const ctx = useContext(LeaveContext);
-    if (!ctx) throw new Error('useLeave must be used within LeaveProvider');
+    if (!ctx) throw new Error("useLeave must be used within LeaveProvider");
     return ctx;
 };
