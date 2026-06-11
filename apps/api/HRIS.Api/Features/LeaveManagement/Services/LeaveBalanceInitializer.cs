@@ -20,7 +20,12 @@ public class LeaveBalanceInitializer : ILeaveBalanceInitializer
         Guid employeeId,
         CancellationToken cancellationToken = default)
     {
-        await EnsureEmployeeHasShiftAssignmentAsync(employeeId, cancellationToken);
+        var hasShiftAssignment = await HasActiveShiftAssignmentAsync(
+            employeeId,
+            cancellationToken);
+
+        if (!hasShiftAssignment)
+            return;
 
         var now = DateTime.UtcNow;
 
@@ -46,15 +51,14 @@ public class LeaveBalanceInitializer : ILeaveBalanceInitializer
             cancellationToken);
     }
 
-    private async Task EnsureEmployeeHasShiftAssignmentAsync(
+    private async Task<bool> HasActiveShiftAssignmentAsync(
         Guid employeeId,
         CancellationToken cancellationToken)
     {
-        var hasShiftAssignment = await _context.EmployeeShiftAssignments
-            .AnyAsync(x => x.EmployeeId == employeeId && x.IsActive, cancellationToken);
-
-        if (!hasShiftAssignment)
-            return;
+        return await _context.EmployeeShiftAssignments
+            .AnyAsync(
+                x => x.EmployeeId == employeeId && x.IsActive,
+                cancellationToken);
     }
 
     private async Task InsertDefaultBalanceIfMissingAsync(
