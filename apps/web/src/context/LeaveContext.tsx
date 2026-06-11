@@ -3,6 +3,7 @@ import {
     useCallback,
     useContext,
     useEffect,
+    useMemo,
     useState,
     type ReactNode,
 } from "react";
@@ -23,7 +24,7 @@ import {
     type LeaveType,
 } from "../lib/leave";
 
-export type LeaveStatus = "Pending" | "Approved" | "Rejected";
+export type LeaveStatus = "Pending" | "Approved" | "Rejected" | "Cancelled";
 
 export interface LeaveRequest {
     id: number;
@@ -76,6 +77,11 @@ interface LeaveContextType {
     clearNotifications: () => void;
 }
 
+type EmployeeScopedLeaveBalanceDto = LeaveBalanceDto & {
+    employeeId?: string;
+    employeeName?: string;
+};
+
 const LeaveContext = createContext<LeaveContextType | undefined>(undefined);
 
 const emptyBalance: LeaveBalance = {
@@ -108,6 +114,7 @@ function toApiLeaveType(leaveType: string): LeaveType {
 function toUiStatus(status: string): LeaveStatus {
     if (status === "Approved") return "Approved";
     if (status === "Rejected") return "Rejected";
+    if (status === "Cancelled") return "Cancelled";
     return "Pending";
 }
 
@@ -191,7 +198,7 @@ function mapHistoryFromRequest(dto: LeaveRequestDto): LeaveHistoryEntry {
 
 function mapHistoryFromTransaction(dto: LeaveBalanceTransactionDto): LeaveHistoryEntry {
     return {
-        id: dto.id,
+        id: -dto.id,
         dateApplied: formatDate(dto.createdAtUtc),
         employee: "Current User",
         leaveType: toUiLeaveType(dto.leaveType),
@@ -211,34 +218,49 @@ function mapMyBalances(name: string, balances: LeaveBalanceDto[]): LeaveBalance[
 }
 
 function mapAdminBalances(requests: LeaveRequestDto[], balances: LeaveBalanceDto[]): LeaveBalance[] {
-    const firstRequest = requests[0];
+    const employeeNames = new Map<string, string>();
 
-    if (!firstRequest) {
-        return balances.length > 0
-            ? balances.reduce<LeaveBalance[]>(
-                  (items, balance) => {
-                      const current =
-                          items[0] ?? buildEmptyEmployeeBalance("Leave Balances", "LeaveBalances");
+    requests.forEach((request) => {
+        if (request.employeeId) {
+            employeeNames.set(request.employeeId, request.employeeName || "Unknown Employee");
+        }
+    });
 
-                      items[0] = applyBalanceDto(current, balance);
-                      return items;
-                  },
-                  []
-              )
-            : [];
+    const grouped = new Map<string, LeaveBalance>();
+
+    balances.forEach((balance) => {
+        const scopedBalance = balance as EmployeeScopedLeaveBalanceDto;
+        const employeeId =
+            scopedBalance.employeeId ||
+            (employeeNames.size === 1 ? Array.from(employeeNames.keys())[0] : "LeaveBalances");
+
+        const employeeName =
+            scopedBalance.employeeName ||
+            employeeNames.get(employeeId) ||
+            (employeeId === "LeaveBalances" ? "Leave Balances" : "Unknown Employee");
+
+        const current =
+            grouped.get(employeeId) ?? buildEmptyEmployeeBalance(employeeName, employeeId);
+
+        grouped.set(employeeId, applyBalanceDto(current, balance));
+    });
+
+    if (grouped.size > 0) {
+        return Array.from(grouped.values());
     }
 
-    const employeeBalance = balances.reduce(
-        (acc, balance) => applyBalanceDto(acc, balance),
-        buildEmptyEmployeeBalance(firstRequest.employeeName || "Unknown Employee", firstRequest.employeeId)
+    return Array.from(employeeNames.entries()).map(([employeeId, employeeName]) =>
+        buildEmptyEmployeeBalance(employeeName, employeeId)
     );
-
-    return [employeeBalance];
 }
 
-function loadNotifications(): LeaveNotification[] {
+function getNotificationStorageKey(userKey: string): string {
+    return `leave_notifications:${userKey}`;
+}
+
+function loadNotifications(userKey: string): LeaveNotification[] {
     try {
-        const stored = localStorage.getItem("leave_notifications");
+        const stored = localStorage.getItem(getNotificationStorageKey(userKey));
         if (!stored) return [];
 
         return JSON.parse(stored) as LeaveNotification[];
@@ -250,10 +272,17 @@ function loadNotifications(): LeaveNotification[] {
 export const LeaveProvider = ({ children }: { children: ReactNode }) => {
     const { user } = useAuth();
 
+    const notificationUserKey = useMemo(() => {
+        if (!user) return "anonymous";
+        return `${user.role}:${user.fullName || "user"}`;
+    }, [user]);
+
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
     const [leaveHistory, setLeaveHistory] = useState<LeaveHistoryEntry[]>([]);
     const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
-    const [notifications, setNotifications] = useState<LeaveNotification[]>(loadNotifications);
+    const [notifications, setNotifications] = useState<LeaveNotification[]>(() =>
+        loadNotifications(notificationUserKey)
+    );
 
     const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
 
@@ -284,7 +313,9 @@ export const LeaveProvider = ({ children }: { children: ReactNode }) => {
                     adminRequests
                         .filter(
                             (request) =>
-                                request.status === "Approved" || request.status === "Rejected"
+                                request.status === "Approved" ||
+                                request.status === "Rejected" ||
+                                request.status === "Cancelled"
                         )
                         .map(mapHistoryFromRequest)
                 );
@@ -311,13 +342,19 @@ export const LeaveProvider = ({ children }: { children: ReactNode }) => {
             setLeaveRequests(myRequests.map(mapRequestDto));
 
             const finalizedRequests = myRequests.filter(
-                (request) => request.status === "Approved" || request.status === "Rejected"
+                (request) =>
+                    request.status === "Approved" ||
+                    request.status === "Rejected" ||
+                    request.status === "Cancelled"
             );
 
             const requestHistory = finalizedRequests.map(mapHistoryFromRequest);
             const transactionHistory = myHistory.map(mapHistoryFromTransaction);
+            const combinedHistory = [...requestHistory, ...transactionHistory].sort((a, b) =>
+                b.dateApplied.localeCompare(a.dateApplied)
+            );
 
-            setLeaveHistory(requestHistory.length > 0 ? requestHistory : transactionHistory);
+            setLeaveHistory(combinedHistory);
 
             setLeaveBalances(mapMyBalances(user.fullName || "Current User", myBalances));
         } catch (error) {
@@ -330,8 +367,21 @@ export const LeaveProvider = ({ children }: { children: ReactNode }) => {
     }, [refreshLeaveData]);
 
     useEffect(() => {
-        localStorage.setItem("leave_notifications", JSON.stringify(notifications));
-    }, [notifications]);
+        setNotifications(loadNotifications(notificationUserKey));
+    }, [notificationUserKey]);
+
+    useEffect(() => {
+        if (!user) {
+            localStorage.removeItem(getNotificationStorageKey(notificationUserKey));
+            setNotifications([]);
+            return;
+        }
+
+        localStorage.setItem(
+            getNotificationStorageKey(notificationUserKey),
+            JSON.stringify(notifications)
+        );
+    }, [notificationUserKey, notifications, user]);
 
     const submitLeaveRequest = (request: Omit<LeaveRequest, "id" | "status" | "department">) => {
         void (async () => {
@@ -448,8 +498,22 @@ export const LeaveProvider = ({ children }: { children: ReactNode }) => {
             try {
                 await cancelLeaveRequest(id);
                 await refreshLeaveData();
-            } catch {
-                setLeaveRequests((prev) => prev.filter((request) => request.id !== id));
+            } catch (error) {
+                setNotifications((prev) => [
+                    {
+                        id: Date.now(),
+                        message:
+                            error instanceof Error
+                                ? error.message
+                                : "Failed to cancel leave request.",
+                        type: "danger",
+                        timestamp: new Date().toLocaleString(),
+                        read: false,
+                    },
+                    ...prev,
+                ]);
+
+                await refreshLeaveData();
             }
         })();
     };

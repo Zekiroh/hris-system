@@ -1,5 +1,4 @@
 using HRIS.Api.Data;
-using HRIS.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace HRIS.Api.Features.LeaveManagement.Services;
@@ -21,55 +20,62 @@ public class LeaveBalanceInitializer : ILeaveBalanceInitializer
         Guid employeeId,
         CancellationToken cancellationToken = default)
     {
-        var existingLeaveTypes = await _context.LeaveBalances
-            .Where(x => x.EmployeeId == employeeId)
-            .Select(x => x.LeaveType)
-            .ToListAsync(cancellationToken);
+        await EnsureEmployeeHasShiftAssignmentAsync(employeeId, cancellationToken);
 
         var now = DateTime.UtcNow;
 
-        AddMissingBalance(
+        await InsertDefaultBalanceIfMissingAsync(
             employeeId,
-            existingLeaveTypes,
             "Vacation",
             DefaultVacationCredits,
-            now);
+            now,
+            cancellationToken);
 
-        AddMissingBalance(
+        await InsertDefaultBalanceIfMissingAsync(
             employeeId,
-            existingLeaveTypes,
             "Sick",
             DefaultSickCredits,
-            now);
+            now,
+            cancellationToken);
 
-        AddMissingBalance(
+        await InsertDefaultBalanceIfMissingAsync(
             employeeId,
-            existingLeaveTypes,
             "Emergency",
             DefaultEmergencyCredits,
-            now);
-
-        await _context.SaveChangesAsync(cancellationToken);
+            now,
+            cancellationToken);
     }
 
-    private void AddMissingBalance(
+    private async Task EnsureEmployeeHasShiftAssignmentAsync(
         Guid employeeId,
-        IReadOnlyCollection<string> existingLeaveTypes,
+        CancellationToken cancellationToken)
+    {
+        var hasShiftAssignment = await _context.EmployeeShiftAssignments
+            .AnyAsync(x => x.EmployeeId == employeeId && x.IsActive, cancellationToken);
+
+        if (!hasShiftAssignment)
+            return;
+    }
+
+    private async Task InsertDefaultBalanceIfMissingAsync(
+        Guid employeeId,
         string leaveType,
         decimal defaultCredits,
-        DateTime now)
+        DateTime now,
+        CancellationToken cancellationToken)
     {
-        if (existingLeaveTypes.Contains(leaveType))
-            return;
-
-        _context.LeaveBalances.Add(new LeaveBalance
-        {
-            EmployeeId = employeeId,
-            LeaveType = leaveType,
-            TotalCredits = defaultCredits,
-            UsedCredits = 0,
-            RemainingCredits = defaultCredits,
-            CreatedAtUtc = now
-        });
+        await _context.Database.ExecuteSqlInterpolatedAsync($@"
+            INSERT IGNORE INTO `LeaveBalances`
+                (`EmployeeId`, `LeaveType`, `TotalCredits`, `UsedCredits`, `RemainingCredits`, `CreatedAtUtc`)
+            SELECT
+                {employeeId.ToString()}, {leaveType}, {defaultCredits}, {0m}, {defaultCredits}, {now}
+            WHERE NOT EXISTS
+            (
+                SELECT 1
+                FROM `LeaveBalances`
+                WHERE `EmployeeId` = {employeeId.ToString()}
+                  AND LOWER(`LeaveType`) = LOWER({leaveType})
+            );
+        ", cancellationToken);
     }
 }

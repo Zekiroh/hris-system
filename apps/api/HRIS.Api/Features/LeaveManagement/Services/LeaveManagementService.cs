@@ -152,8 +152,6 @@ public class LeaveManagementService : ILeaveManagementService
 
     public async Task<IReadOnlyList<LeaveRequestDto>> GetAllRequestsAsync()
     {
-        await EnsureDefaultBalancesForAllActiveEmployeesAsync();
-
         return await _context.LeaveRequests
             .AsNoTracking()
             .Include(x => x.Employee)
@@ -171,20 +169,30 @@ public class LeaveManagementService : ILeaveManagementService
         string? ipAddress,
         string? userAgent)
     {
+        await using var transactionScope = await _context.Database.BeginTransactionAsync();
+
         var request = await _context.LeaveRequests
+            .FromSqlInterpolated($@"
+                SELECT *
+                FROM `LeaveRequests`
+                WHERE `Id` = {requestId}
+                LIMIT 1
+                FOR UPDATE
+            ")
             .Include(x => x.Employee)
             .Include(x => x.ReviewedByUser)
-            .FirstOrDefaultAsync(x => x.Id == requestId);
+            .FirstOrDefaultAsync();
 
         if (request is null)
             throw new ApiException("Leave request not found.", StatusCodes.Status404NotFound);
 
+        await EnsureEmployeeHasShiftAssignmentAsync(request.EmployeeId);
         await EnsureDefaultBalancesAsync(request.EmployeeId);
 
         if (request.Status != "Pending")
             throw new ApiException("Only pending leave requests can be approved.");
 
-        var balance = await GetBalanceAsync(request.EmployeeId, request.LeaveType);
+        var balance = await GetBalanceForUpdateAsync(request.EmployeeId, request.LeaveType);
 
         if (balance.RemainingCredits < request.DaysRequested)
             throw new ApiException("Insufficient leave balance.");
@@ -193,7 +201,7 @@ public class LeaveManagementService : ILeaveManagementService
         balance.RemainingCredits -= request.DaysRequested;
         balance.UpdatedAtUtc = DateTime.UtcNow;
 
-        var transaction = new LeaveBalanceTransaction
+        var balanceTransaction = new LeaveBalanceTransaction
         {
             EmployeeId = request.EmployeeId,
             LeaveBalance = balance,
@@ -205,7 +213,7 @@ public class LeaveManagementService : ILeaveManagementService
             CreatedAtUtc = DateTime.UtcNow
         };
 
-        _context.LeaveBalanceTransactions.Add(transaction);
+        _context.LeaveBalanceTransactions.Add(balanceTransaction);
 
         request.Status = "Approved";
         request.ReviewedByUserId = reviewerUserId;
@@ -224,6 +232,7 @@ public class LeaveManagementService : ILeaveManagementService
             userAgent);
 
         await _context.SaveChangesAsync();
+        await transactionScope.CommitAsync();
 
         return await GetRequestDtoByIdAsync(request.Id);
     }
@@ -236,14 +245,24 @@ public class LeaveManagementService : ILeaveManagementService
         string? ipAddress,
         string? userAgent)
     {
+        await using var transactionScope = await _context.Database.BeginTransactionAsync();
+
         var request = await _context.LeaveRequests
+            .FromSqlInterpolated($@"
+                SELECT *
+                FROM `LeaveRequests`
+                WHERE `Id` = {requestId}
+                LIMIT 1
+                FOR UPDATE
+            ")
             .Include(x => x.Employee)
             .Include(x => x.ReviewedByUser)
-            .FirstOrDefaultAsync(x => x.Id == requestId);
+            .FirstOrDefaultAsync();
 
         if (request is null)
             throw new ApiException("Leave request not found.", StatusCodes.Status404NotFound);
 
+        await EnsureEmployeeHasShiftAssignmentAsync(request.EmployeeId);
         await EnsureDefaultBalancesAsync(request.EmployeeId);
 
         if (request.Status != "Pending")
@@ -266,6 +285,7 @@ public class LeaveManagementService : ILeaveManagementService
             userAgent);
 
         await _context.SaveChangesAsync();
+        await transactionScope.CommitAsync();
 
         return await GetRequestDtoByIdAsync(request.Id);
     }
@@ -273,6 +293,7 @@ public class LeaveManagementService : ILeaveManagementService
     public async Task<IReadOnlyList<LeaveBalanceDto>> GetEmployeeBalancesAsync(Guid employeeId)
     {
         await EnsureEmployeeExistsAsync(employeeId);
+        await EnsureEmployeeHasShiftAssignmentAsync(employeeId);
         await EnsureDefaultBalancesAsync(employeeId);
 
         return await _context.LeaveBalances
@@ -286,6 +307,7 @@ public class LeaveManagementService : ILeaveManagementService
     public async Task<IReadOnlyList<LeaveBalanceTransactionDto>> GetEmployeeHistoryAsync(Guid employeeId)
     {
         await EnsureEmployeeExistsAsync(employeeId);
+        await EnsureEmployeeHasShiftAssignmentAsync(employeeId);
         await EnsureDefaultBalancesAsync(employeeId);
 
         return await _context.LeaveBalanceTransactions
@@ -299,8 +321,6 @@ public class LeaveManagementService : ILeaveManagementService
 
     public async Task<IReadOnlyList<LeaveBalanceDto>> GetAllBalancesAsync()
     {
-        await EnsureDefaultBalancesForAllActiveEmployeesAsync();
-
         return await _context.LeaveBalances
             .AsNoTracking()
             .OrderBy(x => x.Employee.LastName)
@@ -318,10 +338,14 @@ public class LeaveManagementService : ILeaveManagementService
         string? userAgent)
     {
         var leaveType = NormalizeLeaveType(dto.LeaveType);
+
         await EnsureEmployeeExistsAsync(dto.EmployeeId);
+        await EnsureEmployeeHasShiftAssignmentAsync(dto.EmployeeId);
         await EnsureDefaultBalancesAsync(dto.EmployeeId);
 
-        var balance = await GetOrCreateBalanceAsync(dto.EmployeeId, leaveType, 0);
+        await using var transactionScope = await _context.Database.BeginTransactionAsync();
+
+        var balance = await GetBalanceForUpdateAsync(dto.EmployeeId, leaveType);
 
         balance.TotalCredits += dto.Days;
         balance.RemainingCredits += dto.Days;
@@ -350,6 +374,7 @@ public class LeaveManagementService : ILeaveManagementService
             userAgent);
 
         await _context.SaveChangesAsync();
+        await transactionScope.CommitAsync();
 
         return ToBalanceDto(balance);
     }
@@ -362,10 +387,14 @@ public class LeaveManagementService : ILeaveManagementService
         string? userAgent)
     {
         var leaveType = NormalizeLeaveType(dto.LeaveType);
+
         await EnsureEmployeeExistsAsync(dto.EmployeeId);
+        await EnsureEmployeeHasShiftAssignmentAsync(dto.EmployeeId);
         await EnsureDefaultBalancesAsync(dto.EmployeeId);
 
-        var balance = await GetOrCreateBalanceAsync(dto.EmployeeId, leaveType, 0);
+        await using var transactionScope = await _context.Database.BeginTransactionAsync();
+
+        var balance = await GetBalanceForUpdateAsync(dto.EmployeeId, leaveType);
 
         balance.TotalCredits += dto.Days;
         balance.RemainingCredits += dto.Days;
@@ -398,6 +427,7 @@ public class LeaveManagementService : ILeaveManagementService
             userAgent);
 
         await _context.SaveChangesAsync();
+        await transactionScope.CommitAsync();
 
         return ToBalanceDto(balance);
     }
@@ -410,6 +440,8 @@ public class LeaveManagementService : ILeaveManagementService
         if (employee is null)
             throw new ApiException("Employee record is not linked to this user.", StatusCodes.Status403Forbidden);
 
+        await EnsureEmployeeHasShiftAssignmentAsync(employee.Id);
+
         return employee;
     }
 
@@ -421,80 +453,65 @@ public class LeaveManagementService : ILeaveManagementService
             throw new ApiException("Employee not found.", StatusCodes.Status404NotFound);
     }
 
-    private async Task EnsureDefaultBalancesForAllActiveEmployeesAsync()
+    private async Task EnsureEmployeeHasShiftAssignmentAsync(Guid employeeId)
     {
-        var employeeIds = await _context.Employees
-            .Where(x => x.IsActive)
-            .Select(x => x.Id)
-            .ToListAsync();
+        var hasShiftAssignment = await _context.EmployeeShiftAssignments
+            .AnyAsync(x => x.EmployeeId == employeeId && x.IsActive);
 
-        foreach (var employeeId in employeeIds)
-        {
-            await EnsureDefaultBalancesAsync(employeeId, saveChanges: false);
-        }
-
-        await _context.SaveChangesAsync();
+        if (!hasShiftAssignment)
+            throw new ApiException(
+                "Employee is not eligible for leave management without an assigned shift.",
+                StatusCodes.Status403Forbidden);
     }
 
-    private async Task EnsureDefaultBalancesAsync(Guid employeeId, bool saveChanges = true)
+    private async Task EnsureDefaultBalancesAsync(Guid employeeId)
     {
-        var existingLeaveTypes = await _context.LeaveBalances
-            .Where(x => x.EmployeeId == employeeId)
-            .Select(x => x.LeaveType)
-            .ToListAsync();
+        await EnsureEmployeeHasShiftAssignmentAsync(employeeId);
 
         var now = DateTime.UtcNow;
 
-        AddMissingDefaultBalance(
+        await InsertDefaultBalanceIfMissingAsync(
             employeeId,
-            existingLeaveTypes,
             "Vacation",
             DefaultVacationCredits,
             now);
 
-        AddMissingDefaultBalance(
+        await InsertDefaultBalanceIfMissingAsync(
             employeeId,
-            existingLeaveTypes,
             "Sick",
             DefaultSickCredits,
             now);
 
-        AddMissingDefaultBalance(
+        await InsertDefaultBalanceIfMissingAsync(
             employeeId,
-            existingLeaveTypes,
             "Emergency",
             DefaultEmergencyCredits,
             now);
-
-        if (saveChanges)
-            await _context.SaveChangesAsync();
     }
 
-    private void AddMissingDefaultBalance(
+    private async Task InsertDefaultBalanceIfMissingAsync(
         Guid employeeId,
-        IReadOnlyCollection<string> existingLeaveTypes,
         string leaveType,
         decimal defaultCredits,
         DateTime now)
     {
-        if (existingLeaveTypes.Any(x => x == leaveType))
-            return;
-
-        _context.LeaveBalances.Add(new LeaveBalance
-        {
-            EmployeeId = employeeId,
-            LeaveType = leaveType,
-            TotalCredits = defaultCredits,
-            UsedCredits = 0,
-            RemainingCredits = defaultCredits,
-            CreatedAtUtc = now
-        });
+        await _context.Database.ExecuteSqlInterpolatedAsync($@"
+            INSERT IGNORE INTO `LeaveBalances`
+                (`EmployeeId`, `LeaveType`, `TotalCredits`, `UsedCredits`, `RemainingCredits`, `CreatedAtUtc`)
+            SELECT
+                {employeeId.ToString()}, {leaveType}, {defaultCredits}, {0m}, {defaultCredits}, {now}
+            WHERE NOT EXISTS
+            (
+                SELECT 1
+                FROM `LeaveBalances`
+                WHERE `EmployeeId` = {employeeId.ToString()}
+                  AND LOWER(`LeaveType`) = LOWER({leaveType})
+            );
+        ");
     }
 
     private async Task<LeaveBalance> GetBalanceAsync(Guid employeeId, string leaveType)
     {
-        await EnsureDefaultBalancesAsync(employeeId);
-
         var balance = await _context.LeaveBalances
             .FirstOrDefaultAsync(x => x.EmployeeId == employeeId && x.LeaveType == leaveType);
 
@@ -504,28 +521,22 @@ public class LeaveManagementService : ILeaveManagementService
         return balance;
     }
 
-    private async Task<LeaveBalance> GetOrCreateBalanceAsync(
-        Guid employeeId,
-        string leaveType,
-        decimal defaultCredits)
+    private async Task<LeaveBalance> GetBalanceForUpdateAsync(Guid employeeId, string leaveType)
     {
         var balance = await _context.LeaveBalances
-            .FirstOrDefaultAsync(x => x.EmployeeId == employeeId && x.LeaveType == leaveType);
+            .FromSqlInterpolated($@"
+                SELECT *
+                FROM `LeaveBalances`
+                WHERE `EmployeeId` = {employeeId.ToString()}
+                  AND LOWER(`LeaveType`) = LOWER({leaveType})
+                LIMIT 1
+                FOR UPDATE
+            ")
+            .FirstOrDefaultAsync();
 
-        if (balance is not null)
-            return balance;
+        if (balance is null)
+            throw new ApiException($"{leaveType} leave balance not found.");
 
-        balance = new LeaveBalance
-        {
-            EmployeeId = employeeId,
-            LeaveType = leaveType,
-            TotalCredits = defaultCredits,
-            UsedCredits = 0,
-            RemainingCredits = defaultCredits,
-            CreatedAtUtc = DateTime.UtcNow
-        };
-
-        _context.LeaveBalances.Add(balance);
         return balance;
     }
 
