@@ -20,6 +20,11 @@ type OvertimeRequestShiftDay = {
     isWorkingDay: boolean;
 };
 
+type ApprovedLeaveRange = {
+    startDate: string;
+    endDate: string;
+};
+
 type OvertimeRequestModalProps = {
     isOpen: boolean;
     submittingOt: boolean;
@@ -31,6 +36,7 @@ type OvertimeRequestModalProps = {
     breakEndTime?: string | null;
     shiftEndTime?: string | null;
     shiftDays?: OvertimeRequestShiftDay[];
+    approvedLeaveRanges?: ApprovedLeaveRange[];
 };
 
 type FormState = {
@@ -243,6 +249,7 @@ const OvertimeRequestModal = ({
     breakEndTime,
     shiftEndTime,
     shiftDays = [],
+    approvedLeaveRanges = [],
 }: OvertimeRequestModalProps) => {
     const [form, setForm] = useState<FormState>(() => getDefaultFormState());
     const [wasOpen, setWasOpen] = useState(isOpen);
@@ -319,6 +326,33 @@ const OvertimeRequestModal = ({
         [normalizedShiftDays, today, isWorkingDay]
     );
 
+    const approvedLeaveDateSet = useMemo(() => {
+        const dates = new Set<string>();
+
+        approvedLeaveRanges.forEach((leave) => {
+            const leaveStart = parseDateInput(leave.startDate);
+            const leaveEnd = parseDateInput(leave.endDate);
+
+            if (!leaveStart || !leaveEnd || leaveStart > leaveEnd) {
+                return;
+            }
+
+            const cursor = new Date(leaveStart);
+
+            while (cursor <= leaveEnd) {
+                dates.add(formatDateInput(cursor));
+                cursor.setDate(cursor.getDate() + 1);
+            }
+        });
+
+        return dates;
+    }, [approvedLeaveRanges]);
+
+    const isApprovedLeaveDate = useMemo(
+        () => (date: Date) => approvedLeaveDateSet.has(formatDateInput(date)),
+        [approvedLeaveDateSet]
+    );
+
     const dateRange = useMemo(
         () => getDateRange(dateFrom, dateTo),
         [dateFrom, dateTo]
@@ -332,6 +366,7 @@ const OvertimeRequestModal = ({
 
             if (apiDate < today) return false;
             if (!isDateWorkingDay(date)) return false;
+            if (isApprovedLeaveDate(date)) return false;
 
             if (apiDate === today && !isWithinCurrentDayWindow) {
                 return false;
@@ -348,6 +383,7 @@ const OvertimeRequestModal = ({
         today,
         tomorrow,
         isDateWorkingDay,
+        isApprovedLeaveDate,
         isWithinCurrentDayWindow,
     ]);
 
@@ -373,12 +409,14 @@ const OvertimeRequestModal = ({
             const apiDate = formatDateInput(date);
             const isPastDate = apiDate < today;
             const isWorkingShiftDay = isDateWorkingDay(date);
+            const isApprovedLeave = isApprovedLeaveDate(date);
             const isSkippedToday = apiDate === today && effectiveDateFrom > today;
             const isRequestable =
                 apiDate >= effectiveDateFrom &&
                 apiDate <= dateTo &&
                 !isPastDate &&
-                isWorkingShiftDay;
+                isWorkingShiftDay &&
+                !isApprovedLeave;
 
             if (!isWorkingShiftDay) {
                 return {
@@ -389,6 +427,18 @@ const OvertimeRequestModal = ({
                     status: 'blocked',
                     statusLabel: 'Blocked',
                     remarks: 'Not a scheduled working day',
+                };
+            }
+
+            if (isApprovedLeave) {
+                return {
+                    key: apiDate,
+                    displayDate: formatPreviewDate(date),
+                    dayName: formatDayName(date),
+                    otHours: '--',
+                    status: 'blocked',
+                    statusLabel: 'Blocked',
+                    remarks: 'Approved leave date',
                 };
             }
 
@@ -461,6 +511,7 @@ const OvertimeRequestModal = ({
         isWorkingDay,
         hasRequestWindow,
         isDateWorkingDay,
+        isApprovedLeaveDate,
     ]);
 
     const requestablePreviewCount = useMemo(
@@ -484,6 +535,10 @@ const OvertimeRequestModal = ({
 
         const todayDate = new Date(`${today}T00:00:00`);
 
+        if (includesToday && isApprovedLeaveDate(todayDate)) {
+            return 'Today is an approved leave date, so the request will start from the next valid date.';
+        }
+
         if (includesToday && !isDateWorkingDay(todayDate)) {
             return 'Today is not part of your assigned working schedule, so the request will start from the next valid date.';
         }
@@ -502,6 +557,7 @@ const OvertimeRequestModal = ({
         dateTo,
         today,
         isDateWorkingDay,
+        isApprovedLeaveDate,
         hasRequestWindow,
         isWithinCurrentDayWindow,
         effectiveDateFrom,

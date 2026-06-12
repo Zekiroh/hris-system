@@ -275,7 +275,7 @@ export const LeaveProvider = ({ children }: { children: ReactNode }) => {
     const notificationUserKey = useMemo(() => {
         if (!user) return "anonymous";
         return `${user.role}:${user.fullName || "user"}`;
-    }, [user]);
+    }, [user?.role, user?.fullName]);
 
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
     const [leaveHistory, setLeaveHistory] = useState<LeaveHistoryEntry[]>([]);
@@ -372,8 +372,10 @@ export const LeaveProvider = ({ children }: { children: ReactNode }) => {
 
     useEffect(() => {
         if (!user) {
-            localStorage.removeItem(getNotificationStorageKey(notificationUserKey));
-            setNotifications([]);
+            if (notifications.length > 0) {
+                setNotifications([]);
+            }
+
             return;
         }
 
