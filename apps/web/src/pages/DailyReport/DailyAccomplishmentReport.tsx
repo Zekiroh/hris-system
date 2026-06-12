@@ -6,6 +6,7 @@ import {
   Clock, CheckCircle, AlertTriangle, Lock,
   Plus, Send, Eye, X, FileText,
 } from "lucide-react";
+import { toast } from "sonner";
 
 // Types
 
@@ -390,6 +391,14 @@ export default function DailyAccomplishmentReport() {
     setDateSubmitted(today);
   };
 
+  const handleTrySubmit = () => {
+    if (!devName.trim() || !project.trim()) {
+      toast.error("Please complete Section 1 (Developer Information) before submitting.");
+      return;
+    }
+    setShowConfirm(true);
+  };
+
   const checklistItems = [
     "All code committed & pushed to repository",
     "Tickets / task board updated with current status",
@@ -534,23 +543,11 @@ export default function DailyAccomplishmentReport() {
         {/* Time In / Time Out */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
           <Field label="Time In">
-            <input
-              className="pro-input"
-              type="text"
-              placeholder="e.g. 08:00 AM"
-              value={timeIn}
-              onChange={e => setTimeIn(e.target.value)}
-            />
+            <input className="pro-input" type="time" value={timeIn} onChange={e => setTimeIn(e.target.value)} />
           </Field>
 
           <Field label="Time Out">
-            <input
-              className="pro-input"
-              type="text"
-              placeholder="e.g. 05:00 PM"
-              value={timeOut}
-              onChange={e => setTimeOut(e.target.value)}
-            />
+            <input className="pro-input" type="time" value={timeOut} onChange={e => setTimeOut(e.target.value)} />
           </Field>
 
           <Field label="Break Duration (mins)">
@@ -558,7 +555,7 @@ export default function DailyAccomplishmentReport() {
           </Field>
 
           <Field label="Submission Time" hint="Record exact time of submission">
-            <input className="pro-input" type="text" placeholder="e.g. 5:15 PM" value={subTime} onChange={e => setSubTime(e.target.value)} />
+            <input className="pro-input" type="time" value={subTime} onChange={e => setSubTime(e.target.value)} />
           </Field>
         </div>
 
@@ -782,7 +779,7 @@ export default function DailyAccomplishmentReport() {
         </p>
         <div className="flex gap-3 flex-shrink-0">
           <button type="button" className="btn btn-secondary" style={{ padding: "10px 24px", fontSize: "14px" }} onClick={() => setShowPreview(true)}><Eye className="w-5 h-5" /> Preview</button>
-          <button type="button" className="btn btn-primary" style={{ padding: "10px 24px", fontSize: "14px" }} onClick={() => setShowConfirm(true)}><Send className="w-5 h-5" /> Submit Report</button>
+          <button type="button" className="btn btn-primary" style={{ padding: "10px 24px", fontSize: "14px" }} onClick={handleTrySubmit}><Send className="w-5 h-5" /> Submit Report</button>
         </div>
       </div>
 
@@ -1140,7 +1137,7 @@ export default function DailyAccomplishmentReport() {
 
             <div className="pro-modal-footer">
               <button type="button" className="btn btn-secondary" onClick={() => setShowPreview(false)}>Close</button>
-              <button type="button" className="btn btn-primary" style={{ padding: "10px 24px", fontSize: "14px" }} onClick={() => setShowConfirm(true)}><Send className="w-5 h-5" /> Submit Report</button>
+              <button type="button" className="btn btn-primary" style={{ padding: "10px 24px", fontSize: "14px" }} onClick={handleTrySubmit}><Send className="w-5 h-5" /> Submit Report</button>
             </div>
           </div>
         </div>
@@ -1203,8 +1200,8 @@ export default function DailyAccomplishmentReport() {
                   <table className="pro-table" style={{ width: "100%" }}>
                     <thead>
                       <tr>
-                        {["#","Date","Project","Arrangement","Tasks","Checklist","Submitted At","Status",""].map(h => (
-                          <th key={h} style={{ whiteSpace: "nowrap" }}>{h}</th>
+                        {["#","Date","Project","Arrangement","Tasks","Checklist","Submitted At","Status","Action"].map(h => (
+                          <th key={h} style={{ whiteSpace: "nowrap", textAlign: h === "Project" || h === "Action" ? "center" : undefined }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -1216,7 +1213,7 @@ export default function DailyAccomplishmentReport() {
                           <tr key={i} className="hover:bg-gray-50 transition-colors">
                             <td className="text-center text-gray-400 text-xs font-semibold" style={{ width: "36px" }}>{i + 1}</td>
                             <td className="text-xs font-semibold text-gray-700" style={{ width: "90px", whiteSpace: "nowrap" }}>{s.date}</td>
-                            <td className="text-xs text-gray-600" style={{ minWidth: "120px" }}>{s.project || "—"}</td>
+                            <td className="text-xs text-gray-600 text-center" style={{ minWidth: "120px" }}>{s.project || "—"}</td>
                             <td style={{ width: "100px" }}>
                               <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${ar}`}>
                                 <span className="w-1.5 h-1.5 rounded-full bg-current opacity-60" />
@@ -1234,10 +1231,10 @@ export default function DailyAccomplishmentReport() {
                             </td>
                             <td className="text-center" style={{ width: "80px" }}>
                               <div className="flex items-center justify-center gap-1">
-                                <button type="button" title="View" onClick={() => setSelectedSub(s)} className="text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg p-1.5 transition-all">
+                                <button type="button" title="View" onClick={() => setSelectedSub(s)} className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg p-1.5 transition-all">
                                   <Eye className="w-4 h-4" />
                                 </button>
-                                <button type="button" title="Delete" onClick={() => setDeleteIdx(i)} className="text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg p-1.5 transition-all">
+                                <button type="button" title="Delete" onClick={() => setDeleteIdx(i)} className="text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg p-1.5 transition-all">
                                   <X className="w-4 h-4" />
                                 </button>
                               </div>

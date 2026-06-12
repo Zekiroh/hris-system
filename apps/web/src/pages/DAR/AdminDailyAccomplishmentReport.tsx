@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
@@ -17,8 +17,11 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
-// Types
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type ReportStatus = "Pending Review" | "Approved" | "Revision Requested" | "Rejected";
 type Rating = 1 | 2 | 3 | 4 | 5;
@@ -50,25 +53,7 @@ interface SubmittedReport {
   referenceNo: string;
 }
 
-interface StoredTaskDetail {
-  status?: string;
-}
-
-interface StoredDarSubmission {
-  devName?: string;
-  team?: string;
-  project?: string;
-  date?: string;
-  submittedAt?: string;
-  workArr?: string;
-  actualHrs?: string | number;
-  estHrs?: string | number;
-  taskDetails?: StoredTaskDetail[];
-  checklist?: unknown[];
-  status?: ReportStatus;
-}
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Mock Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const MOCK_REPORTS: SubmittedReport[] = [
   {
@@ -161,7 +146,7 @@ const MOCK_REPORTS: SubmittedReport[] = [
   },
 ];
 
-// Helpers
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const RATING_LABELS: Record<number, string> = {
   1: "Needs Improvement", 2: "Below Expectations", 3: "Meets Expectations",
@@ -195,7 +180,7 @@ function StarRow({ rating, interactive = false, hoverRating = 0, onHover, onClic
 }) {
   const display = hoverRating || rating;
   return (
-    <div className="flex gap-0.5">
+    <div style={{ display: "inline-flex", gap: 2 }}>
       {[1, 2, 3, 4, 5].map(i => (
         <button
           key={i}
@@ -224,7 +209,7 @@ function ArrangementBadge({ arr }: { arr: string }) {
   return <span className={cls}><span className="badge-dot" />{arr}</span>;
 }
 
-// ─── Review Panel (Section 7 + Section 8) ────────────────────────────────────
+// â”€â”€â”€ Review Panel (Section 7 + Section 8) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function ReviewPanel({
   report,
@@ -239,7 +224,7 @@ function ReviewPanel({
   const timeStr = now.toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" });
 
   const [activeTab, setActiveTab]           = useState<"s7" | "s8">("s7");
-  const [rating, setRating]                 = useState<Rating | 0>(report.rating ?? 0);
+  const [rating, setRating]                 = useState<Rating>(report.rating || 0 as Rating);
   const [hoverRating, setHoverRating]       = useState(0);
   const [supervisorName, setSupervisorName] = useState(report.supervisorName || "");
   const [comment, setComment]               = useState(report.supervisorComment || "");
@@ -257,7 +242,7 @@ function ReviewPanel({
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const handleSave = () => {
-    if (!rating) {
+    if (!rating || (rating as number) === 0) {
       toast.error("Please provide a performance rating before saving.");
       return;
     }
@@ -283,7 +268,7 @@ function ReviewPanel({
 const handleConfirmSave = () => {
   setConfirmOpen(false);
   onSave({
-    rating: rating as Rating, supervisorName, supervisorComment: comment,
+    rating, supervisorName, supervisorComment: comment,
     performanceScore: perfScore, taskVerification: taskVerif,
     attendanceVerified: attendVerif, outputQuality,
     status: decision,
@@ -292,9 +277,9 @@ const handleConfirmSave = () => {
   });
   const notif = {
     id: Date.now(),
-    title: decision === "Approved" ? "✓ Report Approved"
-      : decision === "Revision Requested" ? "↩ Revision Requested"
-      : decision === "Rejected" ? "✕ Report Rejected"
+    title: decision === "Approved" ? "âœ“ Report Approved"
+      : decision === "Revision Requested" ? "â†© Revision Requested"
+      : decision === "Rejected" ? "âœ• Report Rejected"
       : "Report Reviewed",
     message: `${report.employeeName}'s DAR (${report.referenceNo}) has been ${decision.toLowerCase()} by ${supervisorName || "Supervisor"}.`,
     time: "Just now", type: "system",
@@ -305,6 +290,24 @@ const handleConfirmSave = () => {
 
   onClose();
 };
+
+  const goToTab = (key: "s7" | "s8") => {
+    if (key === "s8") {
+      if (!rating || (rating as number) === 0) {
+        toast.error("Please provide a performance rating first.");
+        return;
+      }
+      if (!decision || decision === "Pending Review") {
+        toast.error("Please select a Review Decision (not Pending Review).");
+        return;
+      }
+      if (!supervisorName.trim()) {
+        toast.error("Please enter the Supervisor Name.");
+        return;
+      }
+    }
+    setActiveTab(key);
+  };
 
   const displayRating = hoverRating || rating;
 
@@ -343,7 +346,7 @@ const handleConfirmSave = () => {
         style={{ maxWidth: 740, width: "95vw", maxHeight: "90vh", display: "flex", flexDirection: "column" }}
         onClick={e => e.stopPropagation()}
       >
-        {/* ── Header ── */}
+        {/* â”€â”€ Header â”€â”€ */}
         <div
           className="pro-modal-header"
           style={{
@@ -379,7 +382,7 @@ const handleConfirmSave = () => {
               {report.employeeName}
             </h3>
             <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 3 }}>
-              {report.department} &nbsp;·&nbsp; {report.project} &nbsp;·&nbsp; {report.date}
+              {report.department} &nbsp;Â·&nbsp; {report.project} &nbsp;Â·&nbsp; {report.date}
             </p>
           </div>
 
@@ -406,7 +409,7 @@ const handleConfirmSave = () => {
           </div>
         </div>
 
-        {/* ── Tabs ── */}
+        {/* â”€â”€ Tabs â”€â”€ */}
         <div className="px-6 pt-3">
           <div className="pro-tabs">
             {[
@@ -415,7 +418,7 @@ const handleConfirmSave = () => {
             ].map(t => (
               <button
                 key={t.key}
-                onClick={() => setActiveTab(t.key as "s7" | "s8")}
+                onClick={() => goToTab(t.key as "s7" | "s8")}
                 className={`pro-tab ${activeTab === t.key ? "active" : ""}`}
               >
                 {t.label}
@@ -424,14 +427,14 @@ const handleConfirmSave = () => {
           </div>
         </div>
 
-        {/* ── Body ── */}
+        {/* â”€â”€ Body â”€â”€ */}
         <div className="pro-modal-body" style={{ maxHeight: "45vh", overflowY: "auto" }}>
 
-          {/* ══ SECTION 7 ══ */}
+          {/* â•â• SECTION 7 â•â• */}
           {activeTab === "s7" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-              {/* Section label — left border accent style */}
+              {/* Section label â€” left border accent style */}
               <div style={{
                 borderLeft: "3px solid #059669", paddingLeft: 12,
                 display: "flex", flexDirection: "column", gap: 1,
@@ -444,7 +447,7 @@ const handleConfirmSave = () => {
                 </span>
               </div>
 
-              {/* ── Rating + Score side by side ── */}
+              {/* â”€â”€ Rating + Score side by side â”€â”€ */}
               <div style={{
                 display: "grid", gridTemplateColumns: "1fr auto", gap: 12,
                 background: "#f0fdf4", border: "1px solid #bbf7d0",
@@ -494,7 +497,7 @@ const handleConfirmSave = () => {
                   {/* Supervisor + Date */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     <div>
-                      <label className="pro-label" style={{ fontSize: 10 }}>Supervisor Name</label>
+                      <label className="pro-label" style={{ fontSize: 10 }}>Supervisor Name <span style={{ color: "#ef4444" }}>*</span></label>
                       <input className="pro-input" value={supervisorName}
                         onChange={e => setSupervisorName(e.target.value)}
                         placeholder="Enter supervisor name"
@@ -520,7 +523,7 @@ const handleConfirmSave = () => {
                     Score
                   </div>
 
-                  {/* ── + / − buttons ── */}
+                  {/* â”€â”€ + / âˆ’ buttons â”€â”€ */}
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <button type="button"
                       disabled={!isEditing || perfScore <= 0}
@@ -535,7 +538,7 @@ const handleConfirmSave = () => {
                         cursor: !isEditing || perfScore <= 0 ? "not-allowed" : "pointer",
                         opacity: !isEditing || perfScore <= 0 ? 0.4 : 1,
                         display: "flex", alignItems: "center", justifyContent: "center",
-                      }}>−</button>
+                      }}>âˆ’</button>
 
                     <div style={{ fontSize: 32, fontWeight: 900, color: scoreColor, lineHeight: 1 }}>
                       {perfScore}
@@ -570,7 +573,7 @@ const handleConfirmSave = () => {
                 </div>
               </div>
 
-              {/* ── Verification & Decision ── */}
+              {/* â”€â”€ Verification & Decision â”€â”€ */}
               <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20 }}>
                 <p style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 14, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                   Verification & Decision
@@ -622,7 +625,7 @@ const handleConfirmSave = () => {
                 </button>
               </div>
 
-              {/* ── Comments ── */}
+              {/* â”€â”€ Comments â”€â”€ */}
               <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20 }}>
                 <label className="pro-label" style={{ marginBottom: 8, display: "block" }}>
                   Supervisor Comments & Feedback
@@ -640,7 +643,7 @@ const handleConfirmSave = () => {
             </div>
           )}
 
-          {/* ══ SECTION 8 ══ */}
+          {/* â•â• SECTION 8 â•â• */}
           {activeTab === "s8" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
@@ -701,7 +704,7 @@ const handleConfirmSave = () => {
 
               {/* Dual sign-off */}
               <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20 }}>
-                <p className="pro-label" style={{ marginBottom: 14 }}>Digital Sign-off</p>
+                <p className="pro-label" style={{ marginBottom: 14 }}>Digital Sign-off <span style={{ color: "#ef4444" }}>*</span></p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                   {[
                     { title: "Employee Acknowledgment", checked: empAck, toggle: () => setEmpAck(v => !v),
@@ -741,7 +744,7 @@ const handleConfirmSave = () => {
                             <p style={{ fontWeight: 800, fontStyle: "italic", color: "#065f46", fontSize: 15 }}>
                               {sig.sigName}
                             </p>
-                            <p style={{ fontSize: 10, color: "#9ca3af" }}>✓ Acknowledged · {timeStr}</p>
+                            <p style={{ fontSize: 10, color: "#9ca3af" }}>âœ“ Acknowledged Â· {timeStr}</p>
                           </>
                         ) : (
                           <p style={{ fontSize: 12, color: "#9ca3af" }}>Awaiting acknowledgment</p>
@@ -768,7 +771,7 @@ const handleConfirmSave = () => {
           )}
         </div>
 
-        {/* ── Footer ── */}
+        {/* â”€â”€ Footer â”€â”€ */}
         <div className="pro-modal-footer" style={{ borderTop: "1px solid #f1f5f9", gap: 8 }}>
           <div style={{ flex: 1 }} />
           <button onClick={onClose} className="btn btn-secondary">
@@ -777,7 +780,7 @@ const handleConfirmSave = () => {
           {activeTab === "s7" ? (
             <button
               onClick={() => {
-                if (!rating) {
+                if (!rating || (rating as number) === 0) {
                   toast.error("Please provide a performance rating first.");
                   return;
                 }
@@ -793,7 +796,7 @@ const handleConfirmSave = () => {
               }}
               className="btn btn-primary"
             >
-              Next → Section 8
+              Next â†’ Section 8
             </button>
           ) : isEditing ? (
               <button
@@ -815,7 +818,7 @@ const handleConfirmSave = () => {
         </div>
       </div>
 
-      {/* ── Confirmation Modal ── */}
+      {/* â”€â”€ Confirmation Modal â”€â”€ */}
       {confirmOpen && createPortal(
         <div
           className="pro-modal-overlay"
@@ -864,23 +867,23 @@ const handleConfirmSave = () => {
 
 
 
-// ─── Main Admin Page ──────────────────────────────────────────────────────────
+// â”€â”€â”€ Main Admin Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const loadReports = () => {
     try {
       const subs = JSON.parse(localStorage.getItem("dar_submissions") || "[]");
-      const fromStorage: SubmittedReport[] = (subs as StoredDarSubmission[]).map((s, i: number) => ({
+      const fromStorage: SubmittedReport[] = subs.map((s: any, i: number) => ({
         id: `DAR-LS-${i}`,
         referenceNo: `DAR-LS-${String(i + 1).padStart(3, "0")}`,
         employeeName: s.devName || "Unknown",
-        department: s.team || "—",
-        project: s.project || "—",
-        date: s.date || "—",
-        submittedAt: s.submittedAt || "—",
+        department: s.team || "â€”",
+        project: s.project || "â€”",
+        date: s.date || "â€”",
+        submittedAt: s.submittedAt || "â€”",
         workArrangement: s.workArr || "On-site",
-        totalActualHours: Number(s.actualHrs ?? 0),
-        totalEstHours: Number(s.estHrs ?? 0),
-        tasksCompleted: (s.taskDetails || []).filter((t) => t.status === "done").length,
+        totalActualHours: parseFloat(s.actualHrs) || 0,
+        totalEstHours: parseFloat(s.estHrs) || 0,
+        tasksCompleted: (s.taskDetails || []).filter((t: any) => t.status === "done").length,
         tasksTotal: (s.taskDetails || []).length,
         checklistDone: s.checklist ? s.checklist.filter(Boolean).length : 0,
         status: (s.status as ReportStatus) || "Pending Review",
@@ -891,6 +894,57 @@ const loadReports = () => {
   }
 };
 
+// â”€â”€ Export helpers (Excel + PDF) â”€â”€
+function buildExportData(rows: SubmittedReport[], mode: string) {
+  const isHistory = mode === "history";
+  const headers = isHistory
+    ? ["Reference No","Employee","Department","Project","Date","Submitted","Arrangement","Actual Hrs","Est Hrs","Tasks","Checklist","Status","Rating","Score","Supervisor","Output Quality","Remarks"]
+    : ["Reference No","Employee","Department","Project","Date","Submitted","Arrangement","Actual Hrs","Est Hrs","Tasks","Checklist","Status"];
+  const body = rows.map((r: SubmittedReport) => {
+    const base = [
+      r.referenceNo, r.employeeName, r.department, r.project, r.date, r.submittedAt,
+      r.workArrangement, r.totalActualHours, r.totalEstHours,
+      r.tasksCompleted + "/" + r.tasksTotal, r.checklistDone + "/6", r.status,
+    ];
+    const extra = isHistory ? [
+      r.rating || "", r.performanceScore || "", r.supervisorName || "",
+      r.outputQuality || "", r.finalRemarks || r.supervisorComment || "",
+    ] : [];
+    return base.concat(extra);
+  });
+  return { headers, body, isHistory };
+}
+
+function generateExcel(rows: SubmittedReport[], mode: string) {
+  const data = buildExportData(rows, mode);
+  const ws = XLSX.utils.aoa_to_sheet([data.headers, ...data.body.map(row => row.map(String))]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, data.isHistory ? "Review History" : "Pending");
+  const today = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, "DAR_" + (data.isHistory ? "History" : "Pending") + "_" + today + ".xlsx");
+}
+
+function generatePDF(rows: SubmittedReport[], mode: string) {
+  const data = buildExportData(rows, mode);
+  const doc = new jsPDF({ orientation: "landscape" });
+  doc.setFontSize(14);
+  doc.text("Daily Accomplishment Report", 14, 15);
+  doc.setFontSize(10);
+  doc.text((data.isHistory ? "Review History" : "Pending Submissions") + " â€” " + data.body.length + " record(s)", 14, 21);
+  doc.setFontSize(8);
+  doc.text("Generated: " + new Date().toLocaleString(), 14, 26);
+  autoTable(doc, {
+    head: [data.headers],
+    body: data.body,
+    startY: 30,
+    styles: { fontSize: 7, cellPadding: 2, overflow: "linebreak" },
+    headStyles: { fillColor: [5, 150, 105], textColor: 255 },
+    alternateRowStyles: { fillColor: [240, 253, 244] },
+  });
+  const today = new Date().toISOString().slice(0, 10);
+  doc.save("DAR_" + (data.isHistory ? "History" : "Pending") + "_" + today + ".pdf");
+}
+
 const AdminDailyAccomplishmentReport = () => {
   const [reports, setReports] = useState<SubmittedReport[]>(loadReports);
   const [selectedReport, setSelectedReport] = useState<SubmittedReport | null>(null);
@@ -898,6 +952,9 @@ const AdminDailyAccomplishmentReport = () => {
   const [filterStatus, setFilterStatus]     = useState("All");
   const [filterDept, setFilterDept]         = useState("All");
   const [currentPage, setCurrentPage]       = useState(1);
+  const [historyPage, setHistoryPage]       = useState(1);
+  const [historySearch, setHistorySearch]   = useState("");
+  const [historyStatus, setHistoryStatus]   = useState("All");
 
   // Listen for new DAR submissions
   React.useEffect(() => {
@@ -911,6 +968,14 @@ const AdminDailyAccomplishmentReport = () => {
   }, []);
   const PAGE_SIZE = 10;
 
+  const [exportOpen, setExportOpen]     = useState(false);
+  const [exportRows, setExportRows]     = useState<SubmittedReport[]>([]);
+  const [exportMode, setExportMode]     = useState<"pending" | "history">("pending");
+  const [exportFormat, setExportFormat] = useState<"excel" | "pdf">("excel");
+  const openExport = (rows: SubmittedReport[], mode: "pending" | "history") => {
+    setExportRows(rows); setExportMode(mode); setExportFormat("excel"); setExportOpen(true);
+  };
+
   const pending  = reports.filter(r => r.status === "Pending Review").length;
   const approved = reports.filter(r => r.status === "Approved").length;
   const revision = reports.filter(r => r.status === "Revision Requested").length;
@@ -919,9 +984,9 @@ const AdminDailyAccomplishmentReport = () => {
   const departments = ["All", ...Array.from(new Set(reports.map(r => r.department)))];
 
   // Reset to page 1 on filter change
-  const handleSearch = (v: string) => { setSearch(v); setCurrentPage(1); };
-  const handleFilterStatus = (v: string) => { setFilterStatus(v); setCurrentPage(1); };
-  const handleFilterDept = (v: string) => { setFilterDept(v); setCurrentPage(1); };
+  const handleSearch = (v: string) => { setSearch(v); setCurrentPage(1); setHistoryPage(1); };
+  const handleFilterStatus = (v: string) => { setFilterStatus(v); setCurrentPage(1); setHistoryPage(1); };
+  const handleFilterDept = (v: string) => { setFilterDept(v); setCurrentPage(1); setHistoryPage(1); };
 
   const filtered = reports.filter(r => {
     const q = search.toLowerCase();
@@ -934,8 +999,22 @@ const AdminDailyAccomplishmentReport = () => {
     );
   });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const activeReports  = filtered.filter(r => r.status === "Pending Review");
+  const historyReports = reports.filter(r => {
+    if (r.status === "Pending Review") return false;
+    const hq = historySearch.toLowerCase();
+    const matchSearch =
+      r.employeeName.toLowerCase().includes(hq) ||
+      r.project.toLowerCase().includes(hq) ||
+      r.id.toLowerCase().includes(hq);
+    return matchSearch && (historyStatus === "All" || r.status === historyStatus);
+  });
+
+  const totalPages = Math.max(1, Math.ceil(activeReports.length / PAGE_SIZE));
+  const paginated  = activeReports.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const historyTotalPages = Math.max(1, Math.ceil(historyReports.length / PAGE_SIZE));
+  const historyPaginated  = historyReports.slice((historyPage - 1) * PAGE_SIZE, historyPage * PAGE_SIZE);
 
   const handleSaveReview = (updated: Partial<SubmittedReport>) => {
     if (!selectedReport) return;
@@ -1014,7 +1093,7 @@ const AdminDailyAccomplishmentReport = () => {
           <div className="hidden lg:flex items-center gap-3">
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: "#1f2937", whiteSpace: "nowrap" }}>
-                Submitted Reports
+                Pending Submissions
               </span>
               {/* <span style={{
                 fontSize: 10, fontWeight: 700, color: "#b45309",
@@ -1059,7 +1138,7 @@ const AdminDailyAccomplishmentReport = () => {
               {departments.map(d => <option key={d}>{d}</option>)}
             </select>
 
-            <button
+            <button onClick={() => openExport(activeReports, "pending")}
               className="btn btn-primary"
               style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0 }}
             >
@@ -1070,7 +1149,7 @@ const AdminDailyAccomplishmentReport = () => {
           {/* MOBILE (< lg): stacked rows, same as dati */}
           <div className="flex flex-col gap-2 lg:hidden">
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#1f2937" }}>Submitted Reports</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#1f2937" }}>Pending Submissions</span>
               {/* <span style={{
                 fontSize: 10, fontWeight: 700, color: "#b45309",
                 background: "#fef3c7", borderRadius: 20, padding: "2px 8px",
@@ -1114,7 +1193,7 @@ const AdminDailyAccomplishmentReport = () => {
                 {departments.map(d => <option key={d}>{d}</option>)}
               </select>
 
-              <button
+              <button onClick={() => openExport(activeReports, "pending")}
                 className="btn btn-primary"
                 style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
               >
@@ -1133,16 +1212,15 @@ const AdminDailyAccomplishmentReport = () => {
                 <tr>
                   <th style={{ whiteSpace: "nowrap" }}>Employee</th>
                   <th className="hidden md:table-cell" style={{ whiteSpace: "nowrap" }}>Project</th>
-                  <th style={{ whiteSpace: "nowrap" }}>Arrangement</th>
-                  <th className="hidden md:table-cell" style={{ whiteSpace: "nowrap" }}>Rating</th>
+                  <th style={{ whiteSpace: "nowrap" }}>Arrangement</th>
                   <th className="hidden md:table-cell" style={{ whiteSpace: "nowrap" }}>Status</th>
                   <th style={{ whiteSpace: "nowrap", textAlign: "center" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {activeReports.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-8 text-gray-400 italic">
+                    <td colSpan={5} className="text-center py-8 text-gray-400 italic">
                       No reports found matching your filters.
                     </td>
                   </tr>
@@ -1173,20 +1251,13 @@ const AdminDailyAccomplishmentReport = () => {
                     </td>
 
                     {/* Arrangement */}
-                    <td style={{ whiteSpace: "nowrap" }}>
+                    <td style={{ whiteSpace: "nowrap", textAlign: "center" }}>
                       <ArrangementBadge arr={r.workArrangement} />
                     </td>
-
-                    {/* Rating */}
-                    <td className="hidden md:table-cell" style={{ whiteSpace: "nowrap" }}>
-                      {r.rating
-                        ? <StarRow rating={r.rating} />
-                        : <span style={{ color: "#d1d5db", fontSize: 13 }}>—</span>
-                      }
-                    </td>
+
 
                     {/* Status */}
-                    <td className="hidden md:table-cell" style={{ whiteSpace: "nowrap" }}>
+                    <td className="hidden md:table-cell" style={{ whiteSpace: "nowrap", textAlign: "center" }}>
                       <StatusBadge status={r.status} />
                     </td>
 
@@ -1196,7 +1267,7 @@ const AdminDailyAccomplishmentReport = () => {
 
                         
 
-                        {/* Action Button — Star if Pending, Eye if others */}
+                        {/* Action Button â€” Star if Pending, Eye if others */}
                         <button
                           onClick={() => setSelectedReport(r)}
                           title={r.status === "Pending Review" ? "Review" : "View"}
@@ -1234,7 +1305,7 @@ const AdminDailyAccomplishmentReport = () => {
           {/* Pagination */}
           <div className="flex items-center justify-between mt-4 flex-wrap gap-2">
             <span className="text-xs text-gray-400">
-              Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, filtered.length)}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length} submissions
+              Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, activeReports.length)}â€“{Math.min(currentPage * PAGE_SIZE, activeReports.length)} of {activeReports.length} pending
             </span>
             <div className="flex gap-1 flex-wrap">
               <button
@@ -1270,7 +1341,232 @@ const AdminDailyAccomplishmentReport = () => {
         </div>
       </div>
 
-      {/* Review Modal */}
+            {/* History Table Card */}
+      <div className="pro-card animate-fade-in-up" style={{ animationDelay: "0.55s", opacity: 0 }}>
+        <div className="px-6 py-4 border-b border-gray-100">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-3">
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#1f2937", whiteSpace: "nowrap" }}>
+                Review History
+              </span>
+              <span style={{
+                fontSize: 10, fontWeight: 700, color: "#047857",
+                background: "#d1fae5", borderRadius: 20, padding: "2px 8px",
+              }}>
+                {historyReports.length} reviewed
+              </span>
+            </div>
+
+            <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
+              <Search style={{
+                position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
+                width: 14, height: 14, color: "#9ca3af", pointerEvents: "none",
+              }} />
+              <input
+                className="pro-input"
+                style={{ paddingLeft: 32, width: "100%", boxSizing: "border-box" }}
+                placeholder="Search reviewed employee, project..."
+                value={historySearch}
+                onChange={e => { setHistorySearch(e.target.value); setHistoryPage(1); }}
+              />
+            </div>
+
+            <select
+              className="pro-select"
+              style={{ width: 180, flexShrink: 0, boxSizing: "border-box" }}
+              value={historyStatus}
+              onChange={e => { setHistoryStatus(e.target.value); setHistoryPage(1); }}
+            >
+              <option value="All">All Reviewed</option>
+              {["Approved", "Revision Requested", "Rejected"].map(s => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => openExport(historyReports, "history")}
+              className="btn btn-primary"
+              style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0, marginLeft: "auto" }}
+            >
+              <Download className="w-3.5 h-3.5" /> Export
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6">
+          <div className="overflow-x-auto rounded-xl border border-gray-100">
+            <table className="pro-table" style={{ tableLayout: "auto", width: "100%" }}>
+              <thead>
+                <tr>
+                  <th style={{ whiteSpace: "nowrap" }}>Employee</th>
+                  <th className="hidden md:table-cell" style={{ whiteSpace: "nowrap" }}>Project</th>
+                  <th className="hidden md:table-cell" style={{ whiteSpace: "nowrap" }}>Rating</th>
+                  <th style={{ whiteSpace: "nowrap" }}>Status</th>
+                  <th style={{ whiteSpace: "nowrap", textAlign: "center" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyReports.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-8 text-gray-400 italic">
+                      No reviewed reports yet.
+                    </td>
+                  </tr>
+                ) : historyPaginated.map(r => (
+                  <tr key={r.id} className="cursor-pointer">
+
+                    {/* Employee */}
+                    <td style={{ whiteSpace: "nowrap" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{
+                          width: 34, height: 34, borderRadius: "10px", flexShrink: 0,
+                          background: "linear-gradient(135deg, #059669, #10b981)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          color: "#fff", fontWeight: 800, fontSize: 13,
+                        }}>
+                          {r.employeeName.trim().charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p style={{ fontWeight: 700, fontSize: 13, color: "#111827", lineHeight: 1.2 }}>{r.employeeName}</p>
+                          <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 1 }}>{r.department}</p>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Project */}
+                    <td className="hidden md:table-cell" style={{ whiteSpace: "nowrap", color: "#374151", fontSize: 13 }}>
+                      {r.project}
+                    </td>
+
+                    {/* Rating */}
+                    <td className="hidden md:table-cell" style={{ whiteSpace: "nowrap", textAlign: "center" }}>
+                      {r.rating
+                        ? <StarRow rating={r.rating} />
+                        : <span style={{ color: "#d1d5db", fontSize: 13 }}>â€”</span>
+                      }
+                    </td>
+
+                    {/* Status */}
+                    <td style={{ whiteSpace: "nowrap", textAlign: "center" }}>
+                      <StatusBadge status={r.status} />
+                    </td>
+
+                    {/* Actions â€” View only */}
+                    <td style={{ textAlign: "center", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => setSelectedReport(r)}
+                        title="View"
+                        style={{
+                          display: "inline-flex", alignItems: "center", justifyContent: "center",
+                          padding: "5px 8px", borderRadius: 8, cursor: "pointer",
+                          border: "1.5px solid #bfdbfe", background: "#eff6ff", color: "#2563eb",
+                          transition: "all 0.15s",
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = "#2563eb"; e.currentTarget.style.color = "#fff"; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = "#eff6ff"; e.currentTarget.style.color = "#2563eb"; }}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* History Pagination */}
+          <div className="flex items-center justify-between mt-4 flex-wrap gap-2">
+            <span className="text-xs text-gray-400">
+              Showing {Math.min((historyPage - 1) * PAGE_SIZE + 1, historyReports.length)}â€“{Math.min(historyPage * PAGE_SIZE, historyReports.length)} of {historyReports.length} reviewed
+            </span>
+            <div className="flex gap-1 flex-wrap">
+              <button
+                onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
+                disabled={historyPage === 1}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center transition-colors text-gray-600 border-gray-200 bg-gray-50 hover:bg-gray-100 disabled:opacity-40"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              {Array.from({ length: historyTotalPages }, (_, i) => i + 1).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setHistoryPage(p)}
+                  className={p === historyPage
+                    ? "px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center transition-colors text-white border-transparent"
+                    : "px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center transition-colors text-gray-600 border-gray-200 bg-gray-50 hover:bg-gray-100"}
+                  style={p === historyPage ? { background: "linear-gradient(90deg,#059669,#047857)" } : {}}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                onClick={() => setHistoryPage(p => Math.min(historyTotalPages, p + 1))}
+                disabled={historyPage === historyTotalPages}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center transition-colors text-gray-600 border-gray-200 bg-gray-50 hover:bg-gray-100 disabled:opacity-40"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+            {/* Export Modal */}
+      {exportOpen && createPortal(
+        <div className="pro-modal-overlay" onClick={() => setExportOpen(false)}>
+          <div className="pro-modal w-full max-w-sm p-6 space-y-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <p className="text-base font-bold text-gray-800">Generate Report</p>
+              <button onClick={() => setExportOpen(false)} className="btn-ghost btn-icon">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div>
+              <p className="pro-label" style={{ marginBottom: 6 }}>
+                {exportMode === "history" ? "Review History" : "Pending Submissions"} Â· {exportRows.length} record(s)
+              </p>
+            </div>
+
+            <div>
+              <p className="pro-label" style={{ marginBottom: 8 }}>Format</p>
+              <div style={{ display: "flex", gap: 20 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 14, fontWeight: 500 }}>
+                  <input type="radio" name="exportfmt" checked={exportFormat === "excel"}
+                    onChange={() => setExportFormat("excel")} style={{ accentColor: "#059669", width: 16, height: 16 }} />
+                  Excel
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 14, fontWeight: 500 }}>
+                  <input type="radio" name="exportfmt" checked={exportFormat === "pdf"}
+                    onChange={() => setExportFormat("pdf")} style={{ accentColor: "#059669", width: 16, height: 16 }} />
+                  PDF
+                </label>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-100" />
+
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setExportOpen(false)} className="btn btn-secondary text-sm">Cancel</button>
+              <button
+                onClick={() => {
+                  if (exportRows.length === 0) { toast.error("No records available to export."); return; }
+                  if (exportFormat === "excel") generateExcel(exportRows, exportMode);
+                  else generatePDF(exportRows, exportMode);
+                  toast.success((exportFormat === "excel" ? "Excel" : "PDF") + " report generated and downloaded.");
+                  setExportOpen(false);
+                }}
+                className="btn btn-primary flex items-center gap-2 text-sm text-white"
+                style={{ background: "linear-gradient(135deg, #059669, #047857)" }}
+              >
+                <Download className="w-4 h-4" /> Generate & Download
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+{/* Review Modal */}
       {selectedReport && (
         <ReviewPanel
           report={selectedReport}

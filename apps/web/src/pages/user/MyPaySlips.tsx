@@ -1,267 +1,835 @@
-import { useState } from 'react';
-import { DollarSign, Download, Eye, X, ChevronLeft, ChevronRight } from 'lucide-react';
-
-interface PayslipDetail {
-    period: string;
-    releaseDate: string;
-    grossPay: string;
-    deductions: string;
-    netPay: string;
-    employee: string;
-    empId: string;
-    earnings: { label: string; amount: string }[];
-    deductionItems: { label: string; amount: string }[];
-    totalGross: string;
-    totalDeductions: string;
-    netTakeHome: string;
-}
-
-const payslipData: PayslipDetail[] = [
-    {
-        period: 'Jan 16 - 31, 2026', releaseDate: 'Jan 31, 2026', grossPay: '₱28,000.00', deductions: '-₱3,470.00', netPay: '₱24,530.00',
-        employee: 'Rafael Santos (EMP-0012)', empId: 'EMP-0012',
-        earnings: [
-            { label: 'Basic Salary', amount: '₱25,000.00' },
-            { label: 'De Minimis Allowance', amount: '₱2,010.00' },
-            { label: 'Over-time Pay (4.5 hrs)', amount: '₱1,000.00' },
-        ],
-        deductionItems: [
-            { label: 'Withholding Tax', amount: '₱2,100.00' },
-            { label: 'SSS Contribution', amount: '₱900.00' },
-            { label: 'PhilHealth', amount: '₱375.00' },
-            { label: 'Pag-IBIG', amount: '₱100.00' },
-        ],
-        totalGross: '₱28,000.00', totalDeductions: '₱3,475.00', netTakeHome: '₱24,525.00',
-    },
-    {
-        period: 'Jan 01 - 15, 2026', releaseDate: 'Jan 15, 2026', grossPay: '₱28,000.00', deductions: '-₱3,470.00', netPay: '₱24,530.00',
-        employee: 'Rafael Santos (EMP-0012)', empId: 'EMP-0012',
-        earnings: [
-            { label: 'Basic Salary', amount: '₱25,000.00' },
-            { label: 'De Minimis Allowance', amount: '₱2,010.00' },
-            { label: 'Over-time Pay (4.5 hrs)', amount: '₱1,000.00' },
-        ],
-        deductionItems: [
-            { label: 'Withholding Tax', amount: '₱2,100.00' },
-            { label: 'SSS Contribution', amount: '₱900.00' },
-            { label: 'PhilHealth', amount: '₱375.00' },
-            { label: 'Pag-IBIG', amount: '₱100.00' },
-        ],
-        totalGross: '₱28,000.00', totalDeductions: '₱3,475.00', netTakeHome: '₱24,525.00',
-    },
-    {
-        period: 'Dec 16 - 31, 2025', releaseDate: 'Dec 31, 2025', grossPay: '₱28,000.00', deductions: '-₱3,470.00', netPay: '₱24,530.00',
-        employee: 'Rafael Santos (EMP-0012)', empId: 'EMP-0012',
-        earnings: [{ label: 'Basic Salary', amount: '₱25,000.00' }, { label: 'De Minimis Allowance', amount: '₱2,010.00' }, { label: 'Over-time Pay', amount: '₱1,000.00' }],
-        deductionItems: [{ label: 'Withholding Tax', amount: '₱2,100.00' }, { label: 'SSS Contribution', amount: '₱900.00' }, { label: 'PhilHealth', amount: '₱375.00' }, { label: 'Pag-IBIG', amount: '₱100.00' }],
-        totalGross: '₱28,000.00', totalDeductions: '₱3,475.00', netTakeHome: '₱24,525.00',
-    },
-    {
-        period: 'Dec 01 - 15, 2025', releaseDate: 'Dec 15, 2025', grossPay: '₱28,000.00', deductions: '-₱3,470.00', netPay: '₱24,550.00',
-        employee: 'Rafael Santos (EMP-0012)', empId: 'EMP-0012',
-        earnings: [{ label: 'Basic Salary', amount: '₱25,000.00' }, { label: 'De Minimis Allowance', amount: '₱2,010.00' }, { label: 'Over-time Pay', amount: '₱1,000.00' }],
-        deductionItems: [{ label: 'Withholding Tax', amount: '₱2,100.00' }, { label: 'SSS Contribution', amount: '₱900.00' }, { label: 'PhilHealth', amount: '₱375.00' }, { label: 'Pag-IBIG', amount: '₱100.00' }],
-        totalGross: '₱28,000.00', totalDeductions: '₱3,475.00', netTakeHome: '₱24,525.00',
-    },
-];
-
-const MyPaySlips = () => {
-    const [selectedPayslip, setSelectedPayslip] = useState<PayslipDetail | null>(null);
-    const [currentPage, setCurrentPage] = useState(1);
-    const perPage = 10;
-
-    const ytdCards = [
-        { label: 'YTD GROSS EARNINGS', value: '₱56,000.00', icon: DollarSign, color: '#059669', bg: '#ecfdf5' },
-        { label: 'YTD NET PAY', value: '₱56,000.00', icon: DollarSign, color: '#2563eb', bg: '#eff6ff' },
-        { label: 'YTD DEDUCTIONS', value: '₱56,000.00', icon: DollarSign, color: '#dc2626', bg: '#fef2f2' },
-        { label: 'NEXT PAY', value: '₱56,000.00', icon: DollarSign, color: '#7c3aed', bg: '#f5f3ff' },
-    ];
-
-    const totalPages = Math.ceil(payslipData.length / perPage);
-
-    return (
-        <div className="space-y-6 pb-6">
-            <div className="page-header animate-fade-in-up">
-                <h1>My Pay Slips</h1>
-                <p>View and download your payslip history</p>
-            </div>
-
-            {/* YTD Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in-up" style={{ animationDelay: '0.1s', opacity: 0 }}>
-                {ytdCards.map((card, i) => (
-                    <div key={i} className="pro-card !p-0 overflow-hidden">
-                        <div className="p-4 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: card.bg }}>
-                                <card.icon className="w-5 h-5" style={{ color: card.color }} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">{card.label}</p>
-                                <p className="text-lg font-bold text-gray-800">{card.value}</p>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Latest Pay Highlight */}
-            <div className="pro-card overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.2s', opacity: 0 }}>
-                <div className="flex flex-col lg:flex-row">
-                    <div className="flex-1 p-5 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white">
-                        <p className="text-[10px] uppercase tracking-wider font-semibold text-emerald-200">LATEST PAY (NET AMOUNT)</p>
-                        <p className="text-3xl font-bold mt-1">₱24,530.00</p>
-                        <p className="text-xs text-emerald-200 mt-1 flex items-center gap-1">
-                            📅 Period: January 16 - 31, 2026
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-8 p-5 bg-gray-50">
-                        <div className="text-center">
-                            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">TOTAL GROSS</p>
-                            <p className="text-xl font-bold text-gray-800 mt-1">₱28,000.00</p>
-                        </div>
-                        <div className="text-center">
-                            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">TOTAL DEDUCTIONS</p>
-                            <p className="text-xl font-bold text-red-500 mt-1">₱3,470.00</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Payslip History Table */}
-            <div className="pro-card animate-fade-in-up" style={{ animationDelay: '0.3s', opacity: 0 }}>
-                <div className="p-5 border-b border-gray-100">
-                    <h3 className="text-emerald-600 font-bold text-sm">Payslip History</h3>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead>
-                            <tr className="border-b border-gray-100">
-                                <th className="text-left px-5 py-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">PAY PERIOD</th>
-                                <th className="text-left px-5 py-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">RELEASE DATE</th>
-                                <th className="text-left px-5 py-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">GROSS PAY</th>
-                                <th className="text-left px-5 py-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">DEDUCTIONS</th>
-                                <th className="text-left px-5 py-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">NET PAY</th>
-                                <th className="text-left px-5 py-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">ACTIONS</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {payslipData.map((slip, i) => (
-                                <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                                    <td className="px-5 py-3 text-sm font-semibold text-gray-800">{slip.period}</td>
-                                    <td className="px-5 py-3 text-sm text-gray-500">{slip.releaseDate}</td>
-                                    <td className="px-5 py-3 text-sm text-gray-700">{slip.grossPay}</td>
-                                    <td className="px-5 py-3 text-sm text-red-500 font-medium">{slip.deductions}</td>
-                                    <td className="px-5 py-3 text-sm font-bold text-emerald-600">{slip.netPay}</td>
-                                    <td className="px-5 py-3">
-                                        <div className="flex items-center gap-1">
-                                            <button
-                                                onClick={() => setSelectedPayslip(slip)}
-                                                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-emerald-600 transition-colors"
-                                                title="View"
-                                            >
-                                                <Eye className="w-4 h-4" />
-                                            </button>
-                                            <button className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600 transition-colors" title="Download">
-                                                <Download className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-                <div className="p-4 flex items-center justify-between text-xs text-gray-400">
-                    <span>Showing {payslipData.length} of {payslipData.length}</span>
-                    <div className="flex items-center gap-1">
-                        <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors" disabled={currentPage === 1}>
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        {Array.from({ length: totalPages }, (_, i) => (
-                            <button key={i} onClick={() => setCurrentPage(i + 1)}
-                                className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${currentPage === i + 1 ? 'bg-emerald-600 text-white' : 'hover:bg-gray-100 text-gray-500'}`}>
-                                {i + 1}
-                            </button>
-                        ))}
-                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors" disabled={currentPage === totalPages}>
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
-                    </div>
-                </div>
-            </div>
-
+import { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import {
+    DollarSign, Download, Eye, X, ChevronLeft, ChevronRight,
+    Search, TrendingUp, Printer, Calendar, Clock, BarChart2,
+    ArrowUpRight, ArrowDownRight, Shield, Receipt
+} from 'lucide-react';
+
+// ── Types ──────────────────────────────────────────────────────────────────
+interface PayslipDetail {
+    period: string;
+    releaseDate: string;
+    grossPay: string;
+    deductions: string;
+    netPay: string;
+    employee: string;
+    empId: string;
+    department: string;
+    position: string;
+    status: 'Released' | 'Pending';
+    earnings: { label: string; amount: string }[];
+    deductionItems: { label: string; amount: string }[];
+    totalGross: string;
+    totalDeductions: string;
+    netTakeHome: string;
+    lateAbsentDays?: number;
+    overtimeHours?: number;
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+const parsePeso = (val: string) => parseFloat(val.replace(/[₱,\-]/g, '')) || 0;
+const formatPeso = (val: number) =>
+    '₱' + val.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// ── Mock Data ──────────────────────────────────────────────────────────────
+const payslipData: PayslipDetail[] = [
+    {
+        period: 'Jan 16 – 31, 2026', releaseDate: 'Jan 31, 2026',
+        grossPay: '₱28,000.00', deductions: '₱3,475.00', netPay: '₱24,525.00',
+        employee: 'Rafael Santos', empId: 'EMP-0012', department: 'Engineering', position: 'Software Engineer',
+        status: 'Released', lateAbsentDays: 0, overtimeHours: 4.5,
+        earnings: [
+            { label: 'Basic Salary', amount: '₱25,000.00' },
+            { label: 'De Minimis Allowance', amount: '₱2,000.00' },
+            { label: 'Overtime Pay (4.5 hrs)', amount: '₱1,000.00' },
+        ],
+        deductionItems: [
+            { label: 'Withholding Tax', amount: '₱2,100.00' },
+            { label: 'SSS Contribution', amount: '₱900.00' },
+            { label: 'PhilHealth', amount: '₱375.00' },
+            { label: 'Pag-IBIG', amount: '₱100.00' },
+        ],
+        totalGross: '₱28,000.00', totalDeductions: '₱3,475.00', netTakeHome: '₱24,525.00',
+    },
+    {
+        period: 'Jan 01 – 15, 2026', releaseDate: 'Jan 15, 2026',
+        grossPay: '₱27,200.00', deductions: '₱3,475.00', netPay: '₱23,725.00',
+        employee: 'Rafael Santos', empId: 'EMP-0012', department: 'Engineering', position: 'Software Engineer',
+        status: 'Released', lateAbsentDays: 1, overtimeHours: 2,
+        earnings: [
+            { label: 'Basic Salary', amount: '₱25,000.00' },
+            { label: 'De Minimis Allowance', amount: '₱2,000.00' },
+            { label: 'Overtime Pay (2 hrs)', amount: '₱500.00' },
+            { label: 'Late/Absent Deduction', amount: '-₱300.00' },
+        ],
+        deductionItems: [
+            { label: 'Withholding Tax', amount: '₱2,100.00' },
+            { label: 'SSS Contribution', amount: '₱900.00' },
+            { label: 'PhilHealth', amount: '₱375.00' },
+            { label: 'Pag-IBIG', amount: '₱100.00' },
+        ],
+        totalGross: '₱27,200.00', totalDeductions: '₱3,475.00', netTakeHome: '₱23,725.00',
+    },
+    {
+        period: 'Dec 16 – 31, 2025', releaseDate: 'Dec 31, 2025',
+        grossPay: '₱27,500.00', deductions: '₱3,475.00', netPay: '₱24,025.00',
+        employee: 'Rafael Santos', empId: 'EMP-0012', department: 'Engineering', position: 'Software Engineer',
+        status: 'Released', lateAbsentDays: 0, overtimeHours: 2,
+        earnings: [
+            { label: 'Basic Salary', amount: '₱25,000.00' },
+            { label: 'De Minimis Allowance', amount: '₱2,000.00' },
+            { label: 'Overtime Pay (2 hrs)', amount: '₱500.00' },
+        ],
+        deductionItems: [
+            { label: 'Withholding Tax', amount: '₱2,100.00' },
+            { label: 'SSS Contribution', amount: '₱900.00' },
+            { label: 'PhilHealth', amount: '₱375.00' },
+            { label: 'Pag-IBIG', amount: '₱100.00' },
+        ],
+        totalGross: '₱27,500.00', totalDeductions: '₱3,475.00', netTakeHome: '₱24,025.00',
+    },
+    {
+        period: 'Dec 01 – 15, 2025', releaseDate: 'Dec 15, 2025',
+        grossPay: '₱28,500.00', deductions: '₱3,475.00', netPay: '₱25,025.00',
+        employee: 'Rafael Santos', empId: 'EMP-0012', department: 'Engineering', position: 'Software Engineer',
+        status: 'Released', lateAbsentDays: 0, overtimeHours: 6,
+        earnings: [
+            { label: 'Basic Salary', amount: '₱25,000.00' },
+            { label: 'De Minimis Allowance', amount: '₱2,000.00' },
+            { label: 'Overtime Pay (6 hrs)', amount: '₱1,500.00' },
+        ],
+        deductionItems: [
+            { label: 'Withholding Tax', amount: '₱2,100.00' },
+            { label: 'SSS Contribution', amount: '₱900.00' },
+            { label: 'PhilHealth', amount: '₱375.00' },
+            { label: 'Pag-IBIG', amount: '₱100.00' },
+        ],
+        totalGross: '₱28,500.00', totalDeductions: '₱3,475.00', netTakeHome: '₱25,025.00',
+    },
+    {
+        period: 'Nov 16 – 30, 2025', releaseDate: 'Nov 30, 2025',
+        grossPay: '₱26,500.00', deductions: '₱3,475.00', netPay: '₱23,025.00',
+        employee: 'Rafael Santos', empId: 'EMP-0012', department: 'Engineering', position: 'Software Engineer',
+        status: 'Pending', lateAbsentDays: 2, overtimeHours: 0,
+        earnings: [
+            { label: 'Basic Salary', amount: '₱25,000.00' },
+            { label: 'De Minimis Allowance', amount: '₱2,000.00' },
+            { label: 'Late/Absent Deduction', amount: '-₱500.00' },
+        ],
+        deductionItems: [
+            { label: 'Withholding Tax', amount: '₱2,100.00' },
+            { label: 'SSS Contribution', amount: '₱900.00' },
+            { label: 'PhilHealth', amount: '₱375.00' },
+            { label: 'Pag-IBIG', amount: '₱100.00' },
+        ],
+        totalGross: '₱26,500.00', totalDeductions: '₱3,475.00', netTakeHome: '₱23,025.00',
+    },
+    {
+        period: 'Nov 01 – 15, 2025', releaseDate: 'Nov 15, 2025',
+        grossPay: '₱27,000.00', deductions: '₱3,475.00', netPay: '₱23,525.00',
+        employee: 'Rafael Santos', empId: 'EMP-0012', department: 'Engineering', position: 'Software Engineer',
+        status: 'Released', lateAbsentDays: 0, overtimeHours: 1,
+        earnings: [
+            { label: 'Basic Salary', amount: '₱25,000.00' },
+            { label: 'De Minimis Allowance', amount: '₱2,000.00' },
+            { label: 'Overtime Pay (1 hr)', amount: '₱250.00' },
+        ],
+        deductionItems: [
+            { label: 'Withholding Tax', amount: '₱2,100.00' },
+            { label: 'SSS Contribution', amount: '₱900.00' },
+            { label: 'PhilHealth', amount: '₱375.00' },
+            { label: 'Pag-IBIG', amount: '₱100.00' },
+        ],
+        totalGross: '₱27,000.00', totalDeductions: '₱3,475.00', netTakeHome: '₱23,525.00',
+    },
+];
+
+const getNextPayInfo = () => {
+    const now = new Date();
+    const day = now.getDate();
+    let nextDate: Date;
+    if (day < 15) {
+        nextDate = new Date(now.getFullYear(), now.getMonth(), 15);
+    } else {
+        nextDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    }
+    const diff = Math.ceil((nextDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const label = nextDate.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+    return { days: diff, label };
+};
+
+const handlePrint = (slip: PayslipDetail) => {
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(`<html><head><title>Payslip – ${slip.period}</title>
+    <style>
+        body{font-family:Arial,sans-serif;padding:32px;color:#1f2937;max-width:600px;margin:0 auto;}
+        .header{text-align:center;border-bottom:2px solid #059669;padding-bottom:16px;margin-bottom:16px;}
+        .company{font-size:18px;font-weight:bold;color:#059669;}
+        .sub{font-size:12px;color:#6b7280;}
+        .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;font-size:12px;}
+        .item label{color:#6b7280;display:block;font-size:10px;text-transform:uppercase;}
+        .item span{font-weight:600;}
+        .sec{font-size:10px;text-transform:uppercase;color:#6b7280;font-weight:700;letter-spacing:1px;margin:16px 0 8px;}
+        .row{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #f3f4f6;}
+        .row.tot{font-weight:bold;border-top:2px solid #e5e7eb;border-bottom:none;padding-top:8px;}
+        .row.red span:last-child{color:#dc2626;}
+        .net{background:#059669;color:white;text-align:center;padding:16px;border-radius:8px;margin-top:16px;}
+        .net .lbl{font-size:10px;text-transform:uppercase;opacity:.8;}
+        .net .amt{font-size:28px;font-weight:bold;margin-top:4px;}
+        @media print{body{padding:16px;}}
+    </style></head><body>
+    <div class="header"><div class="company">SIMPLEVIA Technologies, Inc.</div><div class="sub">Employee Payslip</div></div>
+    <div class="grid">
+        <div class="item"><label>Employee</label><span>${slip.employee}</span></div>
+        <div class="item"><label>Employee ID</label><span>${slip.empId}</span></div>
+        <div class="item"><label>Department</label><span>${slip.department}</span></div>
+        <div class="item"><label>Position</label><span>${slip.position}</span></div>
+        <div class="item"><label>Pay Period</label><span>${slip.period}</span></div>
+        <div class="item"><label>Release Date</label><span>${slip.releaseDate}</span></div>
+    </div>
+    <div class="sec">Earnings</div>
+    ${slip.earnings.map(e => `<div class="row"><span>${e.label}</span><span>${e.amount}</span></div>`).join('')}
+    <div class="row tot"><span>Total Gross Pay</span><span>${slip.totalGross}</span></div>
+    <div class="sec">Deductions</div>
+    ${slip.deductionItems.map(d => `<div class="row red"><span>${d.label}</span><span>-${d.amount}</span></div>`).join('')}
+    <div class="row tot red"><span>Total Deductions</span><span style="color:#dc2626">-${slip.totalDeductions}</span></div>
+    <div class="net"><div class="lbl">Net Take Home Pay</div><div class="amt">${slip.netTakeHome}</div></div>
+    </body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); w.close(); }, 300);
+};
+
+// ── Mini Bar Chart ─────────────────────────────────────────────────────────
+const MiniBarChart = ({ data }: { data: PayslipDetail[] }) => {
+    const chartData = [...data].reverse().slice(0, 6);
+    const maxVal = Math.max(...chartData.map(d => parsePeso(d.totalGross)));
+    return (
+        <div className="pro-card p-5 h-full">
+            <div className="flex items-center justify-between mb-4">
+                <div>
+                    <h3 className="text-sm font-bold text-gray-800">Earnings vs Deductions</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">Last 6 pay periods</p>
+                </div>
+                <div className="flex items-center gap-3 text-[10px] font-semibold">
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" />Gross</span>
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-blue-400 inline-block" />Net</span>
+                    <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-red-400 inline-block" />Deductions</span>
+                </div>
+            </div>
+            <div className="flex items-end gap-3 h-36">
+                {chartData.map((d, i) => {
+                    const gross = parsePeso(d.totalGross);
+                    const net = parsePeso(d.netTakeHome);
+                    const ded = parsePeso(d.totalDeductions);
+                    const grossH = Math.round((gross / maxVal) * 100);
+                    const netH = Math.round((net / maxVal) * 100);
+                    const dedH = Math.round((ded / maxVal) * 100);
+                    const periodShort = d.period.replace(', 2026', '').replace(', 2025', '');
+                    return (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                            <div className="w-full flex items-end gap-0.5 h-28">
+                                <div className="flex-1 rounded-t-sm bg-emerald-500 transition-all hover:bg-emerald-400 cursor-pointer relative group" style={{ height: `${grossH}%` }}>
+                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 hidden group-hover:flex items-center gap-1 bg-emerald-600 text-white text-[11px] font-bold rounded-lg px-2.5 py-1 whitespace-nowrap z-50 shadow-lg">{formatPeso(gross)}</div>
+                                </div>
+                                <div className="flex-1 rounded-t-sm bg-blue-400 transition-all hover:bg-blue-300 cursor-pointer relative group" style={{ height: `${netH}%` }}>
+                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 hidden group-hover:flex items-center gap-1 bg-blue-500 text-white text-[11px] font-bold rounded-lg px-2.5 py-1 whitespace-nowrap z-50 shadow-lg">{formatPeso(net)}</div>
+                                </div>
+                                <div className="flex-1 rounded-t-sm bg-red-400 transition-all hover:bg-red-300 cursor-pointer relative group" style={{ height: `${dedH}%` }}>
+                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 hidden group-hover:flex items-center gap-1 bg-red-500 text-white text-[11px] font-bold rounded-lg px-2.5 py-1 whitespace-nowrap z-50 shadow-lg">{formatPeso(ded)}</div>
+                                </div>
+                            </div>
+                            <p className="text-[9px] text-gray-400 text-center leading-tight whitespace-nowrap overflow-hidden" style={{ maxWidth: '100%' }}>
+                                {periodShort.split('–')[0].trim()}
+                            </p>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+// ── YTD Progress ───────────────────────────────────────────────────────────
+const YTDProgress = ({ data }: { data: PayslipDetail[] }) => {
+    const ytdData = data.filter(d => d.period.includes('2026'));
+    const ytdNet = ytdData.reduce((s, d) => s + parsePeso(d.netTakeHome), 0);
+    const annualTarget = 25000 * 24;
+    const progress = Math.min(Math.round((ytdNet / annualTarget) * 100), 100);
+    const nextPay = getNextPayInfo();
+    const lastNet = parsePeso(data[0]?.netTakeHome || '0');
+    const prevNet = parsePeso(data[1]?.netTakeHome || '0');
+    const netDiff = lastNet - prevNet;
+    const netDiffPct = prevNet > 0 ? ((netDiff / prevNet) * 100).toFixed(1) : '0';
+    return (
+        <div className="pro-card p-5 space-y-4 h-full">
+            <div>
+                <div className="flex items-center justify-between mb-2">
+                    <div>
+                        <p className="text-xs font-bold text-gray-800">YTD Net Pay Progress</p>
+                        <p className="text-[10px] text-gray-400">vs. estimated annual ({formatPeso(annualTarget)})</p>
+                    </div>
+                    <span className="text-sm font-bold text-emerald-600">{progress}%</span>
+                </div>
+                <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-700" style={{ width: `${progress}%` }} />
+                </div>
+                <div className="flex justify-between mt-1.5 text-[10px] text-gray-400">
+                    <span>Received: <span className="font-semibold text-gray-700">{formatPeso(ytdNet)}</span></span>
+                    <span>Remaining: <span className="font-semibold text-gray-700">{formatPeso(annualTarget - ytdNet)}</span></span>
+                </div>
+            </div>
+            <div className="border-t border-gray-100" />
+            <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-purple-50">
+                    <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
+                        <Clock className="w-4 h-4 text-purple-600" />
+                    </div>
+                    <div>
+                        <p className="text-[10px] text-gray-400 uppercase font-semibold">Next Pay In</p>
+                        <p className="text-lg font-bold text-purple-700">{nextPay.days}d</p>
+                        <p className="text-[10px] text-gray-400">{nextPay.label}</p>
+                    </div>
+                </div>
+                <div className={`flex items-center gap-3 p-3 rounded-xl ${netDiff >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${netDiff >= 0 ? 'bg-emerald-100' : 'bg-red-100'}`}>
+                        {netDiff >= 0 ? <ArrowUpRight className="w-4 h-4 text-emerald-600" /> : <ArrowDownRight className="w-4 h-4 text-red-600" />}
+                    </div>
+                    <div>
+                        <p className="text-[10px] text-gray-400 uppercase font-semibold">vs Last Pay</p>
+                        <p className={`text-lg font-bold ${netDiff >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                            {netDiff >= 0 ? '+' : ''}{netDiffPct}%
+                        </p>
+                        <p className="text-[10px] text-gray-400">{netDiff >= 0 ? '+' : ''}{formatPeso(Math.abs(netDiff))}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ── Net Pay Trend ──────────────────────────────────────────────────────────
+const TrendLine = ({ data }: { data: PayslipDetail[] }) => {
+    const pts = [...data].reverse().slice(0, 6);
+    const vals = pts.map(d => parsePeso(d.netTakeHome));
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    const range = max - min || 1;
+    const W = 300, H = 140, PAD = 12;
+    const xs = pts.map((_, i) => PAD + (i / (pts.length - 1)) * (W - PAD * 2));
+    const ys = vals.map(v => H - PAD - ((v - min) / range) * (H - PAD * 2));
+    const path = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${x},${ys[i]}`).join(' ');
+    const area = `${path} L${xs[xs.length - 1]},${H} L${xs[0]},${H} Z`;
+    return (
+        <div className="pro-card p-5 h-full flex flex-col">
+            <div className="flex items-center justify-between mb-3">
+                <div>
+                    <h3 className="text-sm font-bold text-gray-800">Net Pay Trend</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">Last 6 pay periods</p>
+                </div>
+                <div className="flex items-center gap-1 text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-1 rounded-lg">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    Trending
+                </div>
+            </div>
+            <svg viewBox={`0 0 ${W} ${H}`} className="w-full flex-1" style={{ minHeight: '140px' }}>
+                <defs>
+                    <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#059669" stopOpacity="0.15" />
+                        <stop offset="100%" stopColor="#059669" stopOpacity="0" />
+                    </linearGradient>
+                </defs>
+                <path d={area} fill="url(#trendGrad)" />
+                <path d={path} fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                {xs.map((x, i) => (
+                    <g key={i}
+                        onMouseEnter={(e) => {
+                            const t = document.getElementById('trend-tooltip');
+                            if (t) {
+                                t.style.display = 'block';
+                                t.innerHTML = '<div style="font-size:10px;color:#6b7280">' + pts[i].period + '</div><div style="font-size:13px;font-weight:700;color:#059669">' + formatPeso(vals[i]) + '</div>';
+                                t.style.left = (e.clientX + 12) + 'px';
+                                t.style.top = (e.clientY - 50) + 'px';
+                            }
+                        }}
+                        onMouseLeave={() => { const t = document.getElementById('trend-tooltip'); if (t) t.style.display = 'none'; }}
+                        style={{ cursor: 'pointer' }}
+                    >
+                        <circle cx={x} cy={ys[i]} r="16" fill="transparent" />
+                        <circle cx={x} cy={ys[i]} r="5" fill="#059669" stroke="white" strokeWidth="2" />
+                        <circle cx={x} cy={ys[i]} r="9" fill="#05966920" />
+                    </g>
+                ))}
+            </svg>
+            <div className="flex justify-between mt-1">
+                {pts.map((d, i) => (
+                    <span key={i} className="text-[9px] text-gray-400 text-center flex-1">
+                        {d.period.split('–')[0].replace('Jan ', 'J').replace('Dec ', 'D').replace('Nov ', 'N').trim()}
+                    </span>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+// ── Tooltip ────────────────────────────────────────────────────────────────
+const TrendTooltip = () => (
+    <div id="trend-tooltip" style={{ display: 'none', position: 'fixed', zIndex: 9999, background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '8px 12px', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', pointerEvents: 'none' }} />
+);
+
+// ══════════════════════════════════════════════════════════════════════════
+const MyPaySlips = () => {
+    const [selectedPayslip, setSelectedPayslip] = useState<PayslipDetail | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState<'All' | 'Released' | 'Pending'>('All');
+    const [subTab, setSubTab] = useState<'contributions' | 'tax' | 'thirteenth' | 'history'>('history');
+    const perPage = 5;
+
+    const ytd2026 = payslipData.filter(d => d.period.includes('2026'));
+    const ytdGross = useMemo(() => ytd2026.reduce((s, d) => s + parsePeso(d.totalGross), 0), []);
+    const ytdDeductions = useMemo(() => ytd2026.reduce((s, d) => s + parsePeso(d.totalDeductions), 0), []);
+    const ytdNet = useMemo(() => ytd2026.reduce((s, d) => s + parsePeso(d.netTakeHome), 0), []);
+    const ytdSSS = useMemo(() => ytd2026.reduce((s, d) => s + (d.deductionItems.find(x => x.label.includes('SSS')) ? parsePeso(d.deductionItems.find(x => x.label.includes('SSS'))!.amount) : 0), 0), []);
+    const ytdPhilHealth = useMemo(() => ytd2026.reduce((s, d) => s + (d.deductionItems.find(x => x.label.includes('PhilHealth')) ? parsePeso(d.deductionItems.find(x => x.label.includes('PhilHealth'))!.amount) : 0), 0), []);
+    const ytdPagIBIG = useMemo(() => ytd2026.reduce((s, d) => s + (d.deductionItems.find(x => x.label.includes('Pag-IBIG')) ? parsePeso(d.deductionItems.find(x => x.label.includes('Pag-IBIG'))!.amount) : 0), 0), []);
+    const ytdTax = useMemo(() => ytd2026.reduce((s, d) => s + (d.deductionItems.find(x => x.label.includes('Tax')) ? parsePeso(d.deductionItems.find(x => x.label.includes('Tax'))!.amount) : 0), 0), []);
+
+    const currentMonth = new Date().getMonth() + 1;
+    const thirteenthPct = Math.round((currentMonth / 12) * 100);
+    const thirteenthAccrued = Math.round((25000 * currentMonth) / 12);
+    const nextPay = getNextPayInfo();
+
+    const ytdCards = [
+        { label: 'YTD GROSS EARNINGS', value: formatPeso(ytdGross), icon: DollarSign, color: '#059669', bg: '#ecfdf5' },
+        { label: 'YTD NET PAY', value: formatPeso(ytdNet), icon: TrendingUp, color: '#2563eb', bg: '#eff6ff' },
+        { label: 'YTD DEDUCTIONS', value: formatPeso(ytdDeductions), icon: DollarSign, color: '#dc2626', bg: '#fef2f2' },
+        { label: 'NEXT PAY IN', value: `${nextPay.days} days`, icon: Calendar, color: '#7c3aed', bg: '#f5f3ff' },
+    ];
+
+    const filtered = payslipData.filter(s => {
+        const q = search.toLowerCase();
+        const matchSearch = s.period.toLowerCase().includes(q) || s.releaseDate.toLowerCase().includes(q);
+        const matchStatus = statusFilter === 'All' || s.status === statusFilter;
+        return matchSearch && matchStatus;
+    });
+    const totalPages = Math.ceil(filtered.length / perPage);
+    const paginated = filtered.slice((currentPage - 1) * perPage, currentPage * perPage);
+    const latest = payslipData[0];
+
+    return (
+        <div className="space-y-6 pb-6">
+            <TrendTooltip />
+
+            {/* Page Header */}
+            <div className="page-header animate-fade-in-up">
+                <h1>My Pay Slips</h1>
+                <p>View and download your payslip history</p>
+            </div>
+
+            {/* YTD Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in-up" style={{ animationDelay: '0.1s', opacity: 0 }}>
+                {ytdCards.map((card, i) => (
+                    <div key={i} className="pro-card !p-0 overflow-hidden">
+                        <div className="p-4 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: card.bg }}>
+                                <card.icon className="w-5 h-5" style={{ color: card.color }} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">{card.label}</p>
+                                <p className="text-lg font-bold text-gray-800">{card.value}</p>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Latest Pay Highlight */}
+            <div className="pro-card overflow-hidden animate-fade-in-up" style={{ animationDelay: '0.15s', opacity: 0 }}>
+                <div className="flex flex-col lg:flex-row">
+                    <div className="flex-1 p-5 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white">
+                        <p className="text-[10px] uppercase tracking-wider font-semibold text-emerald-200">LATEST PAY (NET AMOUNT)</p>
+                        <p className="text-3xl font-bold mt-1">{latest.netTakeHome}</p>
+                        <p className="text-xs text-emerald-200 mt-1"> Period: {latest.period}</p>
+                    </div>
+                    <div className="flex items-center gap-8 p-5 bg-gray-50">
+                        <div className="text-center">
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">TOTAL GROSS</p>
+                            <p className="text-xl font-bold text-gray-800 mt-1">{latest.totalGross}</p>
+                        </div>
+                        <div className="text-center">
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">TOTAL DEDUCTIONS</p>
+                            <p className="text-xl font-bold text-red-500 mt-1">-{latest.totalDeductions}</p>
+                        </div>
+                        {(latest.overtimeHours ?? 0) > 0 && (
+                            <div className="text-center">
+                                <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">OVERTIME</p>
+                                <p className="text-xl font-bold text-blue-600 mt-1">{latest.overtimeHours}hrs</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Charts Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch animate-fade-in-up" style={{ animationDelay: '0.2s', opacity: 0 }}>
+                <div className="lg:col-span-1"><MiniBarChart data={payslipData} /></div>
+                <div className="lg:col-span-1"><TrendLine data={payslipData} /></div>
+                <div className="lg:col-span-1"><YTDProgress data={payslipData} /></div>
+            </div>
+
+            {/* Tabbed Card */}
+            <div className="pro-card animate-fade-in-up" style={{ animationDelay: '0.22s', opacity: 0 }}>
+                <div className="px-6 pt-5">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 className="text-base font-bold text-gray-800">Payroll Summary</h2>
+                            <p className="text-xs text-gray-400 mt-0.5">History, contributions, taxes &amp; 13th month</p>
+                        </div>
+                    </div>
+                    <div className="pro-tabs">
+                        <button
+                            onClick={() => setSubTab('history')}
+                            className={`pro-tab flex items-center gap-2 ${subTab === 'history' ? 'active' : ''}`}
+                        >
+                            <Search className="w-4 h-4" /> Payslip History
+                        </button>
+                        <button
+                            onClick={() => setSubTab('contributions')}
+                            className={`pro-tab flex items-center gap-2 ${subTab === 'contributions' ? 'active' : ''}`}
+                        >
+                            <Shield className="w-4 h-4" /> Gov&apos;t Contributions
+                        </button>
+                        <button
+                            onClick={() => setSubTab('tax')}
+                            className={`pro-tab flex items-center gap-2 ${subTab === 'tax' ? 'active' : ''}`}
+                        >
+                            <Receipt className="w-4 h-4" /> Tax Summary
+                        </button>
+                        <button
+                            onClick={() => setSubTab('thirteenth')}
+                            className={`pro-tab flex items-center gap-2 ${subTab === 'thirteenth' ? 'active' : ''}`}
+                        >
+                            <DollarSign className="w-4 h-4" /> 13th Month
+                        </button>
+                    </div>
+                </div>
+
+                <div className="p-6">
+                    {/* Tab: Gov't Contributions */}
+                    {subTab === 'contributions' && (
+                        <div>
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 className="text-sm font-bold text-gray-800">Gov&apos;t Contributions</h3>
+                                    <p className="text-xs text-gray-400 mt-0.5">YTD deductions</p>
+                                </div>
+                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">2026</span>
+                            </div>
+                            {[
+                                { label: 'SSS', amount: ytdSSS, color: '#2563eb', bg: '#eff6ff' },
+                                { label: 'PhilHealth', amount: ytdPhilHealth, color: '#059669', bg: '#ecfdf5' },
+                                { label: 'Pag-IBIG', amount: ytdPagIBIG, color: '#7c3aed', bg: '#f5f3ff' },
+                            ].map((g) => (
+                                <div key={g.label} className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold" style={{ background: g.bg, color: g.color }}>{g.label[0]}</div>
+                                        <span className="text-sm font-medium text-gray-700">{g.label}</span>
+                                    </div>
+                                    <span className="text-sm font-bold" style={{ color: g.color }}>{formatPeso(g.amount)}</span>
+                                </div>
+                            ))}
+                            <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between">
+                                <span className="text-xs text-gray-400 font-semibold">Total YTD</span>
+                                <span className="text-sm font-extrabold text-gray-800">{formatPeso(ytdSSS + ytdPhilHealth + ytdPagIBIG)}</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Tab: Tax Summary */}
+                    {subTab === 'tax' && (
+                        <div>
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 className="text-sm font-bold text-gray-800">Tax Summary</h3>
+                                    <p className="text-xs text-gray-400 mt-0.5">Withholding tax YTD</p>
+                                </div>
+                                <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-1 rounded-lg">BIR</span>
+                            </div>
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                                    <span className="text-xs text-gray-500 font-medium">YTD Tax Withheld</span>
+                                    <span className="text-sm font-extrabold text-red-600">{formatPeso(ytdTax)}</span>
+                                </div>
+                                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                                    <span className="text-xs text-gray-500 font-medium">YTD Gross Income</span>
+                                    <span className="text-sm font-bold text-gray-800">{formatPeso(ytdGross)}</span>
+                                </div>
+                                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                                    <span className="text-xs text-gray-500 font-medium">Effective Tax Rate</span>
+                                    <span className="text-sm font-bold text-gray-800">{ytdGross > 0 ? ((ytdTax / ytdGross) * 100).toFixed(1) : 0}%</span>
+                                </div>
+                                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                                    <span className="text-xs text-gray-500 font-medium">Est. Annual Tax</span>
+                                    <span className="text-sm font-bold text-red-500">{formatPeso(ytdTax * 6)}</span>
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-gray-400 text-center mt-4">Based on TRAIN Law tax brackets</p>
+                        </div>
+                    )}
+
+                    {/* Tab: 13th Month */}
+                    {subTab === 'thirteenth' && (
+                        <div>
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 className="text-sm font-bold text-gray-800">13th Month Pay</h3>
+                                    <p className="text-xs text-gray-400 mt-0.5">Accrual tracker</p>
+                                </div>
+                                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">Dec 2026</span>
+                            </div>
+                            <div className="text-center mb-4">
+                                <p className="text-3xl font-extrabold text-amber-600">{formatPeso(thirteenthAccrued)}</p>
+                                <p className="text-xs text-gray-400 mt-1">accrued so far</p>
+                            </div>
+                            <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
+                                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${thirteenthPct}%`, background: 'linear-gradient(90deg, #f59e0b, #d97706)' }} />
+                            </div>
+                            <div className="flex justify-between text-[10px] text-gray-400 mb-4">
+                                <span>{thirteenthPct}% of year completed</span>
+                                <span>Est. {formatPeso(25000)}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="text-center p-2 bg-amber-50 rounded-xl">
+                                    <p className="text-[10px] text-gray-400 uppercase font-semibold">Monthly Basic</p>
+                                    <p className="text-sm font-bold text-amber-700">{formatPeso(25000)}</p>
+                                </div>
+                                <div className="text-center p-2 bg-orange-50 rounded-xl">
+                                    <p className="text-[10px] text-gray-400 uppercase font-semibold">Release Date</p>
+                                    <p className="text-sm font-bold text-orange-700">Dec 24</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Tab: Payslip History */}
+                    {subTab === 'history' && (
+                        <div>
+                <div className="px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <h3 className="text-emerald-600 font-bold text-sm">Payslip History</h3>
+                    <div className="flex items-center gap-2">
+                        <div className="relative">
+                            <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                            <input
+                                type="text"
+                                placeholder="Search period..."
+                                value={search}
+                                onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
+                                className="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 w-40"
+                            />
+                        </div>
+                        <select
+                            value={statusFilter}
+                            onChange={e => { setStatusFilter(e.target.value as 'All' | 'Released' | 'Pending'); setCurrentPage(1); }}
+                            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-gray-600"
+                        >
+                            <option value="All">All Status</option>
+                            <option value="Released">Released</option>
+                            <option value="Pending">Pending</option>
+                        </select>
+                    </div>
+                </div>
+                <div className="overflow-x-auto rounded-b-xl overflow-hidden">
+                    <table className="pro-table w-full">
+                        <thead>
+                            <tr>
+                                {['PAY PERIOD', 'RELEASE DATE', 'GROSS PAY', 'DEDUCTIONS', 'NET PAY', 'OT / ABSENT', 'STATUS', 'ACTIONS'].map(h => (
+                                    <th key={h}>{h}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {paginated.length === 0 && (
+                                <tr><td colSpan={8} className="text-center py-8 text-sm text-gray-400">No payslips found.</td></tr>
+                            )}
+                            {paginated.map((slip, i) => (
+                                <tr key={i} className={`transition-all duration-150 ${i % 2 === 0 ? 'bg-white' : 'bg-emerald-50/30'} hover:bg-emerald-50 hover:shadow-inner`}>
+                                    <td className="px-5 py-4 text-sm font-semibold text-gray-800 whitespace-nowrap">{slip.period}</td>
+                                    <td className="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">{slip.releaseDate}</td>
+                                    <td className="px-5 py-4 text-sm font-bold text-emerald-700">{slip.grossPay}</td>
+                                    <td className="px-5 py-4 text-sm font-bold text-red-600">-{slip.deductions}</td>
+                                    <td className="px-5 py-4 text-sm font-extrabold text-emerald-600">{slip.netPay}</td>
+                                    <td className="px-5 py-3">
+                                        <div className="flex flex-col gap-0.5">
+                                            {(slip.overtimeHours ?? 0) > 0 && (
+                                                <span className="text-[11px] text-blue-600 font-bold">+{slip.overtimeHours}h OT</span>
+                                            )}
+                                            {(slip.lateAbsentDays ?? 0) > 0 && (
+                                                <span className="text-[11px] text-red-500 font-bold">{slip.lateAbsentDays}d absent</span>
+                                            )}
+                                            {!(slip.overtimeHours) && !(slip.lateAbsentDays) && (
+                                                <span className="text-[10px] text-gray-300">—</span>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td className="px-5 py-3">
+                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                            slip.status === 'Released'
+                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                                        }`}>
+                                            <span className={`w-1.5 h-1.5 rounded-full ${slip.status === 'Released' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+                                            {slip.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-5 py-3">
+                                        <div className="flex items-center gap-1">
+                                            <button onClick={() => setSelectedPayslip(slip)} className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-500 hover:text-emerald-700 transition-colors" title="View"><Eye className="w-4 h-4" /></button>
+                                            <button onClick={() => handlePrint(slip)} className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-400 hover:text-blue-600 transition-colors" title="Download / Print"><Download className="w-4 h-4" /></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                <div className="p-4 flex items-center justify-between text-xs text-gray-400">
+                    <span>Showing {paginated.length} of {filtered.length}</span>
+                    <div className="flex items-center gap-1">
+                        <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-40">
+                            <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        {Array.from({ length: totalPages }, (_, i) => (
+                            <button key={i} onClick={() => setCurrentPage(i + 1)}
+                                className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${currentPage === i + 1 ? 'bg-emerald-600 text-white' : 'hover:bg-gray-100 text-gray-500'}`}>
+                                {i + 1}
+                            </button>
+                        ))}
+                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-40">
+                            <ChevronRight className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
             {/* Payslip Detail Modal */}
-            {selectedPayslip && (
-                <>
-                    <div className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm" onClick={() => setSelectedPayslip(null)} />
-                    <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl z-50 overflow-y-auto animate-slide-in-right">
-                        <div className="p-6">
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-lg font-bold text-gray-800">Payslip Details</h3>
-                                <button onClick={() => setSelectedPayslip(null)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-                                    <X className="w-5 h-5 text-gray-400" />
-                                </button>
+            {selectedPayslip && createPortal(
+                <div className="pro-modal-overlay" onClick={() => setSelectedPayslip(null)}>
+                    <div
+                        className="pro-modal"
+                        style={{ maxWidth: "520px", width: "100%", maxHeight: "90vh", display: "flex", flexDirection: "column" }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="pro-modal-header">
+                            <h3 className="text-lg font-bold text-gray-800">Payslip Details</h3>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => handlePrint(selectedPayslip)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-blue-600 transition-colors" title="Print"><Printer className="w-5 h-5" /></button>
+                                <button onClick={() => setSelectedPayslip(null)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"><X className="w-5 h-5 text-gray-400" /></button>
                             </div>
-
-                            {/* Company Header */}
+                        </div>
+                        <div className="pro-modal-body" style={{ overflowY: "auto", flex: 1, padding: "24px" }}>
                             <div className="text-center mb-6 pb-6 border-b border-gray-100">
                                 <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center mx-auto mb-2">
                                     <span className="text-emerald-600 font-bold text-sm">SV</span>
                                 </div>
-                                <p className="text-sm font-bold text-gray-800">Simplevia</p>
-                                <p className="text-xs text-gray-400">Technologies Inc</p>
-                                <p className="text-xs text-gray-500 mt-2">Employee: <span className="font-semibold text-gray-700">{selectedPayslip.employee}</span></p>
-                                <p className="text-xs text-gray-400">Pay Period: {selectedPayslip.period}</p>
-                            </div>
-
-                            {/* Earnings & Deductions */}
-                            <div className="grid grid-cols-2 gap-6 mb-6">
-                                <div>
-                                    <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">EARNINGS</h4>
-                                    <div className="space-y-2">
-                                        {selectedPayslip.earnings.map((e, i) => (
-                                            <div key={i} className="flex justify-between text-xs">
-                                                <span className="text-gray-500">{e.label}</span>
-                                                <span className="font-semibold text-gray-700">{e.amount}</span>
-                                            </div>
-                                        ))}
-                                        <div className="flex justify-between text-xs pt-2 border-t border-gray-100">
-                                            <span className="font-bold text-gray-700">Total Gross Pay</span>
-                                            <span className="font-bold text-gray-700">{selectedPayslip.totalGross}</span>
+                                <p className="text-sm font-bold text-gray-800">SIMPLEVIA Technologies, Inc.</p>
+                                <p className="text-xs text-gray-400">Employee Payslip</p>
+                                <div className="mt-3 grid grid-cols-2 gap-2 text-left">
+                                    {[
+                                        ['Employee', selectedPayslip.employee],
+                                        ['Employee ID', selectedPayslip.empId],
+                                        ['Department', selectedPayslip.department],
+                                        ['Position', selectedPayslip.position],
+                                        ['Pay Period', selectedPayslip.period],
+                                        ['Release Date', selectedPayslip.releaseDate],
+                                    ].map(([label, val]) => (
+                                        <div key={label}>
+                                            <p className="text-[10px] text-gray-400 uppercase">{label}</p>
+                                            <p className="text-xs font-semibold text-gray-700">{val}</p>
                                         </div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">DEDUCTIONS</h4>
-                                    <div className="space-y-2">
-                                        {selectedPayslip.deductionItems.map((d, i) => (
-                                            <div key={i} className="flex justify-between text-xs">
-                                                <span className="text-gray-500">{d.label}</span>
-                                                <span className="font-semibold text-gray-700">{d.amount}</span>
-                                            </div>
-                                        ))}
-                                        <div className="flex justify-between text-xs pt-2 border-t border-gray-100">
-                                            <span className="font-bold text-red-500">Total Deductions</span>
-                                            <span className="font-bold text-red-500">{selectedPayslip.totalDeductions}</span>
-                                        </div>
-                                    </div>
+                                    ))}
                                 </div>
                             </div>
-
-                            {/* Net Take Home */}
+                            {((selectedPayslip.overtimeHours ?? 0) > 0 || (selectedPayslip.lateAbsentDays ?? 0) > 0) && (
+                                <div className="mb-4 p-3 rounded-xl bg-gray-50 flex items-center gap-4">
+                                    {(selectedPayslip.overtimeHours ?? 0) > 0 && (
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
+                                                <BarChart2 className="w-3.5 h-3.5 text-blue-600" />
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] text-gray-400 uppercase">Overtime</p>
+                                                <p className="text-xs font-bold text-blue-600">{selectedPayslip.overtimeHours} hrs</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {(selectedPayslip.lateAbsentDays ?? 0) > 0 && (
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-7 h-7 rounded-lg bg-red-100 flex items-center justify-center">
+                                                <Clock className="w-3.5 h-3.5 text-red-500" />
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] text-gray-400 uppercase">Absent / Late</p>
+                                                <p className="text-xs font-bold text-red-500">{selectedPayslip.lateAbsentDays} day(s)</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            <div className="mb-4">
+                                <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">EARNINGS</h4>
+                                <div className="space-y-2">
+                                    {selectedPayslip.earnings.map((e, i) => (
+                                        <div key={i} className="flex justify-between text-xs">
+                                            <span className="text-gray-500">{e.label}</span>
+                                            <span className={`font-semibold ${e.amount.startsWith('-') ? 'text-red-400' : 'text-gray-700'}`}>{e.amount}</span>
+                                        </div>
+                                    ))}
+                                    <div className="flex justify-between text-xs pt-2 border-t border-gray-200">
+                                        <span className="font-bold text-gray-700">Total Gross Pay</span>
+                                        <span className="font-bold text-gray-700">{selectedPayslip.totalGross}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="mb-6">
+                                <h4 className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">DEDUCTIONS</h4>
+                                <div className="space-y-2">
+                                    {selectedPayslip.deductionItems.map((d, i) => (
+                                        <div key={i} className="flex justify-between text-xs">
+                                            <span className="text-gray-500">{d.label}</span>
+                                            <span className="font-semibold text-red-500">-{d.amount}</span>
+                                        </div>
+                                    ))}
+                                    <div className="flex justify-between text-xs pt-2 border-t border-gray-200">
+                                        <span className="font-bold text-red-500">Total Deductions</span>
+                                        <span className="font-bold text-red-500">-{selectedPayslip.totalDeductions}</span>
+                                    </div>
+                                </div>
+                            </div>
                             <div className="rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 p-5 text-white text-center mb-4">
                                 <p className="text-[10px] uppercase tracking-wider font-semibold text-emerald-200">NET TAKE HOME PAY</p>
                                 <p className="text-3xl font-bold mt-1">{selectedPayslip.netTakeHome}</p>
                             </div>
-
-                            <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-600 rounded-xl text-sm font-semibold hover:bg-emerald-100 transition-colors">
-                                <Download className="w-4 h-4" /> Download (PDF)
+                            <button
+                                onClick={() => handlePrint(selectedPayslip)}
+                                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-600 rounded-xl text-sm font-semibold hover:bg-emerald-100 transition-colors"
+                            >
+                                <Download className="w-4 h-4" /> Download / Print PDF
                             </button>
                         </div>
+                        <div className="pro-modal-footer">
+                            <button type="button" className="btn btn-secondary" onClick={() => setSelectedPayslip(null)}>Close</button>
+                        </div>
                     </div>
-                </>
-            )}
-        </div>
-    );
-};
-
+                </div>
+            , document.body)}
+        </div>
+    );
+};
+
 export default MyPaySlips;
