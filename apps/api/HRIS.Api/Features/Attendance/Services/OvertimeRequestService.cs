@@ -249,19 +249,7 @@ public class OvertimeRequestService
         if (request.DateFrom < today)
             throw new ApiException("Overtime request cannot be submitted for past dates.", StatusCodes.Status400BadRequest);
 
-        var hasApprovedLeave = await _context.LeaveRequests
-            .AsNoTracking()
-            .AnyAsync(x =>
-                x.EmployeeId == employee.Id &&
-                x.Status == "Approved" &&
-                x.StartDate <= request.DateTo &&
-                x.EndDate >= request.DateFrom);
-
-        if (hasApprovedLeave)
-            throw new ApiException(
-                "Cannot request overtime on an approved leave date.",
-                StatusCodes.Status400BadRequest);
-
+        await EnsureNoApprovedLeaveOverlapAsync(employee.Id, request.DateFrom, request.DateTo);
 
         var attendance = await _context.AttendanceLogs
             .AsNoTracking()
@@ -375,6 +363,8 @@ public class OvertimeRequestService
 
         if (employee == null)
             throw new ApiException("Employee not found.", StatusCodes.Status404NotFound);
+
+        await EnsureNoApprovedLeaveOverlapAsync(request.EmployeeId, request.DateFrom, request.DateTo);
 
         var attendance = await _context.AttendanceLogs
             .AsNoTracking()
@@ -517,6 +507,25 @@ public class OvertimeRequestService
                 x.EmployeeId == employeeId &&
                 (x.Status == "Pending" || x.Status == "Approved") &&
                 x.Items.Any(i => i.Date == date));
+    }
+
+    private async Task EnsureNoApprovedLeaveOverlapAsync(
+        Guid employeeId,
+        DateOnly dateFrom,
+        DateOnly dateTo)
+    {
+        var hasApprovedLeave = await _context.LeaveRequests
+            .AsNoTracking()
+            .AnyAsync(x =>
+                x.EmployeeId == employeeId &&
+                x.Status == "Approved" &&
+                x.StartDate <= dateTo &&
+                x.EndDate >= dateFrom);
+
+        if (hasApprovedLeave)
+            throw new ApiException(
+                "Overtime is not allowed on an approved leave date.",
+                StatusCodes.Status400BadRequest);
     }
 
     private async Task<ShiftDay> GetCurrentShiftDay(Guid employeeId, DateOnly workDate)
