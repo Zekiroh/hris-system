@@ -249,6 +249,20 @@ public class OvertimeRequestService
         if (request.DateFrom < today)
             throw new ApiException("Overtime request cannot be submitted for past dates.", StatusCodes.Status400BadRequest);
 
+        var hasApprovedLeave = await _context.LeaveRequests
+            .AsNoTracking()
+            .AnyAsync(x =>
+                x.EmployeeId == employee.Id &&
+                x.Status == "Approved" &&
+                x.StartDate <= request.DateTo &&
+                x.EndDate >= request.DateFrom);
+
+        if (hasApprovedLeave)
+            throw new ApiException(
+                "Cannot request overtime on an approved leave date.",
+                StatusCodes.Status400BadRequest);
+
+
         var attendance = await _context.AttendanceLogs
             .AsNoTracking()
             .Where(x =>

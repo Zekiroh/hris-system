@@ -246,6 +246,14 @@ const isBeforeEffectiveDate = (
   return apiDate < employee.effectiveFrom;
 };
 
+const isApprovedLeaveStatus = (status?: string | null) => {
+  if (!status) {
+    return false;
+  }
+
+  return status.trim().toLowerCase().includes('leave');
+};
+
 export const buildPreviewDays = ({
   form,
   employees,
@@ -360,6 +368,18 @@ export const buildPreviewDays = ({
         otHours: 0,
         status: 'blocked',
         message: 'Not a scheduled working day',
+      };
+    }
+
+    if (isApprovedLeaveStatus(attendance?.status)) {
+      return {
+        key: apiDate,
+        apiDate,
+        displayDate: toDisplayDate(date),
+        dayName: getDayName(date),
+        otHours: 0,
+        status: 'blocked',
+        message: 'Approved leave date',
       };
     }
 

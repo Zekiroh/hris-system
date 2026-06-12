@@ -35,6 +35,7 @@ import AssignOvertimeModal, {
     type AssignOvertimeAttendanceOption,
 } from '../../../components/attendance/admin/AssignOvertimeModal';
 import { getEmployees } from '../../../lib/employees';
+import { getAdminLeaveRequests, type LeaveRequestDto } from '../../../lib/leave';
 import { apiRequest } from '../../../lib/api';
 import ViewAttendanceModal from '../../../components/attendance/admin/ViewAttendanceModal';
 import type {
@@ -66,6 +67,33 @@ const getTodayDateKey = () => {
     const day = String(now.getDate()).padStart(2, '0');
 
     return `${year}-${month}-${day}`;
+};
+
+const getInclusiveDateKeys = (dateFrom: string, dateTo: string) => {
+    if (!dateFrom || !dateTo || dateFrom > dateTo) {
+        return [];
+    }
+
+    const start = new Date(`${dateFrom}T00:00:00`);
+    const end = new Date(`${dateTo}T00:00:00`);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+        return [];
+    }
+
+    const dates: string[] = [];
+    const cursor = new Date(start);
+
+    while (cursor <= end) {
+        const year = cursor.getFullYear();
+        const month = String(cursor.getMonth() + 1).padStart(2, '0');
+        const day = String(cursor.getDate()).padStart(2, '0');
+
+        dates.push(`${year}-${month}-${day}`);
+        cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return dates;
 };
 
 type EmployeeApiItem = {
@@ -334,6 +362,7 @@ const AdminAttendance = () => {
     const [assignOtError, setAssignOtError] = useState<string | null>(null);
     const [assignOtEmployees, setAssignOtEmployees] = useState<AssignOvertimeEmployeeOption[]>([]);
     const [loadingAssignOtEmployees, setLoadingAssignOtEmployees] = useState(false);
+    const [adminLeaveRequests, setAdminLeaveRequests] = useState<LeaveRequestDto[]>([]);
 
     const [dtrRecords, setDtrRecords] = useState<AdminDtrRecord[]>([]);
     const [loadingDtr, setLoadingDtr] = useState(false);
@@ -501,10 +530,13 @@ const AdminAttendance = () => {
         try {
             setLoadingAssignOtEmployees(true);
 
-            const [employeesResponse, shiftsResponse] = await Promise.all([
+            const [employeesResponse, shiftsResponse, leaveRequestsResponse] = await Promise.all([
                 getEmployees({ page: 1, pageSize: 100, isActive: true }) as Promise<EmployeesResponse>,
                 getShifts(),
+                getAdminLeaveRequests(),
             ]);
+
+            setAdminLeaveRequests(leaveRequestsResponse || []);
 
             const activeShifts = (shiftsResponse.items || []).filter(
                 (shift) => shift.isActive !== false && Number(shift.assignedCount ?? 0) > 0
@@ -1003,13 +1035,48 @@ const AdminAttendance = () => {
         window.URL.revokeObjectURL(url);
     };
 
-    const assignOtAttendanceRecords: AssignOvertimeAttendanceOption[] = dtrRecords.map((record) => ({
+    const assignOtEmployeeNumberById = new Map(
+        assignOtEmployees
+            .filter((employee) => employee.id && employee.employeeNumber)
+            .map((employee) => [employee.id, employee.employeeNumber as string])
+    );
+
+    const dtrAttendanceRecords: AssignOvertimeAttendanceOption[] = dtrRecords.map((record) => ({
         employeeNumber: record.empId,
         date: record.date,
         timeIn: record.timeIn,
         timeOut: record.timeOut,
         status: record.status,
     }));
+
+    const approvedLeaveAttendanceRecords: AssignOvertimeAttendanceOption[] = adminLeaveRequests
+        .filter((leave) => leave.status === 'Approved')
+        .flatMap((leave) => {
+            const employeeNumber = assignOtEmployeeNumberById.get(String(leave.employeeId));
+
+            if (!employeeNumber) {
+                return [];
+            }
+
+            return getInclusiveDateKeys(leave.startDate, leave.endDate).map((date) => ({
+                employeeNumber,
+                date,
+                timeIn: null,
+                timeOut: null,
+                status: 'Leave',
+            }));
+        });
+
+    const approvedLeaveKeys = new Set(
+        approvedLeaveAttendanceRecords.map((record) => `${record.employeeNumber}|${record.date}`)
+    );
+
+    const assignOtAttendanceRecords: AssignOvertimeAttendanceOption[] = [
+        ...approvedLeaveAttendanceRecords,
+        ...dtrAttendanceRecords.filter(
+            (record) => !approvedLeaveKeys.has(`${record.employeeNumber}|${record.date}`)
+        ),
+    ];
 
     return (
         <div className="space-y-6">

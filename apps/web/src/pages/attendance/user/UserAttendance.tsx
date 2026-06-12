@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useLeave } from "../../../context/LeaveContext";
 
 import {
   type AttendanceLogDto,
@@ -454,6 +455,7 @@ const getTodayShiftTimesFromCurrentShift = (
 
 const UserAttendance = () => {
   const [activeTab, setActiveTab] = useState<AttendanceTab>("dtr");
+  const { leaveRequests } = useLeave();
 
   const [todayShiftTimes, setTodayShiftTimes] =
     useState<TodayShiftTimes | null>(null);
@@ -1109,6 +1111,17 @@ const UserAttendance = () => {
     }
   }, [selectedEditRecord, loadAttendanceLogs]);
 
+  const approvedLeaveRanges = useMemo(
+    () =>
+      leaveRequests
+        .filter((request) => request.status === "Approved")
+        .map((request) => ({
+          startDate: request.startDate,
+          endDate: request.endDate,
+        })),
+    [leaveRequests],
+  );
+
   const effectiveTrackerTime = useMemo(() => {
     if (simulatedNow) {
       return simulatedNow;
@@ -1311,6 +1324,7 @@ const UserAttendance = () => {
         breakEndTime={todayShiftTimes?.breakEndTime ?? null}
         shiftEndTime={todayShiftTimes?.shiftEndTime ?? null}
         shiftDays={currentShift?.days ?? []}
+        approvedLeaveRanges={approvedLeaveRanges}
       />
     </div>
   );
