@@ -43,6 +43,10 @@ import {
 } from "../../lib/employees";
 import { subscribeEmployeeStatsChanged } from "../../lib/events/employeeEvents";
 import {
+  getAdminLeaveRequests,
+  type LeaveRequestDto,
+} from "../../lib/leave";
+import {
   buildUserNameByEmail,
   formatActionLabel,
   formatDatePart,
@@ -232,6 +236,46 @@ const emptyMonthlyAttendanceTrends = (): MonthlyAttendanceTrendDto[] =>
     absentCount: 0,
   }));
 
+const countEmployeesOnLeaveToday = (requests: LeaveRequestDto[]) => {
+  const now = new Date();
+  const todayUtc = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate()
+  );
+
+  const employeeIds = new Set<string>();
+
+  requests.forEach((request) => {
+    if (request.status !== "Approved") return;
+
+    const startDate = new Date(request.startDate);
+    const endDate = new Date(request.endDate);
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      return;
+    }
+
+    const startUtc = Date.UTC(
+      startDate.getUTCFullYear(),
+      startDate.getUTCMonth(),
+      startDate.getUTCDate()
+    );
+
+    const endUtc = Date.UTC(
+      endDate.getUTCFullYear(),
+      endDate.getUTCMonth(),
+      endDate.getUTCDate()
+    );
+
+    if (startUtc <= todayUtc && endUtc >= todayUtc) {
+      employeeIds.add(request.employeeId);
+    }
+  });
+
+  return employeeIds.size;
+};
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const employmentChartRef =
@@ -246,6 +290,7 @@ const AdminDashboard = () => {
     useState<EmployeeSummaryDto | null>(null);
   const [employmentSummary, setEmploymentSummary] =
     useState<EmploymentTypeSummary>(emptyEmploymentSummary());
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequestDto[]>([]);
 
   const [attendanceTrends, setAttendanceTrends] = useState<
     MonthlyAttendanceTrendDto[]
@@ -384,6 +429,34 @@ const AdminDashboard = () => {
     };
   }, [fetchEmployeeDashboardData, canLoadDashboard]);
 
+  useEffect(() => {
+    if (!canLoadDashboard) return;
+
+    let isMounted = true;
+
+    const fetchLeaveDashboardData = async () => {
+      try {
+        const requests = await getAdminLeaveRequests();
+
+        if (!isMounted) return;
+
+        setLeaveRequests(Array.isArray(requests) ? requests : []);
+      } catch (error) {
+        if (!isMounted) return;
+        console.error("Failed to fetch dashboard leave data:", error);
+        setLeaveRequests([]);
+      }
+    };
+
+    Promise.resolve().then(() => {
+      void fetchLeaveDashboardData();
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [canLoadDashboard]);
+
   const fetchAttendanceDashboardData = useCallback(async () => {
     if (!canLoadDashboard) return;
 
@@ -429,6 +502,8 @@ const AdminDashboard = () => {
   const safeEmploymentSummary = canLoadDashboard
     ? employmentSummary
     : emptyEmploymentSummary();
+  const safeLeaveRequests = canLoadDashboard ? leaveRequests : [];
+  const employeesOnLeaveToday = countEmployeesOnLeaveToday(safeLeaveRequests);
 
   const safeAttendanceTrends = canLoadDashboard
     ? attendanceTrends
@@ -456,14 +531,14 @@ const AdminDashboard = () => {
     },
     {
       title: "On Leave",
-      value: 0,
+      value: employeesOnLeaveToday,
       icon: UserX,
       gradient: "linear-gradient(135deg, #d97706 0%, #f59e0b 100%)",
       change: "0",
     },
     {
       title: "Resigned",
-      value: 0,
+      value: safeEmployeeSummary.inactive,
       icon: UserPlus,
       gradient: "linear-gradient(135deg, #dc2626 0%, #ef4444 100%)",
       change: "0",
@@ -732,7 +807,7 @@ const AdminDashboard = () => {
 
           <div
             style={{ height: 260 }}
-            className="cursor-pointer"
+            className="relative cursor-pointer"
             title="Click chart segment to filter employees"
           >
             <Doughnut
@@ -741,6 +816,13 @@ const AdminDashboard = () => {
               options={employmentOptions}
               onClick={handleEmploymentChartClick}
             />
+
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-800">3</div>
+                <div className="text-xs font-medium text-gray-400">Types</div>
+              </div>
+            </div>
           </div>
 
           <div className="mt-4 space-y-2">

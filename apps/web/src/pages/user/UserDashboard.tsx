@@ -39,8 +39,6 @@ type AttendanceSummaryRange =
   | "last-month"
   | "this-year";
 
-type AttendanceSummaryBucket = "present" | "late" | "overtime" | "absent";
-
 const attendanceSummaryRangeOptions: {
   value: AttendanceSummaryRange;
   label: string;
@@ -263,31 +261,12 @@ const isDateWithinRange = (dateKey: string, startDate: Date, endDate: Date) => {
   return date >= start && date <= end;
 };
 
-const classifyAttendanceDay = (
-  logs: AttendanceLogDto[]
-): AttendanceSummaryBucket | null => {
-  if (logs.length === 0) return null;
-
+const getAttendanceDaySummary = (logs: AttendanceLogDto[]) => {
   const hasAbsent = logs.some(
     (log) =>
       normalizeStatus(log.status) === "absent" ||
       (!log.isPresent && !log.timeIn && !log.timeOut)
   );
-
-  if (hasAbsent) return "absent";
-
-  const hasLate = logs.some((log) => (log.lateMinutes ?? 0) > 0);
-
-  if (hasLate) return "late";
-
-  const hasOvertime = logs.some(
-    (log) =>
-      (log.overtimeCreditedMinutes ?? 0) > 0 ||
-      (log.overtimeMinutes ?? 0) > 0 ||
-      normalizeStatus(log.overtimeStatus) === "approved"
-  );
-
-  if (hasOvertime) return "overtime";
 
   const hasPresent = logs.some(
     (log) =>
@@ -298,9 +277,21 @@ const classifyAttendanceDay = (
       normalizeStatus(log.status) === "completed"
   );
 
-  if (hasPresent) return "present";
+  const hasLate = logs.some((log) => (log.lateMinutes ?? 0) > 0);
 
-  return null;
+  const hasOvertime = logs.some(
+    (log) =>
+      (log.overtimeCreditedMinutes ?? 0) > 0 ||
+      (log.overtimeMinutes ?? 0) > 0 ||
+      normalizeStatus(log.overtimeStatus) === "approved"
+  );
+
+  return {
+    isPresent: hasPresent && !hasAbsent,
+    isLate: hasLate && hasPresent && !hasAbsent,
+    hasOvertime: hasOvertime && hasPresent && !hasAbsent,
+    isAbsent: hasAbsent && !hasPresent,
+  };
 };
 
 const getOvertimeRequestDateRange = (request: OvertimeRequestDto) => {
@@ -570,11 +561,12 @@ const UserDashboard = () => {
     };
 
     summaryLogsByDate.forEach((logs) => {
-      const classification = classifyAttendanceDay(logs);
+      const daySummary = getAttendanceDaySummary(logs);
 
-      if (!classification) return;
-
-      summary[classification] += 1;
+      if (daySummary.isPresent) summary.present += 1;
+      if (daySummary.isLate) summary.late += 1;
+      if (daySummary.hasOvertime) summary.overtime += 1;
+      if (daySummary.isAbsent) summary.absent += 1;
     });
 
     return summary;
@@ -607,8 +599,8 @@ const UserDashboard = () => {
   );
 
   const totalChartDays = useMemo(
-    () => chartItems.reduce((total, item) => total + item.value, 0),
-    [chartItems]
+    () => currentMonthSummary.present + currentMonthSummary.absent,
+    [currentMonthSummary.absent, currentMonthSummary.present]
   );
 
   const chartGradient = useMemo(() => {
@@ -620,7 +612,7 @@ const UserDashboard = () => {
 
     const segments = chartItems.map((item) => {
       const degrees = (item.value / totalChartDays) * 360;
-      const end = start + degrees;
+      const end = Math.min(start + degrees, 360);
       const segment = `${item.color} ${start}deg ${end}deg`;
       start = end;
       return segment;
