@@ -27,6 +27,11 @@ public class AppDbContext : DbContext
     public DbSet<LeaveBalance> LeaveBalances => Set<LeaveBalance>();
     public DbSet<LeaveBalanceTransaction> LeaveBalanceTransactions => Set<LeaveBalanceTransaction>();
 
+    public DbSet<EmployeeCompensation> EmployeeCompensations => Set<EmployeeCompensation>();
+    public DbSet<PayrollPeriod> PayrollPeriods => Set<PayrollPeriod>();
+    public DbSet<PayrollRecord> PayrollRecords => Set<PayrollRecord>();
+    public DbSet<PayrollRecordItem> PayrollRecordItems => Set<PayrollRecordItem>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

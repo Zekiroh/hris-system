@@ -6,6 +6,7 @@ using HRIS.Api.Features.Dashboard.Services;
 using HRIS.Api.Features.Employees.Services;
 using HRIS.Api.Features.IAM.Services;
 using HRIS.Api.Features.LeaveManagement.Services;
+using HRIS.Api.Features.Payroll.Services;
 using HRIS.Api.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -114,6 +115,12 @@ builder.Services.AddScoped<OvertimeRequestService>();
 
 builder.Services.AddScoped<ILeaveBalanceInitializer, LeaveBalanceInitializer>();
 builder.Services.AddScoped<ILeaveManagementService, LeaveManagementService>();
+
+// =====================
+// Payroll Services
+// =====================
+
+builder.Services.AddScoped<IEmployeeCompensationService, EmployeeCompensationService>();
 
 // =====================
 // Dashboard Services
