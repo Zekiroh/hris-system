@@ -106,6 +106,9 @@ export function formatActionLabel(action: string) {
 
     case 'EMPLOYEE_DOCUMENT_DELETED':
       return 'Document Deleted';
+      
+    case 'PASSWORD_CHANGED':
+      return 'Changed Password';
 
     case 'ATTENDANCE_TIME_IN':
       return 'Time In';
@@ -213,7 +216,9 @@ export function getBadgeClassName(action: string) {
 
     case 'OVERTIME_REQUEST_REJECTED':
       return 'bg-red-50 text-red-700 border border-red-100';
-
+    case 'PASSWORD_CHANGED':
+      return 'bg-rose-50 text-rose-700 border border-rose-100';
+      
     default:
       return 'bg-gray-50 text-gray-700 border border-gray-100';
   }

@@ -197,18 +197,22 @@ public class EmployeesService
             .FirstOrDefaultAsync(ct);
     }
 
-
-
     public async Task<EmployeeDto?> GetCurrentEmployeeAsync(CancellationToken ct = default)
     {
         var userIdClaim = _httpContextAccessor.HttpContext?.User
-            .FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            .FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? _httpContextAccessor.HttpContext?.User.FindFirst("sub")?.Value;
 
-        if (!int.TryParse(userIdClaim, out var userId))
+        if (!long.TryParse(userIdClaim, out var userId))
         {
             return null;
         }
 
+        return await GetByUserIdAsync(userId, ct);
+    }
+
+    public async Task<EmployeeDto?> GetByUserIdAsync(long userId, CancellationToken ct = default)
+    {
         return await _db.Employees
             .AsNoTracking()
             .Include(e => e.User)
@@ -217,6 +221,19 @@ public class EmployeesService
             .FirstOrDefaultAsync(ct);
     }
 
+    public async Task<(bool ok, string? error, EmployeeDto? employee)> UpdateByUserIdAsync(
+        long userId,
+        UpdateEmployeeRequest req,
+        CancellationToken ct = default)
+    {
+        var entity = await _db.Employees
+            .Include(e => e.User)
+            .FirstOrDefaultAsync(e => e.UserId == userId, ct);
+
+        if (entity is null) return (false, "Employee not found.", null);
+
+        return await UpdateAsync(entity.Id, req, ct);
+    }
     public async Task<List<EmployeeDocumentDto>> GetDocumentsAsync(
         Guid employeeId,
         CancellationToken ct = default)

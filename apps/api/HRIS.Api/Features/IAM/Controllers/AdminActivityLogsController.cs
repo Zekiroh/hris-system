@@ -36,6 +36,8 @@ public class AdminActivityLogsController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(action))
             query = query.Where(a => a.Action == action);
+            
+        query = query.Where(a => a.Action != "EMPLOYEE_UPDATED");
 
         if (!string.IsNullOrWhiteSpace(search))
         {

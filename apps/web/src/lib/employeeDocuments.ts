@@ -10,7 +10,7 @@ type ApiEnvelope<T> = {
   message?: string;
 };
 
-function getAuthToken(): string | null {
+export function getAuthToken(): string | null {
   const directLocalToken = localStorage.getItem("auth.token");
   if (directLocalToken) return directLocalToken;
 

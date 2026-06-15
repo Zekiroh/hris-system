@@ -484,7 +484,7 @@ export function EmployeeDocumentsPanel({
   const [pendingDeleteDoc, setPendingDeleteDoc] =
     useState<EmployeeDocumentDto | null>(null);
 
-  const canModify = !readOnly && Boolean(employeeId);
+  const canModify = !readOnly;
 
   const handleFileSelect = (file: File | null | undefined) => {
     if (!file || !canModify || uploading) return;
