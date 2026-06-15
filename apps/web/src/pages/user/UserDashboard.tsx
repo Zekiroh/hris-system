@@ -603,28 +603,23 @@ const UserDashboard = () => {
     [currentMonthSummary.absent, currentMonthSummary.present]
   );
 
-  const totalChartSegments = useMemo(
-    () => chartItems.reduce((total, item) => total + item.value, 0),
-    [chartItems]
-  );
-
   const chartGradient = useMemo(() => {
-    if (totalChartSegments <= 0) {
+    if (totalChartDays <= 0) {
       return "conic-gradient(#e5e7eb 0deg 360deg)";
     }
 
     let start = 0;
 
     const segments = chartItems.map((item) => {
-      const degrees = (item.value / totalChartSegments) * 360;
-      const end = start + degrees;
+      const degrees = (item.value / totalChartDays) * 360;
+      const end = Math.min(start + degrees, 360);
       const segment = `${item.color} ${start}deg ${end}deg`;
       start = end;
       return segment;
     });
 
     return `conic-gradient(${segments.join(", ")})`;
-  }, [chartItems, totalChartSegments]);
+  }, [chartItems, totalChartDays]);
 
   const currentShiftValue =
     currentShift?.name ?? currentShift?.code ?? "No assigned shift";

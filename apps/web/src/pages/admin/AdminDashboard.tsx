@@ -237,8 +237,12 @@ const emptyMonthlyAttendanceTrends = (): MonthlyAttendanceTrendDto[] =>
   }));
 
 const countEmployeesOnLeaveToday = (requests: LeaveRequestDto[]) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const todayUtc = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate()
+  );
 
   const employeeIds = new Set<string>();
 
@@ -248,10 +252,23 @@ const countEmployeesOnLeaveToday = (requests: LeaveRequestDto[]) => {
     const startDate = new Date(request.startDate);
     const endDate = new Date(request.endDate);
 
-    startDate.setHours(0, 0, 0, 0);
-    endDate.setHours(0, 0, 0, 0);
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      return;
+    }
 
-    if (startDate <= today && endDate >= today) {
+    const startUtc = Date.UTC(
+      startDate.getUTCFullYear(),
+      startDate.getUTCMonth(),
+      startDate.getUTCDate()
+    );
+
+    const endUtc = Date.UTC(
+      endDate.getUTCFullYear(),
+      endDate.getUTCMonth(),
+      endDate.getUTCDate()
+    );
+
+    if (startUtc <= todayUtc && endUtc >= todayUtc) {
       employeeIds.add(request.employeeId);
     }
   });
@@ -790,7 +807,7 @@ const AdminDashboard = () => {
 
           <div
             style={{ height: 260 }}
-            className="cursor-pointer"
+            className="relative cursor-pointer"
             title="Click chart segment to filter employees"
           >
             <Doughnut
@@ -799,6 +816,13 @@ const AdminDashboard = () => {
               options={employmentOptions}
               onClick={handleEmploymentChartClick}
             />
+
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-800">3</div>
+                <div className="text-xs font-medium text-gray-400">Types</div>
+              </div>
+            </div>
           </div>
 
           <div className="mt-4 space-y-2">
