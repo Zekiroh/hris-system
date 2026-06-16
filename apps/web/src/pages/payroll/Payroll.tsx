@@ -178,20 +178,20 @@ const Payroll = () => {
         const grossPay = records.reduce((sum, record) => sum + record.grossPay, 0);
         const deductions = records.reduce((sum, record) => sum + record.totalDeductions, 0);
         const netPay = records.reduce((sum, record) => sum + record.netPay, 0);
-        const taxRate = grossPay > 0 ? (deductions / grossPay) * 100 : 0;
+        const deductionRate = grossPay > 0 ? (deductions / grossPay) * 100 : 0;
 
         return {
             grossPay,
             deductions,
             netPay,
-            taxRate,
+            deductionRate,
         };
     }, [payrollRecords]);
 
     const statCards = [
         { label: 'Total Payroll', value: formatCurrency(totals.grossPay), icon: DollarSign, gradient: 'linear-gradient(135deg, #059669, #10b981)' },
         { label: 'Total Deductions', value: formatCurrency(totals.deductions), icon: TrendingDown, gradient: 'linear-gradient(135deg, #dc2626, #ef4444)' },
-        { label: 'Avg Tax Rate', value: `${totals.taxRate.toFixed(1)}%`, icon: Percent, gradient: 'linear-gradient(135deg, #d97706, #f59e0b)' },
+        { label: 'Deduction Rate', value: `${totals.deductionRate.toFixed(1)}%`, icon: Percent, gradient: 'linear-gradient(135deg, #d97706, #f59e0b)' },
         { label: 'Net Payroll', value: formatCurrency(totals.netPay), icon: DollarSign, gradient: 'linear-gradient(135deg, #2563eb, #3b82f6)' },
     ];
 
