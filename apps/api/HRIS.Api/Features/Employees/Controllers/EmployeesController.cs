@@ -46,6 +46,16 @@ public class EmployeesController : ControllerBase
         return Ok(result);
     }
 
+
+    [HttpGet("me")]
+    public async Task<ActionResult<EmployeeDto>> GetCurrentEmployee(CancellationToken ct)
+    {
+        var employee = await _employees.GetCurrentEmployeeAsync(ct);
+        if (employee is null) return NotFound();
+
+        return Ok(employee);
+    }
+
     [HttpGet("{id:guid}")]
     [PermissionAuthorize("EMPLOYEES", "View")]
     public async Task<ActionResult<EmployeeDto>> GetById(Guid id, CancellationToken ct)

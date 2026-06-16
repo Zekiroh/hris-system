@@ -197,6 +197,26 @@ public class EmployeesService
             .FirstOrDefaultAsync(ct);
     }
 
+
+
+    public async Task<EmployeeDto?> GetCurrentEmployeeAsync(CancellationToken ct = default)
+    {
+        var userIdClaim = _httpContextAccessor.HttpContext?.User
+            .FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (!int.TryParse(userIdClaim, out var userId))
+        {
+            return null;
+        }
+
+        return await _db.Employees
+            .AsNoTracking()
+            .Include(e => e.User)
+            .Where(e => e.UserId == userId)
+            .Select(ToDtoExpr())
+            .FirstOrDefaultAsync(ct);
+    }
+
     public async Task<List<EmployeeDocumentDto>> GetDocumentsAsync(
         Guid employeeId,
         CancellationToken ct = default)

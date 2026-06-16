@@ -5,9 +5,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HRIS.Api.Features.Payroll.Controllers;
 
-[Authorize(Roles = "ADMIN,SUPER_ADMIN")]
 [ApiController]
 [Route("api/payroll")]
+[Authorize]
 public class PayrollController : ControllerBase
 {
     private readonly IPayrollService _service;
@@ -17,6 +17,7 @@ public class PayrollController : ControllerBase
         _service = service;
     }
 
+    [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
     [HttpPost("process")]
     public async Task<IActionResult> ProcessPayroll([FromBody] ProcessPayrollRequest request)
     {
@@ -24,6 +25,7 @@ public class PayrollController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
     [HttpGet("periods")]
     public async Task<IActionResult> GetPayrollPeriods()
     {
@@ -31,6 +33,7 @@ public class PayrollController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
     [HttpGet("records/{periodId:int}")]
     public async Task<IActionResult> GetPayrollRecords(int periodId)
     {
