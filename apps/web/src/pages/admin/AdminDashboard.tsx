@@ -755,7 +755,10 @@ const AdminDashboard = () => {
     const overtimePay = earningItems
       .filter((item) => {
         const description = item.description.toLowerCase();
-        return description.includes("overtime") || description.includes("ot");
+        return (
+          /\bovertime\b/.test(description) ||
+          /\bot\b/.test(description)
+        );
       })
       .reduce((sum, item) => sum + item.amount, 0);
 
