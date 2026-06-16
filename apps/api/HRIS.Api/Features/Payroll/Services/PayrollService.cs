@@ -1,0 +1,391 @@
+using HRIS.Api.Data;
+using HRIS.Api.Features.Payroll.DTOs;
+using HRIS.Api.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace HRIS.Api.Features.Payroll.Services;
+
+public class PayrollService : IPayrollService
+{
+    private const string PayrollPeriodStatusProcessed = "Processed";
+    private const string PayrollRecordStatusProcessed = "Processed";
+
+    private const string LeaveStatusApproved = "Approved";
+    private const string OvertimeStatusApproved = "Approved";
+
+    private const string CompensationTypeMonthly = "Monthly";
+    private const string CompensationTypeDaily = "Daily";
+
+    private const int MonthlyCutoffs = 2;
+    private const int StandardMonthlyWorkingDays = 22;
+    private const int StandardWorkingMinutesPerDay = 480;
+
+    private readonly AppDbContext _context;
+
+    public PayrollService(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<PayrollPeriodDto> ProcessPayrollAsync(ProcessPayrollRequest request)
+    {
+        if (request.StartDate == default)
+            throw new InvalidOperationException("Payroll start date is required.");
+
+        if (request.EndDate == default)
+            throw new InvalidOperationException("Payroll end date is required.");
+
+        if (request.StartDate > request.EndDate)
+            throw new InvalidOperationException("Payroll start date cannot be later than end date.");
+
+        var existingPeriod = await _context.PayrollPeriods
+            .AsNoTracking()
+            .AnyAsync(period =>
+                period.StartDate == request.StartDate &&
+                period.EndDate == request.EndDate);
+
+        if (existingPeriod)
+            throw new InvalidOperationException("Payroll has already been processed for this period.");
+
+        var compensations = await _context.EmployeeCompensations
+            .Include(compensation => compensation.Employee)
+            .Where(compensation =>
+                compensation.IsActive &&
+                compensation.EffectiveFrom <= request.EndDate &&
+                (compensation.EffectiveTo == null || compensation.EffectiveTo >= request.StartDate))
+            .OrderBy(compensation => compensation.Employee.EmployeeNumber)
+            .ToListAsync();
+
+        if (compensations.Count == 0)
+            throw new InvalidOperationException("No active employee compensations found for this payroll period.");
+
+        var employeeIds = compensations
+            .Select(compensation => compensation.EmployeeId)
+            .Distinct()
+            .ToList();
+
+        var attendanceLogs = await _context.AttendanceLogs
+            .AsNoTracking()
+            .Where(log =>
+                employeeIds.Contains(log.EmployeeId) &&
+                log.Date >= request.StartDate &&
+                log.Date <= request.EndDate)
+            .ToListAsync();
+
+        var leaveRequests = await _context.LeaveRequests
+            .AsNoTracking()
+            .Where(leave =>
+                employeeIds.Contains(leave.EmployeeId) &&
+                leave.Status == LeaveStatusApproved &&
+                leave.StartDate <= request.EndDate &&
+                leave.EndDate >= request.StartDate)
+            .ToListAsync();
+
+        var overtimeRequests = await _context.OvertimeRequests
+            .AsNoTracking()
+            .Include(overtime => overtime.Items)
+            .Where(overtime =>
+                employeeIds.Contains(overtime.EmployeeId) &&
+                overtime.Status == OvertimeStatusApproved &&
+                overtime.DateFrom <= request.EndDate &&
+                overtime.DateTo >= request.StartDate)
+            .ToListAsync();
+
+        var now = DateTime.UtcNow;
+
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+
+        var payrollPeriod = new PayrollPeriod
+        {
+            StartDate = request.StartDate,
+            EndDate = request.EndDate,
+            Status = PayrollPeriodStatusProcessed,
+            ProcessedAtUtc = now,
+            CreatedAtUtc = now
+        };
+
+        _context.PayrollPeriods.Add(payrollPeriod);
+
+        foreach (var compensation in compensations)
+        {
+            var employeeAttendanceLogs = attendanceLogs
+                .Where(log => log.EmployeeId == compensation.EmployeeId)
+                .ToList();
+
+            var employeeLeaveRequests = leaveRequests
+                .Where(leave => leave.EmployeeId == compensation.EmployeeId)
+                .ToList();
+
+            var employeeOvertimeRequests = overtimeRequests
+                .Where(overtime => overtime.EmployeeId == compensation.EmployeeId)
+                .ToList();
+
+            var approvedLeaveDates = GetApprovedLeaveDates(
+                employeeLeaveRequests,
+                request.StartDate,
+                request.EndDate);
+
+            var dailyRate = GetDailyRate(compensation);
+            var cutoffBasePay = GetCutoffBasePay(compensation);
+            var minuteRate = dailyRate / StandardWorkingMinutesPerDay;
+
+            var basicPay = GetBasicPay(
+                compensation,
+                employeeAttendanceLogs,
+                approvedLeaveDates,
+                cutoffBasePay,
+                dailyRate);
+
+            var approvedOvertimeMinutes = employeeOvertimeRequests
+                .SelectMany(overtime => overtime.Items)
+                .Where(item =>
+                    item.Date >= request.StartDate &&
+                    item.Date <= request.EndDate)
+                .Sum(item => item.RequestedMinutes);
+
+            var overtimePay = RoundMoney(approvedOvertimeMinutes * minuteRate);
+
+            var lateAndUndertimeMinutes = employeeAttendanceLogs
+                .Where(log => log.IsPresent)
+                .Sum(log => log.LateMinutes + log.UndertimeMinutes);
+
+            var lateAndUndertimeDeduction = RoundMoney(lateAndUndertimeMinutes * minuteRate);
+
+            var absenceDays = employeeAttendanceLogs
+                .Where(log => !log.IsPresent && !approvedLeaveDates.Contains(log.Date))
+                .Select(log => log.Date)
+                .Distinct()
+                .Count();
+
+            var absenceDeduction = RoundMoney(absenceDays * dailyRate);
+
+            var grossPay = RoundMoney(basicPay + overtimePay);
+            var totalDeductions = RoundMoney(lateAndUndertimeDeduction + absenceDeduction);
+            var netPay = RoundMoney(grossPay - totalDeductions);
+
+            var payrollRecord = new PayrollRecord
+            {
+                PayrollPeriod = payrollPeriod,
+                EmployeeId = compensation.EmployeeId,
+                GrossPay = grossPay,
+                TotalDeductions = totalDeductions,
+                NetPay = netPay,
+                Status = PayrollRecordStatusProcessed,
+                CreatedAtUtc = now
+            };
+
+            payrollRecord.Items.Add(new PayrollRecordItem
+            {
+                Type = "Earning",
+                Description = "Basic Pay",
+                Amount = basicPay
+            });
+
+            if (overtimePay > 0)
+            {
+                payrollRecord.Items.Add(new PayrollRecordItem
+                {
+                    Type = "Earning",
+                    Description = $"Approved Overtime ({approvedOvertimeMinutes} minutes)",
+                    Amount = overtimePay
+                });
+            }
+
+            if (lateAndUndertimeDeduction > 0)
+            {
+                payrollRecord.Items.Add(new PayrollRecordItem
+                {
+                    Type = "Deduction",
+                    Description = $"Late / Undertime ({lateAndUndertimeMinutes} minutes)",
+                    Amount = lateAndUndertimeDeduction
+                });
+            }
+
+            if (absenceDeduction > 0)
+            {
+                payrollRecord.Items.Add(new PayrollRecordItem
+                {
+                    Type = "Deduction",
+                    Description = $"Absence ({absenceDays} day/s)",
+                    Amount = absenceDeduction
+                });
+            }
+
+            payrollPeriod.PayrollRecords.Add(payrollRecord);
+        }
+
+        await _context.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        return new PayrollPeriodDto
+        {
+            Id = payrollPeriod.Id,
+            StartDate = payrollPeriod.StartDate,
+            EndDate = payrollPeriod.EndDate,
+            Status = payrollPeriod.Status,
+            ProcessedAtUtc = payrollPeriod.ProcessedAtUtc,
+            ReleasedAtUtc = payrollPeriod.ReleasedAtUtc,
+            CreatedAtUtc = payrollPeriod.CreatedAtUtc
+        };
+    }
+
+    public async Task<IReadOnlyList<PayrollPeriodDto>> GetPayrollPeriodsAsync()
+    {
+        return await _context.PayrollPeriods
+            .AsNoTracking()
+            .OrderByDescending(period => period.StartDate)
+            .Select(period => new PayrollPeriodDto
+            {
+                Id = period.Id,
+                StartDate = period.StartDate,
+                EndDate = period.EndDate,
+                Status = period.Status,
+                ProcessedAtUtc = period.ProcessedAtUtc,
+                ReleasedAtUtc = period.ReleasedAtUtc,
+                CreatedAtUtc = period.CreatedAtUtc
+            })
+            .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<PayrollRecordDto>> GetPayrollRecordsAsync(int payrollPeriodId)
+    {
+        return await _context.PayrollRecords
+            .AsNoTracking()
+            .Include(record => record.Employee)
+            .Include(record => record.Items)
+            .Where(record => record.PayrollPeriodId == payrollPeriodId)
+            .OrderBy(record => record.Employee.EmployeeNumber)
+            .Select(record => new PayrollRecordDto
+            {
+                Id = record.Id,
+                PayrollPeriodId = record.PayrollPeriodId,
+                EmployeeId = record.EmployeeId,
+                EmployeeNumber = record.Employee.EmployeeNumber,
+                EmployeeName = $"{record.Employee.FirstName} {record.Employee.LastName}",
+                GrossPay = record.GrossPay,
+                TotalDeductions = record.TotalDeductions,
+                NetPay = record.NetPay,
+                Status = record.Status,
+                CreatedAtUtc = record.CreatedAtUtc,
+                Items = record.Items
+                    .OrderBy(item => item.Id)
+                    .Select(item => new PayrollRecordItemDto
+                    {
+                        Id = item.Id,
+                        Type = item.Type,
+                        Description = item.Description,
+                        Amount = item.Amount
+                    })
+                    .ToList()
+            })
+            .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<PayrollRecordDto>> GetPayslipsAsync(Guid employeeId)
+    {
+        return await _context.PayrollRecords
+            .AsNoTracking()
+            .Include(record => record.Employee)
+            .Include(record => record.Items)
+            .Where(record => record.EmployeeId == employeeId)
+            .OrderByDescending(record => record.CreatedAtUtc)
+            .Select(record => new PayrollRecordDto
+            {
+                Id = record.Id,
+                PayrollPeriodId = record.PayrollPeriodId,
+                EmployeeId = record.EmployeeId,
+                EmployeeNumber = record.Employee.EmployeeNumber,
+                EmployeeName = $"{record.Employee.FirstName} {record.Employee.LastName}",
+                GrossPay = record.GrossPay,
+                TotalDeductions = record.TotalDeductions,
+                NetPay = record.NetPay,
+                Status = record.Status,
+                CreatedAtUtc = record.CreatedAtUtc,
+                Items = record.Items
+                    .OrderBy(item => item.Id)
+                    .Select(item => new PayrollRecordItemDto
+                    {
+                        Id = item.Id,
+                        Type = item.Type,
+                        Description = item.Description,
+                        Amount = item.Amount
+                    })
+                    .ToList()
+            })
+            .ToListAsync();
+    }
+
+    private static decimal GetDailyRate(EmployeeCompensation compensation)
+    {
+        if (string.Equals(compensation.CompensationType, CompensationTypeMonthly, StringComparison.OrdinalIgnoreCase))
+            return RoundMoney(compensation.BaseAmount / StandardMonthlyWorkingDays);
+
+        if (string.Equals(compensation.CompensationType, CompensationTypeDaily, StringComparison.OrdinalIgnoreCase))
+            return RoundMoney(compensation.BaseAmount);
+
+        throw new InvalidOperationException($"Unsupported compensation type: {compensation.CompensationType}");
+    }
+
+    private static decimal GetCutoffBasePay(EmployeeCompensation compensation)
+    {
+        if (string.Equals(compensation.CompensationType, CompensationTypeMonthly, StringComparison.OrdinalIgnoreCase))
+            return RoundMoney(compensation.BaseAmount / MonthlyCutoffs);
+
+        if (string.Equals(compensation.CompensationType, CompensationTypeDaily, StringComparison.OrdinalIgnoreCase))
+            return 0m;
+
+        throw new InvalidOperationException($"Unsupported compensation type: {compensation.CompensationType}");
+    }
+
+    private static decimal GetBasicPay(
+        EmployeeCompensation compensation,
+        IReadOnlyCollection<AttendanceLog> attendanceLogs,
+        IReadOnlySet<DateOnly> approvedLeaveDates,
+        decimal cutoffBasePay,
+        decimal dailyRate)
+    {
+        if (string.Equals(compensation.CompensationType, CompensationTypeMonthly, StringComparison.OrdinalIgnoreCase))
+            return cutoffBasePay;
+
+        var payableAttendanceDays = attendanceLogs
+            .Where(log => log.IsPresent)
+            .Select(log => log.Date)
+            .Distinct()
+            .Count();
+
+        var payableLeaveDays = approvedLeaveDates.Count;
+
+        return RoundMoney((payableAttendanceDays + payableLeaveDays) * dailyRate);
+    }
+
+    private static HashSet<DateOnly> GetApprovedLeaveDates(
+        IReadOnlyCollection<LeaveRequest> leaveRequests,
+        DateOnly payrollStartDate,
+        DateOnly payrollEndDate)
+    {
+        var dates = new HashSet<DateOnly>();
+
+        foreach (var leave in leaveRequests)
+        {
+            var startDate = leave.StartDate < payrollStartDate
+                ? payrollStartDate
+                : leave.StartDate;
+
+            var endDate = leave.EndDate > payrollEndDate
+                ? payrollEndDate
+                : leave.EndDate;
+
+            for (var date = startDate; date <= endDate; date = date.AddDays(1))
+            {
+                dates.Add(date);
+            }
+        }
+
+        return dates;
+    }
+
+    private static decimal RoundMoney(decimal amount)
+    {
+        return Math.Round(amount, 2, MidpointRounding.AwayFromZero);
+    }
+}

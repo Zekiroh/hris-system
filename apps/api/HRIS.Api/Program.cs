@@ -121,6 +121,7 @@ builder.Services.AddScoped<ILeaveManagementService, LeaveManagementService>();
 // =====================
 
 builder.Services.AddScoped<IEmployeeCompensationService, EmployeeCompensationService>();
+builder.Services.AddScoped<IPayrollService, PayrollService>();
 
 // =====================
 // Dashboard Services
