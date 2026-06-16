@@ -17,6 +17,7 @@ public class PayrollPeriodConfiguration : IEntityTypeConfiguration<PayrollPeriod
         {
             x.StartDate,
             x.EndDate
-        });
+        })
+        .IsUnique();
     }
 }

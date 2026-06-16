@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRIS.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260615085137_AddPayrollModule")]
+    [Migration("20260616052954_AddPayrollModule")]
     partial class AddPayrollModule
     {
         /// <inheritdoc />
@@ -709,7 +709,8 @@ namespace HRIS.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("StartDate", "EndDate");
+                    b.HasIndex("StartDate", "EndDate")
+                        .IsUnique();
 
                     b.ToTable("PayrollPeriods");
                 });
@@ -752,7 +753,8 @@ namespace HRIS.Api.Migrations
 
                     b.HasIndex("EmployeeId");
 
-                    b.HasIndex("PayrollPeriodId", "EmployeeId");
+                    b.HasIndex("PayrollPeriodId", "EmployeeId")
+                        .IsUnique();
 
                     b.ToTable("PayrollRecords");
                 });

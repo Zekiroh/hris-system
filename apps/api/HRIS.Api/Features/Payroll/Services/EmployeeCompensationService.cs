@@ -178,6 +178,12 @@ public class EmployeeCompensationService : IEmployeeCompensationService
 
     private static void ValidateDateRange(DateOnly effectiveFrom, DateOnly? effectiveTo)
     {
+        if (effectiveFrom == default)
+            throw new ApiException("Effective start date is required.");
+
+        if (effectiveTo.HasValue && effectiveTo.Value == default)
+            throw new ApiException("Effective end date is invalid.");
+
         if (effectiveTo.HasValue && effectiveTo.Value < effectiveFrom)
             throw new ApiException("Effective end date cannot be earlier than effective start date.");
     }

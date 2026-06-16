@@ -126,7 +126,8 @@ namespace HRIS.Api.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_PayrollPeriods_StartDate_EndDate",
                 table: "PayrollPeriods",
-                columns: new[] { "StartDate", "EndDate" });
+                columns: new[] { "StartDate", "EndDate" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_PayrollRecordItems_PayrollRecordId",
@@ -141,7 +142,8 @@ namespace HRIS.Api.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_PayrollRecords_PayrollPeriodId_EmployeeId",
                 table: "PayrollRecords",
-                columns: new[] { "PayrollPeriodId", "EmployeeId" });
+                columns: new[] { "PayrollPeriodId", "EmployeeId" },
+                unique: true);
         }
 
         /// <inheritdoc />

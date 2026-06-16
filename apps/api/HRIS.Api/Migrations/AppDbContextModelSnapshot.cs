@@ -706,7 +706,8 @@ namespace HRIS.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("StartDate", "EndDate");
+                    b.HasIndex("StartDate", "EndDate")
+                        .IsUnique();
 
                     b.ToTable("PayrollPeriods");
                 });
@@ -749,7 +750,8 @@ namespace HRIS.Api.Migrations
 
                     b.HasIndex("EmployeeId");
 
-                    b.HasIndex("PayrollPeriodId", "EmployeeId");
+                    b.HasIndex("PayrollPeriodId", "EmployeeId")
+                        .IsUnique();
 
                     b.ToTable("PayrollRecords");
                 });

@@ -38,8 +38,9 @@ public class PayrollService : IPayrollService
         if (request.StartDate > request.EndDate)
             throw new InvalidOperationException("Payroll start date cannot be later than end date.");
 
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+
         var existingPeriod = await _context.PayrollPeriods
-            .AsNoTracking()
             .AnyAsync(period =>
                 period.StartDate == request.StartDate &&
                 period.EndDate == request.EndDate);
@@ -91,9 +92,11 @@ public class PayrollService : IPayrollService
                 overtime.DateTo >= request.StartDate)
             .ToListAsync();
 
-        var now = DateTime.UtcNow;
+        var attendanceLogsByEmployee = attendanceLogs.ToLookup(log => log.EmployeeId);
+        var leaveRequestsByEmployee = leaveRequests.ToLookup(leave => leave.EmployeeId);
+        var overtimeRequestsByEmployee = overtimeRequests.ToLookup(overtime => overtime.EmployeeId);
 
-        await using var transaction = await _context.Database.BeginTransactionAsync();
+        var now = DateTime.UtcNow;
 
         var payrollPeriod = new PayrollPeriod
         {
@@ -108,17 +111,9 @@ public class PayrollService : IPayrollService
 
         foreach (var compensation in compensations)
         {
-            var employeeAttendanceLogs = attendanceLogs
-                .Where(log => log.EmployeeId == compensation.EmployeeId)
-                .ToList();
-
-            var employeeLeaveRequests = leaveRequests
-                .Where(leave => leave.EmployeeId == compensation.EmployeeId)
-                .ToList();
-
-            var employeeOvertimeRequests = overtimeRequests
-                .Where(overtime => overtime.EmployeeId == compensation.EmployeeId)
-                .ToList();
+            var employeeAttendanceLogs = attendanceLogsByEmployee[compensation.EmployeeId].ToList();
+            var employeeLeaveRequests = leaveRequestsByEmployee[compensation.EmployeeId].ToList();
+            var employeeOvertimeRequests = overtimeRequestsByEmployee[compensation.EmployeeId].ToList();
 
             var approvedLeaveDates = GetApprovedLeaveDates(
                 employeeLeaveRequests,

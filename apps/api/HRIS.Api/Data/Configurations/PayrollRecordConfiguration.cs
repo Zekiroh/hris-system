@@ -26,7 +26,8 @@ public class PayrollRecordConfiguration : IEntityTypeConfiguration<PayrollRecord
         {
             x.PayrollPeriodId,
             x.EmployeeId
-        });
+        })
+        .IsUnique();
 
         builder.HasOne(x => x.PayrollPeriod)
             .WithMany(x => x.PayrollRecords)
