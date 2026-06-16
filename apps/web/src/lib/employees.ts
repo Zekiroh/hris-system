@@ -314,6 +314,14 @@ export function getEmployeeById(id: string) {
   return apiRequest<EmployeeDto | ApiEnvelope<EmployeeDto>>(`/employees/${id}`);
 }
 
+export async function getCurrentEmployee() {
+  const response = await withApiErrorHandling(
+    apiRequest<EmployeeDto | ApiEnvelope<EmployeeDto>>("/employees/me")
+  );
+
+  return unwrapApiData(response);
+}
+
 export function getNextEmployeeNumber() {
   return apiRequest<
     NextEmployeeNumberResponse | ApiEnvelope<NextEmployeeNumberResponse>
