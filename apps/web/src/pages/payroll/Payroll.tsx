@@ -96,7 +96,6 @@ const Payroll = () => {
     const [showDetailsModal, setShowDetailsModal] = useState(false);
     const [showRemittanceModal, setShowRemittanceModal] = useState(false);
     const [showComputeModal, setShowComputeModal] = useState(false);
-    const [show13thDetails, setShow13thDetails] = useState(false);
     const [showGeneratePayslips, setShowGeneratePayslips] = useState(false);
     const [showPayslipPreview, setShowPayslipPreview] = useState(false);
 
@@ -178,35 +177,28 @@ const Payroll = () => {
         const grossPay = records.reduce((sum, record) => sum + record.grossPay, 0);
         const deductions = records.reduce((sum, record) => sum + record.totalDeductions, 0);
         const netPay = records.reduce((sum, record) => sum + record.netPay, 0);
-        const deductionRate = grossPay > 0 ? (deductions / grossPay) * 100 : 0;
+        const taxRate = grossPay > 0 ? (deductions / grossPay) * 100 : 0;
 
         return {
             grossPay,
             deductions,
             netPay,
-            deductionRate,
+            taxRate,
         };
     }, [payrollRecords]);
 
     const statCards = [
         { label: 'Total Payroll', value: formatCurrency(totals.grossPay), icon: DollarSign, gradient: 'linear-gradient(135deg, #059669, #10b981)' },
         { label: 'Total Deductions', value: formatCurrency(totals.deductions), icon: TrendingDown, gradient: 'linear-gradient(135deg, #dc2626, #ef4444)' },
-        { label: 'Deduction Rate', value: `${totals.deductionRate.toFixed(1)}%`, icon: Percent, gradient: 'linear-gradient(135deg, #d97706, #f59e0b)' },
+        { label: 'Avg Tax Rate', value: `${totals.taxRate.toFixed(1)}%`, icon: Percent, gradient: 'linear-gradient(135deg, #d97706, #f59e0b)' },
         { label: 'Net Payroll', value: formatCurrency(totals.netPay), icon: DollarSign, gradient: 'linear-gradient(135deg, #2563eb, #3b82f6)' },
     ];
 
     const govDeductions = [
-        { name: 'SSS Contributions', amount: '₱245,000', desc: 'Total for 245 employees', color: '#2563eb' },
-        { name: 'PhilHealth', amount: '₱128,000', desc: 'Total for 245 employees', color: '#059669' },
-        { name: 'Pag-IBIG', amount: '₱89,000', desc: 'Total for 245 employees', color: '#d97706' },
-        { name: 'Withholding Tax', amount: '₱1,280,000', desc: 'Total for 245 employees', color: '#dc2626' },
-    ];
-
-    const thirteenthMonthData = [
-        { empId: 'EMP-001', name: 'Dela Cruz, Juan', totalSalary: '₱480,000', thirteenthMonth: '₱40,000', status: 'Computed' },
-        { empId: 'EMP-002', name: 'Santos, Maria', totalSalary: '₱540,000', thirteenthMonth: '₱45,000', status: 'Computed' },
-        { empId: 'EMP-003', name: 'Reyes, Jose', totalSalary: '₱360,000', thirteenthMonth: '₱30,000', status: 'Pending' },
-        { empId: 'EMP-004', name: 'Garcia, Ana', totalSalary: '₱420,000', thirteenthMonth: '₱35,000', status: 'Computed' },
+        { name: 'SSS Contributions', amount: 'Not configured', desc: 'Awaiting Government Compliance setup', color: '#2563eb' },
+        { name: 'PhilHealth', amount: 'Not configured', desc: 'Awaiting Government Compliance setup', color: '#059669' },
+        { name: 'Pag-IBIG', amount: 'Not configured', desc: 'Awaiting Government Compliance setup', color: '#d97706' },
+        { name: 'Withholding Tax', amount: 'Not configured', desc: 'Awaiting Government Compliance setup', color: '#dc2626' },
     ];
 
     const payslipList = latestPayrollRecords.map((record) => ({
@@ -383,17 +375,15 @@ const Payroll = () => {
                             </div>
 
                             <div className="pro-card !shadow-none border border-gray-100 p-5">
-                                <h4 className="text-sm font-bold text-gray-700 mb-4">Deductions Tracking — Monthly Breakdown</h4>
-                                <div className="grid grid-cols-3 gap-4 text-center">
-                                    <div className="bg-blue-50 rounded-xl p-4 border border-blue-100"><p className="text-lg font-bold text-blue-600">₱462,000</p><p className="text-xs text-gray-500">Employee Share</p></div>
-                                    <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100"><p className="text-lg font-bold text-emerald-600">₱580,000</p><p className="text-xs text-gray-500">Employer Share</p></div>
-                                    <div className="bg-orange-50 rounded-xl p-4 border border-orange-100"><p className="text-lg font-bold text-orange-600">₱1,042,000</p><p className="text-xs text-gray-500">Total Remittance</p></div>
-                                </div>
+                                <h4 className="text-sm font-bold text-gray-700 mb-2">Deductions Tracking — Monthly Breakdown</h4>
+                                <p className="text-sm text-gray-500">
+                                    Government contribution and withholding tax tracking will be available once the Government Compliance module is configured.
+                                </p>
                             </div>
 
                             <div className="flex gap-3">
                                 <button onClick={() => setShowRemittanceModal(true)} className="btn btn-primary">Generate Remittance Report</button>
-                                <button className="btn btn-secondary"><Download className="w-4 h-4" /> Export to Excel</button>
+                                <button className="btn btn-secondary" disabled><Download className="w-4 h-4" /> Export to Excel</button>
                             </div>
                         </div>
                     )}
@@ -404,29 +394,23 @@ const Payroll = () => {
                                 <h3 className="text-base font-bold text-gray-800">13th Month Pay Computation</h3>
                                 <button onClick={() => setShowComputeModal(true)} className="btn btn-primary">Compute All</button>
                             </div>
-                            <div className="overflow-x-auto rounded-xl border border-gray-100">
-                                <table className="pro-table">
-                                    <thead><tr>{['Employee ID', 'Employee Name', 'Total Basic Salary (YTD)', '13th Month Pay', 'Status', 'Actions'].map(h => <th key={h}>{h}</th>)}</tr></thead>
-                                    <tbody>
-                                        {thirteenthMonthData.map((r, i) => (
-                                            <tr key={i}>
-                                                <td className="font-mono text-xs">{r.empId}</td>
-                                                <td className="!font-medium !text-gray-800">{r.name}</td>
-                                                <td>{r.totalSalary}</td>
-                                                <td className="!font-bold !text-emerald-600">{r.thirteenthMonth}</td>
-                                                <td><span className={`badge ${statusBadge[r.status]}`}><span className="badge-dot" />{r.status}</span></td>
-                                                <td><button onClick={() => setShow13thDetails(true)} className="btn-ghost btn-icon text-blue-500 hover:bg-blue-50"><Eye className="w-4 h-4" /></button></td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+
+                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-8 text-center">
+                                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                                    <DollarSign className="h-6 w-6" />
+                                </div>
+                                <h4 className="text-sm font-bold text-gray-800">13th month computation is not yet configured</h4>
+                                <p className="mx-auto mt-2 max-w-xl text-sm text-gray-500">
+                                    Payroll currently supports compensation-based salary computation, overtime inclusion, deductions, payroll records, and payslip generation. 13th month computation will be enabled once its backend service is available.
+                                </p>
                             </div>
+
                             <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-5 border border-emerald-100">
                                 <h4 className="text-sm font-bold text-gray-700 mb-3">Computation Summary</h4>
                                 <div className="grid grid-cols-3 gap-4 text-center">
-                                    <div><p className="text-xl font-bold text-gray-900">245</p><p className="text-xs text-gray-500">Total Employees</p></div>
-                                    <div><p className="text-xl font-bold text-gray-900">₱98,400,000</p><p className="text-xs text-gray-500">Total Basic Salary Annual</p></div>
-                                    <div><p className="text-xl font-bold text-emerald-600">₱8,200,000</p><p className="text-xs text-gray-500">Total 13th Month</p></div>
+                                    <div><p className="text-xl font-bold text-gray-900">—</p><p className="text-xs text-gray-500">Total Employees</p></div>
+                                    <div><p className="text-xl font-bold text-gray-900">—</p><p className="text-xs text-gray-500">Total Basic Salary Annual</p></div>
+                                    <div><p className="text-xl font-bold text-emerald-600">—</p><p className="text-xs text-gray-500">Total 13th Month</p></div>
                                 </div>
                             </div>
                         </div>
@@ -540,20 +524,14 @@ const Payroll = () => {
                     <div className="pro-modal max-w-md" onClick={e => e.stopPropagation()}>
                         <div className="pro-modal-header"><h3>Generate Remittance Report</h3><button onClick={() => setShowRemittanceModal(false)} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button></div>
                         <div className="pro-modal-body space-y-4">
-                            <div><label className="pro-label">Report Type</label><select className="pro-select"><option>SSS Contribution Report</option><option>PhilHealth</option><option>Pag-IBIG</option><option>BIR Withholding Tax</option></select></div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div><label className="pro-label">Month</label><select className="pro-select">{['January', 'February', 'March'].map(m => <option key={m}>{m}</option>)}</select></div>
-                                <div><label className="pro-label">Year</label><select className="pro-select"><option>2026</option><option>2025</option></select></div>
-                            </div>
-                            <div>
-                                <label className="pro-label">Format</label>
-                                <div className="flex gap-4 mt-1">
-                                    <label className="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="format" defaultChecked className="accent-emerald-600" /> PDF</label>
-                                    <label className="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="format" className="accent-emerald-600" /> Excel</label>
-                                </div>
+                            <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                                <p className="text-sm font-bold text-amber-700">Government deductions are not yet configured.</p>
+                                <p className="mt-1 text-sm text-amber-700/80">
+                                    Remittance reports will be available once SSS, PhilHealth, Pag-IBIG, and BIR computation services are implemented.
+                                </p>
                             </div>
                         </div>
-                        <div className="pro-modal-footer"><button onClick={() => setShowRemittanceModal(false)} className="btn btn-secondary">Cancel</button><button onClick={() => setShowRemittanceModal(false)} className="btn btn-primary">Generate Report</button></div>
+                        <div className="pro-modal-footer"><button onClick={() => setShowRemittanceModal(false)} className="btn btn-primary">Close</button></div>
                     </div>
                 </div>
             )}
@@ -563,34 +541,14 @@ const Payroll = () => {
                     <div className="pro-modal max-w-md" onClick={e => e.stopPropagation()}>
                         <div className="pro-modal-header"><h3>Compute 13th Month Pay</h3><button onClick={() => setShowComputeModal(false)} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button></div>
                         <div className="pro-modal-body space-y-4">
-                            <p className="text-sm text-gray-600">This will compute 13th month pay for all eligible employees based on their year-to-date basic salary.</p>
-                            <div className="bg-gray-50 rounded-xl p-4 text-sm space-y-1 border border-gray-100">
-                                <p className="text-gray-600">Eligible Employees: <strong>245</strong></p>
-                                <p className="text-gray-600">Estimated Total: <strong>₱8,200,000</strong></p>
+                            <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                                <p className="text-sm font-bold text-amber-700">13th month computation is not yet configured.</p>
+                                <p className="mt-1 text-sm text-amber-700/80">
+                                    This feature requires a dedicated backend computation service before payroll can generate official 13th month pay records.
+                                </p>
                             </div>
-                            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer"><input type="checkbox" className="accent-emerald-600" /> Send notification to employees</label>
                         </div>
-                        <div className="pro-modal-footer"><button onClick={() => setShowComputeModal(false)} className="btn btn-secondary">Cancel</button><button onClick={() => setShowComputeModal(false)} className="btn btn-primary">Generate Report</button></div>
-                    </div>
-                </div>
-            )}
-
-            {show13thDetails && (
-                <div className="pro-modal-overlay">
-                    <div className="pro-modal max-w-md" onClick={e => e.stopPropagation()}>
-                        <div className="pro-modal-header"><h3>13th Month Pay Details</h3><button onClick={() => setShow13thDetails(false)} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button></div>
-                        <div className="pro-modal-body space-y-1">
-                            {[['Employee', 'Dela Cruz, Juan'], ['Employee ID', 'EMP-001'], ['Total Basic Salary (YTD)', '₱480,000'], ['Months Employed', '12'], ['Divisor', '12'], ['13th Month Pay', '₱40,000']].map(([label, value]) => (
-                                <div key={label} className="flex justify-between py-2.5 border-b border-gray-50">
-                                    <span className="text-sm text-gray-500">{label}</span>
-                                    <span className="text-sm font-bold text-gray-900">{value}</span>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="pro-modal-footer">
-                            <button className="btn btn-secondary"><Download className="w-4 h-4" /> Download PDF</button>
-                            <button onClick={() => setShow13thDetails(false)} className="btn btn-primary">Close</button>
-                        </div>
+                        <div className="pro-modal-footer"><button onClick={() => setShowComputeModal(false)} className="btn btn-primary">Close</button></div>
                     </div>
                 </div>
             )}

@@ -12,7 +12,7 @@ import {
 
 } from 'lucide-react';
 import { getCurrentEmployee } from '../../lib/employees';
-import { getEmployeePayslips, getPayrollPeriods, type PayrollPeriodDto, type PayrollRecordDto } from '../../lib/payroll';
+import { getEmployeePayslips, type PayrollRecordDto } from '../../lib/payroll';
 
 
 
@@ -89,26 +89,6 @@ const emptyPayslip: PayslipDetail = {
     overtimeHours: 0,
 };
 
-const parseDateOnly = (value: string) => {
-    const [year, month, day] = value.split('-').map(Number);
-    return new Date(year, month - 1, day);
-};
-
-const formatPeriodRange = (startDate?: string, endDate?: string) => {
-    if (!startDate || !endDate) return 'Payroll Period';
-
-    const start = parseDateOnly(startDate);
-    const end = parseDateOnly(endDate);
-    const startMonth = start.toLocaleString('en-US', { month: 'short' });
-    const endMonth = end.toLocaleString('en-US', { month: 'short' });
-    const year = end.getFullYear();
-
-    if (startMonth === endMonth) {
-        return `${startMonth} ${String(start.getDate()).padStart(2, '0')} – ${end.getDate()}, ${year}`;
-    }
-
-    return `${startMonth} ${String(start.getDate()).padStart(2, '0')} – ${endMonth} ${end.getDate()}, ${year}`;
-};
 
 const formatDisplayDate = (value?: string | null) => {
     if (!value) return '—';
@@ -145,11 +125,11 @@ const getLateAbsentDays = (record: PayrollRecordDto) => {
 
 const mapPayrollRecordToPayslip = (
     record: PayrollRecordDto,
-    period: PayrollPeriodDto | undefined,
     employeeFallback: {
         department?: string | null;
         position?: string | null;
-    }
+    },
+    periodLabel?: string
 ): PayslipDetail => {
     const earnings = record.items
         .filter((item) => item.type.toLowerCase() === 'earning')
@@ -165,12 +145,12 @@ const mapPayrollRecordToPayslip = (
             amount: formatPeso(item.amount),
         }));
 
-    const periodLabel = formatPeriodRange(period?.startDate, period?.endDate);
+    const resolvedPeriodLabel = periodLabel ?? `Payroll Period #${record.payrollPeriodId}`;
     const status: PayslipDetail['status'] = record.status === 'Pending' ? 'Pending' : 'Released';
 
     return {
-        period: periodLabel,
-        releaseDate: formatDisplayDate(period?.releasedAtUtc ?? period?.processedAtUtc ?? record.createdAtUtc),
+        period: resolvedPeriodLabel,
+        releaseDate: formatDisplayDate(record.createdAtUtc),
         grossPay: formatPeso(record.grossPay),
         deductions: formatPeso(record.totalDeductions),
         netPay: formatPeso(record.netPay),
@@ -699,27 +679,15 @@ const MyPaySlips = () => {
 
                 const employee = await getCurrentEmployee();
 
-                const [records, periods] = await Promise.all([
-
-                    getEmployeePayslips(employee.id),
-
-                    getPayrollPeriods(),
-
-                ]);
-
-
+                const records = await getEmployeePayslips(employee.id);
 
                 if (cancelled) return;
-
-
-
-                const periodById = new Map(periods.map((period) => [period.id, period]));
 
                 const mappedPayslips = [...records]
 
                     .sort((a, b) => b.createdAtUtc.localeCompare(a.createdAtUtc))
 
-                    .map((record) => mapPayrollRecordToPayslip(record, periodById.get(record.payrollPeriodId), employee));
+                    .map((record) => mapPayrollRecordToPayslip(record, employee, `Payroll Period #${record.payrollPeriodId}`));
 
 
 
