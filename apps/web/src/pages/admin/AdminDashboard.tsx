@@ -47,6 +47,12 @@ import {
   type LeaveRequestDto,
 } from "../../lib/leave";
 import {
+  getPayrollPeriods,
+  getPayrollRecords,
+  type PayrollPeriodDto,
+  type PayrollRecordDto,
+} from "../../lib/payroll";
+import {
   buildUserNameByEmail,
   formatActionLabel,
   formatDatePart,
@@ -236,6 +242,32 @@ const emptyMonthlyAttendanceTrends = (): MonthlyAttendanceTrendDto[] =>
     absentCount: 0,
   }));
 
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    minimumFractionDigits: 2,
+  }).format(Number.isFinite(amount) ? amount : 0);
+
+const parseDateOnly = (value: string) => {
+  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const formatPayrollMonth = (periods: PayrollPeriodDto[]) => {
+  if (!periods.length) return "No processed payroll yet";
+
+  const latestStart = parseDateOnly(periods[0].startDate);
+
+  return latestStart.toLocaleString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+};
+
+const getPayrollMonthKey = (period: PayrollPeriodDto) =>
+  period.startDate.slice(0, 7);
+
 const countEmployeesOnLeaveToday = (requests: LeaveRequestDto[]) => {
   const now = new Date();
   const todayUtc = Date.UTC(
@@ -295,6 +327,10 @@ const AdminDashboard = () => {
   const [attendanceTrends, setAttendanceTrends] = useState<
     MonthlyAttendanceTrendDto[]
   >(emptyMonthlyAttendanceTrends());
+  const [payrollRecords, setPayrollRecords] = useState<PayrollRecordDto[]>([]);
+  const [payrollPeriodLabel, setPayrollPeriodLabel] = useState(
+    "No processed payroll yet"
+  );
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -494,6 +530,55 @@ const AdminDashboard = () => {
     };
   }, [fetchAttendanceDashboardData, canLoadDashboard]);
 
+  useEffect(() => {
+    if (!canLoadDashboard) return;
+
+    let isMounted = true;
+
+    const fetchPayrollDashboardData = async () => {
+      try {
+        const periods = await getPayrollPeriods();
+        const sortedPeriods = [...periods].sort((a, b) =>
+          b.startDate.localeCompare(a.startDate)
+        );
+
+        if (!sortedPeriods.length) {
+          if (!isMounted) return;
+          setPayrollRecords([]);
+          setPayrollPeriodLabel("No processed payroll yet");
+          return;
+        }
+
+        const latestMonthKey = getPayrollMonthKey(sortedPeriods[0]);
+        const latestMonthPeriods = sortedPeriods.filter(
+          (period) => getPayrollMonthKey(period) === latestMonthKey
+        );
+
+        const recordsByPeriod = await Promise.all(
+          latestMonthPeriods.map((period) => getPayrollRecords(period.id))
+        );
+
+        if (!isMounted) return;
+
+        setPayrollRecords(recordsByPeriod.flat());
+        setPayrollPeriodLabel(formatPayrollMonth(latestMonthPeriods));
+      } catch (error) {
+        if (!isMounted) return;
+        console.error("Failed to fetch dashboard payroll data:", error);
+        setPayrollRecords([]);
+        setPayrollPeriodLabel("Payroll data unavailable");
+      }
+    };
+
+    Promise.resolve().then(() => {
+      void fetchPayrollDashboardData();
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [canLoadDashboard]);
+
   const safeRecentLogs = canLoadDashboard ? recentLogs : [];
   const safeAdminUsers = adminUsers;
   const safeEmployeeSummary = canLoadDashboard
@@ -639,38 +724,105 @@ const AdminDashboard = () => {
     },
   };
 
-  const financialBreakdown = [
-    {
-      label: "Basic Salary",
-      amount: "₱6,200,000",
-      percent: 73,
-      color: "#059669",
-    },
-    {
-      label: "Overtime Pay",
-      amount: "₱850,000",
-      percent: 10,
-      color: "#3b82f6",
-    },
-    {
-      label: "Allowances",
-      amount: "₱650,000",
-      percent: 8,
-      color: "#8b5cf6",
-    },
-    {
-      label: "Benefits",
-      amount: "₱500,000",
-      percent: 6,
-      color: "#14b8a6",
-    },
-    {
-      label: "Deductions",
-      amount: "-₱1,700,000",
-      percent: 20,
-      color: "#ef4444",
-    },
-  ];
+  const payrollFinancials = useMemo(() => {
+    if (payrollRecords.length === 0) {
+      return {
+        grossPay: 0,
+        totalDeductions: 0,
+        netPay: 0,
+        breakdown: [],
+      };
+    }
+
+    const grossPay = payrollRecords.reduce(
+      (sum, record) => sum + record.grossPay,
+      0
+    );
+    const totalDeductions = payrollRecords.reduce(
+      (sum, record) => sum + record.totalDeductions,
+      0
+    );
+    const netPay = payrollRecords.reduce((sum, record) => sum + record.netPay, 0);
+
+    const earningItems = payrollRecords.flatMap((record) =>
+      record.items.filter((item) => item.type.toLowerCase() === "earning")
+    );
+
+    const basicPay = earningItems
+      .filter((item) => item.description.toLowerCase().includes("basic"))
+      .reduce((sum, item) => sum + item.amount, 0);
+
+    const overtimePay = earningItems
+      .filter((item) => {
+        const description = item.description.toLowerCase();
+        return (
+          /\bovertime\b/.test(description) ||
+          /\bot\b/.test(description)
+        );
+      })
+      .reduce((sum, item) => sum + item.amount, 0);
+
+    const resolvedBasicPay = basicPay > 0 ? basicPay : grossPay;
+    const otherEarnings = Math.max(grossPay - resolvedBasicPay - overtimePay, 0);
+    const denominator = Math.max(grossPay, totalDeductions, 1);
+
+    const toPercent = (amount: number) =>
+      Math.min(100, Math.round((Math.abs(amount) / denominator) * 100));
+
+    const breakdown = [
+      {
+        label: "Basic Pay",
+        amount: formatCurrency(resolvedBasicPay),
+        percent: toPercent(resolvedBasicPay),
+        color: "#059669",
+      },
+      ...(overtimePay > 0
+        ? [
+            {
+              label: "Overtime Pay",
+              amount: formatCurrency(overtimePay),
+              percent: toPercent(overtimePay),
+              color: "#3b82f6",
+            },
+          ]
+        : []),
+      ...(otherEarnings > 0
+        ? [
+            {
+              label: "Other Earnings",
+              amount: formatCurrency(otherEarnings),
+              percent: toPercent(otherEarnings),
+              color: "#8b5cf6",
+            },
+          ]
+        : []),
+      ...(totalDeductions > 0
+        ? [
+            {
+              label: "Deductions",
+              amount: `-${formatCurrency(totalDeductions)}`,
+              percent: toPercent(totalDeductions),
+              color: "#ef4444",
+            },
+          ]
+        : []),
+      {
+        label: "Net Payroll",
+        amount: formatCurrency(netPay),
+        percent: toPercent(netPay),
+        color: "#14b8a6",
+      },
+    ].filter((item) => item.percent > 0 || item.label === "Net Payroll");
+
+    return {
+      grossPay,
+      totalDeductions,
+      netPay,
+      breakdown,
+    };
+  }, [payrollRecords]);
+
+  const financialBreakdown = payrollFinancials.breakdown;
 
   const employmentTypeTargets = [
     { label: "Regular", query: "Regular" },
@@ -932,7 +1084,7 @@ const AdminDashboard = () => {
               Financial Summary
             </h3>
             <p className="text-xs text-gray-400 mt-0.5">
-              Monthly Payroll Overview
+              {payrollPeriodLabel}
             </p>
           </div>
           <div className="mb-5 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-100">
@@ -942,36 +1094,44 @@ const AdminDashboard = () => {
                 Total Payroll
               </span>
             </div>
-            <p className="text-2xl font-bold text-gray-900">₱8,500,000</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {formatCurrency(payrollFinancials.grossPay)}
+            </p>
           </div>
           <div className="space-y-4">
-            {financialBreakdown.map((item) => (
-              <div key={item.label}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs text-gray-500 font-medium">
-                    {item.label}
-                  </span>
-                  <span
-                    className={`text-xs font-bold ${
-                      item.amount.startsWith("-")
-                        ? "text-red-500"
-                        : "text-gray-700"
-                    }`}
-                  >
-                    {item.amount}
-                  </span>
-                </div>
-                <div className="progress-bar">
-                  <div
-                    className="progress-bar-fill"
-                    style={{
-                      width: `${item.percent}%`,
-                      background: item.color,
-                    }}
-                  />
-                </div>
+            {financialBreakdown.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+                No payroll records available for the latest payroll month.
               </div>
-            ))}
+            ) : (
+              financialBreakdown.map((item) => (
+                <div key={item.label}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs text-gray-500 font-medium">
+                      {item.label}
+                    </span>
+                    <span
+                      className={`text-xs font-bold ${
+                        item.amount.startsWith("-")
+                          ? "text-red-500"
+                          : "text-gray-700"
+                      }`}
+                    >
+                      {item.amount}
+                    </span>
+                  </div>
+                  <div className="progress-bar">
+                    <div
+                      className="progress-bar-fill"
+                      style={{
+                        width: `${item.percent}%`,
+                        background: item.color,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
