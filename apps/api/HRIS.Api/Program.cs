@@ -4,6 +4,7 @@ using HRIS.Api.Features.Attendance.Services;
 using HRIS.Api.Features.Attendance.Services.Validation;
 using HRIS.Api.Features.Dashboard.Services;
 using HRIS.Api.Features.Employees.Services;
+using HRIS.Api.Features.GovernmentCompliance.Services;
 using HRIS.Api.Features.IAM.Services;
 using HRIS.Api.Features.LeaveManagement.Services;
 using HRIS.Api.Features.Payroll.Services;
@@ -122,6 +123,12 @@ builder.Services.AddScoped<ILeaveManagementService, LeaveManagementService>();
 
 builder.Services.AddScoped<IEmployeeCompensationService, EmployeeCompensationService>();
 builder.Services.AddScoped<IPayrollService, PayrollService>();
+
+// =====================
+// Government Compliance Services
+// =====================
+
+builder.Services.AddScoped<IGovernmentComplianceService, GovernmentComplianceService>();
 
 // =====================
 // Dashboard Services

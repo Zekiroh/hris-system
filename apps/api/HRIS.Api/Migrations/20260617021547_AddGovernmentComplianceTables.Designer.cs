@@ -4,6 +4,7 @@ using HRIS.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRIS.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260617021547_AddGovernmentComplianceTables")]
+    partial class AddGovernmentComplianceTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -713,12 +716,7 @@ namespace HRIS.Api.Migrations
 
                     b.HasIndex("EffectiveFrom", "IsActive");
 
-                    b.ToTable("PagIbigContributionRules", t =>
-                        {
-                            t.HasCheckConstraint("CK_PagIbigContributionRule_AmountRange", "`EmployeeRate` >= 0 AND `EmployerRate` >= 0 AND `MinimumContribution` >= 0 AND `MaximumContribution` >= `MinimumContribution`");
-
-                            t.HasCheckConstraint("CK_PagIbigContributionRule_EffectiveRange", "`EffectiveTo` IS NULL OR `EffectiveTo` >= `EffectiveFrom`");
-                        });
+                    b.ToTable("PagIbigContributionRules");
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.PayrollPeriod", b =>
@@ -1006,12 +1004,7 @@ namespace HRIS.Api.Migrations
 
                     b.HasIndex("EffectiveFrom", "IsActive");
 
-                    b.ToTable("PhilHealthContributionRules", t =>
-                        {
-                            t.HasCheckConstraint("CK_PhilHealthContributionRule_AmountRange", "`ContributionRate` >= 0 AND `MinimumContribution` >= 0 AND `MaximumContribution` >= `MinimumContribution` AND `EmployeeSharePercent` >= 0 AND `EmployeeSharePercent` <= 1 AND `EmployerSharePercent` >= 0 AND `EmployerSharePercent` <= 1");
-
-                            t.HasCheckConstraint("CK_PhilHealthContributionRule_EffectiveRange", "`EffectiveTo` IS NULL OR `EffectiveTo` >= `EffectiveFrom`");
-                        });
+                    b.ToTable("PhilHealthContributionRules");
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.Role", b =>
@@ -1275,12 +1268,7 @@ namespace HRIS.Api.Migrations
 
                     b.HasIndex("EffectiveFrom", "IsActive");
 
-                    b.ToTable("SssContributionBrackets", t =>
-                        {
-                            t.HasCheckConstraint("CK_SssContributionBracket_AmountRange", "`SalaryFrom` >= 0 AND `EmployeeShare` >= 0 AND `EmployerShare` >= 0 AND (`SalaryTo` IS NULL OR `SalaryTo` >= `SalaryFrom`)");
-
-                            t.HasCheckConstraint("CK_SssContributionBracket_EffectiveRange", "`EffectiveTo` IS NULL OR `EffectiveTo` >= `EffectiveFrom`");
-                        });
+                    b.ToTable("SssContributionBrackets");
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.User", b =>
@@ -1430,12 +1418,7 @@ namespace HRIS.Api.Migrations
 
                     b.HasIndex("EffectiveFrom", "IsActive");
 
-                    b.ToTable("WithholdingTaxBrackets", t =>
-                        {
-                            t.HasCheckConstraint("CK_WithholdingTaxBracket_AmountRange", "`CompensationFrom` >= 0 AND (`CompensationTo` IS NULL OR `CompensationTo` >= `CompensationFrom`) AND `BaseTax` >= 0 AND `ExcessOver` >= 0 AND `TaxRate` >= 0");
-
-                            t.HasCheckConstraint("CK_WithholdingTaxBracket_EffectiveRange", "`EffectiveTo` IS NULL OR `EffectiveTo` >= `EffectiveFrom`");
-                        });
+                    b.ToTable("WithholdingTaxBrackets");
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.AttendanceLog", b =>
