@@ -10,6 +10,17 @@ public class WithholdingTaxBracketConfiguration : IEntityTypeConfiguration<Withh
     {
         builder.HasKey(x => x.Id);
 
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint(
+                "CK_WithholdingTaxBracket_AmountRange",
+                "`CompensationFrom` >= 0 AND (`CompensationTo` IS NULL OR `CompensationTo` >= `CompensationFrom`) AND `BaseTax` >= 0 AND `ExcessOver` >= 0 AND `TaxRate` >= 0");
+
+            t.HasCheckConstraint(
+                "CK_WithholdingTaxBracket_EffectiveRange",
+                "`EffectiveTo` IS NULL OR `EffectiveTo` >= `EffectiveFrom`");
+        });
+
         builder.Property(x => x.CompensationFrom)
             .HasPrecision(18, 2);
 

@@ -10,6 +10,17 @@ public class PagIbigContributionRuleConfiguration : IEntityTypeConfiguration<Pag
     {
         builder.HasKey(x => x.Id);
 
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint(
+                "CK_PagIbigContributionRule_AmountRange",
+                "`EmployeeRate` >= 0 AND `EmployerRate` >= 0 AND `MinimumContribution` >= 0 AND `MaximumContribution` >= `MinimumContribution`");
+
+            t.HasCheckConstraint(
+                "CK_PagIbigContributionRule_EffectiveRange",
+                "`EffectiveTo` IS NULL OR `EffectiveTo` >= `EffectiveFrom`");
+        });
+
         builder.Property(x => x.EmployeeRate)
             .HasPrecision(18, 6);
 

@@ -35,10 +35,7 @@ public sealed class GovernmentComplianceController : ControllerBase
             request,
             cancellationToken);
 
-        return CreatedAtAction(
-            nameof(GetSssBrackets),
-            new { id = bracket.Id },
-            bracket);
+        return Ok(bracket);
     }
 
     [HttpPut("sss/{id:int}")]
@@ -78,10 +75,7 @@ public sealed class GovernmentComplianceController : ControllerBase
             request,
             cancellationToken);
 
-        return CreatedAtAction(
-            nameof(GetPhilHealthRules),
-            new { id = rule.Id },
-            rule);
+        return Ok(rule);
     }
 
     [HttpPut("philhealth/{id:int}")]
@@ -121,10 +115,7 @@ public sealed class GovernmentComplianceController : ControllerBase
             request,
             cancellationToken);
 
-        return CreatedAtAction(
-            nameof(GetPagIbigRules),
-            new { id = rule.Id },
-            rule);
+        return Ok(rule);
     }
 
     [HttpPut("pagibig/{id:int}")]
@@ -165,10 +156,7 @@ public sealed class GovernmentComplianceController : ControllerBase
             request,
             cancellationToken);
 
-        return CreatedAtAction(
-            nameof(GetWithholdingTaxBrackets),
-            new { id = bracket.Id },
-            bracket);
+        return Ok(bracket);
     }
 
     [HttpPut("tax/{id:int}")]

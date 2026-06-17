@@ -10,6 +10,17 @@ public class PhilHealthContributionRuleConfiguration : IEntityTypeConfiguration<
     {
         builder.HasKey(x => x.Id);
 
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint(
+                "CK_PhilHealthContributionRule_AmountRange",
+                "`ContributionRate` >= 0 AND `MinimumContribution` >= 0 AND `MaximumContribution` >= `MinimumContribution` AND `EmployeeSharePercent` >= 0 AND `EmployeeSharePercent` <= 1 AND `EmployerSharePercent` >= 0 AND `EmployerSharePercent` <= 1");
+
+            t.HasCheckConstraint(
+                "CK_PhilHealthContributionRule_EffectiveRange",
+                "`EffectiveTo` IS NULL OR `EffectiveTo` >= `EffectiveFrom`");
+        });
+
         builder.Property(x => x.ContributionRate)
             .HasPrecision(18, 6);
 

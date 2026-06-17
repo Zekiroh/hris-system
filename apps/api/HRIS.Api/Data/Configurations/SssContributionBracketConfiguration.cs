@@ -10,6 +10,17 @@ public class SssContributionBracketConfiguration : IEntityTypeConfiguration<SssC
     {
         builder.HasKey(x => x.Id);
 
+        builder.ToTable(t =>
+        {
+            t.HasCheckConstraint(
+                "CK_SssContributionBracket_AmountRange",
+                "`SalaryFrom` >= 0 AND `EmployeeShare` >= 0 AND `EmployerShare` >= 0 AND (`SalaryTo` IS NULL OR `SalaryTo` >= `SalaryFrom`)");
+
+            t.HasCheckConstraint(
+                "CK_SssContributionBracket_EffectiveRange",
+                "`EffectiveTo` IS NULL OR `EffectiveTo` >= `EffectiveFrom`");
+        });
+
         builder.Property(x => x.SalaryFrom)
             .HasPrecision(18, 2);
 
