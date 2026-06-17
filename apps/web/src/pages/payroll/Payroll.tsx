@@ -193,23 +193,13 @@ const Payroll = () => {
         setCompensationError('');
 
         try {
-            const compensationResponse = await getCompensations();
-            const allEmployees: EmployeeDto[] = [];
-            const pageSize = 100;
-            let page = 1;
-            let hasMore = true;
-
-            while (hasMore) {
-                const employeeResponse = await getEmployees({ page, pageSize, isActive: true });
-                const employeeItems = extractEmployeeItems(employeeResponse);
-
-                allEmployees.push(...employeeItems);
-                hasMore = employeeItems.length === pageSize;
-                page += 1;
-            }
+            const [compensationResponse, employeeResponse] = await Promise.all([
+                getCompensations(),
+                getEmployees({ page: 1, pageSize: 100, isActive: true }),
+            ]);
 
             setCompensations(compensationResponse);
-            setEmployees(allEmployees);
+            setEmployees(extractEmployeeItems(employeeResponse));
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unable to load compensation records.';
             setCompensationError(message);
@@ -292,8 +282,8 @@ const Payroll = () => {
     );
 
     const selectedPayslip = selectedPayslipRecord ?? latestPayrollRecords[0] ?? null;
-    const selectedPayslipEarnings = selectedPayslip?.items?.filter((item) => item.type === 'Earning') ?? [];
-    const selectedPayslipDeductions = selectedPayslip?.items?.filter((item) => item.type === 'Deduction') ?? [];
+    const selectedPayslipEarnings = selectedPayslip?.items.filter((item) => item.type === 'Earning') ?? [];
+    const selectedPayslipDeductions = selectedPayslip?.items.filter((item) => item.type === 'Deduction') ?? [];
 
     const selectedPayrollPeriod = selectedPayslip
         ? payrollPeriods.find((period) => period.id === selectedPayslip.payrollPeriodId)
@@ -426,60 +416,66 @@ const Payroll = () => {
         }
     };
 
+    const statusBadge: Record<string, string> = {
+        Processed: 'badge-success',
+        Pending: 'badge-warning',
+        Computed: 'badge-success',
+        Generated: 'badge-success',
+        Active: 'badge-success',
+        Inactive: 'badge-warning',
+    };
+
     return (
-        <div className="p-6 space-y-6 fade-in">
-            <div>
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="page-header animate-fade-in-up">
                 <h1>Payroll</h1>
                 <p>Manage payroll processing, compensation, deductions, and payslips</p>
             </div>
 
             {payrollError && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
                     {payrollError}
                 </div>
             )}
 
             {payrollSuccess && (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-600">
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-600">
                     {payrollSuccess}
                 </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                {statCards.map((stat) => {
-                    const Icon = stat.icon;
-                    return (
-                        <div key={stat.label} className="relative overflow-hidden rounded-2xl p-6 text-white shadow-lg" style={{ background: stat.gradient }}>
-                            <div className="relative z-10">
-                                <p className="text-sm font-semibold opacity-90">{stat.label}</p>
-                                <p className="text-3xl font-bold mt-1">{stat.value}</p>
+            {/* Stat Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {statCards.map((card, i) => (
+                    <div key={card.label} className="stat-card animate-fade-in-up" style={{ background: card.gradient, animationDelay: `${i * 0.1}s`, opacity: 0 }}>
+                        <div className="flex items-center justify-between relative z-10">
+                            <div>
+                                <p className="stat-label">{card.label}</p>
+                                <p className="stat-value text-lg">{card.value}</p>
                             </div>
-                            <div className="absolute top-1/2 right-6 -translate-y-1/2 bg-white/20 p-3 rounded-xl">
-                                <Icon className="w-6 h-6" />
+                            <div className="stat-icon">
+                                <card.icon className="w-5 h-5" />
                             </div>
-                            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full" />
                         </div>
-                    );
-                })}
+                    </div>
+                ))}
             </div>
 
-            <div className="pro-card">
-                <div className="flex flex-wrap gap-2 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
-                    {tabs.map((tab) => {
-                        const Icon = tab.icon;
-                        return (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab.id ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-600 hover:bg-white/50'}`}
-                            >
-                                <Icon className="w-4 h-4" />
+            <div className="pro-card animate-fade-in-up" style={{ animationDelay: '0.4s', opacity: 0 }}>
+                <div className="px-6 pt-4">
+                    <div className="pro-tabs">
+                        {tabs.map(tab => (
+                            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                                className={`pro-tab flex items-center gap-2 ${activeTab === tab.id ? 'active' : ''}`}>
+                                <tab.icon className="w-4 h-4" />
                                 {tab.label}
                             </button>
-                        );
-                    })}
+                        ))}
+                    </div>
                 </div>
 
+                <div className="p-6">
                 {/* Tab: Payroll Records */}
                 {activeTab === 'records' && (
                     <div className="space-y-5">
@@ -487,9 +483,9 @@ const Payroll = () => {
                             <h3 className="text-base font-bold text-gray-800">Payroll Records</h3>
                             <button onClick={() => setShowProcessModal(true)} className="btn btn-primary">Process Payroll</button>
                         </div>
-                        <div className="overflow-x-auto rounded-xl border border-gray-200">
+                        <div className="overflow-x-auto rounded-xl border border-gray-100">
                             <table className="pro-table">
-                                <thead><tr><th>Period</th><th>Employees</th><th>Gross Pay</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Action</th></tr></thead>
+                                <thead><tr>{['Period', 'Employees', 'Gross Pay', 'Deductions', 'Net Pay', 'Status', 'Action'].map(h => <th key={h}>{h}</th>)}</tr></thead>
                                 <tbody>
                                     {loadingPayroll ? (
                                         <tr>
@@ -501,18 +497,15 @@ const Payroll = () => {
                                         </tr>
                                     ) : (
                                         payrollRecords.map((r, idx) => (
-                                            <tr key={`${r.periodId}-${idx}`}>
-                                                <td>{r.period}</td>
+                                            <tr key={r.periodId} style={{ animationDelay: `${idx * 0.05}s` }}>
+                                                <td className="font-medium">{r.period}</td>
                                                 <td>{r.employees}</td>
                                                 <td>{r.grossPay}</td>
-                                                <td className="text-red-500">{r.deductions}</td>
+                                                <td className="!text-red-500">{r.deductions}</td>
                                                 <td className="font-bold">{r.netPay}</td>
-                                                <td><span className="badge badge-success">● {r.status}</span></td>
+                                                <td><span className={`badge ${statusBadge[r.status] || 'badge-warning'}`}>● {r.status}</span></td>
                                                 <td>
-                                                    <button
-                                                        onClick={() => { setSelectedRecord(r); setShowDetailsModal(true); }}
-                                                        className="btn-ghost btn-icon"
-                                                    >
+                                                    <button onClick={() => { setSelectedRecord(r); setShowDetailsModal(true); }} className="btn-ghost btn-icon text-slate-500">
                                                         <Eye className="w-4 h-4" />
                                                     </button>
                                                 </td>
@@ -525,7 +518,7 @@ const Payroll = () => {
                         <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-5">
                             <h4 className="text-sm font-bold text-gray-700 mb-3">Payroll Summary</h4>
                             <div className="grid grid-cols-3 gap-4 text-center">
-                                <div><p className="text-xl font-bold text-gray-800">{formatCurrency(totals.grossPay)}</p><p className="text-xs text-gray-500">Total Gross</p></div>
+                                <div><p className="text-xl font-bold text-gray-900">{formatCurrency(totals.grossPay)}</p><p className="text-xs text-gray-500">Total Gross</p></div>
                                 <div><p className="text-xl font-bold text-red-500">{formatCurrency(totals.deductions)}</p><p className="text-xs text-gray-500">Total Deductions</p></div>
                                 <div><p className="text-xl font-bold text-emerald-600">{formatCurrency(totals.netPay)}</p><p className="text-xs text-gray-500">Total Net</p></div>
                             </div>
@@ -536,7 +529,7 @@ const Payroll = () => {
                 {/* Tab: Compensation */}
                 {activeTab === 'compensation' && (
                     <div className="space-y-5">
-                        <div className="flex justify-between items-center">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <h3 className="text-base font-bold text-gray-800">Employee Compensation</h3>
                                 <p className="text-sm text-gray-500">Assign and update salary records used by payroll processing.</p>
@@ -547,12 +540,13 @@ const Payroll = () => {
                         </div>
 
                         {compensationError && (
-                            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                            <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
                                 {compensationError}
                             </div>
                         )}
+
                         {compensationSuccess && (
-                            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-600">
+                            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-600">
                                 {compensationSuccess}
                             </div>
                         )}
@@ -572,9 +566,11 @@ const Payroll = () => {
                             </div>
                         </div>
 
-                        <div className="overflow-x-auto rounded-xl border border-gray-200">
+                        <div className="overflow-x-auto rounded-xl border border-gray-100">
                             <table className="pro-table">
-                                <thead><tr><th>Employee</th><th>Department</th><th>Position</th><th>Type</th><th>Base Amount</th><th>Effective From</th><th>Status</th><th>Action</th></tr></thead>
+                                <thead>
+                                    <tr>{['Employee', 'Department', 'Position', 'Type', 'Base Amount', 'Effective From', 'Status', 'Action'].map(h => <th key={h}>{h}</th>)}</tr>
+                                </thead>
                                 <tbody>
                                     {loadingCompensations ? (
                                         <tr>
@@ -610,10 +606,11 @@ const Payroll = () => {
                         </div>
 
                         {employeesWithoutCompensation.length > 0 && (
-                            <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
+                            <div className="rounded-xl border border-orange-100 bg-orange-50 p-4">
                                 <h4 className="text-sm font-bold text-orange-700 mb-2">Employees not included in payroll yet</h4>
                                 <p className="text-sm text-orange-600">
-                                    These employees need active compensation before payroll processing can generate payslips:{' '}
+                                    These employees need active compensation before payroll processing can generate payslips:
+                                    {' '}
                                     {employeesWithoutCompensation.slice(0, 5).map(getEmployeeDisplayName).join(', ')}
                                     {employeesWithoutCompensation.length > 5 ? `, +${employeesWithoutCompensation.length - 5} more` : ''}
                                 </p>
@@ -627,22 +624,24 @@ const Payroll = () => {
                     <div className="space-y-6">
                         <h3 className="text-base font-bold text-gray-800">Government Deductions</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {govDeductions.map((d) => (
-                                <div key={d.name} className="p-5 border border-gray-200 rounded-xl flex items-center gap-4">
-                                    <div className="p-3 rounded-xl" style={{ backgroundColor: `${d.color}10` }}>
-                                        <DollarSign className="w-6 h-6" style={{ color: d.color }} />
+                            {govDeductions.map(d => (
+                                <div key={d.name} className="p-5 border border-gray-100 rounded-xl flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl" style={{ background: `${d.color}15`, color: d.color }}>
+                                        <DollarSign className="w-5 h-5" />
                                     </div>
                                     <div>
                                         <h4 className="font-bold text-gray-800">{d.name}</h4>
-                                        <p className="text-xl font-bold" style={{ color: d.color }}>{d.status}</p>
+                                        <p className="text-lg font-bold" style={{ color: d.color }}>{d.status}</p>
                                         <p className="text-xs text-gray-400">{d.desc}</p>
                                     </div>
                                 </div>
                             ))}
                         </div>
-                        <div className="border border-gray-200 rounded-xl p-5">
-                            <h4 className="font-bold text-gray-700 mb-3">Deductions Tracking — Monthly Breakdown</h4>
-                            <p className="text-sm text-gray-500">Government contribution and withholding tax tracking will be available once the Government Compliance module is configured.</p>
+                        <div className="p-5 border border-gray-100 rounded-xl">
+                            <h4 className="text-sm font-bold text-gray-700 mb-2">Deductions Tracking — Monthly Breakdown</h4>
+                            <p className="text-sm text-gray-500">
+                                Government contribution and withholding tax tracking will be available once the Government Compliance module is configured.
+                            </p>
                         </div>
                         <div className="flex gap-3">
                             <button onClick={() => setShowRemittanceModal(true)} className="btn btn-primary">Generate Remittance Report</button>
@@ -658,20 +657,20 @@ const Payroll = () => {
                             <h3 className="text-base font-bold text-gray-800">13th Month Pay Computation</h3>
                             <button onClick={() => setShowComputeModal(true)} className="btn btn-primary">Compute All</button>
                         </div>
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-10 text-center">
-                            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
-                                <DollarSign className="h-6 w-6" />
+                        <div className="rounded-xl border border-gray-100 bg-gray-50 p-10 text-center">
+                            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
+                                <DollarSign className="w-5 h-5" />
                             </div>
                             <h4 className="font-bold text-gray-800">13th month computation is not yet configured</h4>
-                            <p className="mx-auto mt-3 max-w-xl text-sm text-gray-500">
+                            <p className="mx-auto mt-2 max-w-xl text-sm text-gray-500">
                                 Payroll currently supports compensation-based salary computation, overtime inclusion, deductions, payroll records, and payslip generation. 13th month computation will be enabled once its backend service is available.
                             </p>
                         </div>
                         <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-5">
-                            <h4 className="font-bold text-gray-700 mb-4">Computation Summary</h4>
+                            <h4 className="text-sm font-bold text-gray-700 mb-3">Computation Summary</h4>
                             <div className="grid grid-cols-3 gap-4 text-center">
-                                <div><p className="text-xl font-bold text-gray-800">—</p><p className="text-xs text-gray-500">Total Employees</p></div>
-                                <div><p className="text-xl font-bold text-gray-800">—</p><p className="text-xs text-gray-500">Total Basic Salary Annual</p></div>
+                                <div><p className="text-xl font-bold text-gray-900">—</p><p className="text-xs text-gray-500">Total Employees</p></div>
+                                <div><p className="text-xl font-bold text-gray-900">—</p><p className="text-xs text-gray-500">Total Basic Salary Annual</p></div>
                                 <div><p className="text-xl font-bold text-emerald-600">—</p><p className="text-xs text-gray-500">Total 13th Month</p></div>
                             </div>
                         </div>
@@ -686,56 +685,48 @@ const Payroll = () => {
                             <button onClick={() => setShowGeneratePayslips(true)} className="btn btn-primary">Generate All Payslips</button>
                         </div>
                         {loadingPayroll ? (
-                            <div className="py-8 text-center text-sm text-gray-500">Loading payslips...</div>
+                            <div className="text-center py-8 text-sm text-gray-500">Loading payslips...</div>
                         ) : payslipList.length === 0 ? (
-                            <div className="rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-500">No payslips available. Process payroll first.</div>
+                            <div className="text-center py-8 text-sm text-gray-500">No payslips found.</div>
                         ) : (
-                            <div className="space-y-3">
-                                {payslipList.map((p) => (
-                                    <div key={p.record.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-emerald-300 transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white flex items-center justify-center font-bold">{getInitials(p.name)}</div>
-                                            <div>
-                                                <h4 className="font-bold text-gray-800">{p.name}</h4>
-                                                <p className="text-xs text-gray-400">{p.id}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-4">
-                                            <div className="text-right">
-                                                <p className="font-bold text-gray-800">{p.netPay}</p>
-                                                <span className="badge badge-success">● {p.status}</span>
-                                            </div>
-                                            <button
-                                                onClick={() => {
-                                                    setSelectedPayslipRecord(p.record);
-                                                    setShowPayslipPreview(true);
-                                                }}
-                                                className="btn-ghost btn-icon"
-                                            >
-                                                <Eye className="w-4 h-4" />
-                                            </button>
-                                            <button className="btn-ghost btn-icon"><Download className="w-4 h-4" /></button>
+                            payslipList.map(emp => (
+                                <div key={`${emp.id}-${emp.record.id}`} className="pro-card !shadow-none border border-gray-100 p-4 flex items-center justify-between hover:shadow-md transition-all">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-sm font-bold shadow-sm">{getInitials(emp.name)}</div>
+                                        <div>
+                                            <p className="font-bold text-gray-800">{emp.name}</p>
+                                            <p className="text-xs text-gray-400">{emp.id}</p>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-right">
+                                            <p className="font-bold">{emp.netPay}</p>
+                                            <span className={`badge ${statusBadge[emp.status] || 'badge-success'}`}>● {emp.status}</span>
+                                        </div>
+                                        <button onClick={() => { setSelectedPayslipRecord(emp.record); setShowPayslipPreview(true); }} className="btn-ghost btn-icon text-blue-500 hover:bg-blue-50"><Eye className="w-4 h-4" /></button>
+                                        <button className="btn-ghost btn-icon text-slate-500"><Download className="w-4 h-4" /></button>
+                                    </div>
+                                </div>
+                            ))
                         )}
                     </div>
                 )}
+                </div>
             </div>
 
             {/* Process Payroll Modal */}
             {showProcessModal && (
-                <div className="modal-backdrop">
-                    <div className="pro-modal">
+                <div className="pro-modal-overlay">
+                    <div className="pro-modal max-w-lg">
                         <div className="pro-modal-header"><h3>Process Payroll</h3><button onClick={() => setShowProcessModal(false)} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button></div>
                         <div className="pro-modal-body space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div><label className="pro-label">Start Date</label><input type="date" value={processStartDate} onChange={(event) => setProcessStartDate(event.target.value)} className="pro-input" /></div>
                                 <div><label className="pro-label">End Date</label><input type="date" value={processEndDate} onChange={(event) => setProcessEndDate(event.target.value)} className="pro-input" /></div>
                             </div>
-                            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                            <div className="bg-blue-50 p-4 rounded-xl">
                                 <p className="text-gray-600">Employees to process: <strong>Based on active compensation</strong></p>
+                                <p className="text-gray-600">Includes: <strong>Basic pay, approved overtime, late/undertime deductions, and absence deductions</strong></p>
                             </div>
                         </div>
                         <div className="pro-modal-footer"><button onClick={() => setShowProcessModal(false)} className="btn btn-secondary">Cancel</button><button onClick={handleProcessPayroll} disabled={processingPayroll} className="btn btn-primary">{processingPayroll ? 'Processing...' : 'Process Payroll'}</button></div>
@@ -745,22 +736,22 @@ const Payroll = () => {
 
             {/* Compensation Modal */}
             {showCompensationModal && (
-                <div className="modal-backdrop">
-                    <div className="pro-modal">
+                <div className="pro-modal-overlay">
+                    <div className="pro-modal max-w-lg">
                         <div className="pro-modal-header">
                             <h3>{editingCompensation ? 'Edit Compensation' : 'Add Compensation'}</h3>
                             <button onClick={() => { setShowCompensationModal(false); resetCompensationModal(); }} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button>
                         </div>
                         <div className="pro-modal-body space-y-4">
                             {compensationError && (
-                                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                                <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
                                     {compensationError}
                                 </div>
                             )}
                             {!editingCompensation && (
                                 <div>
                                     <label className="pro-label">Employee</label>
-                                    <select value={compensationForm.employeeId} onChange={(event) => setCompensationForm((current) => ({ ...current, employeeId: event.target.value }))} className="pro-input">
+                                    <select value={compensationForm.employeeId} onChange={(event) => setCompensationForm((current) => ({ ...current, employeeId: event.target.value }))} className="pro-select">
                                         <option value="">Select employee</option>
                                         {employees.map((employee) => (
                                             <option key={employee.id} value={employee.id}>
@@ -771,8 +762,8 @@ const Payroll = () => {
                                 </div>
                             )}
                             {editingCompensation && (
-                                <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                                    <p className="text-xs text-gray-500">Employee</p>
+                                <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                                    <p className="text-xs font-semibold uppercase text-gray-400">Employee</p>
                                     <p className="font-bold text-gray-800">{editingCompensation.employeeName}</p>
                                     <p className="text-xs text-gray-500">{editingCompensation.employeeNumber}</p>
                                 </div>
@@ -780,10 +771,9 @@ const Payroll = () => {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="pro-label">Compensation Type</label>
-                                    <select value={compensationForm.compensationType} onChange={(event) => setCompensationForm((current) => ({ ...current, compensationType: event.target.value }))} className="pro-input">
+                                    <select value={compensationForm.compensationType} onChange={(event) => setCompensationForm((current) => ({ ...current, compensationType: event.target.value }))} className="pro-select">
                                         <option value="Monthly">Monthly</option>
                                         <option value="Daily">Daily</option>
-                                        <option value="Hourly">Hourly</option>
                                     </select>
                                 </div>
                                 <div>
@@ -816,24 +806,20 @@ const Payroll = () => {
 
             {/* Details Modal */}
             {showDetailsModal && selectedRecord && (
-                <div className="modal-backdrop">
-                    <div className="pro-modal">
+                <div className="pro-modal-overlay">
+                    <div className="pro-modal max-w-lg">
                         <div className="pro-modal-header"><h3>Payroll Details</h3><button onClick={() => setShowDetailsModal(false)} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button></div>
-                        <div className="pro-modal-body">
-                            <div className="space-y-4">
-                                {[
-                                    ['Period', selectedRecord.period],
-                                    ['Employees', selectedRecord.employees],
-                                    ['Gross Pay', selectedRecord.grossPay],
-                                    ['Deductions', selectedRecord.deductions],
-                                    ['Net Pay', selectedRecord.netPay],
-                                    ['Status', selectedRecord.status],
-                                ].map(([label, val]) => (
-                                    <div key={String(label)} className="flex justify-between py-2 border-b border-gray-100">
-                                        <span className="text-gray-500">{label}</span><span className="font-bold text-gray-800">{val}</span>
-                                    </div>
-                                ))}
-                            </div>
+                        <div className="pro-modal-body space-y-4">
+                            {[
+                                ['Period', selectedRecord.period],
+                                ['Employees', String(selectedRecord.employees)],
+                                ['Gross Pay', selectedRecord.grossPay],
+                                ['Deductions', selectedRecord.deductions],
+                                ['Net Pay', selectedRecord.netPay],
+                                ['Status', selectedRecord.status],
+                            ].map(([label, value]) => (
+                                <div key={label} className="flex justify-between py-2 border-b border-gray-100"><span className="text-gray-500">{label}</span><span className="font-bold">{value}</span></div>
+                            ))}
                         </div>
                         <div className="pro-modal-footer"><button onClick={() => setShowDetailsModal(false)} className="btn btn-primary">Close</button></div>
                     </div>
@@ -842,25 +828,25 @@ const Payroll = () => {
 
             {/* Remittance Modal */}
             {showRemittanceModal && (
-                <div className="modal-backdrop">
-                    <div className="pro-modal">
+                <div className="pro-modal-overlay">
+                    <div className="pro-modal max-w-md">
                         <div className="pro-modal-header"><h3>Generate Remittance Report</h3><button onClick={() => setShowRemittanceModal(false)} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button></div>
                         <div className="pro-modal-body space-y-4">
-                            <p className="text-sm text-gray-600">Government remittance reporting is not available yet. Configure the Government Compliance module first.</p>
+                            <p className="text-sm text-gray-600">Government remittance reports will be available after the Government Compliance module is implemented.</p>
                         </div>
                         <div className="pro-modal-footer"><button onClick={() => setShowRemittanceModal(false)} className="btn btn-primary">Close</button></div>
                     </div>
                 </div>
             )}
 
-            {/* Compute 13th Month Modal */}
+            {/* Compute 13th Modal */}
             {showComputeModal && (
-                <div className="modal-backdrop">
-                    <div className="pro-modal">
+                <div className="pro-modal-overlay">
+                    <div className="pro-modal max-w-md">
                         <div className="pro-modal-header"><h3>Compute 13th Month Pay</h3><button onClick={() => setShowComputeModal(false)} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button></div>
                         <div className="pro-modal-body space-y-4">
                             <p className="text-sm text-gray-600">13th month computation is not available yet. This will be enabled once the backend service is implemented.</p>
-                            <div className="bg-orange-50 border border-orange-100 rounded-lg p-3">
+                            <div className="bg-orange-50 p-4 rounded-xl">
                                 <p className="text-orange-700 text-sm font-medium">Current payroll scope: compensation, payroll processing, payroll records, and payslips.</p>
                             </div>
                         </div>
@@ -871,12 +857,12 @@ const Payroll = () => {
 
             {/* Generate Payslips Modal */}
             {showGeneratePayslips && (
-                <div className="modal-backdrop">
-                    <div className="pro-modal">
+                <div className="pro-modal-overlay">
+                    <div className="pro-modal max-w-md">
                         <div className="pro-modal-header"><h3>Generate All Payslips</h3><button onClick={() => setShowGeneratePayslips(false)} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button></div>
                         <div className="pro-modal-body space-y-4">
                             <p className="text-sm text-gray-600">Payslips are generated automatically from processed payroll records.</p>
-                            <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                            <div className="bg-emerald-50 p-4 rounded-xl">
                                 <p className="text-sm text-gray-500">{latestPayrollRecords.length} payslips available for the latest payroll period.</p>
                             </div>
                         </div>
@@ -885,53 +871,55 @@ const Payroll = () => {
                 </div>
             )}
 
-            {/* Payslip Preview */}
+            {/* Payslip Preview Modal */}
             {showPayslipPreview && selectedPayslip && (
-                <div className="modal-backdrop">
+                <div className="pro-modal-overlay">
                     <div className="pro-modal max-w-lg">
                         <div className="bg-gradient-to-r from-emerald-600 to-teal-500 text-white p-6 rounded-t-2xl text-center">
-                            <h2 className="text-xl font-bold">SIMPLEVIA Technologies, Inc.</h2>
-                            <p className="text-sm opacity-90">Employee Payslip</p>
+                            <h3 className="text-lg font-bold">SIMPLEVIA Technologies, Inc.</h3>
+                            <p className="text-xs text-emerald-100/80">Employee Payslip</p>
                         </div>
-                        <div className="p-6 space-y-5">
+                        <div className="pro-modal-body space-y-5">
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 {[
                                     ['Employee ID', selectedPayslip.employeeNumber],
                                     ['Employee', selectedPayslip.employeeName],
-                                    ['Department', selectedPayslip.department || '—'],
+                                    ['Department', '—'],
                                     ['Pay Period', selectedPayrollPeriod ? formatPeriod(selectedPayrollPeriod) : '—'],
-                                    ['Payment Date', formatDate(new Date().toISOString())],
+                                    ['Payment Date', formatDate(selectedPayslip.createdAtUtc)],
                                 ].map(([label, val]) => (
-                                    <div key={String(label)}>
-                                        <p className="text-gray-400">{label}</p>
-                                        <p className="font-bold text-gray-800">{val}</p>
-                                    </div>
+                                    <div key={label}><p className="text-gray-400 text-xs">{label}</p><p className="font-bold text-gray-800">{val}</p></div>
                                 ))}
                             </div>
-                            <div className="border-t border-gray-200 pt-4">
-                                <h4 className="text-sm font-bold text-gray-500 uppercase mb-2">Earnings</h4>
-                                {selectedPayslipEarnings.length === 0 ? (
-                                    <div className="flex justify-between py-2"><span>Basic Pay</span><span className="font-bold">{formatCurrency(selectedPayslip.grossPay)}</span></div>
-                                ) : (
-                                    selectedPayslipEarnings.map((item) => (
-                                        <div key={item.id} className="flex justify-between py-2"><span>{item.name}</span><span className="font-bold">{formatCurrency(item.amount)}</span></div>
-                                    ))
-                                )}
-                                <div className="flex justify-between py-2 border-t border-gray-100 font-bold"><span>Total Earnings</span><span>{formatCurrency(selectedPayslip.grossPay)}</span></div>
+                            <div className="border-t border-gray-100 pt-4">
+                                <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 tracking-wider">Earnings</h4>
+                                <div className="space-y-2">
+                                    {selectedPayslipEarnings.length === 0 ? (
+                                        <div className="flex justify-between text-sm"><span className="text-gray-600">Gross Pay</span><span className="font-semibold">{formatCurrency(selectedPayslip.grossPay)}</span></div>
+                                    ) : (
+                                        selectedPayslipEarnings.map((item) => (
+                                            <div key={item.id} className="flex justify-between text-sm"><span className="text-gray-600">{item.description}</span><span className="font-semibold">{formatCurrency(item.amount)}</span></div>
+                                        ))
+                                    )}
+                                    <div className="flex justify-between text-sm font-bold border-t border-gray-100 pt-1.5"><span>Total Earnings</span><span>{formatCurrency(selectedPayslip.grossPay)}</span></div>
+                                </div>
                             </div>
                             <div>
-                                <h4 className="text-sm font-bold text-gray-500 uppercase mb-2">Deductions</h4>
-                                {selectedPayslipDeductions.length === 0 ? (
-                                    <div className="flex justify-between py-2"><span>Total Deductions</span><span className="font-bold text-red-500">{formatCurrency(selectedPayslip.totalDeductions)}</span></div>
-                                ) : (
-                                    selectedPayslipDeductions.map((item) => (
-                                        <div key={item.id} className="flex justify-between py-2"><span>{item.name}</span><span className="font-bold text-red-500">{formatCurrency(item.amount)}</span></div>
-                                    ))
-                                )}
-                                <div className="flex justify-between py-2 border-t border-gray-100 font-bold"><span>Total Deductions</span><span className="text-red-500">{formatCurrency(selectedPayslip.totalDeductions)}</span></div>
+                                <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 tracking-wider">Deductions</h4>
+                                <div className="space-y-2">
+                                    {selectedPayslipDeductions.length === 0 ? (
+                                        <div className="flex justify-between text-sm"><span className="text-gray-600">Total Deductions</span><span className="text-red-500 font-medium">{formatCurrency(selectedPayslip.totalDeductions)}</span></div>
+                                    ) : (
+                                        selectedPayslipDeductions.map((item) => (
+                                            <div key={item.id} className="flex justify-between text-sm"><span className="text-gray-600">{item.description}</span><span className="text-red-500 font-medium">{formatCurrency(item.amount)}</span></div>
+                                        ))
+                                    )}
+                                    <div className="flex justify-between text-sm font-bold border-t border-gray-100 pt-1.5"><span>Total Deductions</span><span className="text-red-500">{formatCurrency(selectedPayslip.totalDeductions)}</span></div>
+                                </div>
                             </div>
                             <div className="bg-emerald-500 text-white rounded-xl p-4 flex justify-between items-center">
-                                <span className="font-bold">Net Pay</span><span className="text-2xl font-bold">{formatCurrency(selectedPayslip.netPay)}</span>
+                                <span className="font-bold">Net Pay</span>
+                                <span className="font-bold text-xl">{formatCurrency(selectedPayslip.netPay)}</span>
                             </div>
                         </div>
                         <div className="pro-modal-footer">
