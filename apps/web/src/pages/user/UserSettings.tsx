@@ -5,7 +5,8 @@ import {
     Upload, File, X, ShieldCheck, ShieldAlert, Pencil
 } from 'lucide-react';
 import { useMyDocuments } from '../personal-records/hooks/useMyDocuments';
-import { EmployeeDocumentsPanel } from '../../components/personal-records/EmployeeDocumentsPanel';
+import { EmployeeDocumentsPanel, DocumentTypeDropdown } from '../../components/personal-records/EmployeeDocumentsPanel';
+import { EMPLOYEE_DOCUMENT_TYPES, type EmployeeDocumentType } from '../../lib/employees';
 import { useAuth } from '../../context/AuthContext';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
@@ -111,7 +112,7 @@ function useAutoHide(visible: boolean, hide: () => void, isEditing: boolean = fa
 
 interface ConfirmModalProps {
     title:    string;
-    message:  string;
+    message:  React.ReactNode;
     onConfirm: () => void;
     onCancel:  () => void;
 }
@@ -129,11 +130,11 @@ const ConfirmModal = ({ title, message, onConfirm, onCancel }: ConfirmModalProps
             onKeyDown={handleKey}
         >
             <div className="pro-modal w-full max-w-sm p-6 space-y-5">
-                <div className="flex items-center gap-3">
+                <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
                         <Check className="w-5 h-5 text-emerald-600" />
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-800">{title}</p>
                         <p className="text-xs text-gray-400">{message}</p>
                     </div>
@@ -1150,6 +1151,27 @@ setHiredDate(data.dateHired ? new Date(data.dateHired).toLocaleDateString('en-PH
     );
 };
 
+// ─── Filter Dropdown ──────────────────────────────────────────────────────────
+
+type FilterDropdownProps = {
+    value: string;
+    options: readonly string[];
+    onSelect: (value: string) => void;
+    disabled?: boolean;
+};
+
+function FilterDropdown({ value, options, onSelect, disabled }: FilterDropdownProps) {
+    const allOptions = ['All', ...options] as const;
+    return (
+        <DocumentTypeDropdown
+            value={value as any}
+            options={allOptions as any}
+            onSelect={onSelect as any}
+            disabled={disabled}
+        />
+    );
+}
+
 // ─── Documents Tab ────────────────────────────────────────────────────────────
 
 type AvatarState = { url: string | null };
@@ -1160,10 +1182,27 @@ type DocumentPreviewState = {
     fileName?: string | null;
 } | null;
 
-const DocumentsTab = () => {
-    const [preview, setPreview] = useState<DocumentPreviewState>(null);
-    const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
-    const [previewLoading, setPreviewLoading] = useState(false);
+function formatPendingFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    const kb = bytes / 1024;
+    if (kb < 1024) return `${kb.toFixed(kb >= 100 ? 0 : 1)} KB`;
+    const mb = kb / 1024;
+    return `${mb.toFixed(mb >= 100 ? 0 : 1)} MB`;
+}
+
+const DOCUMENTS_PAGE_SIZE = 5;
+
+type UploaderFilter = 'All' | 'Admin' | 'Employee';
+
+const DocumentsTab = ({ onSaved }: { onSaved?: () => void }) => {
+    const [uploadConfirmOpen, setUploadConfirmOpen] = useState(false);
+    const [drawerPreview, setDrawerPreview] = useState<{ url: string; name: string; type: string } | null>(null);
+    const [pendingFile, setPendingFile] = useState<File | null>(null);
+    const [typeSearch, setTypeSearch] = useState('');
+    const [uploaderFilter, setUploaderFilter] = useState<UploaderFilter>('All');
+    const [docPage, setDocPage] = useState(1);
+    const [pendingFileUrl, setPendingFileUrl] = useState<string | null>(null);
+    const [showFilePreview, setShowFilePreview] = useState(false);
 
     const {
         documents,
@@ -1181,11 +1220,7 @@ const DocumentsTab = () => {
     } = useMyDocuments(true, {
         onUploadSuccess: (msg) => {
             toast.success(msg);
-            void createActivityLog({
-                action: 'DOCUMENT_UPLOADED',
-                module: 'DOCUMENTS',
-                summary: 'User uploaded a document.',
-            });
+            onSaved?.();
         },
         onUploadError:   (msg) => toast.error(msg),
         onDownloadSuccess: (msg) => toast.success(msg),
@@ -1194,56 +1229,83 @@ const DocumentsTab = () => {
         onDeleteError:   (msg) => toast.error(msg),
     });
 
-    const clearPreview = () => {
-        setPreview(prev => {
-            if (prev?.url) URL.revokeObjectURL(prev.url);
-            return null;
-        });
-        setActiveDocumentId(null);
-        setPreviewLoading(false);
+    const handleUploadRequest = (file: File) => {
+        setPendingFile(file);
+        setPendingFileUrl(URL.createObjectURL(file));
+        setShowFilePreview(false);
+        setUploadConfirmOpen(true);
+    };
+
+    const handleConfirmUpload = () => {
+        setUploadConfirmOpen(false);
+        if (pendingFile) {
+            void upload(pendingFile);
+        }
+        if (pendingFileUrl) URL.revokeObjectURL(pendingFileUrl);
+        setPendingFile(null);
+        setPendingFileUrl(null);
+        setShowFilePreview(false);
+    };
+
+    const handleCancelUpload = () => {
+        setUploadConfirmOpen(false);
+        if (pendingFileUrl) URL.revokeObjectURL(pendingFileUrl);
+        setPendingFile(null);
+        setPendingFileUrl(null);
+        setShowFilePreview(false);
+    };
+
+    const filteredDocuments = documents.filter(doc => {
+        if (typeSearch.trim()) {
+            const query = typeSearch.trim().toLowerCase();
+            const docType = (doc.documentType ?? '').toLowerCase();
+            if (!docType.includes(query)) return false;
+        }
+        if (uploaderFilter !== 'All' && (doc as any).uploadedByRole !== uploaderFilter) return false;
+        return true;
+    });
+
+    const totalDocPages = Math.max(1, Math.ceil(filteredDocuments.length / DOCUMENTS_PAGE_SIZE));
+    const currentDocPage = Math.min(docPage, totalDocPages);
+    const paginatedDocuments = filteredDocuments.slice(
+        (currentDocPage - 1) * DOCUMENTS_PAGE_SIZE,
+        currentDocPage * DOCUMENTS_PAGE_SIZE
+    );
+    const canGoPrevDoc = currentDocPage > 1;
+    const canGoNextDoc = currentDocPage < totalDocPages;
+
+    const handleTypeSearchChange = (value: string) => {
+        setTypeSearch(value);
+        setDocPage(1);
+    };
+
+    const handleUploaderFilterChange = (value: UploaderFilter) => {
+        setUploaderFilter(value);
+        setDocPage(1);
     };
 
     const handlePreviewSelect = async (doc: import('../../lib/employees').EmployeeDocumentDto) => {
-        if (activeDocumentId === doc.id) { clearPreview(); return; }
-        setPreviewLoading(true);
-        setActiveDocumentId(doc.id);
-        try {
-            const payload = await getPreviewPayload(doc);
-            if (!payload?.url) { clearPreview(); toast.error('Preview could not be loaded.'); return; }
-            setPreview(prev => {
-                if (prev?.url) URL.revokeObjectURL(prev.url);
-                return { url: payload.url, contentType: payload.contentType, fileName: payload.fileName };
-            });
-        } catch {
-            clearPreview();
-            toast.error('Preview could not be loaded.');
-        } finally {
-            setPreviewLoading(false);
-        }
-    };
+    try {
+        const payload = await getPreviewPayload(doc);
+        if (!payload?.url) { toast.error('Preview could not be loaded.'); return; }
+        setDrawerPreview({
+            url: payload.url,
+            name: payload.fileName ?? doc.fileName ?? 'Document',
+            type: payload.contentType ?? doc.contentType ?? '',
+        });
+        setShowFilePreview(true);
+    } catch {
+        toast.error('Preview could not be loaded.');
+    }
+};
 
     return (
         <div className="space-y-5">
-            {/* Preview area */}
-            {(preview || previewLoading) && (
-                <div className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden" style={{ height: 420 }}>
-                    {previewLoading ? (
-                        <div className="flex h-full items-center justify-center text-sm text-gray-500">
-                            Loading preview...
-                        </div>
-                    ) : preview && (preview.contentType?.includes('pdf') || preview.fileName?.endsWith('.pdf')) ? (
-                        <iframe src={preview.url} title={preview.fileName || 'Preview'} className="w-full h-full" />
-                    ) : preview ? (
-                        <div className="flex h-full items-center justify-center overflow-auto p-4">
-                            <img src={preview.url} alt={preview.fileName || 'Preview'} className="max-w-full h-auto object-contain" />
-                        </div>
-                    ) : null}
-                </div>
-            )}
+            
 
             <EmployeeDocumentsPanel
                 employeeId={null}
-                documents={documents}
+                documents={paginatedDocuments}
                 documentsLoading={documentsLoading}
                 documentsError={documentsError}
                 uploading={uploading}
@@ -1251,13 +1313,145 @@ const DocumentsTab = () => {
                 deletingDocumentId={deletingDocumentId}
                 selectedDocumentType={selectedDocumentType}
                 onSelectedDocumentTypeChange={setSelectedDocumentType}
-                onUpload={upload}
+                onUpload={handleUploadRequest}
                 onDownload={download}
                 onDelete={remove}
                 readOnly={false}
                 onPreviewSelect={handlePreviewSelect}
-                activeDocumentId={activeDocumentId}
+                activeDocumentId={null}
+                renderBetween={
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="relative w-64">
+                            <input
+                                type="text"
+                                placeholder="Search by type..."
+                                className="pro-input !pl-9 !h-12 !py-0 w-full"
+                                value={typeSearch}
+                                onChange={e => handleTypeSearchChange(e.target.value)}
+                            />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        </div>
+
+                        <div className="w-40">
+                            <FilterDropdown
+                                value={uploaderFilter}
+                                options={['Admin', 'Employee']}
+                                onSelect={(value) => handleUploaderFilterChange(value as UploaderFilter)}
+                            />
+                        </div>
+                    </div>
+                }
             />
+
+            {!documentsLoading && filteredDocuments.length > 0 && totalDocPages > 1 && (
+                <div className="flex items-center justify-between px-2">
+                    <button
+                        type="button"
+                        onClick={() => canGoPrevDoc && setDocPage(p => p - 1)}
+                        disabled={!canGoPrevDoc}
+                        className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Prev
+                    </button>
+                    <span className="text-gray-500 text-sm font-medium">
+                        Page {currentDocPage} / {totalDocPages}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => canGoNextDoc && setDocPage(p => p + 1)}
+                        disabled={!canGoNextDoc}
+                        className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Next
+                    </button>
+                </div>
+            )}
+
+            {uploadConfirmOpen && pendingFile && (
+                <ConfirmModal
+                    title="Submit this file?"
+                    message={
+                        <div className="space-y-2">
+                            <p>Are you sure you want to submit this file?</p>
+                            <div className="mt-2 w-full rounded-lg bg-gray-50 border border-gray-100 px-3 py-2 text-left">
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-semibold text-gray-700 truncate">{pendingFile.name}</p>
+                                        <p className="text-[11px] text-gray-400 mt-0.5">
+                                            {pendingFile.type || 'Unknown type'} • {formatPendingFileSize(pendingFile.size)}{selectedDocumentType ? ` • ${selectedDocumentType}` : ''}
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowFilePreview(true)}
+                                        title="View file"
+                                        className="shrink-0 text-gray-400 hover:text-emerald-600 transition-colors"
+                                    >
+                                        <Eye className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    onConfirm={handleConfirmUpload}
+                    onCancel={handleCancelUpload}
+                />
+            )}
+
+            {showFilePreview && (pendingFile || drawerPreview) && createPortal(
+                <div className="fixed inset-0 z-[10001] flex justify-end">
+                    <div
+                        className="absolute inset-0 bg-slate-900/50"
+                        onClick={() => {
+                            if (drawerPreview?.url) URL.revokeObjectURL(drawerPreview.url);
+                            setDrawerPreview(null);
+                            setShowFilePreview(false);
+                        }}
+                    />
+                    <div className="relative w-full max-w-md h-full bg-white shadow-2xl flex flex-col animate-slide-in-right">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                            <h2 className="text-base font-bold text-gray-900">File Preview</h2>
+                            <button
+                                type="button"
+                                onClick={() => {
+                            if (drawerPreview?.url) URL.revokeObjectURL(drawerPreview.url);
+                            setDrawerPreview(null);
+                            setShowFilePreview(false);
+                        }}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="px-5 py-3 border-b border-gray-100">
+                            <p className="text-sm font-semibold text-gray-800 truncate">
+                                {drawerPreview ? drawerPreview.name : (pendingFile?.name ?? '')}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                                {drawerPreview
+                                    ? (drawerPreview.type || 'Unknown type')
+                                    : `${pendingFile?.type || 'Unknown type'} • ${formatPendingFileSize(pendingFile?.size ?? 0)}${selectedDocumentType ? ` • ${selectedDocumentType}` : ''}`}
+                            </p>
+                        </div>
+
+                        <div className="flex-1 overflow-auto p-5">
+                            {(() => {
+                                const url  = drawerPreview ? drawerPreview.url  : pendingFileUrl;
+                                const type = drawerPreview ? drawerPreview.type : (pendingFile?.type ?? '');
+                                const name = drawerPreview ? drawerPreview.name : (pendingFile?.name ?? '');
+                                if (!url) return null;
+                                if (type === 'application/pdf' || name.endsWith('.pdf'))
+                                    return <iframe src={url} title={name} className="w-full h-full rounded-lg border border-gray-200" />;
+                                if (type.startsWith('image/'))
+                                    return <img src={url} alt={name} className="max-w-full h-auto object-contain rounded-lg border border-gray-200" />;
+                                return <div className="flex h-full items-center justify-center text-sm text-gray-400">Preview not available for this file type.</div>;
+                            })()}
+                        </div>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 };
@@ -1482,7 +1676,7 @@ const UserSettings = () => {
                 <div className="p-6">
                     <div className={activeTab === 'profile'   ? '' : 'hidden'}><ProfileTab  user={user} onSaved={triggerLogRefresh} /></div>
                     <div className={activeTab === 'security'  ? '' : 'hidden'}><SecurityTab user={user} onSaved={triggerLogRefresh} /></div>
-                    <div className={activeTab === 'documents' ? '' : 'hidden'}><DocumentsTab /></div>
+                    <div className={activeTab === 'documents' ? '' : 'hidden'}><DocumentsTab onSaved={triggerLogRefresh} /></div>
                     <div className={activeTab === 'logs'      ? '' : 'hidden'}><ActivityLogTab refreshKey={logRefreshKey} /></div>
                 </div>
             </div>

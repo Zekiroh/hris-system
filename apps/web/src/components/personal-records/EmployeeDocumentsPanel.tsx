@@ -31,6 +31,7 @@ type Props = {
   readOnly?: boolean;
   onPreviewSelect?: (doc: EmployeeDocumentDto) => void | Promise<void>;
   activeDocumentId?: string | null;
+  renderBetween?: React.ReactNode;
 };
 
 type DocumentTypeDropdownProps = {
@@ -40,7 +41,7 @@ type DocumentTypeDropdownProps = {
   onSelect: (value: EmployeeDocumentType) => void;
 };
 
-function DocumentTypeDropdown({
+export function DocumentTypeDropdown({
   value,
   options,
   disabled,
@@ -479,6 +480,7 @@ export function EmployeeDocumentsPanel({
   readOnly = false,
   onPreviewSelect,
   activeDocumentId = null,
+  renderBetween,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [pendingDeleteDoc, setPendingDeleteDoc] =
@@ -580,7 +582,9 @@ export function EmployeeDocumentsPanel({
           </div>
         ) : null}
 
-        {documentsLoading ? (
+        {renderBetween ?? null}
+
+        {documentsLoading ? ( 
           <div className="flex items-center justify-center rounded-xl border border-gray-100 bg-gray-50 px-4 py-6 text-sm text-gray-500">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Loading documents...
