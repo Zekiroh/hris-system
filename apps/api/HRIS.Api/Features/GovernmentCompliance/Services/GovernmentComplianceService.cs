@@ -59,57 +59,79 @@ public sealed class GovernmentComplianceService : IGovernmentComplianceService
             .OrderByDescending(b => b.EffectiveFrom)
             .FirstOrDefaultAsync(cancellationToken);
 
-        var result = new GovernmentComplianceCalculationResult();
+        var missingRules = new List<string>();
 
-        if (sssBracket is not null)
+        if (sssBracket is null)
         {
-            result.SssEmployeeShare = RoundMoney(sssBracket.EmployeeShare);
-            result.SssEmployerShare = RoundMoney(sssBracket.EmployerShare);
+            missingRules.Add("SSS bracket");
         }
 
-        if (philHealthRule is not null)
+        if (philHealthRule is null)
         {
-            var totalPhilHealthContribution = grossPay * philHealthRule.ContributionRate;
-
-            totalPhilHealthContribution = Math.Max(
-                philHealthRule.MinimumContribution,
-                totalPhilHealthContribution);
-
-            totalPhilHealthContribution = Math.Min(
-                philHealthRule.MaximumContribution,
-                totalPhilHealthContribution);
-
-            result.PhilHealthEmployeeShare = RoundMoney(
-                totalPhilHealthContribution * philHealthRule.EmployeeSharePercent);
-
-            result.PhilHealthEmployerShare = RoundMoney(
-                totalPhilHealthContribution * philHealthRule.EmployerSharePercent);
+            missingRules.Add("PhilHealth rule");
         }
 
-        if (pagIbigRule is not null)
+        if (pagIbigRule is null)
         {
-            var employeeShare = grossPay * pagIbigRule.EmployeeRate;
-            var employerShare = grossPay * pagIbigRule.EmployerRate;
-
-            result.PagIbigEmployeeShare = RoundMoney(
-                Math.Clamp(
-                    employeeShare,
-                    pagIbigRule.MinimumContribution,
-                    pagIbigRule.MaximumContribution));
-
-            result.PagIbigEmployerShare = RoundMoney(
-                Math.Clamp(
-                    employerShare,
-                    pagIbigRule.MinimumContribution,
-                    pagIbigRule.MaximumContribution));
+            missingRules.Add("Pag-IBIG rule");
         }
 
-        if (taxBracket is not null)
+        if (taxBracket is null)
         {
-            result.WithholdingTax = RoundMoney(
-                taxBracket.BaseTax +
-                ((grossPay - taxBracket.ExcessOver) * taxBracket.TaxRate));
+            missingRules.Add("withholding tax bracket");
         }
+
+        if (missingRules.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Missing active compliance configuration for {payrollDate:yyyy-MM-dd}: {string.Join(", ", missingRules)}.");
+        }
+
+        var activeSssBracket = sssBracket!;
+        var activePhilHealthRule = philHealthRule!;
+        var activePagIbigRule = pagIbigRule!;
+        var activeTaxBracket = taxBracket!;
+
+        var result = new GovernmentComplianceCalculationResult
+        {
+            SssEmployeeShare = RoundMoney(activeSssBracket.EmployeeShare),
+            SssEmployerShare = RoundMoney(activeSssBracket.EmployerShare)
+        };
+
+        var totalPhilHealthContribution = grossPay * activePhilHealthRule.ContributionRate;
+
+        totalPhilHealthContribution = Math.Max(
+            activePhilHealthRule.MinimumContribution,
+            totalPhilHealthContribution);
+
+        totalPhilHealthContribution = Math.Min(
+            activePhilHealthRule.MaximumContribution,
+            totalPhilHealthContribution);
+
+        result.PhilHealthEmployeeShare = RoundMoney(
+            totalPhilHealthContribution * activePhilHealthRule.EmployeeSharePercent);
+
+        result.PhilHealthEmployerShare = RoundMoney(
+            totalPhilHealthContribution * activePhilHealthRule.EmployerSharePercent);
+
+        var employeeShare = grossPay * activePagIbigRule.EmployeeRate;
+        var employerShare = grossPay * activePagIbigRule.EmployerRate;
+
+        result.PagIbigEmployeeShare = RoundMoney(
+            Math.Clamp(
+                employeeShare,
+                activePagIbigRule.MinimumContribution,
+                activePagIbigRule.MaximumContribution));
+
+        result.PagIbigEmployerShare = RoundMoney(
+            Math.Clamp(
+                employerShare,
+                activePagIbigRule.MinimumContribution,
+                activePagIbigRule.MaximumContribution));
+
+        result.WithholdingTax = RoundMoney(
+            activeTaxBracket.BaseTax +
+            ((grossPay - activeTaxBracket.ExcessOver) * activeTaxBracket.TaxRate));
 
         return result;
     }
@@ -129,6 +151,17 @@ public sealed class GovernmentComplianceService : IGovernmentComplianceService
         CreateSssContributionBracketRequest request,
         CancellationToken cancellationToken = default)
     {
+        await ValidateSssBracketAsync(
+            request.SalaryFrom,
+            request.SalaryTo,
+            request.EmployeeShare,
+            request.EmployerShare,
+            request.EffectiveFrom,
+            request.EffectiveTo,
+            request.IsActive,
+            null,
+            cancellationToken);
+
         var bracket = new SssContributionBracket
         {
             SalaryFrom = request.SalaryFrom,
@@ -159,6 +192,17 @@ public sealed class GovernmentComplianceService : IGovernmentComplianceService
             return null;
         }
 
+        await ValidateSssBracketAsync(
+            request.SalaryFrom,
+            request.SalaryTo,
+            request.EmployeeShare,
+            request.EmployerShare,
+            request.EffectiveFrom,
+            request.EffectiveTo,
+            request.IsActive,
+            id,
+            cancellationToken);
+
         bracket.SalaryFrom = request.SalaryFrom;
         bracket.SalaryTo = request.SalaryTo;
         bracket.EmployeeShare = request.EmployeeShare;
@@ -186,6 +230,18 @@ public sealed class GovernmentComplianceService : IGovernmentComplianceService
         CreatePhilHealthContributionRuleRequest request,
         CancellationToken cancellationToken = default)
     {
+        await ValidatePhilHealthRuleAsync(
+            request.ContributionRate,
+            request.MinimumContribution,
+            request.MaximumContribution,
+            request.EmployeeSharePercent,
+            request.EmployerSharePercent,
+            request.EffectiveFrom,
+            request.EffectiveTo,
+            request.IsActive,
+            null,
+            cancellationToken);
+
         var rule = new PhilHealthContributionRule
         {
             ContributionRate = request.ContributionRate,
@@ -217,6 +273,18 @@ public sealed class GovernmentComplianceService : IGovernmentComplianceService
             return null;
         }
 
+        await ValidatePhilHealthRuleAsync(
+            request.ContributionRate,
+            request.MinimumContribution,
+            request.MaximumContribution,
+            request.EmployeeSharePercent,
+            request.EmployerSharePercent,
+            request.EffectiveFrom,
+            request.EffectiveTo,
+            request.IsActive,
+            id,
+            cancellationToken);
+
         rule.ContributionRate = request.ContributionRate;
         rule.MinimumContribution = request.MinimumContribution;
         rule.MaximumContribution = request.MaximumContribution;
@@ -245,6 +313,17 @@ public sealed class GovernmentComplianceService : IGovernmentComplianceService
         CreatePagIbigContributionRuleRequest request,
         CancellationToken cancellationToken = default)
     {
+        await ValidatePagIbigRuleAsync(
+            request.EmployeeRate,
+            request.EmployerRate,
+            request.MinimumContribution,
+            request.MaximumContribution,
+            request.EffectiveFrom,
+            request.EffectiveTo,
+            request.IsActive,
+            null,
+            cancellationToken);
+
         var rule = new PagIbigContributionRule
         {
             EmployeeRate = request.EmployeeRate,
@@ -275,6 +354,17 @@ public sealed class GovernmentComplianceService : IGovernmentComplianceService
             return null;
         }
 
+        await ValidatePagIbigRuleAsync(
+            request.EmployeeRate,
+            request.EmployerRate,
+            request.MinimumContribution,
+            request.MaximumContribution,
+            request.EffectiveFrom,
+            request.EffectiveTo,
+            request.IsActive,
+            id,
+            cancellationToken);
+
         rule.EmployeeRate = request.EmployeeRate;
         rule.EmployerRate = request.EmployerRate;
         rule.MinimumContribution = request.MinimumContribution;
@@ -303,6 +393,18 @@ public sealed class GovernmentComplianceService : IGovernmentComplianceService
         CreateWithholdingTaxBracketRequest request,
         CancellationToken cancellationToken = default)
     {
+        await ValidateWithholdingTaxBracketAsync(
+            request.CompensationFrom,
+            request.CompensationTo,
+            request.BaseTax,
+            request.ExcessOver,
+            request.TaxRate,
+            request.EffectiveFrom,
+            request.EffectiveTo,
+            request.IsActive,
+            null,
+            cancellationToken);
+
         var bracket = new WithholdingTaxBracket
         {
             CompensationFrom = request.CompensationFrom,
@@ -334,6 +436,18 @@ public sealed class GovernmentComplianceService : IGovernmentComplianceService
             return null;
         }
 
+        await ValidateWithholdingTaxBracketAsync(
+            request.CompensationFrom,
+            request.CompensationTo,
+            request.BaseTax,
+            request.ExcessOver,
+            request.TaxRate,
+            request.EffectiveFrom,
+            request.EffectiveTo,
+            request.IsActive,
+            id,
+            cancellationToken);
+
         bracket.CompensationFrom = request.CompensationFrom;
         bracket.CompensationTo = request.CompensationTo;
         bracket.BaseTax = request.BaseTax;
@@ -346,6 +460,218 @@ public sealed class GovernmentComplianceService : IGovernmentComplianceService
         await _context.SaveChangesAsync(cancellationToken);
 
         return ToWithholdingTaxBracketDto(bracket);
+    }
+
+    private async Task ValidateSssBracketAsync(
+        decimal salaryFrom,
+        decimal? salaryTo,
+        decimal employeeShare,
+        decimal employerShare,
+        DateOnly effectiveFrom,
+        DateOnly? effectiveTo,
+        bool isActive,
+        int? excludedId,
+        CancellationToken cancellationToken)
+    {
+        if (salaryFrom < 0)
+        {
+            throw new ArgumentException("SalaryFrom must be greater than or equal to zero.");
+        }
+
+        if (salaryTo is not null && salaryTo < salaryFrom)
+        {
+            throw new ArgumentException("SalaryTo must be greater than or equal to SalaryFrom.");
+        }
+
+        if (employeeShare < 0 || employerShare < 0)
+        {
+            throw new ArgumentException("SSS employee and employer shares must be greater than or equal to zero.");
+        }
+
+        ValidateEffectiveRange(effectiveFrom, effectiveTo);
+
+        if (!isActive)
+        {
+            return;
+        }
+
+        var effectiveEnd = effectiveTo ?? DateOnly.MaxValue;
+        var salaryEnd = salaryTo ?? decimal.MaxValue;
+
+        var hasOverlap = await _context.SssContributionBrackets
+            .AsNoTracking()
+            .AnyAsync(x =>
+                x.IsActive &&
+                (!excludedId.HasValue || x.Id != excludedId.Value) &&
+                x.EffectiveFrom <= effectiveEnd &&
+                (x.EffectiveTo == null || x.EffectiveTo >= effectiveFrom) &&
+                x.SalaryFrom <= salaryEnd &&
+                (x.SalaryTo == null || x.SalaryTo >= salaryFrom),
+                cancellationToken);
+
+        if (hasOverlap)
+        {
+            throw new InvalidOperationException("Overlapping active SSS bracket detected.");
+        }
+    }
+
+    private async Task ValidatePhilHealthRuleAsync(
+        decimal contributionRate,
+        decimal minimumContribution,
+        decimal maximumContribution,
+        decimal employeeSharePercent,
+        decimal employerSharePercent,
+        DateOnly effectiveFrom,
+        DateOnly? effectiveTo,
+        bool isActive,
+        int? excludedId,
+        CancellationToken cancellationToken)
+    {
+        if (contributionRate < 0)
+        {
+            throw new ArgumentException("ContributionRate must be greater than or equal to zero.");
+        }
+
+        if (minimumContribution < 0 || maximumContribution < minimumContribution)
+        {
+            throw new ArgumentException("PhilHealth contribution range is invalid.");
+        }
+
+        if (employeeSharePercent < 0 || employeeSharePercent > 1 ||
+            employerSharePercent < 0 || employerSharePercent > 1)
+        {
+            throw new ArgumentException("PhilHealth share percentages must be between 0 and 1.");
+        }
+
+        ValidateEffectiveRange(effectiveFrom, effectiveTo);
+
+        if (!isActive)
+        {
+            return;
+        }
+
+        var effectiveEnd = effectiveTo ?? DateOnly.MaxValue;
+
+        var hasOverlap = await _context.PhilHealthContributionRules
+            .AsNoTracking()
+            .AnyAsync(x =>
+                x.IsActive &&
+                (!excludedId.HasValue || x.Id != excludedId.Value) &&
+                x.EffectiveFrom <= effectiveEnd &&
+                (x.EffectiveTo == null || x.EffectiveTo >= effectiveFrom),
+                cancellationToken);
+
+        if (hasOverlap)
+        {
+            throw new InvalidOperationException("Overlapping active PhilHealth rule detected.");
+        }
+    }
+
+    private async Task ValidatePagIbigRuleAsync(
+        decimal employeeRate,
+        decimal employerRate,
+        decimal minimumContribution,
+        decimal maximumContribution,
+        DateOnly effectiveFrom,
+        DateOnly? effectiveTo,
+        bool isActive,
+        int? excludedId,
+        CancellationToken cancellationToken)
+    {
+        if (employeeRate < 0 || employerRate < 0)
+        {
+            throw new ArgumentException("Pag-IBIG employee and employer rates must be greater than or equal to zero.");
+        }
+
+        if (minimumContribution < 0 || maximumContribution < minimumContribution)
+        {
+            throw new ArgumentException("Pag-IBIG contribution range is invalid.");
+        }
+
+        ValidateEffectiveRange(effectiveFrom, effectiveTo);
+
+        if (!isActive)
+        {
+            return;
+        }
+
+        var effectiveEnd = effectiveTo ?? DateOnly.MaxValue;
+
+        var hasOverlap = await _context.PagIbigContributionRules
+            .AsNoTracking()
+            .AnyAsync(x =>
+                x.IsActive &&
+                (!excludedId.HasValue || x.Id != excludedId.Value) &&
+                x.EffectiveFrom <= effectiveEnd &&
+                (x.EffectiveTo == null || x.EffectiveTo >= effectiveFrom),
+                cancellationToken);
+
+        if (hasOverlap)
+        {
+            throw new InvalidOperationException("Overlapping active Pag-IBIG rule detected.");
+        }
+    }
+
+    private async Task ValidateWithholdingTaxBracketAsync(
+        decimal compensationFrom,
+        decimal? compensationTo,
+        decimal baseTax,
+        decimal excessOver,
+        decimal taxRate,
+        DateOnly effectiveFrom,
+        DateOnly? effectiveTo,
+        bool isActive,
+        int? excludedId,
+        CancellationToken cancellationToken)
+    {
+        if (compensationFrom < 0)
+        {
+            throw new ArgumentException("CompensationFrom must be greater than or equal to zero.");
+        }
+
+        if (compensationTo is not null && compensationTo < compensationFrom)
+        {
+            throw new ArgumentException("CompensationTo must be greater than or equal to CompensationFrom.");
+        }
+
+        if (baseTax < 0 || excessOver < 0 || taxRate < 0)
+        {
+            throw new ArgumentException("Withholding tax values must be greater than or equal to zero.");
+        }
+
+        ValidateEffectiveRange(effectiveFrom, effectiveTo);
+
+        if (!isActive)
+        {
+            return;
+        }
+
+        var effectiveEnd = effectiveTo ?? DateOnly.MaxValue;
+        var compensationEnd = compensationTo ?? decimal.MaxValue;
+
+        var hasOverlap = await _context.WithholdingTaxBrackets
+            .AsNoTracking()
+            .AnyAsync(x =>
+                x.IsActive &&
+                (!excludedId.HasValue || x.Id != excludedId.Value) &&
+                x.EffectiveFrom <= effectiveEnd &&
+                (x.EffectiveTo == null || x.EffectiveTo >= effectiveFrom) &&
+                x.CompensationFrom <= compensationEnd &&
+                (x.CompensationTo == null || x.CompensationTo >= compensationFrom),
+                cancellationToken);
+
+        if (hasOverlap)
+        {
+            throw new InvalidOperationException("Overlapping active withholding tax bracket detected.");
+        }
+    }
+
+    private static void ValidateEffectiveRange(DateOnly effectiveFrom, DateOnly? effectiveTo)
+    {
+        if (effectiveTo is not null && effectiveTo < effectiveFrom)
+        {
+            throw new ArgumentException("EffectiveTo must be greater than or equal to EffectiveFrom.");
+        }
     }
 
     private static SssContributionBracketDto ToSssContributionBracketDto(
