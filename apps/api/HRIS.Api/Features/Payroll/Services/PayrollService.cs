@@ -1,4 +1,5 @@
 using HRIS.Api.Data;
+using HRIS.Api.Features.GovernmentCompliance.Services;
 using HRIS.Api.Features.Payroll.DTOs;
 using HRIS.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -21,10 +22,14 @@ public class PayrollService : IPayrollService
     private const int StandardWorkingMinutesPerDay = 480;
 
     private readonly AppDbContext _context;
+    private readonly IGovernmentComplianceService _governmentComplianceService;
 
-    public PayrollService(AppDbContext context)
+    public PayrollService(
+        AppDbContext context,
+        IGovernmentComplianceService governmentComplianceService)
     {
         _context = context;
+        _governmentComplianceService = governmentComplianceService;
     }
 
     public async Task<PayrollPeriodDto> ProcessPayrollAsync(ProcessPayrollRequest request)
@@ -155,7 +160,27 @@ public class PayrollService : IPayrollService
             var absenceDeduction = RoundMoney(absenceDays * dailyRate);
 
             var grossPay = RoundMoney(basicPay + overtimePay);
-            var totalDeductions = RoundMoney(lateAndUndertimeDeduction + absenceDeduction);
+
+            var compliance = await _governmentComplianceService.CalculateAsync(
+                grossPay,
+                request.EndDate);
+
+            var sssDeduction = RoundMoney(compliance.SssEmployeeShare);
+            var philHealthDeduction = RoundMoney(compliance.PhilHealthEmployeeShare);
+            var pagIbigDeduction = RoundMoney(compliance.PagIbigEmployeeShare);
+            var withholdingTaxDeduction = RoundMoney(compliance.WithholdingTax);
+
+            var governmentComplianceDeductions = RoundMoney(
+                sssDeduction +
+                philHealthDeduction +
+                pagIbigDeduction +
+                withholdingTaxDeduction);
+
+            var totalDeductions = RoundMoney(
+                lateAndUndertimeDeduction +
+                absenceDeduction +
+                governmentComplianceDeductions);
+
             var netPay = RoundMoney(grossPay - totalDeductions);
 
             var payrollRecord = new PayrollRecord
@@ -203,6 +228,46 @@ public class PayrollService : IPayrollService
                     Type = "Deduction",
                     Description = $"Absence ({absenceDays} day/s)",
                     Amount = absenceDeduction
+                });
+            }
+
+            if (sssDeduction > 0)
+            {
+                payrollRecord.Items.Add(new PayrollRecordItem
+                {
+                    Type = "Deduction",
+                    Description = "SSS",
+                    Amount = sssDeduction
+                });
+            }
+
+            if (philHealthDeduction > 0)
+            {
+                payrollRecord.Items.Add(new PayrollRecordItem
+                {
+                    Type = "Deduction",
+                    Description = "PhilHealth",
+                    Amount = philHealthDeduction
+                });
+            }
+
+            if (pagIbigDeduction > 0)
+            {
+                payrollRecord.Items.Add(new PayrollRecordItem
+                {
+                    Type = "Deduction",
+                    Description = "Pag-IBIG",
+                    Amount = pagIbigDeduction
+                });
+            }
+
+            if (withholdingTaxDeduction > 0)
+            {
+                payrollRecord.Items.Add(new PayrollRecordItem
+                {
+                    Type = "Deduction",
+                    Description = "Withholding Tax",
+                    Amount = withholdingTaxDeduction
                 });
             }
 

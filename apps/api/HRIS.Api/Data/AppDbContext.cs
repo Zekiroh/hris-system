@@ -32,6 +32,11 @@ public class AppDbContext : DbContext
     public DbSet<PayrollRecord> PayrollRecords => Set<PayrollRecord>();
     public DbSet<PayrollRecordItem> PayrollRecordItems => Set<PayrollRecordItem>();
 
+    public DbSet<SssContributionBracket> SssContributionBrackets => Set<SssContributionBracket>();
+    public DbSet<PhilHealthContributionRule> PhilHealthContributionRules => Set<PhilHealthContributionRule>();
+    public DbSet<PagIbigContributionRule> PagIbigContributionRules => Set<PagIbigContributionRule>();
+    public DbSet<WithholdingTaxBracket> WithholdingTaxBrackets => Set<WithholdingTaxBracket>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
