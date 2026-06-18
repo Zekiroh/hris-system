@@ -59,7 +59,7 @@ type DropdownKey =
   | "city"
   | null;
 
-const PROVINCE_OPTIONS: SelectOption[] = Object.keys(LOCATION_OPTIONS).map(
+export const PROVINCE_OPTIONS: SelectOption[] = Object.keys(LOCATION_OPTIONS).map(
   (province) => ({
     label: province,
     value: province,
