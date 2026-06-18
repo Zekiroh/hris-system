@@ -205,10 +205,17 @@ export default function App() {
               </AdminOnly>
             }
           />
+          <Route
+            path="compliance"
+            element={
+              <AdminOnly>
+                <GovernmentCompliance />
+              </AdminOnly>
+            }
+          />
           <Route path="settings" element={<SettingsPage />} />
 
           {/* Shared routes */}
-          <Route path="compliance" element={<GovernmentCompliance />} />
           <Route path="leave" element={<LeaveManagement />} />
           <Route path="my-attendance" element={<UserAttendance />} />
           <Route path="my-daily-accomplishment" element={<DailyAccomplishmentReport />} />
