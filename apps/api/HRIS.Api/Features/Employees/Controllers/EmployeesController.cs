@@ -167,7 +167,7 @@ public class EmployeesController : ControllerBase
 
     [HttpGet("me")]
     [Authorize]
-    public async Task<ActionResult<EmployeeDto>> GetMe(CancellationToken ct)
+    public async Task<ActionResult<EmployeeProfileDto>> GetMe(CancellationToken ct)
     {
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
                         ?? User.FindFirstValue("sub");
@@ -175,7 +175,7 @@ public class EmployeesController : ControllerBase
         if (!long.TryParse(userIdStr, out var userId))
             return Unauthorized();
 
-        var employee = await _employees.GetByUserIdAsync(userId, ct);
+        var employee = await _employees.GetProfileByUserIdAsync(userId, ct);
         if (employee is null) return NotFound();
 
         return Ok(employee);
@@ -183,7 +183,7 @@ public class EmployeesController : ControllerBase
 
     [HttpPut("me")]
     [Authorize]
-    public async Task<ActionResult<EmployeeDto>> UpdateMe(
+    public async Task<ActionResult<EmployeeProfileDto>> UpdateMe(
         [FromBody] UpdateEmployeeRequest req,
         CancellationToken ct)
     {

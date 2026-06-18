@@ -221,7 +221,17 @@ public class EmployeesService
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task<(bool ok, string? error, EmployeeDto? employee)> UpdateByUserIdAsync(
+    public async Task<EmployeeProfileDto?> GetProfileByUserIdAsync(long userId, CancellationToken ct = default)
+    {
+        return await _db.Employees
+            .AsNoTracking()
+            .Include(e => e.User)
+            .Where(e => e.UserId == userId)
+            .Select(ToProfileDtoExpr())
+            .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<(bool ok, string? error, EmployeeProfileDto? employee)> UpdateByUserIdAsync(
         long userId,
         UpdateEmployeeRequest req,
         CancellationToken ct = default)
@@ -244,7 +254,7 @@ public class EmployeesService
             Position = entity.Position,
             EmploymentType = entity.EmploymentType ?? req.EmploymentType,
             ContactNumber = req.ContactNumber,
-            Email = req.Email,
+            Email = entity.User?.Email ?? entity.Email,
             AddressLine1 = req.AddressLine1,
             AddressLine2 = req.AddressLine2,
             City = req.City,
@@ -257,7 +267,11 @@ public class EmployeesService
             IsActive = entity.IsActive
         };
 
-        return await UpdateAsync(entity.Id, selfServiceRequest, ct);
+        var (ok, error, _) = await UpdateAsync(entity.Id, selfServiceRequest, ct);
+        if (!ok) return (false, error, null);
+
+        var updatedEmployee = await GetProfileByUserIdAsync(userId, ct);
+        return (true, null, updatedEmployee);
     }
     public async Task<List<EmployeeDocumentDto>> GetDocumentsAsync(
         Guid employeeId,
@@ -1068,6 +1082,110 @@ public class EmployeesService
             PhilHealthNumber = e.PhilHealthNumber,
             PagIbigNumber = e.PagIbigNumber,
             TINNumber = e.TinNumber,
+
+            IsActive = e.IsActive,
+            IsNewHire = e.DateHired >= newHireCutoff && e.DateHired <= todayUtc,
+            CreatedAtUtc = e.CreatedAtUtc,
+            UpdatedAtUtc = e.UpdatedAtUtc
+        };
+    }
+
+
+    private static EmployeeProfileDto ToProfileDto(Employee e)
+    {
+        var todayUtc = DateOnly.FromDateTime(DateTime.UtcNow.Date);
+        var newHireCutoff = todayUtc.AddDays(-7);
+
+        var firstName = e.User != null ? e.User.FirstName ?? e.FirstName : e.FirstName;
+        var middleName = e.User != null ? e.User.MiddleName : e.MiddleName;
+        var lastName = e.User != null ? e.User.LastName ?? e.LastName : e.LastName;
+        var suffix = e.User != null ? e.User.Suffix : null;
+
+        return new EmployeeProfileDto
+        {
+            Id = e.Id,
+            EmployeeNumber = e.EmployeeNumber,
+            FirstName = firstName,
+            MiddleName = middleName,
+            LastName = lastName,
+            Suffix = suffix,
+            FullName = BuildDisplayName(firstName, middleName, lastName, suffix),
+
+            BirthDate = e.BirthDate,
+            Sex = e.Sex,
+            CivilStatus = e.CivilStatus,
+
+            DateHired = e.DateHired,
+            EmploymentType = e.EmploymentType,
+
+            Department = e.Department,
+            Position = e.Position,
+
+            ContactNumber = e.ContactNumber,
+            Email = e.User != null ? e.User.Email : e.Email,
+
+            AddressLine1 = e.AddressLine1,
+            AddressLine2 = e.AddressLine2,
+            City = e.City,
+            Province = e.Province,
+            ZipCode = e.ZipCode,
+
+            IsActive = e.IsActive,
+            IsNewHire = e.DateHired >= newHireCutoff && e.DateHired <= todayUtc,
+            CreatedAtUtc = e.CreatedAtUtc,
+            UpdatedAtUtc = e.UpdatedAtUtc
+        };
+    }
+
+    private static Expression<Func<Employee, EmployeeProfileDto>> ToProfileDtoExpr()
+    {
+        var todayUtc = DateOnly.FromDateTime(DateTime.UtcNow.Date);
+        var newHireCutoff = todayUtc.AddDays(-7);
+
+        return e => new EmployeeProfileDto
+        {
+            Id = e.Id,
+            EmployeeNumber = e.EmployeeNumber,
+            FirstName = e.User != null ? (e.User.FirstName ?? e.FirstName) : e.FirstName,
+            MiddleName = e.User != null ? e.User.MiddleName : e.MiddleName,
+            LastName = e.User != null ? (e.User.LastName ?? e.LastName) : e.LastName,
+            Suffix = e.User != null ? e.User.Suffix : null,
+            FullName =
+                (
+                    string.IsNullOrWhiteSpace(e.User != null ? (e.User.LastName ?? e.LastName) : e.LastName)
+                        ? ""
+                        : (e.User != null ? (e.User.LastName ?? e.LastName) : e.LastName) + ", "
+                ) +
+                (e.User != null ? (e.User.FirstName ?? e.FirstName) : e.FirstName) +
+                (
+                    string.IsNullOrWhiteSpace(e.User != null ? e.User.MiddleName : e.MiddleName)
+                        ? ""
+                        : " " + (e.User != null ? e.User.MiddleName : e.MiddleName)!.Substring(0, 1).ToUpper() + "."
+                ) +
+                (
+                    string.IsNullOrWhiteSpace(e.User != null ? e.User.Suffix : null)
+                        ? ""
+                        : ", " + (e.User != null ? e.User.Suffix : null)
+                ),
+
+            BirthDate = e.BirthDate,
+            Sex = e.Sex,
+            CivilStatus = e.CivilStatus,
+
+            DateHired = e.DateHired,
+            EmploymentType = e.EmploymentType,
+
+            Department = e.Department,
+            Position = e.Position,
+
+            ContactNumber = e.ContactNumber,
+            Email = e.User != null ? e.User.Email : e.Email,
+
+            AddressLine1 = e.AddressLine1,
+            AddressLine2 = e.AddressLine2,
+            City = e.City,
+            Province = e.Province,
+            ZipCode = e.ZipCode,
 
             IsActive = e.IsActive,
             IsNewHire = e.DateHired >= newHireCutoff && e.DateHired <= todayUtc,
