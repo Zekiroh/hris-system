@@ -86,6 +86,8 @@ public class UserActivityLogsController : ControllerBase
                                      a.ActorEmail.ToLower() == userEmail.ToLower());
         else if (int.TryParse(userIdStr, out var userId))
             query = query.Where(a => a.ActorUserId == userId);
+        else
+            return Unauthorized(new { message = "Unable to identify current user." });
 
         query = query.Where(a => a.Action != "EMPLOYEE_UPDATED");
 

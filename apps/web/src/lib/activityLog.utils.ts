@@ -99,12 +99,15 @@ export function formatActionLabel(action: string) {
       return 'Updated Status';
 
     case 'EMPLOYEE_DOCUMENT_UPLOADED':
+    case 'DOCUMENT_UPLOADED':
       return 'Document Uploaded';
 
     case 'EMPLOYEE_DOCUMENT_DOWNLOADED':
+    case 'DOCUMENT_DOWNLOADED':
       return 'Document Downloaded';
 
     case 'EMPLOYEE_DOCUMENT_DELETED':
+    case 'DOCUMENT_DELETED':
       return 'Document Deleted';
       
     case 'PASSWORD_CHANGED':
@@ -182,12 +185,15 @@ export function getBadgeClassName(action: string) {
       return 'bg-violet-50 text-violet-700 border border-violet-100';
 
     case 'EMPLOYEE_DOCUMENT_UPLOADED':
+    case 'DOCUMENT_UPLOADED':
       return 'bg-emerald-50 text-emerald-700 border border-emerald-100';
 
     case 'EMPLOYEE_DOCUMENT_DOWNLOADED':
+    case 'DOCUMENT_DOWNLOADED':
       return 'bg-blue-50 text-blue-700 border border-blue-100';
 
     case 'EMPLOYEE_DOCUMENT_DELETED':
+    case 'DOCUMENT_DELETED':
       return 'bg-red-50 text-red-700 border border-red-100';
 
     case 'ATTENDANCE_TIME_IN':
@@ -408,21 +414,21 @@ export function prettifyDetails(
     return 'Employee status was updated';
   }
 
-  if (log.action === 'EMPLOYEE_DOCUMENT_UPLOADED') {
+  if (log.action === 'EMPLOYEE_DOCUMENT_UPLOADED' || log.action === 'DOCUMENT_UPLOADED') {
     return summary
       .replace(/^Uploaded document\s+/i, '')
       .replace(/\s+for employee\s+/i, ' uploaded for ')
       .trim();
   }
 
-  if (log.action === 'EMPLOYEE_DOCUMENT_DOWNLOADED') {
+  if (log.action === 'EMPLOYEE_DOCUMENT_DOWNLOADED' || log.action === 'DOCUMENT_DOWNLOADED') {
     return summary
       .replace(/^Downloaded document\s+/i, '')
       .replace(/\s+for employee\s+/i, ' downloaded for ')
       .trim();
   }
 
-  if (log.action === 'EMPLOYEE_DOCUMENT_DELETED') {
+  if (log.action === 'EMPLOYEE_DOCUMENT_DELETED' || log.action === 'DOCUMENT_DELETED') {
     return summary
       .replace(/^Deleted document\s+/i, '')
       .replace(/\s+for employee\s+/i, ' deleted from ')

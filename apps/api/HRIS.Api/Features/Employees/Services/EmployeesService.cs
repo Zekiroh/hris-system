@@ -232,7 +232,32 @@ public class EmployeesService
 
         if (entity is null) return (false, "Employee not found.", null);
 
-        return await UpdateAsync(entity.Id, req, ct);
+        var selfServiceRequest = new UpdateEmployeeRequest
+        {
+            FirstName = entity.FirstName,
+            MiddleName = entity.MiddleName,
+            LastName = entity.LastName,
+            BirthDate = entity.BirthDate,
+            Sex = entity.Sex,
+            CivilStatus = entity.CivilStatus,
+            Department = entity.Department,
+            Position = entity.Position,
+            EmploymentType = entity.EmploymentType ?? req.EmploymentType,
+            ContactNumber = req.ContactNumber,
+            Email = req.Email,
+            AddressLine1 = req.AddressLine1,
+            AddressLine2 = req.AddressLine2,
+            City = req.City,
+            Province = req.Province,
+            ZipCode = req.ZipCode,
+            SSSNumber = entity.SssNumber,
+            PhilHealthNumber = entity.PhilHealthNumber,
+            PagIbigNumber = entity.PagIbigNumber,
+            TINNumber = entity.TinNumber,
+            IsActive = entity.IsActive
+        };
+
+        return await UpdateAsync(entity.Id, selfServiceRequest, ct);
     }
     public async Task<List<EmployeeDocumentDto>> GetDocumentsAsync(
         Guid employeeId,
