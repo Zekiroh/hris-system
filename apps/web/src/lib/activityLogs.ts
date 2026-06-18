@@ -110,3 +110,31 @@ export async function exportActivityLogs(
 
   return await response.blob();
 }
+
+export type CreateActivityLogRequest = {
+  action: string;
+  module: string;
+  summary?: string;
+  targetType?: string;
+  targetId?: string;
+};
+
+export async function createActivityLog(payload: CreateActivityLogRequest): Promise<void> {
+  await apiRequest<void>('/activity-logs', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getUserActivityLogs(query: Omit<GetActivityLogsParams, 'module' | 'action'> = {}) {
+  const params = new URLSearchParams();
+
+  if (query.search?.trim()) params.set('search', query.search.trim());
+  if (typeof query.page === 'number') params.set('page', String(query.page));
+  if (typeof query.pageSize === 'number') params.set('pageSize', String(query.pageSize));
+
+  const qs = params.toString();
+  return apiRequest<GetActivityLogsResponse>(
+    `/activity-logs/me${qs ? `?${qs}` : ''}`
+  );
+}

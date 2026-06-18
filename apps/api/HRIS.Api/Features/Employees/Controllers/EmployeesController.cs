@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using HRIS.Api.Features.Employees.DTOs;
 using HRIS.Api.Features.Employees.Services;
 using HRIS.Api.Features.IAM.Controllers;
@@ -46,15 +47,177 @@ public class EmployeesController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("me/documents")]
+    [Authorize]
+    public async Task<ActionResult<List<EmployeeDocumentDto>>> GetMyDocuments(
+        CancellationToken ct)
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                        ?? User.FindFirstValue("sub");
+
+        if (!long.TryParse(userIdStr, out var userId))
+            return Unauthorized();
+
+        var employee = await _employees.GetByUserIdAsync(userId, ct);
+        if (employee is null) return NotFound();
+
+        var docs = await _employees.GetDocumentsAsync(employee.Id, ct);
+        return Ok(docs);
+    }
+
+    [HttpPost("me/documents")]
+    [Authorize]
+    [RequestSizeLimit(10_000_000)]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadMyDocument(
+        [FromForm] UploadEmployeeDocumentRequest req,
+        CancellationToken ct)
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                        ?? User.FindFirstValue("sub");
+
+        if (!long.TryParse(userIdStr, out var userId))
+            return Unauthorized();
+
+        var employee = await _employees.GetByUserIdAsync(userId, ct);
+        if (employee is null) return NotFound();
+
+        var (ok, error, document) = await _employees.UploadDocumentAsync(
+            User,
+            employee.Id,
+            req.DocumentType,
+            req.File,
+            ct);
+
+        if (!ok)
+        {
+            if (error == "Employee not found.") return NotFound();
+            return BadRequest(new { message = error });
+        }
+
+        return Ok(new
+        {
+            message = "Document uploaded successfully.",
+            documentId = document!.Id,
+            documentType = document.DocumentType,
+            originalFileName = document.OriginalFileName
+        });
+    }
+
+    [HttpGet("me/documents/{documentId:guid}")]
+    [Authorize]
+    public async Task<IActionResult> DownloadMyDocument(
+        Guid documentId,
+        CancellationToken ct)
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                        ?? User.FindFirstValue("sub");
+
+        if (!long.TryParse(userIdStr, out var userId))
+            return Unauthorized();
+
+        var employee = await _employees.GetByUserIdAsync(userId, ct);
+        if (employee is null) return NotFound();
+
+        var (ok, error, file) = await _employees.DownloadDocumentAsync(
+            User,
+            employee.Id,
+            documentId,
+            ct);
+
+        if (!ok)
+        {
+            if (error == "Document not found.") return NotFound();
+            return BadRequest(new { message = error });
+        }
+
+        var download = file!.Value;
+        return File(download.Stream, download.ContentType, download.OriginalFileName);
+    }
+
+    [HttpDelete("me/documents/{documentId:guid}")]
+    [Authorize]
+    public async Task<IActionResult> DeleteMyDocument(
+        Guid documentId,
+        CancellationToken ct)
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                        ?? User.FindFirstValue("sub");
+
+        if (!long.TryParse(userIdStr, out var userId))
+            return Unauthorized();
+
+        var employee = await _employees.GetByUserIdAsync(userId, ct);
+        if (employee is null) return NotFound();
+
+        var (ok, error) = await _employees.DeleteDocumentAsync(
+            User,
+            employee.Id,
+            documentId,
+            ct);
+
+        if (!ok)
+        {
+            if (error == "Document not found.") return NotFound();
+            return BadRequest(new { message = error });
+        }
+
+        return NoContent();
+    }
 
     [HttpGet("me")]
-    public async Task<ActionResult<EmployeeDto>> GetCurrentEmployee(CancellationToken ct)
+    [Authorize]
+    public async Task<ActionResult<EmployeeProfileDto>> GetMe(CancellationToken ct)
     {
-        var employee = await _employees.GetCurrentEmployeeAsync(ct);
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                        ?? User.FindFirstValue("sub");
+
+        if (!long.TryParse(userIdStr, out var userId))
+            return Unauthorized();
+
+        var employee = await _employees.GetProfileByUserIdAsync(userId, ct);
         if (employee is null) return NotFound();
 
         return Ok(employee);
     }
+
+    [HttpPut("me")]
+    [Authorize]
+    public async Task<ActionResult<EmployeeProfileDto>> UpdateMe(
+        [FromBody] UpdateEmployeeRequest req,
+        CancellationToken ct)
+    {
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                        ?? User.FindFirstValue("sub");
+
+        if (!long.TryParse(userIdStr, out var userId))
+            return Unauthorized();
+
+        var (ok, error, employee) = await _employees.UpdateByUserIdAsync(userId, req, ct);
+
+        if (!ok)
+        {
+            if (error == "Employee not found.")
+                return NotFound(new { message = error });
+
+            if (!string.IsNullOrWhiteSpace(error) && error.Contains(":"))
+            {
+                var errors = new Dictionary<string, string[]>();
+                foreach (var pair in error.Split('|', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var parts = pair.Split(':', 2, StringSplitOptions.TrimEntries);
+                    if (parts.Length == 2)
+                        errors[parts[0]] = new[] { parts[1] };
+                }
+                return Conflict(new { message = "Validation failed.", errors });
+            }
+
+            return BadRequest(new { message = error });
+        }
+
+        return Ok(employee);
+    }
+
 
     [HttpGet("{id:guid}")]
     [PermissionAuthorize("EMPLOYEES", "View")]

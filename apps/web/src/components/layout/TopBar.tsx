@@ -6,23 +6,13 @@ import { getEmployees } from "../../lib/employees";
 import { subscribeEmployeeStatsChanged } from "../../lib/events/employeeEvents";
 
 type NotificationItem = {
-  id: string | number;
+  id: number;
   title: string;
   message: string;
   time: string;
   read: boolean;
-  type: "leave" | "payroll" | "attendance" | "system" | "dar";
+  type: "leave" | "payroll" | "attendance" | "system";
   path?: string;
-};
-
-type StoredDarNotification = {
-  id: string | number;
-  title?: string;
-  message?: string;
-  description?: string;
-  time?: string;
-  read?: boolean;
-  type?: "dar" | "system";
 };
 
 type TopBarProps = {
@@ -34,8 +24,6 @@ const routeLabels: Record<string, string> = {
   "/dashboard/personal-records": "Employee Management",
   "/dashboard/attendance": "Attendance Log",
   "/dashboard/leave": "Leave Management",
-  "/dashboard/daily-accomplishment": "Daily Accomplishment Reports",
-  "/dashboard/my-daily-accomplishment": "Daily Accomplishment Report",
   "/dashboard/payroll": "Payroll",
   "/dashboard/compliance": "Government Compliance",
   "/dashboard/self-service": "Employee Self-Service",
@@ -49,6 +37,8 @@ const routeLabels: Record<string, string> = {
   "/dashboard/my-performance": "My Performance",
   "/dashboard/company-directory": "Company Directory",
   "/dashboard/help-support": "Help & Support",
+  "/dashboard/daily-accomplishment": "Daily Accomplishment",
+  "/dashboard/daily-accomplishment-reports": "Daily Accomplishment Reports",
 };
 
 const TopBar = ({ onMenuClick }: TopBarProps) => {
@@ -72,6 +62,42 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
       : "Unknown Role";
 
   const displayInitial = displayName?.charAt(0)?.toUpperCase() || "U";
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setAvatarUrl(null);
+      return;
+    }
+    const saved = localStorage.getItem(`settings.avatar.${user.id}`);
+    setAvatarUrl(saved ?? null);
+
+    const avatarStorageKey = `settings.avatar.${user.id}`;
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === avatarStorageKey) {
+        setAvatarUrl(e.newValue);
+      }
+    };
+
+    const handleAvatarUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string | number; avatarUrl?: string | null }>).detail;
+
+      if (detail?.userId !== undefined && String(detail.userId) !== String(user.id)) {
+        return;
+      }
+
+      setAvatarUrl(detail?.avatarUrl ?? localStorage.getItem(avatarStorageKey));
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("settings-avatar-updated", handleAvatarUpdated);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("settings-avatar-updated", handleAvatarUpdated);
+    };
+  }, [user?.id]);
 
   const [activeEmployees, setActiveEmployees] = useState<number>(0);
 
@@ -115,6 +141,12 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
     },
   ]);
 
+  // ─── Use a ref so handleStorageChange always sees latest isAdmin value ───
+  const isAdminRef = React.useRef(isAdmin);
+  useEffect(() => {
+    isAdminRef.current = isAdmin;
+  }, [isAdmin]);
+
   const fetchSummary = useCallback(async () => {
     if (!isAdmin || !user || !token) {
       setActiveEmployees(0);
@@ -148,62 +180,41 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
     const timer = setInterval(() => setTime(new Date()), 1000);
 
     const handleStorageChange = () => {
-      try {
-        const darNotifications = JSON.parse(
-          localStorage.getItem("dar_notifications") || "[]"
-        ) as StoredDarNotification[];
-
-        const unreadDarNotifications = darNotifications.filter(
-          (notification) => !notification.read
-        );
-
-        if (unreadDarNotifications.length > 0 && isAdmin) {
-          unreadDarNotifications.forEach((notification) => {
-            setNotifications((prev) => {
-              if (prev.find((item) => item.id === notification.id)) return prev;
-
-              return [
-                {
-                  id: notification.id,
-                  title: notification.title || "Daily Accomplishment Submitted",
-                  message:
-                    notification.message ||
-                    notification.description ||
-                    "A daily accomplishment report was submitted.",
-                  time: notification.time || "Just now",
-                  read: false,
-                  type: "dar",
-                  path: "/dashboard/daily-accomplishment",
-                },
-                ...prev,
-              ];
-            });
-          });
-
-          const markedDarNotifications = darNotifications.map((notification) => ({
-            ...notification,
-            read: true,
-          }));
-
-          localStorage.setItem(
-            "dar_notifications",
-            JSON.stringify(markedDarNotifications)
-          );
-        }
-      } catch {
-        localStorage.removeItem("dar_notifications");
-      }
-
       const newNotif = localStorage.getItem("attendance_notification");
       if (!newNotif) return;
 
       try {
         const parsed = JSON.parse(newNotif);
 
+        // Read role DIRECTLY from storage — never stale, no ref needed
+        const rawUser =
+          localStorage.getItem("auth.user") ||
+          sessionStorage.getItem("auth.user");
+        const currentUser = rawUser ? JSON.parse(rawUser) : null;
+        const currentIsAdmin =
+          currentUser?.role === "SUPER_ADMIN" ||
+          currentUser?.role === "ADMIN";
+
         setNotifications((prev) => {
           if (prev.find((n) => n.id === parsed.id)) return prev;
 
-          const path = isAdmin ? "/dashboard/attendance" : "/dashboard/my-attendance";
+          // Role-based filtering:
+          // dar_submit → only ADMIN should receive
+          // dar_review → only USER should receive
+          if (parsed.type === "dar_submit" && !currentIsAdmin) return prev;
+          if (parsed.type === "dar_review" && currentIsAdmin) return prev;
+
+          // Route to correct page based on type
+          let path: string;
+          if (parsed.type === "dar_submit") {
+            path = "/dashboard/daily-accomplishment-reports";
+          } else if (parsed.type === "dar_review") {
+            path = "/dashboard/daily-accomplishment";
+          } else {
+            path = currentIsAdmin
+              ? "/dashboard/attendance"
+              : "/dashboard/my-attendance";
+          }
 
           return [
             {
@@ -211,7 +222,7 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
               title: parsed.title,
               message: parsed.message,
               time: parsed.time,
-              type: parsed.type,
+              type: "system",
               read: false,
               path,
             },
@@ -223,15 +234,18 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
       }
     };
 
+    // ─── Listen to both storage (cross-tab) AND custom event (same-tab) ───
     window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("dar_notification", handleStorageChange);
     const checkInterval = setInterval(handleStorageChange, 2000);
 
     return () => {
       clearInterval(timer);
       clearInterval(checkInterval);
       window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("dar_notification", handleStorageChange);
     };
-  }, [isAdmin]);
+  }, []);
 
   useEffect(() => {
     if (!isAdmin || !user || !token) {
@@ -268,19 +282,19 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
-  const markAsRead = (id: string | number, e: React.MouseEvent) => {
+  const markAsRead = (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
   };
 
-  const deleteNotification = (id: string | number, e: React.MouseEvent) => {
+  const deleteNotification = (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
-  const handleNotificationClick = (path: string | undefined, id: string | number) => {
+  const handleNotificationClick = (path: string | undefined, id: number) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
@@ -398,8 +412,6 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
                               ? "bg-emerald-100 text-emerald-600"
                               : n.type === "attendance"
                               ? "bg-rose-100 text-rose-600"
-                              : n.type === "dar"
-                              ? "bg-violet-100 text-violet-600"
                               : "bg-amber-100 text-amber-600"
                           }`}
                         >
@@ -464,8 +476,14 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
         </div>
 
         <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-sm font-bold shadow-sm">
-            {displayInitial}
+          <div className="w-9 h-9 rounded-xl overflow-hidden shrink-0 shadow-sm">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-sm font-bold">
+                {displayInitial}
+              </div>
+            )}
           </div>
 
           <div className="hidden xl:block">
