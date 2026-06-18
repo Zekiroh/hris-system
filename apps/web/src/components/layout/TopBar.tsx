@@ -72,13 +72,31 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
     const saved = localStorage.getItem(`settings.avatar.${user.id}`);
     setAvatarUrl(saved ?? null);
 
+    const avatarStorageKey = `settings.avatar.${user.id}`;
+
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === `settings.avatar.${user.id}`) {
+      if (e.key === avatarStorageKey) {
         setAvatarUrl(e.newValue);
       }
     };
+
+    const handleAvatarUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string | number; avatarUrl?: string | null }>).detail;
+
+      if (detail?.userId !== undefined && String(detail.userId) !== String(user.id)) {
+        return;
+      }
+
+      setAvatarUrl(detail?.avatarUrl ?? localStorage.getItem(avatarStorageKey));
+    };
+
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    window.addEventListener("settings-avatar-updated", handleAvatarUpdated);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("settings-avatar-updated", handleAvatarUpdated);
+    };
   }, [user?.id]);
 
   const [activeEmployees, setActiveEmployees] = useState<number>(0);

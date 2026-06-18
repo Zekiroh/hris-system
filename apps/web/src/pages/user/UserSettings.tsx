@@ -702,6 +702,12 @@ const ProfileTab = ({ user, onSaved }: { user: any; onSaved?: () => void }) => {
                     key: `settings.avatar.${user.id}`,
                     newValue: base64,
                 }));
+                window.dispatchEvent(new CustomEvent("settings-avatar-updated", {
+                    detail: {
+                        userId: user.id,
+                        avatarUrl: base64,
+                    },
+                }));
                 }
             toast.success('Profile photo updated.');
         };
@@ -758,8 +764,8 @@ const ProfileTab = ({ user, onSaved }: { user: any; onSaved?: () => void }) => {
             await apiRequest('/employees/me', {
                 method: 'PUT',
                 body: JSON.stringify({
-                    firstName:        form.fullName.split(' ')[0] ?? '',
-                    lastName:         form.fullName.split(' ').slice(-1)[0] ?? '',
+                    firstName:        existing.firstName ?? '',
+                    lastName:         existing.lastName ?? '',
                     employmentType:   form.employmentType || 'Regular',
                     department:       form.department     || null,
                     position:         form.position       || null,
