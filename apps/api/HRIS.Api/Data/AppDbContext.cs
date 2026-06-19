@@ -37,6 +37,10 @@ public class AppDbContext : DbContext
     public DbSet<PagIbigContributionRule> PagIbigContributionRules => Set<PagIbigContributionRule>();
     public DbSet<WithholdingTaxBracket> WithholdingTaxBrackets => Set<WithholdingTaxBracket>();
 
+    public DbSet<Asset> Assets => Set<Asset>();
+    public DbSet<AssetAssignment> AssetAssignments => Set<AssetAssignment>();
+    public DbSet<AssetReturn> AssetReturns => Set<AssetReturn>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
