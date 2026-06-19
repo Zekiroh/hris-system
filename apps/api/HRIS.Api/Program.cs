@@ -1,5 +1,6 @@
 using System.Text;
 using HRIS.Api.Data;
+using HRIS.Api.Features.AssetManagement.Services;
 using HRIS.Api.Features.Attendance.Services;
 using HRIS.Api.Features.Attendance.Services.Validation;
 using HRIS.Api.Features.Dashboard.Services;
@@ -129,6 +130,12 @@ builder.Services.AddScoped<IPayrollService, PayrollService>();
 // =====================
 
 builder.Services.AddScoped<IGovernmentComplianceService, GovernmentComplianceService>();
+
+// =====================
+// Asset Management Services
+// =====================
+
+builder.Services.AddScoped<IAssetService, AssetService>();
 
 // =====================
 // Dashboard Services
