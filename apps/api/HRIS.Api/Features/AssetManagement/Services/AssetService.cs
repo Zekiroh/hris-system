@@ -23,6 +23,13 @@ public class AssetService : IAssetService
         "Lost"
     ];
 
+    private static readonly string[] AllowedReturnConditions =
+    [
+        "Good",
+        "Needs Repair",
+        "Damaged"
+    ];
+
     public AssetService(AppDbContext context, IActivityLogger activityLogger)
     {
         _context = context;
@@ -108,7 +115,7 @@ public class AssetService : IAssetService
             .AnyAsync(a => a.AssetCode == assetCode);
 
         if (assetCodeExists)
-            throw new ApiException("Asset code already exists.");
+            throw new ApiException("Asset code already exists.", StatusCodes.Status409Conflict);
 
         var asset = new Asset
         {
@@ -136,7 +143,14 @@ public class AssetService : IAssetService
             ipAddress,
             userAgent);
 
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
+        {
+            throw new ApiException("Asset code already exists.", StatusCodes.Status409Conflict);
+        }
 
         return ToAssetDto(asset);
     }
@@ -195,6 +209,9 @@ public class AssetService : IAssetService
         string? ipAddress,
         string? userAgent)
     {
+        if (request.EmployeeId == Guid.Empty)
+            throw new ApiException("EmployeeId is required.", StatusCodes.Status400BadRequest);
+
         await using var transaction = await _context.Database.BeginTransactionAsync();
 
         var asset = await _context.Assets
@@ -207,8 +224,8 @@ public class AssetService : IAssetService
         if (asset.Assignments.Any(x => x.IsActive))
             throw new ApiException("Asset is already assigned.");
 
-        if (asset.Status is "Retired" or "Lost")
-            throw new ApiException("Retired or lost assets cannot be assigned.");
+        if (!string.Equals(asset.Status, "Available", StringComparison.OrdinalIgnoreCase))
+            throw new ApiException("Only available assets can be assigned.");
 
         var employee = await _context.Employees
             .FirstOrDefaultAsync(e => e.Id == request.EmployeeId);
@@ -279,7 +296,7 @@ public class AssetService : IAssetService
         if (existingReturn)
             throw new ApiException("Asset assignment has already been returned.");
 
-        var condition = NormalizeRequired(request.Condition, "Return condition is required.");
+        var condition = NormalizeReturnCondition(request.Condition);
 
         var assetReturn = new AssetReturn
         {
@@ -294,10 +311,9 @@ public class AssetService : IAssetService
         assignment.IsActive = false;
         assignment.UpdatedAtUtc = DateTime.UtcNow;
 
-        assignment.Asset.Status = condition.Equals("Needs Repair", StringComparison.OrdinalIgnoreCase)
-            || condition.Equals("Damaged", StringComparison.OrdinalIgnoreCase)
-                ? "Maintenance"
-                : "Available";
+        assignment.Asset.Status = condition is "Needs Repair" or "Damaged"
+            ? "Maintenance"
+            : "Available";
 
         assignment.Asset.UpdatedAtUtc = DateTime.UtcNow;
 
@@ -409,6 +425,19 @@ public class AssetService : IAssetService
         return match;
     }
 
+    private static string NormalizeReturnCondition(string condition)
+    {
+        var normalized = NormalizeRequired(condition, "Return condition is required.");
+
+        var match = AllowedReturnConditions.FirstOrDefault(x =>
+            string.Equals(x, normalized, StringComparison.OrdinalIgnoreCase));
+
+        if (match is null)
+            throw new ApiException("Condition must be Good, Needs Repair, or Damaged.", StatusCodes.Status400BadRequest);
+
+        return match;
+    }
+
     private static string NormalizeRequired(string? value, string message)
     {
         var normalized = value?.Trim();
@@ -439,6 +468,15 @@ public class AssetService : IAssetService
         return long.TryParse(value, out var userId)
             ? userId
             : null;
+    }
+
+    private static bool IsUniqueConstraintViolation(DbUpdateException exception)
+    {
+        var message = exception.InnerException?.Message ?? exception.Message;
+
+        return message.Contains("Duplicate entry", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("UNIQUE", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("IX_Assets_AssetCode", StringComparison.OrdinalIgnoreCase);
     }
 
     private void AddActivityLog(
