@@ -13,6 +13,31 @@ public interface IAssetService
 
     Task<IReadOnlyList<AssetAssignmentDto>> GetMyAssetsAsync(ClaimsPrincipal actor);
 
+    Task<IReadOnlyList<AssetReturnRequestDto>> GetMyReturnRequestsAsync(ClaimsPrincipal actor);
+
+    Task<IReadOnlyList<AssetReturnRequestDto>> GetReturnRequestsAsync();
+
+    Task<AssetReturnRequestDto> CreateReturnRequestAsync(
+        ClaimsPrincipal actor,
+        int assetAssignmentId,
+        CreateAssetReturnRequest request,
+        string? ipAddress,
+        string? userAgent);
+
+    Task<AssetReturnRequestDto> ApproveReturnRequestAsync(
+        ClaimsPrincipal actor,
+        int returnRequestId,
+        ReviewAssetReturnRequest request,
+        string? ipAddress,
+        string? userAgent);
+
+    Task<AssetReturnRequestDto> RejectReturnRequestAsync(
+        ClaimsPrincipal actor,
+        int returnRequestId,
+        ReviewAssetReturnRequest request,
+        string? ipAddress,
+        string? userAgent);
+
     Task<AssetDto> CreateAsync(
         ClaimsPrincipal actor,
         CreateAssetRequest request,

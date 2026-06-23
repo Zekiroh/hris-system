@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Laptop,
   ClipboardCheck,
@@ -11,6 +11,15 @@ import {
   Bell,
   BookOpen,
 } from "lucide-react";
+import {
+  createReturnRequest,
+  getMyAssets,
+  getMyReturnRequests,
+} from "../../lib/assets";
+import type {
+  AssetAssignmentDto,
+  AssetReturnRequestDto,
+} from "../../lib/assets";
 
 type Tab = "assets" | "clearance" | "evaluation" | "announcements";
 
@@ -26,6 +35,43 @@ const UserAssetManagement = () => {
   const [reportIssue, setReportIssue] = useState("");
   const [acknowledged, setAcknowledged] = useState<Record<number, boolean>>({});
   const [expandedEval, setExpandedEval] = useState<number | null>(null);
+  const [myAssets, setMyAssets] = useState<AssetAssignmentDto[]>([]);
+  const [myReturnRequests, setMyReturnRequests] = useState<
+    AssetReturnRequestDto[]
+  >([]);
+  const [loadingAssets, setLoadingAssets] = useState(true);
+  const [assetError, setAssetError] = useState("");
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [selectedReturnAsset, setSelectedReturnAsset] =
+    useState<AssetAssignmentDto | null>(null);
+  const [returnReason, setReturnReason] = useState("");
+  const [returnSubmitting, setReturnSubmitting] = useState(false);
+  const [returnError, setReturnError] = useState("");
+
+  useEffect(() => {
+    const loadAssetData = async () => {
+      setLoadingAssets(true);
+      setAssetError("");
+
+      try {
+        const [assets, returnRequests] = await Promise.all([
+          getMyAssets(),
+          getMyReturnRequests(),
+        ]);
+
+        setMyAssets(assets);
+        setMyReturnRequests(returnRequests);
+      } catch (error) {
+        setAssetError(
+          error instanceof Error ? error.message : "Unable to load assigned assets."
+        );
+      } finally {
+        setLoadingAssets(false);
+      }
+    };
+
+    void loadAssetData();
+  }, []);
 
   const tabs = [
     { id: "assets" as Tab, label: "My Assets", icon: Laptop },
@@ -34,31 +80,16 @@ const UserAssetManagement = () => {
     { id: "announcements" as Tab, label: "Announcements", icon: Megaphone },
   ];
 
-  const myAssets = [
-    {
-      id: "AST-001",
-      name: "Dell Laptop XPS 15",
-      category: "IT Equipment",
-      serial: "SN-9823-DXPS",
-      dateAssigned: "2024-06-15",
-      status: "In Use",
-      specs: "Intel Core i7, 16GB RAM, 512GB SSD",
-    },
-    {
-      id: "AST-007",
-      name: 'Samsung Monitor 24"',
-      category: "IT Equipment",
-      serial: "SN-4421-SM24",
-      dateAssigned: "2024-06-15",
-      status: "In Use",
-      specs: "1080p FHD, 75Hz, HDMI",
-    },
-  ];
-
   const statusBadge: Record<string, string> = {
     "In Use": "badge-success",
     Available: "badge-info",
     Maintenance: "badge-warning",
+  };
+
+  const returnStatusBadge: Record<string, string> = {
+    Pending: "badge-warning",
+    Approved: "badge-success",
+    Rejected: "badge-danger",
   };
 
   const [checklist] = useState<ChecklistItem[]>([
@@ -156,6 +187,75 @@ const UserAssetManagement = () => {
     return "#f59e0b";
   };
 
+  const getAssetSpecs = (asset: AssetAssignmentDto) => {
+    const details = [asset.brand, asset.model].filter(Boolean).join(" ");
+    return details || "No device details available";
+  };
+
+  const getReturnRequestForAsset = (assignmentId: number) => {
+    const requests = myReturnRequests
+      .filter((request) => request.assetAssignmentId === assignmentId)
+      .sort(
+        (a, b) =>
+          new Date(b.createdAtUtc).getTime() - new Date(a.createdAtUtc).getTime()
+      );
+
+    return (
+      requests.find((request) => request.status === "Pending") ??
+      requests.find((request) => request.status === "Approved") ??
+      requests[0] ??
+      null
+    );
+  };
+
+  const openReturnModal = (asset: AssetAssignmentDto) => {
+    setSelectedReturnAsset(asset);
+    setReturnReason("");
+    setReturnError("");
+    setReturnOpen(true);
+  };
+
+  const closeReturnModal = () => {
+    if (returnSubmitting) return;
+
+    setReturnOpen(false);
+    setSelectedReturnAsset(null);
+    setReturnReason("");
+    setReturnError("");
+  };
+
+  const handleSubmitReturnRequest = async () => {
+    if (!selectedReturnAsset) return;
+
+    const reason = returnReason.trim();
+
+    if (!reason) {
+      setReturnError("Return reason is required.");
+      return;
+    }
+
+    setReturnSubmitting(true);
+    setReturnError("");
+
+    try {
+      await createReturnRequest(selectedReturnAsset.id, { reason });
+      const requests = await getMyReturnRequests();
+
+      setMyReturnRequests(requests);
+      setReturnOpen(false);
+      setSelectedReturnAsset(null);
+      setReturnReason("");
+    } catch (error) {
+      setReturnError(
+        error instanceof Error
+          ? error.message
+          : "Unable to submit return request."
+      );
+    } finally {
+      setReturnSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -247,71 +347,140 @@ const UserAssetManagement = () => {
               <h3 className="text-base font-bold text-gray-800">
                 Assigned Equipment
               </h3>
-              <div className="space-y-4">
-                {myAssets.map((asset) => (
-                  <div
-                    key={asset.id}
-                    className="pro-card !shadow-none border border-gray-100 !p-5 hover:border-emerald-200 transition-colors"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
-                          <Laptop className="w-5 h-5 text-blue-500" />
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-bold text-gray-800">
-                            {asset.name}
-                          </h4>
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            {asset.category} • {asset.id}
-                          </p>
-                        </div>
-                      </div>
-                      <span className={`badge ${statusBadge[asset.status]}`}>
-                        <span className="badge-dot" />
-                        {asset.status}
-                      </span>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-3 mt-3">
-                      <div className="bg-gray-50 rounded-lg px-3 py-2">
-                        <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">
-                          Serial No.
-                        </p>
-                        <p className="text-xs font-mono font-medium text-gray-700 mt-0.5">
-                          {asset.serial}
-                        </p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg px-3 py-2">
-                        <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">
-                          Date Assigned
-                        </p>
-                        <p className="text-xs font-medium text-gray-700 mt-0.5">
-                          {asset.dateAssigned}
-                        </p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg px-3 py-2 col-span-2">
-                        <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">
-                          Device Info
-                        </p>
-                        <p className="text-xs font-medium text-gray-700 mt-0.5">
-                          {asset.specs}
-                        </p>
-                      </div>
-                    </div>
+              {assetError && (
+                <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {assetError}
+                </div>
+              )}
 
-                    <div className="mt-3 pt-3 border-t border-gray-100">
-                      <button
-                        onClick={() => setReportOpen(true)}
-                        className="btn btn-secondary flex items-center gap-1.5 text-xs !py-1.5"
+              {loadingAssets && (
+                <div className="text-center py-8 text-gray-400 text-sm italic">
+                  Loading assigned assets...
+                </div>
+              )}
+
+              {!loadingAssets && myAssets.length === 0 && (
+                <div className="text-center py-8 text-gray-400 text-sm italic">
+                  No assigned assets found.
+                </div>
+              )}
+
+              {!loadingAssets && myAssets.length > 0 && (
+                <div className="space-y-4">
+                  {myAssets.map((asset) => {
+                    const returnRequest = getReturnRequestForAsset(asset.id);
+                    const isReturnLocked =
+                      returnRequest?.status === "Pending" ||
+                      returnRequest?.status === "Approved";
+
+                    return (
+                      <div
+                        key={asset.id}
+                        className="pro-card !shadow-none border border-gray-100 !p-5 hover:border-emerald-200 transition-colors"
                       >
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                        Report Issue
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                              <Laptop className="w-5 h-5 text-blue-500" />
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-bold text-gray-800">
+                                {asset.assetName}
+                              </h4>
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                {asset.category} • {asset.assetCode}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1.5">
+                            <span className={`badge ${statusBadge["In Use"]}`}>
+                              <span className="badge-dot" />
+                              In Use
+                            </span>
+                            {returnRequest && (
+                              <span
+                                className={`badge ${
+                                  returnStatusBadge[returnRequest.status] ??
+                                  "badge-neutral"
+                                }`}
+                              >
+                                <span className="badge-dot" />
+                                Return {returnRequest.status}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 mt-3">
+                          <div className="bg-gray-50 rounded-lg px-3 py-2">
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">
+                              Serial No.
+                            </p>
+                            <p className="text-xs font-mono font-medium text-gray-700 mt-0.5">
+                              {asset.serialNumber || "-"}
+                            </p>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg px-3 py-2">
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">
+                              Date Assigned
+                            </p>
+                            <p className="text-xs font-medium text-gray-700 mt-0.5">
+                              {asset.assignedDate || "-"}
+                            </p>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg px-3 py-2 col-span-2">
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">
+                              Device Info
+                            </p>
+                            <p className="text-xs font-medium text-gray-700 mt-0.5">
+                              {getAssetSpecs(asset)}
+                            </p>
+                          </div>
+                        </div>
+
+                        {returnRequest && (
+                          <div className="mt-3 rounded-lg bg-gray-50 px-3 py-2">
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wide font-semibold">
+                              Return Request
+                            </p>
+                            <p className="text-xs text-gray-600 mt-0.5">
+                              {returnRequest.reason}
+                            </p>
+                            {returnRequest.reviewRemarks && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                Review: {returnRequest.reviewRemarks}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+                          <button
+                            onClick={() => setReportOpen(true)}
+                            className="btn btn-secondary flex items-center gap-1.5 text-xs !py-1.5"
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                            Report Issue
+                          </button>
+                          <button
+                            onClick={() => openReturnModal(asset)}
+                            disabled={isReturnLocked}
+                            className="btn btn-secondary flex items-center gap-1.5 text-xs !py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <ClipboardCheck className="w-3.5 h-3.5 text-emerald-500" />
+                            {returnRequest?.status === "Pending"
+                              ? "Return Requested"
+                              : returnRequest?.status === "Approved"
+                                ? "Return Approved"
+                                : "Request Return"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -592,7 +761,7 @@ const UserAssetManagement = () => {
                 <select className="pro-select">
                   {myAssets.map((a) => (
                     <option key={a.id}>
-                      {a.name} ({a.id})
+                      {a.assetName} ({a.assetCode})
                     </option>
                   ))}
                 </select>
@@ -638,14 +807,77 @@ const UserAssetManagement = () => {
           </div>
         </div>
       )}
+
+      {/* Return Request Modal */}
+      {returnOpen && selectedReturnAsset && (
+        <div className="pro-modal-overlay">
+          <div
+            className="pro-modal max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="pro-modal-header">
+              <h3>Request Asset Return</h3>
+              <button
+                onClick={closeReturnModal}
+                className="btn-ghost btn-icon"
+                disabled={returnSubmitting}
+              >
+                <XCircle className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            <div className="pro-modal-body space-y-4">
+              {returnError && (
+                <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {returnError}
+                </div>
+              )}
+
+              <div>
+                <label className="pro-label">Asset</label>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                  <p className="text-sm font-bold text-gray-800">
+                    {selectedReturnAsset.assetName}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {selectedReturnAsset.category} •{" "}
+                    {selectedReturnAsset.assetCode}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="pro-label">Reason</label>
+                <textarea
+                  rows={4}
+                  className="pro-input resize-none"
+                  placeholder="Explain why this asset is ready for return..."
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  disabled={returnSubmitting}
+                />
+              </div>
+            </div>
+            <div className="pro-modal-footer">
+              <button
+                onClick={closeReturnModal}
+                className="btn btn-secondary"
+                disabled={returnSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitReturnRequest}
+                className="btn btn-primary"
+                disabled={returnSubmitting}
+              >
+                {returnSubmitting ? "Submitting..." : "Submit Request"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default UserAssetManagement;
-
-
-
-
-
-

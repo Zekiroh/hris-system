@@ -52,6 +52,70 @@ public class AssetsController : ControllerBase
         return Ok(assets);
     }
 
+    [HttpGet("my-return-requests")]
+    public async Task<ActionResult<IReadOnlyList<AssetReturnRequestDto>>> GetMyReturnRequests()
+    {
+        var requests = await _assetService.GetMyReturnRequestsAsync(User);
+
+        return Ok(requests);
+    }
+
+    [HttpGet("return-requests")]
+    [Authorize(Roles = "SUPER_ADMIN,ADMIN")]
+    public async Task<ActionResult<IReadOnlyList<AssetReturnRequestDto>>> GetReturnRequests()
+    {
+        var requests = await _assetService.GetReturnRequestsAsync();
+
+        return Ok(requests);
+    }
+
+    [HttpPost("my-assets/{assignmentId:int}/return-request")]
+    public async Task<ActionResult<AssetReturnRequestDto>> CreateReturnRequest(
+        int assignmentId,
+        CreateAssetReturnRequest request)
+    {
+        var returnRequest = await _assetService.CreateReturnRequestAsync(
+            User,
+            assignmentId,
+            request,
+            HttpContext.Connection.RemoteIpAddress?.ToString(),
+            Request.Headers.UserAgent.ToString());
+
+        return Ok(returnRequest);
+    }
+
+    [HttpPost("return-requests/{id:int}/approve")]
+    [Authorize(Roles = "SUPER_ADMIN,ADMIN")]
+    public async Task<ActionResult<AssetReturnRequestDto>> ApproveReturnRequest(
+        int id,
+        ReviewAssetReturnRequest request)
+    {
+        var returnRequest = await _assetService.ApproveReturnRequestAsync(
+            User,
+            id,
+            request,
+            HttpContext.Connection.RemoteIpAddress?.ToString(),
+            Request.Headers.UserAgent.ToString());
+
+        return Ok(returnRequest);
+    }
+
+    [HttpPost("return-requests/{id:int}/reject")]
+    [Authorize(Roles = "SUPER_ADMIN,ADMIN")]
+    public async Task<ActionResult<AssetReturnRequestDto>> RejectReturnRequest(
+        int id,
+        ReviewAssetReturnRequest request)
+    {
+        var returnRequest = await _assetService.RejectReturnRequestAsync(
+            User,
+            id,
+            request,
+            HttpContext.Connection.RemoteIpAddress?.ToString(),
+            Request.Headers.UserAgent.ToString());
+
+        return Ok(returnRequest);
+    }
+
     [HttpPost]
     [Authorize(Roles = "SUPER_ADMIN,ADMIN")]
     public async Task<ActionResult<AssetDto>> Create(CreateAssetRequest request)
