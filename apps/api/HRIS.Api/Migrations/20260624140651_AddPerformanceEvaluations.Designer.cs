@@ -4,6 +4,7 @@ using HRIS.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRIS.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260624140651_AddPerformanceEvaluations")]
+    partial class AddPerformanceEvaluations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1162,13 +1165,7 @@ namespace HRIS.Api.Migrations
 
                     b.HasIndex("ReviewerUserId");
 
-                    b.HasIndex("EmployeeId", "ReviewPeriod")
-                        .IsUnique();
-
-                    b.ToTable("PerformanceEvaluations", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_PerformanceEvaluations_ScoreRange", "`Score` >= 0 AND `Score` <= 5");
-                        });
+                    b.ToTable("PerformanceEvaluations");
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.Permission", b =>

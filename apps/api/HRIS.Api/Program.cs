@@ -10,6 +10,7 @@ using HRIS.Api.Features.GovernmentCompliance.Services;
 using HRIS.Api.Features.IAM.Services;
 using HRIS.Api.Features.LeaveManagement.Services;
 using HRIS.Api.Features.Payroll.Services;
+using HRIS.Api.Features.PerformanceManagement.Services;
 using HRIS.Api.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -143,6 +144,12 @@ builder.Services.AddScoped<IAssetService, AssetService>();
 // =====================
 
 builder.Services.AddScoped<IClearanceService, ClearanceService>();
+
+// =====================
+// Performance Management Services
+// =====================
+
+builder.Services.AddScoped<IPerformanceEvaluationService, PerformanceEvaluationService>();
 
 // =====================
 // Dashboard Services
