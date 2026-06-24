@@ -34,14 +34,19 @@ public class ClearanceService : IClearanceService
             .OrderByDescending(x => x.CreatedAtUtc)
             .ToListAsync();
 
-        var results = new List<ClearanceDto>();
+        var employeeIds = clearances
+            .Select(x => x.EmployeeId)
+            .Distinct()
+            .ToList();
 
-        foreach (var clearance in clearances)
-        {
-            results.Add(await ToDtoAsync(clearance));
-        }
+        var assetRequirementMap =
+            await ComputeAssetRequirementCompletedMapAsync(employeeIds);
 
-        return results;
+        return clearances
+            .Select(clearance => ToDto(
+                clearance,
+                assetRequirementMap.TryGetValue(clearance.EmployeeId, out var completed) && completed))
+            .ToList();
     }
 
     public async Task<ClearanceDto> GetByIdAsync(int id)
@@ -145,12 +150,14 @@ public class ClearanceService : IClearanceService
             remarks,
             actor);
 
+        await _context.SaveChangesAsync();
+
         AddActivityLog(
             actor,
             "CLEARANCE_CREATED",
             "CLEARANCE_MANAGEMENT",
             "EmployeeClearance",
-            null,
+            clearance.Id.ToString(),
             $"Created clearance record for {FormatEmployeeName(employee)}.",
             ipAddress,
             userAgent);
@@ -334,6 +341,7 @@ public class ClearanceService : IClearanceService
             .Include(x => x.ActorUser)
             .Where(x => x.EmployeeClearanceId == clearanceId)
             .OrderByDescending(x => x.CreatedAtUtc)
+            .ThenByDescending(x => x.Id)
             .ToListAsync();
 
         return activities
@@ -368,6 +376,13 @@ public class ClearanceService : IClearanceService
         var assetRequirementCompleted =
             await ComputeAssetRequirementCompletedAsync(clearance.EmployeeId);
 
+        return ToDto(clearance, assetRequirementCompleted);
+    }
+
+    private static ClearanceDto ToDto(
+        EmployeeClearance clearance,
+        bool assetRequirementCompleted)
+    {
         return new ClearanceDto
         {
             Id = clearance.Id,
@@ -404,14 +419,64 @@ public class ClearanceService : IClearanceService
             return true;
         }
 
-        var returnedAssignmentIds = await _context.AssetReturns
-            .AsNoTracking()
-            .Where(x => activeAssignmentIds.Contains(x.AssetAssignmentId))
-            .Select(x => x.AssetAssignmentId)
-            .Distinct()
-            .ToListAsync();
+        var returnedAssignmentIds = (await _context.AssetReturns
+                .AsNoTracking()
+                .Where(x => activeAssignmentIds.Contains(x.AssetAssignmentId))
+                .Select(x => x.AssetAssignmentId)
+                .Distinct()
+                .ToListAsync())
+            .ToHashSet();
 
         return activeAssignmentIds.All(returnedAssignmentIds.Contains);
+    }
+
+    private async Task<Dictionary<Guid, bool>> ComputeAssetRequirementCompletedMapAsync(
+        IReadOnlyCollection<Guid> employeeIds)
+    {
+        var result = employeeIds.ToDictionary(
+            employeeId => employeeId,
+            _ => true);
+
+        if (employeeIds.Count == 0)
+        {
+            return result;
+        }
+
+        var activeAssignments = await _context.AssetAssignments
+            .AsNoTracking()
+            .Where(x =>
+                employeeIds.Contains(x.EmployeeId) &&
+                x.IsActive)
+            .Select(x => new
+            {
+                x.Id,
+                x.EmployeeId
+            })
+            .ToListAsync();
+
+        if (activeAssignments.Count == 0)
+        {
+            return result;
+        }
+
+        var activeAssignmentIds = activeAssignments
+            .Select(x => x.Id)
+            .ToList();
+
+        var returnedAssignmentIds = (await _context.AssetReturns
+                .AsNoTracking()
+                .Where(x => activeAssignmentIds.Contains(x.AssetAssignmentId))
+                .Select(x => x.AssetAssignmentId)
+                .Distinct()
+                .ToListAsync())
+            .ToHashSet();
+
+        foreach (var group in activeAssignments.GroupBy(x => x.EmployeeId))
+        {
+            result[group.Key] = group.All(x => returnedAssignmentIds.Contains(x.Id));
+        }
+
+        return result;
     }
 
     private static string ResolveNonCompletedStatus(EmployeeClearance clearance)
