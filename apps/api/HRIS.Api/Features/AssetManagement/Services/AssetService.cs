@@ -99,6 +99,222 @@ public class AssetService : IAssetService
         return await GetByEmployeeAsync(employee.Id);
     }
 
+    public async Task<IReadOnlyList<AssetReturnRequestDto>> GetMyReturnRequestsAsync(ClaimsPrincipal actor)
+    {
+        var userId = GetUserId(actor);
+
+        if (!userId.HasValue)
+            throw new ApiException("Authenticated user could not be resolved.", StatusCodes.Status401Unauthorized);
+
+        var employee = await _context.Employees
+            .AsNoTracking()
+            .FirstOrDefaultAsync(e => e.UserId == userId.Value);
+
+        if (employee is null)
+            throw new ApiException("Employee profile is not linked to this user.", StatusCodes.Status404NotFound);
+
+        return await _context.AssetReturnRequests
+            .AsNoTracking()
+            .Include(x => x.AssetAssignment)
+                .ThenInclude(x => x.Asset)
+            .Include(x => x.AssetAssignment)
+                .ThenInclude(x => x.Employee)
+            .Include(x => x.Employee)
+            .Include(x => x.ReviewedByUser)
+            .Where(x => x.EmployeeId == employee.Id)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .ThenByDescending(x => x.Id)
+            .Select(x => ToReturnRequestDto(x))
+            .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<AssetReturnRequestDto>> GetReturnRequestsAsync()
+    {
+        return await _context.AssetReturnRequests
+            .AsNoTracking()
+            .Include(x => x.AssetAssignment)
+                .ThenInclude(x => x.Asset)
+            .Include(x => x.AssetAssignment)
+                .ThenInclude(x => x.Employee)
+            .Include(x => x.Employee)
+            .Include(x => x.ReviewedByUser)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .ThenByDescending(x => x.Id)
+            .Select(x => ToReturnRequestDto(x))
+            .ToListAsync();
+    }
+
+    public async Task<AssetReturnRequestDto> CreateReturnRequestAsync(
+        ClaimsPrincipal actor,
+        int assetAssignmentId,
+        CreateAssetReturnRequest request,
+        string? ipAddress,
+        string? userAgent)
+    {
+        var userId = GetUserId(actor);
+
+        if (!userId.HasValue)
+            throw new ApiException("Authenticated user could not be resolved.", StatusCodes.Status401Unauthorized);
+
+        var employee = await _context.Employees
+            .FirstOrDefaultAsync(e => e.UserId == userId.Value);
+
+        if (employee is null)
+            throw new ApiException("Employee profile is not linked to this user.", StatusCodes.Status404NotFound);
+
+        var assignment = await _context.AssetAssignments
+            .Include(x => x.Asset)
+            .Include(x => x.Employee)
+            .FirstOrDefaultAsync(x => x.Id == assetAssignmentId && x.IsActive);
+
+        if (assignment is null)
+            throw new ApiException("Active asset assignment not found.", StatusCodes.Status404NotFound);
+
+        if (assignment.EmployeeId != employee.Id)
+            throw new ApiException("You can only request returns for your own assigned assets.", StatusCodes.Status403Forbidden);
+
+        var alreadyReturned = await _context.AssetReturns
+            .AsNoTracking()
+            .AnyAsync(x => x.AssetAssignmentId == assignment.Id);
+
+        if (alreadyReturned)
+            throw new ApiException("Asset assignment has already been returned.");
+
+        var hasOpenReturnRequest = await _context.AssetReturnRequests
+            .AsNoTracking()
+            .AnyAsync(x =>
+                x.AssetAssignmentId == assignment.Id &&
+                (x.Status == "Pending" || x.Status == "Approved"));
+
+        if (hasOpenReturnRequest)
+            throw new ApiException("An active return request already exists for this asset assignment.", StatusCodes.Status409Conflict);
+
+        var reason = NormalizeRequired(request.Reason, "Return reason is required.");
+
+        var returnRequest = new AssetReturnRequest
+        {
+            AssetAssignmentId = assignment.Id,
+            EmployeeId = employee.Id,
+            RequestedDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            Reason = reason,
+            Status = "Pending",
+            CreatedAtUtc = DateTime.UtcNow
+        };
+
+        _context.AssetReturnRequests.Add(returnRequest);
+
+        AddActivityLog(
+            actor,
+            "ASSET_RETURN_REQUEST_CREATED",
+            "ASSET_MANAGEMENT",
+            "AssetReturnRequest",
+            null,
+            $"Created return request for asset {assignment.Asset.AssetCode} - {assignment.Asset.AssetName}.",
+            ipAddress,
+            userAgent);
+
+        await _context.SaveChangesAsync();
+
+        returnRequest.AssetAssignment = assignment;
+        returnRequest.Employee = employee;
+
+        return ToReturnRequestDto(returnRequest);
+    }
+
+    public async Task<AssetReturnRequestDto> ApproveReturnRequestAsync(
+        ClaimsPrincipal actor,
+        int returnRequestId,
+        ReviewAssetReturnRequest request,
+        string? ipAddress,
+        string? userAgent)
+    {
+        var returnRequest = await _context.AssetReturnRequests
+            .Include(x => x.AssetAssignment)
+                .ThenInclude(x => x.Asset)
+            .Include(x => x.AssetAssignment)
+                .ThenInclude(x => x.Employee)
+            .Include(x => x.Employee)
+            .Include(x => x.ReviewedByUser)
+            .FirstOrDefaultAsync(x => x.Id == returnRequestId);
+
+        if (returnRequest is null)
+            throw new ApiException("Asset return request not found.", StatusCodes.Status404NotFound);
+
+        if (!string.Equals(returnRequest.Status, "Pending", StringComparison.OrdinalIgnoreCase))
+            throw new ApiException("Only pending return requests can be approved.");
+
+        returnRequest.Status = "Approved";
+        returnRequest.ReviewedByUserId = GetUserId(actor);
+        returnRequest.ReviewedAtUtc = DateTime.UtcNow;
+        returnRequest.ReviewRemarks = NormalizeOptional(request.Remarks);
+        returnRequest.UpdatedAtUtc = DateTime.UtcNow;
+
+        AddActivityLog(
+            actor,
+            "ASSET_RETURN_REQUEST_APPROVED",
+            "ASSET_MANAGEMENT",
+            "AssetReturnRequest",
+            returnRequest.Id.ToString(),
+            $"Approved return request for asset {returnRequest.AssetAssignment.Asset.AssetCode} - {returnRequest.AssetAssignment.Asset.AssetName}.",
+            ipAddress,
+            userAgent);
+
+        await _context.SaveChangesAsync();
+
+        returnRequest.ReviewedByUser = await _context.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == returnRequest.ReviewedByUserId);
+
+        return ToReturnRequestDto(returnRequest);
+    }
+
+    public async Task<AssetReturnRequestDto> RejectReturnRequestAsync(
+        ClaimsPrincipal actor,
+        int returnRequestId,
+        ReviewAssetReturnRequest request,
+        string? ipAddress,
+        string? userAgent)
+    {
+        var returnRequest = await _context.AssetReturnRequests
+            .Include(x => x.AssetAssignment)
+                .ThenInclude(x => x.Asset)
+            .Include(x => x.AssetAssignment)
+                .ThenInclude(x => x.Employee)
+            .Include(x => x.Employee)
+            .Include(x => x.ReviewedByUser)
+            .FirstOrDefaultAsync(x => x.Id == returnRequestId);
+
+        if (returnRequest is null)
+            throw new ApiException("Asset return request not found.", StatusCodes.Status404NotFound);
+
+        if (!string.Equals(returnRequest.Status, "Pending", StringComparison.OrdinalIgnoreCase))
+            throw new ApiException("Only pending return requests can be rejected.");
+
+        returnRequest.Status = "Rejected";
+        returnRequest.ReviewedByUserId = GetUserId(actor);
+        returnRequest.ReviewedAtUtc = DateTime.UtcNow;
+        returnRequest.ReviewRemarks = NormalizeOptional(request.Remarks);
+        returnRequest.UpdatedAtUtc = DateTime.UtcNow;
+
+        AddActivityLog(
+            actor,
+            "ASSET_RETURN_REQUEST_REJECTED",
+            "ASSET_MANAGEMENT",
+            "AssetReturnRequest",
+            returnRequest.Id.ToString(),
+            $"Rejected return request for asset {returnRequest.AssetAssignment.Asset.AssetCode} - {returnRequest.AssetAssignment.Asset.AssetName}.",
+            ipAddress,
+            userAgent);
+
+        await _context.SaveChangesAsync();
+
+        returnRequest.ReviewedByUser = await _context.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == returnRequest.ReviewedByUserId);
+
+        return ToReturnRequestDto(returnRequest);
+    }
+
     public async Task<AssetDto> CreateAsync(
         ClaimsPrincipal actor,
         CreateAssetRequest request,
@@ -409,6 +625,36 @@ public class AssetService : IAssetService
             Remarks = assetReturn.Remarks,
             CreatedAtUtc = assetReturn.CreatedAtUtc,
             UpdatedAtUtc = assetReturn.UpdatedAtUtc
+        };
+    }
+
+    private static AssetReturnRequestDto ToReturnRequestDto(AssetReturnRequest returnRequest)
+    {
+        return new AssetReturnRequestDto
+        {
+            Id = returnRequest.Id,
+            AssetAssignmentId = returnRequest.AssetAssignmentId,
+            AssetId = returnRequest.AssetAssignment.AssetId,
+            AssetCode = returnRequest.AssetAssignment.Asset?.AssetCode ?? string.Empty,
+            AssetName = returnRequest.AssetAssignment.Asset?.AssetName ?? string.Empty,
+            RequestedByEmployeeId = returnRequest.EmployeeId,
+            RequestedByEmployeeNumber = returnRequest.Employee?.EmployeeNumber
+                ?? returnRequest.AssetAssignment.Employee?.EmployeeNumber
+                ?? string.Empty,
+            RequestedByEmployeeName = returnRequest.Employee is not null
+                ? FormatEmployeeName(returnRequest.Employee)
+                : returnRequest.AssetAssignment.Employee is null
+                    ? string.Empty
+                    : FormatEmployeeName(returnRequest.AssetAssignment.Employee),
+            RequestedDate = returnRequest.RequestedDate,
+            Reason = returnRequest.Reason,
+            Status = returnRequest.Status,
+            ReviewedByUserId = returnRequest.ReviewedByUserId,
+            ReviewedByUserName = returnRequest.ReviewedByUser?.FullName,
+            ReviewedAtUtc = returnRequest.ReviewedAtUtc,
+            ReviewRemarks = returnRequest.ReviewRemarks,
+            CreatedAtUtc = returnRequest.CreatedAtUtc,
+            UpdatedAtUtc = returnRequest.UpdatedAtUtc
         };
     }
 

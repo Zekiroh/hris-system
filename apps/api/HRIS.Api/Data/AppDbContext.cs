@@ -40,6 +40,7 @@ public class AppDbContext : DbContext
     public DbSet<Asset> Assets => Set<Asset>();
     public DbSet<AssetAssignment> AssetAssignments => Set<AssetAssignment>();
     public DbSet<AssetReturn> AssetReturns => Set<AssetReturn>();
+    public DbSet<AssetReturnRequest> AssetReturnRequests => Set<AssetReturnRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
