@@ -42,6 +42,9 @@ public class AppDbContext : DbContext
     public DbSet<AssetReturn> AssetReturns => Set<AssetReturn>();
     public DbSet<AssetReturnRequest> AssetReturnRequests => Set<AssetReturnRequest>();
 
+    public DbSet<EmployeeClearance> EmployeeClearances => Set<EmployeeClearance>();
+    public DbSet<EmployeeClearanceActivity> EmployeeClearanceActivities => Set<EmployeeClearanceActivity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
