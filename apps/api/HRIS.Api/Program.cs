@@ -3,6 +3,7 @@ using HRIS.Api.Data;
 using HRIS.Api.Features.AssetManagement.Services;
 using HRIS.Api.Features.Attendance.Services;
 using HRIS.Api.Features.Attendance.Services.Validation;
+using HRIS.Api.Features.ClearanceManagement.Services;
 using HRIS.Api.Features.Dashboard.Services;
 using HRIS.Api.Features.Employees.Services;
 using HRIS.Api.Features.GovernmentCompliance.Services;
@@ -136,6 +137,12 @@ builder.Services.AddScoped<IGovernmentComplianceService, GovernmentComplianceSer
 // =====================
 
 builder.Services.AddScoped<IAssetService, AssetService>();
+
+// =====================
+// Clearance Management Services
+// =====================
+
+builder.Services.AddScoped<IClearanceService, ClearanceService>();
 
 // =====================
 // Dashboard Services
