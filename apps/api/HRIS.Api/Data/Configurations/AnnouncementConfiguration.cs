@@ -32,6 +32,12 @@ public class AnnouncementConfiguration : IEntityTypeConfiguration<Announcement>
 
         builder.HasIndex(x => x.CreatedAtUtc);
 
+        builder.HasIndex(x => new
+        {
+            x.Status,
+            x.PublishedAtUtc
+        });
+
         builder.HasOne(x => x.CreatedByUser)
             .WithMany()
             .HasForeignKey(x => x.CreatedByUserId)

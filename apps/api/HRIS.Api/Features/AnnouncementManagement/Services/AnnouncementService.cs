@@ -163,7 +163,12 @@ public class AnnouncementService : IAnnouncementService
         }
 
         announcement.Status = "Published";
-        announcement.PublishedAtUtc = DateTime.UtcNow;
+
+        if (!announcement.PublishedAtUtc.HasValue)
+        {
+            announcement.PublishedAtUtc = DateTime.UtcNow;
+        }
+
         announcement.UpdatedAtUtc = DateTime.UtcNow;
 
         AddActivityLog(
@@ -192,6 +197,13 @@ public class AnnouncementService : IAnnouncementService
             .FirstOrDefaultAsync(x => x.Id == id);
 
         if (announcement is null)
+        {
+            throw new ApiException(
+                "Announcement not found.",
+                StatusCodes.Status404NotFound);
+        }
+
+        if (announcement.Status != "Published")
         {
             throw new ApiException(
                 "Announcement not found.",
@@ -232,7 +244,14 @@ public class AnnouncementService : IAnnouncementService
                 ipAddress,
                 userAgent);
 
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                _context.ChangeTracker.Clear();
+            }
         }
 
         var dto = ToDto(announcement);
