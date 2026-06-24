@@ -47,6 +47,9 @@ public class AppDbContext : DbContext
 
     public DbSet<PerformanceEvaluation> PerformanceEvaluations => Set<PerformanceEvaluation>();
 
+    public DbSet<Announcement> Announcements => Set<Announcement>();
+    public DbSet<AnnouncementRead> AnnouncementReads => Set<AnnouncementRead>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
