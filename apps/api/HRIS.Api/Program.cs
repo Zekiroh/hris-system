@@ -1,5 +1,6 @@
 using System.Text;
 using HRIS.Api.Data;
+using HRIS.Api.Features.AnnouncementManagement.Services;
 using HRIS.Api.Features.AssetManagement.Services;
 using HRIS.Api.Features.Attendance.Services;
 using HRIS.Api.Features.Attendance.Services.Validation;
@@ -150,6 +151,12 @@ builder.Services.AddScoped<IClearanceService, ClearanceService>();
 // =====================
 
 builder.Services.AddScoped<IPerformanceEvaluationService, PerformanceEvaluationService>();
+
+// =====================
+// Announcement Management Services
+// =====================
+
+builder.Services.AddScoped<IAnnouncementService, AnnouncementService>();
 
 // =====================
 // Dashboard Services
