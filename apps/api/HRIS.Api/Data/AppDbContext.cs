@@ -45,6 +45,8 @@ public class AppDbContext : DbContext
     public DbSet<EmployeeClearance> EmployeeClearances => Set<EmployeeClearance>();
     public DbSet<EmployeeClearanceActivity> EmployeeClearanceActivities => Set<EmployeeClearanceActivity>();
 
+    public DbSet<PerformanceEvaluation> PerformanceEvaluations => Set<PerformanceEvaluation>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
