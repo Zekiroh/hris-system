@@ -180,12 +180,14 @@ public class AssetService : IAssetService
         if (alreadyReturned)
             throw new ApiException("Asset assignment has already been returned.");
 
-        var hasPendingRequest = await _context.AssetReturnRequests
+        var hasOpenReturnRequest = await _context.AssetReturnRequests
             .AsNoTracking()
-            .AnyAsync(x => x.AssetAssignmentId == assignment.Id && x.Status == "Pending");
+            .AnyAsync(x =>
+                x.AssetAssignmentId == assignment.Id &&
+                (x.Status == "Pending" || x.Status == "Approved"));
 
-        if (hasPendingRequest)
-            throw new ApiException("A pending return request already exists for this asset assignment.", StatusCodes.Status409Conflict);
+        if (hasOpenReturnRequest)
+            throw new ApiException("An active return request already exists for this asset assignment.", StatusCodes.Status409Conflict);
 
         var reason = NormalizeRequired(request.Reason, "Return reason is required.");
 

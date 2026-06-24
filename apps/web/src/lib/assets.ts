@@ -131,7 +131,9 @@ export async function getAsset(id: number) {
 }
 
 export async function getEmployeeAssets(employeeId: string) {
-  return apiRequest<AssetDto[]>(`/api/assets/employee/${employeeId}`);
+  return apiRequest<AssetAssignmentDto[]>(
+    `/api/assets/employee/${employeeId}`
+  );
 }
 
 export async function getMyAssets() {

@@ -451,7 +451,7 @@ const AssetManagement = () => {
                                                         <button
                                                             type="button"
                                                             onClick={() => openAssignAssetModal(a)}
-                                                            disabled={a.status === 'In Use' || Boolean(a.activeAssignmentId)}
+                                                            disabled={a.status !== 'Available' || Boolean(a.activeAssignmentId)}
                                                             className="btn btn-secondary flex items-center gap-1.5 text-xs !py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                                                         >
                                                             <UserPlus className="w-3.5 h-3.5" />
@@ -726,7 +726,6 @@ const AssetManagement = () => {
                                         onChange={e => setAssetForm({ ...assetForm, status: e.target.value })}
                                     >
                                         <option>Available</option>
-                                        <option>In Use</option>
                                         <option>Maintenance</option>
                                         <option>Needs Replacement</option>
                                         <option>Disposed</option>

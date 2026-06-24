@@ -54,13 +54,15 @@ const UserAssetManagement = () => {
       setAssetError("");
 
       try {
-        const [assets, returnRequests] = await Promise.all([
-          getMyAssets(),
-          getMyReturnRequests(),
-        ]);
-
+        const assets = await getMyAssets();
         setMyAssets(assets);
-        setMyReturnRequests(returnRequests);
+
+        try {
+          const returnRequests = await getMyReturnRequests();
+          setMyReturnRequests(returnRequests);
+        } catch {
+          setMyReturnRequests([]);
+        }
       } catch (error) {
         setAssetError(
           error instanceof Error ? error.message : "Unable to load assigned assets."
@@ -238,13 +240,19 @@ const UserAssetManagement = () => {
     setReturnError("");
 
     try {
-      await createReturnRequest(selectedReturnAsset.id, { reason });
-      const requests = await getMyReturnRequests();
+      const createdRequest = await createReturnRequest(selectedReturnAsset.id, { reason });
 
-      setMyReturnRequests(requests);
+      setMyReturnRequests((prev) => [createdRequest, ...prev]);
       setReturnOpen(false);
       setSelectedReturnAsset(null);
       setReturnReason("");
+
+      try {
+        const requests = await getMyReturnRequests();
+        setMyReturnRequests(requests);
+      } catch {
+        // Best-effort refresh only. The request was already created successfully.
+      }
     } catch (error) {
       setReturnError(
         error instanceof Error
