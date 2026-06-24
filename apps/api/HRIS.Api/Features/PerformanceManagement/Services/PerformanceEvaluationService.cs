@@ -120,6 +120,18 @@ public class PerformanceEvaluationService : IPerformanceEvaluationService
             throw new ApiException("Employee not found.", StatusCodes.Status404NotFound);
         }
 
+        var alreadyExists = await _context.PerformanceEvaluations
+            .AnyAsync(x =>
+                x.EmployeeId == employee.Id &&
+                x.ReviewPeriod == reviewPeriod);
+
+        if (alreadyExists)
+        {
+            throw new ApiException(
+                "Performance evaluation already exists for this employee and review period.",
+                StatusCodes.Status400BadRequest);
+        }
+
         var evaluation = new PerformanceEvaluation
         {
             Id = Guid.NewGuid(),

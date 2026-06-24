@@ -8,9 +8,23 @@ public class PerformanceEvaluationConfiguration : IEntityTypeConfiguration<Perfo
 {
     public void Configure(EntityTypeBuilder<PerformanceEvaluation> builder)
     {
+        builder.ToTable("PerformanceEvaluations", table =>
+        {
+            table.HasCheckConstraint(
+                "CK_PerformanceEvaluations_ScoreRange",
+                "`Score` >= 0 AND `Score` <= 5");
+        });
+
         builder.HasIndex(x => x.EmployeeId);
         builder.HasIndex(x => x.ReviewerUserId);
         builder.HasIndex(x => x.ReviewPeriod);
+
+        builder.HasIndex(x => new
+            {
+                x.EmployeeId,
+                x.ReviewPeriod
+            })
+            .IsUnique();
 
         builder.Property(x => x.ReviewPeriod)
             .HasMaxLength(100)
