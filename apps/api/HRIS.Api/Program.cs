@@ -10,6 +10,7 @@ using HRIS.Api.Features.Employees.Services;
 using HRIS.Api.Features.GovernmentCompliance.Services;
 using HRIS.Api.Features.IAM.Services;
 using HRIS.Api.Features.LeaveManagement.Services;
+using HRIS.Api.Features.Payroll.Pdf;
 using HRIS.Api.Features.Payroll.Services;
 using HRIS.Api.Features.PerformanceManagement.Services;
 using HRIS.Api.Middleware;
@@ -18,6 +19,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using QuestPDF.Infrastructure;
+
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,7 +31,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
-// Swagger/OpenAPI, Bearer support
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
 {
@@ -59,22 +62,17 @@ builder.Services.AddSwaggerGen(o =>
     });
 });
 
-// CORS (dev)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ClientCors", policy =>
     {
         policy
-            .WithOrigins(
-                "http://localhost:5173",
-                "http://localhost:5174"
-            )
+            .WithOrigins("http://localhost:5173", "http://localhost:5174")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
 });
 
-// Database
 var connectionString = builder.Configuration.GetConnectionString("Default");
 if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException("ConnectionStrings:Default is missing. Set it via user-secrets.");
@@ -85,88 +83,39 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connectionString, serverVersion);
 });
 
-// =====================
-// IAM Services
-// =====================
-
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IActivityLogger, ActivityLogger>();
 builder.Services.AddScoped<IAdminUsersService, AdminUsersService>();
 
 builder.Services.AddHttpContextAccessor();
 
-// =====================
-// Employee Core Services
-// =====================
-
 builder.Services.AddScoped<EmployeesService>();
-
-// =====================
-// Attendance Services
-// =====================
 
 builder.Services.AddScoped<IShiftValidationService, ShiftValidationService>();
 builder.Services.AddScoped<IShiftsService, ShiftsService>();
 builder.Services.AddScoped<IShiftAssignmentsService, ShiftAssignmentsService>();
 builder.Services.AddScoped<IAttendanceHolidayProvider, AttendanceHolidayProvider>();
 builder.Services.AddScoped<IAttendanceLogsService, AttendanceLogsService>();
-
-// Overtime Request
 builder.Services.AddScoped<OvertimeRequestService>();
-
-// =====================
-// Leave Management Services
-// =====================
 
 builder.Services.AddScoped<ILeaveBalanceInitializer, LeaveBalanceInitializer>();
 builder.Services.AddScoped<ILeaveManagementService, LeaveManagementService>();
 
-// =====================
-// Payroll Services
-// =====================
-
 builder.Services.AddScoped<IEmployeeCompensationService, EmployeeCompensationService>();
+builder.Services.AddScoped<IPayslipPdfGenerator, PayslipPdfGenerator>();
 builder.Services.AddScoped<IPayrollService, PayrollService>();
-
-// =====================
-// Government Compliance Services
-// =====================
 
 builder.Services.AddScoped<IGovernmentComplianceService, GovernmentComplianceService>();
 
-// =====================
-// Asset Management Services
-// =====================
-
 builder.Services.AddScoped<IAssetService, AssetService>();
-
-// =====================
-// Clearance Management Services
-// =====================
 
 builder.Services.AddScoped<IClearanceService, ClearanceService>();
 
-// =====================
-// Performance Management Services
-// =====================
-
 builder.Services.AddScoped<IPerformanceEvaluationService, PerformanceEvaluationService>();
-
-// =====================
-// Announcement Management Services
-// =====================
 
 builder.Services.AddScoped<IAnnouncementService, AnnouncementService>();
 
-// =====================
-// Dashboard Services
-// =====================
-
 builder.Services.AddScoped<IDashboardService, DashboardService>();
-
-// =====================
-// JWT Auth (locked)
-// =====================
 
 var jwtKey = builder.Configuration["Jwt:Key"];
 if (string.IsNullOrWhiteSpace(jwtKey))
@@ -195,10 +144,6 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// =====================
-// Middleware
-// =====================
-
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -216,9 +161,6 @@ if (app.Environment.IsDevelopment())
         options.InjectStylesheet("/swagger-assets/SwaggerDark.css");
     });
 }
-
-// NOTE: Local dev runs on http://localhost:5169 (no https), so skip redirect.
-// app.UseHttpsRedirection();
 
 app.UseCors("ClientCors");
 

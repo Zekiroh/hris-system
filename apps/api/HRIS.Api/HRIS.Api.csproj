@@ -17,6 +17,7 @@
 
     <!-- MySQL provider for EF Core -->
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
+    <PackageReference Include="QuestPDF" Version="2026.6.1" />
 
     <!-- Swagger/OpenAPI support -->
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />

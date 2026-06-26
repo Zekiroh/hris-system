@@ -1,14 +1,18 @@
+using System.Security.Claims;
 using HRIS.Api.Data;
+using HRIS.Api.Features.Common.Exceptions;
 using HRIS.Api.Features.GovernmentCompliance.Services;
+using HRIS.Api.Features.Payroll.Constants;
 using HRIS.Api.Features.Payroll.DTOs;
+using HRIS.Api.Features.Payroll.Pdf;
 using HRIS.Api.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 namespace HRIS.Api.Features.Payroll.Services;
 
 public class PayrollService : IPayrollService
 {
-    private const string PayrollPeriodStatusProcessed = "Processed";
     private const string PayrollRecordStatusProcessed = "Processed";
 
     private const string LeaveStatusApproved = "Approved";
@@ -17,19 +21,26 @@ public class PayrollService : IPayrollService
     private const string CompensationTypeMonthly = "Monthly";
     private const string CompensationTypeDaily = "Daily";
 
+    private const string PayrollItemTypeEarning = "Earning";
+    private const string PayrollItemTypeDeduction = "Deduction";
+    private const string BasicPayDescription = "Basic Pay";
+
     private const int MonthlyCutoffs = 2;
     private const int StandardMonthlyWorkingDays = 22;
     private const int StandardWorkingMinutesPerDay = 480;
 
     private readonly AppDbContext _context;
     private readonly IGovernmentComplianceService _governmentComplianceService;
+    private readonly IPayslipPdfGenerator _payslipPdfGenerator;
 
     public PayrollService(
         AppDbContext context,
-        IGovernmentComplianceService governmentComplianceService)
+        IGovernmentComplianceService governmentComplianceService,
+        IPayslipPdfGenerator payslipPdfGenerator)
     {
         _context = context;
         _governmentComplianceService = governmentComplianceService;
+        _payslipPdfGenerator = payslipPdfGenerator;
     }
 
     public async Task<PayrollPeriodDto> ProcessPayrollAsync(ProcessPayrollRequest request)
@@ -107,7 +118,7 @@ public class PayrollService : IPayrollService
         {
             StartDate = request.StartDate,
             EndDate = request.EndDate,
-            Status = PayrollPeriodStatusProcessed,
+            Status = PayrollStatuses.Processed,
             ProcessedAtUtc = now,
             CreatedAtUtc = now
         };
@@ -196,8 +207,8 @@ public class PayrollService : IPayrollService
 
             payrollRecord.Items.Add(new PayrollRecordItem
             {
-                Type = "Earning",
-                Description = "Basic Pay",
+                Type = PayrollItemTypeEarning,
+                Description = BasicPayDescription,
                 Amount = basicPay
             });
 
@@ -205,7 +216,7 @@ public class PayrollService : IPayrollService
             {
                 payrollRecord.Items.Add(new PayrollRecordItem
                 {
-                    Type = "Earning",
+                    Type = PayrollItemTypeEarning,
                     Description = $"Approved Overtime ({approvedOvertimeMinutes} minutes)",
                     Amount = overtimePay
                 });
@@ -215,7 +226,7 @@ public class PayrollService : IPayrollService
             {
                 payrollRecord.Items.Add(new PayrollRecordItem
                 {
-                    Type = "Deduction",
+                    Type = PayrollItemTypeDeduction,
                     Description = $"Late / Undertime ({lateAndUndertimeMinutes} minutes)",
                     Amount = lateAndUndertimeDeduction
                 });
@@ -225,7 +236,7 @@ public class PayrollService : IPayrollService
             {
                 payrollRecord.Items.Add(new PayrollRecordItem
                 {
-                    Type = "Deduction",
+                    Type = PayrollItemTypeDeduction,
                     Description = $"Absence ({absenceDays} day/s)",
                     Amount = absenceDeduction
                 });
@@ -235,7 +246,7 @@ public class PayrollService : IPayrollService
             {
                 payrollRecord.Items.Add(new PayrollRecordItem
                 {
-                    Type = "Deduction",
+                    Type = PayrollItemTypeDeduction,
                     Description = "SSS",
                     Amount = sssDeduction
                 });
@@ -245,7 +256,7 @@ public class PayrollService : IPayrollService
             {
                 payrollRecord.Items.Add(new PayrollRecordItem
                 {
-                    Type = "Deduction",
+                    Type = PayrollItemTypeDeduction,
                     Description = "PhilHealth",
                     Amount = philHealthDeduction
                 });
@@ -255,7 +266,7 @@ public class PayrollService : IPayrollService
             {
                 payrollRecord.Items.Add(new PayrollRecordItem
                 {
-                    Type = "Deduction",
+                    Type = PayrollItemTypeDeduction,
                     Description = "Pag-IBIG",
                     Amount = pagIbigDeduction
                 });
@@ -265,7 +276,7 @@ public class PayrollService : IPayrollService
             {
                 payrollRecord.Items.Add(new PayrollRecordItem
                 {
-                    Type = "Deduction",
+                    Type = PayrollItemTypeDeduction,
                     Description = "Withholding Tax",
                     Amount = withholdingTaxDeduction
                 });
@@ -277,16 +288,29 @@ public class PayrollService : IPayrollService
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
 
-        return new PayrollPeriodDto
-        {
-            Id = payrollPeriod.Id,
-            StartDate = payrollPeriod.StartDate,
-            EndDate = payrollPeriod.EndDate,
-            Status = payrollPeriod.Status,
-            ProcessedAtUtc = payrollPeriod.ProcessedAtUtc,
-            ReleasedAtUtc = payrollPeriod.ReleasedAtUtc,
-            CreatedAtUtc = payrollPeriod.CreatedAtUtc
-        };
+        return MapPayrollPeriod(payrollPeriod);
+    }
+
+    public async Task<PayrollPeriodDto> ReleasePayrollPeriodAsync(int periodId)
+    {
+        var payrollPeriod = await _context.PayrollPeriods
+            .FirstOrDefaultAsync(period => period.Id == periodId);
+
+        if (payrollPeriod == null)
+            throw new InvalidOperationException("Payroll period was not found.");
+
+        if (payrollPeriod.Status == PayrollStatuses.Released)
+            throw new InvalidOperationException("Payroll period is already released.");
+
+        if (payrollPeriod.Status != PayrollStatuses.Processed)
+            throw new InvalidOperationException("Only processed payroll periods can be released.");
+
+        payrollPeriod.Status = PayrollStatuses.Released;
+        payrollPeriod.ReleasedAtUtc = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return MapPayrollPeriod(payrollPeriod);
     }
 
     public async Task<IReadOnlyList<PayrollPeriodDto>> GetPayrollPeriodsAsync()
@@ -311,33 +335,12 @@ public class PayrollService : IPayrollService
     {
         return await _context.PayrollRecords
             .AsNoTracking()
+            .Include(record => record.PayrollPeriod)
             .Include(record => record.Employee)
             .Include(record => record.Items)
             .Where(record => record.PayrollPeriodId == payrollPeriodId)
             .OrderBy(record => record.Employee.EmployeeNumber)
-            .Select(record => new PayrollRecordDto
-            {
-                Id = record.Id,
-                PayrollPeriodId = record.PayrollPeriodId,
-                EmployeeId = record.EmployeeId,
-                EmployeeNumber = record.Employee.EmployeeNumber,
-                EmployeeName = $"{record.Employee.FirstName} {record.Employee.LastName}",
-                GrossPay = record.GrossPay,
-                TotalDeductions = record.TotalDeductions,
-                NetPay = record.NetPay,
-                Status = record.Status,
-                CreatedAtUtc = record.CreatedAtUtc,
-                Items = record.Items
-                    .OrderBy(item => item.Id)
-                    .Select(item => new PayrollRecordItemDto
-                    {
-                        Id = item.Id,
-                        Type = item.Type,
-                        Description = item.Description,
-                        Amount = item.Amount
-                    })
-                    .ToList()
-            })
+            .Select(record => MapPayrollRecord(record))
             .ToListAsync();
     }
 
@@ -345,34 +348,187 @@ public class PayrollService : IPayrollService
     {
         return await _context.PayrollRecords
             .AsNoTracking()
+            .Include(record => record.PayrollPeriod)
             .Include(record => record.Employee)
             .Include(record => record.Items)
-            .Where(record => record.EmployeeId == employeeId)
+            .Where(record =>
+                record.EmployeeId == employeeId &&
+                record.PayrollPeriod.Status == PayrollStatuses.Released)
             .OrderByDescending(record => record.CreatedAtUtc)
-            .Select(record => new PayrollRecordDto
+            .Select(record => MapPayrollRecord(record))
+            .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<PayrollRecordDto>> GetMyPayslipsAsync(ClaimsPrincipal actor)
+    {
+        var userId = GetUserId(actor);
+
+        if (!userId.HasValue)
+            throw new ApiException("Authenticated user could not be resolved.", StatusCodes.Status401Unauthorized);
+
+        var employee = await _context.Employees
+            .AsNoTracking()
+            .FirstOrDefaultAsync(employee => employee.UserId == userId.Value);
+
+        if (employee is null)
+            throw new ApiException("Employee profile is not linked to this user.", StatusCodes.Status404NotFound);
+
+        return await GetPayslipsAsync(employee.Id);
+    }
+
+    public async Task<byte[]> GeneratePayslipPdfAsync(int payrollRecordId, ClaimsPrincipal actor)
+    {
+        var payrollRecord = await _context.PayrollRecords
+            .AsNoTracking()
+            .Include(record => record.PayrollPeriod)
+            .Include(record => record.Employee)
+            .Include(record => record.Items)
+            .FirstOrDefaultAsync(record => record.Id == payrollRecordId);
+
+        if (payrollRecord is null)
+            throw new ApiException("Payroll record was not found.", StatusCodes.Status404NotFound);
+
+        if (!IsAdmin(actor))
+        {
+            var userId = GetUserId(actor);
+
+            if (!userId.HasValue)
+                throw new ApiException("Authenticated user could not be resolved.", StatusCodes.Status401Unauthorized);
+
+            var employee = await _context.Employees
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.UserId == userId.Value);
+
+            if (employee is null)
+                throw new ApiException("Employee profile is not linked to this user.", StatusCodes.Status404NotFound);
+
+            if (payrollRecord.EmployeeId != employee.Id)
+                throw new ApiException("You can only download your own payslips.", StatusCodes.Status403Forbidden);
+        }
+
+        if (payrollRecord.PayrollPeriod.Status != PayrollStatuses.Released)
+            throw new ApiException("Payslip is not available until payroll is released.", StatusCodes.Status404NotFound);
+
+        return _payslipPdfGenerator.Generate(MapPayrollRecord(payrollRecord));
+    }
+
+    public async Task<IReadOnlyList<ThirteenthMonthPayDto>> GetThirteenthMonthPayAsync(int year)
+    {
+        if (year < 1900 || year > 9999)
+            throw new InvalidOperationException("A valid payroll year is required.");
+
+        var yearStart = new DateOnly(year, 1, 1);
+        var yearEnd = new DateOnly(year, 12, 31);
+
+        var basicPayItems = await _context.PayrollRecordItems
+            .AsNoTracking()
+            .Include(item => item.PayrollRecord)
+                .ThenInclude(record => record.Employee)
+            .Include(item => item.PayrollRecord)
+                .ThenInclude(record => record.PayrollPeriod)
+            .Where(item =>
+                item.Type == PayrollItemTypeEarning &&
+                item.Description == BasicPayDescription &&
+                item.PayrollRecord.PayrollPeriod.StartDate <= yearEnd &&
+                item.PayrollRecord.PayrollPeriod.EndDate >= yearStart)
+            .Select(item => new
             {
-                Id = record.Id,
-                PayrollPeriodId = record.PayrollPeriodId,
-                EmployeeId = record.EmployeeId,
-                EmployeeNumber = record.Employee.EmployeeNumber,
-                EmployeeName = $"{record.Employee.FirstName} {record.Employee.LastName}",
-                GrossPay = record.GrossPay,
-                TotalDeductions = record.TotalDeductions,
-                NetPay = record.NetPay,
-                Status = record.Status,
-                CreatedAtUtc = record.CreatedAtUtc,
-                Items = record.Items
-                    .OrderBy(item => item.Id)
-                    .Select(item => new PayrollRecordItemDto
-                    {
-                        Id = item.Id,
-                        Type = item.Type,
-                        Description = item.Description,
-                        Amount = item.Amount
-                    })
-                    .ToList()
+                item.Amount,
+                PeriodStart = item.PayrollRecord.PayrollPeriod.StartDate,
+                PeriodEnd = item.PayrollRecord.PayrollPeriod.EndDate,
+                EmployeeId = item.PayrollRecord.EmployeeId,
+                item.PayrollRecord.Employee.EmployeeNumber,
+                item.PayrollRecord.Employee.FirstName,
+                item.PayrollRecord.Employee.LastName,
+                item.PayrollRecord.Employee.Department,
+                item.PayrollRecord.Employee.Position
             })
             .ToListAsync();
+
+        return basicPayItems
+            .GroupBy(item => new
+            {
+                item.EmployeeId,
+                item.EmployeeNumber,
+                item.FirstName,
+                item.LastName,
+                item.Department,
+                item.Position
+            })
+            .OrderBy(group => group.Key.EmployeeNumber)
+            .Select(group =>
+            {
+                var basicSalaryEarned = RoundMoney(group.Sum(item =>
+                {
+                    var overlapStart = item.PeriodStart < yearStart ? yearStart : item.PeriodStart;
+                    var overlapEnd = item.PeriodEnd > yearEnd ? yearEnd : item.PeriodEnd;
+                    var periodDays = item.PeriodEnd.DayNumber - item.PeriodStart.DayNumber + 1;
+                    var overlapDays = overlapEnd.DayNumber - overlapStart.DayNumber + 1;
+
+                    return periodDays <= 0
+                        ? 0m
+                        : item.Amount * overlapDays / periodDays;
+                }));
+
+                return new ThirteenthMonthPayDto
+                {
+                    EmployeeId = group.Key.EmployeeId,
+                    EmployeeNumber = group.Key.EmployeeNumber,
+                    EmployeeName = $"{group.Key.FirstName} {group.Key.LastName}",
+                    Department = group.Key.Department ?? string.Empty,
+                    Position = group.Key.Position ?? string.Empty,
+                    Year = year,
+                    BasicSalaryEarned = basicSalaryEarned,
+                    ThirteenthMonthPay = RoundMoney(basicSalaryEarned / 12)
+                };
+            })
+            .ToList();
+    }
+
+    private static PayrollPeriodDto MapPayrollPeriod(PayrollPeriod payrollPeriod)
+    {
+        return new PayrollPeriodDto
+        {
+            Id = payrollPeriod.Id,
+            StartDate = payrollPeriod.StartDate,
+            EndDate = payrollPeriod.EndDate,
+            Status = payrollPeriod.Status,
+            ProcessedAtUtc = payrollPeriod.ProcessedAtUtc,
+            ReleasedAtUtc = payrollPeriod.ReleasedAtUtc,
+            CreatedAtUtc = payrollPeriod.CreatedAtUtc
+        };
+    }
+
+    private static PayrollRecordDto MapPayrollRecord(PayrollRecord record)
+    {
+        return new PayrollRecordDto
+        {
+            Id = record.Id,
+            PayrollPeriodId = record.PayrollPeriodId,
+            PayrollPeriodStartDate = record.PayrollPeriod.StartDate,
+            PayrollPeriodEndDate = record.PayrollPeriod.EndDate,
+            EmployeeId = record.EmployeeId,
+            EmployeeNumber = record.Employee.EmployeeNumber,
+            EmployeeName = $"{record.Employee.FirstName} {record.Employee.LastName}",
+            Department = record.Employee.Department ?? string.Empty,
+            Position = record.Employee.Position ?? string.Empty,
+            GrossPay = record.GrossPay,
+            TotalDeductions = record.TotalDeductions,
+            NetPay = record.NetPay,
+            Status = record.Status,
+            CreatedAtUtc = record.CreatedAtUtc,
+            ReleasedAtUtc = record.PayrollPeriod.ReleasedAtUtc,
+            Items = record.Items
+                .OrderBy(item => item.Id)
+                .Select(item => new PayrollRecordItemDto
+                {
+                    Id = item.Id,
+                    Type = item.Type,
+                    Description = item.Description,
+                    Amount = item.Amount
+                })
+                .ToList()
+        };
     }
 
     private static decimal GetDailyRate(EmployeeCompensation compensation)
@@ -442,6 +598,24 @@ public class PayrollService : IPayrollService
         }
 
         return dates;
+    }
+
+    private static long? GetUserId(ClaimsPrincipal actor)
+    {
+        var value =
+            actor.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? actor.FindFirstValue("sub")
+            ?? actor.FindFirstValue("userId")
+            ?? actor.FindFirstValue("id");
+
+        return long.TryParse(value, out var userId)
+            ? userId
+            : null;
+    }
+
+    private static bool IsAdmin(ClaimsPrincipal actor)
+    {
+        return actor.IsInRole("ADMIN") || actor.IsInRole("SUPER_ADMIN");
     }
 
     private static decimal RoundMoney(decimal amount)
