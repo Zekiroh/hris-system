@@ -1,3 +1,4 @@
+using System.Globalization;
 using HRIS.Api.Features.Payroll.DTOs;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -7,6 +8,11 @@ namespace HRIS.Api.Features.Payroll.Pdf;
 
 public class PayslipPdfGenerator : IPayslipPdfGenerator
 {
+    private const string PayrollItemTypeEarning = "Earning";
+    private const string PayrollItemTypeDeduction = "Deduction";
+
+    private static readonly CultureInfo PhilippineCulture = new("en-PH");
+
     public byte[] Generate(PayrollRecordDto payslip)
     {
         return Document.Create(container =>
@@ -25,8 +31,8 @@ public class PayslipPdfGenerator : IPayslipPdfGenerator
 
                     column.Item().Element(content => ComposeEmployeeDetails(content, payslip));
                     column.Item().Element(content => ComposePayrollSummary(content, payslip));
-                    column.Item().Element(content => ComposeItems(content, "Earnings", payslip.Items.Where(item => item.Type == "Earning").ToList()));
-                    column.Item().Element(content => ComposeItems(content, "Deductions", payslip.Items.Where(item => item.Type == "Deduction").ToList()));
+                    column.Item().Element(content => ComposeItems(content, "Earnings", payslip.Items.Where(item => item.Type == PayrollItemTypeEarning).ToList()));
+                    column.Item().Element(content => ComposeItems(content, "Deductions", payslip.Items.Where(item => item.Type == PayrollItemTypeDeduction).ToList()));
                     column.Item().Element(content => ComposeNetPay(content, payslip));
                 });
 
@@ -35,7 +41,7 @@ public class PayslipPdfGenerator : IPayslipPdfGenerator
                     .Text(text =>
                     {
                         text.Span("Generated on ");
-                        text.Span(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm"));
+                        text.Span(DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm", PhilippineCulture));
                         text.Span(" UTC");
                     });
             });
@@ -103,7 +109,7 @@ public class PayslipPdfGenerator : IPayslipPdfGenerator
             table.Cell().Element(DetailCell).Column(column =>
             {
                 column.Item().Text("Release Date").FontColor(Colors.Grey.Darken1);
-                column.Item().Text(payslip.ReleasedAtUtc.HasValue ? payslip.ReleasedAtUtc.Value.ToString("MMM dd, yyyy") : "Not released").Bold();
+                column.Item().Text(payslip.ReleasedAtUtc.HasValue ? payslip.ReleasedAtUtc.Value.ToString("MMM dd, yyyy", PhilippineCulture) : "Not released").Bold();
             });
         });
     }
@@ -219,11 +225,11 @@ public class PayslipPdfGenerator : IPayslipPdfGenerator
 
     private static string FormatMoney(decimal amount)
     {
-        return $"PHP {amount:N2}";
+        return $"PHP {amount.ToString("N2", PhilippineCulture)}";
     }
 
     private static string FormatDate(DateOnly date)
     {
-        return date.ToString("MMM dd, yyyy");
+        return date.ToString("MMM dd, yyyy", PhilippineCulture);
     }
 }

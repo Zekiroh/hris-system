@@ -22,6 +22,7 @@ public class PayrollService : IPayrollService
     private const string CompensationTypeDaily = "Daily";
 
     private const string PayrollItemTypeEarning = "Earning";
+    private const string PayrollItemTypeDeduction = "Deduction";
     private const string BasicPayDescription = "Basic Pay";
 
     private const int MonthlyCutoffs = 2;
@@ -225,7 +226,7 @@ public class PayrollService : IPayrollService
             {
                 payrollRecord.Items.Add(new PayrollRecordItem
                 {
-                    Type = "Deduction",
+                    Type = PayrollItemTypeDeduction,
                     Description = $"Late / Undertime ({lateAndUndertimeMinutes} minutes)",
                     Amount = lateAndUndertimeDeduction
                 });
@@ -235,7 +236,7 @@ public class PayrollService : IPayrollService
             {
                 payrollRecord.Items.Add(new PayrollRecordItem
                 {
-                    Type = "Deduction",
+                    Type = PayrollItemTypeDeduction,
                     Description = $"Absence ({absenceDays} day/s)",
                     Amount = absenceDeduction
                 });
@@ -245,7 +246,7 @@ public class PayrollService : IPayrollService
             {
                 payrollRecord.Items.Add(new PayrollRecordItem
                 {
-                    Type = "Deduction",
+                    Type = PayrollItemTypeDeduction,
                     Description = "SSS",
                     Amount = sssDeduction
                 });
@@ -255,7 +256,7 @@ public class PayrollService : IPayrollService
             {
                 payrollRecord.Items.Add(new PayrollRecordItem
                 {
-                    Type = "Deduction",
+                    Type = PayrollItemTypeDeduction,
                     Description = "PhilHealth",
                     Amount = philHealthDeduction
                 });
@@ -265,7 +266,7 @@ public class PayrollService : IPayrollService
             {
                 payrollRecord.Items.Add(new PayrollRecordItem
                 {
-                    Type = "Deduction",
+                    Type = PayrollItemTypeDeduction,
                     Description = "Pag-IBIG",
                     Amount = pagIbigDeduction
                 });
@@ -275,7 +276,7 @@ public class PayrollService : IPayrollService
             {
                 payrollRecord.Items.Add(new PayrollRecordItem
                 {
-                    Type = "Deduction",
+                    Type = PayrollItemTypeDeduction,
                     Description = "Withholding Tax",
                     Amount = withholdingTaxDeduction
                 });
@@ -350,7 +351,9 @@ public class PayrollService : IPayrollService
             .Include(record => record.PayrollPeriod)
             .Include(record => record.Employee)
             .Include(record => record.Items)
-            .Where(record => record.EmployeeId == employeeId)
+            .Where(record =>
+                record.EmployeeId == employeeId &&
+                record.PayrollPeriod.Status == PayrollStatuses.Released)
             .OrderByDescending(record => record.CreatedAtUtc)
             .Select(record => MapPayrollRecord(record))
             .ToListAsync();
@@ -403,6 +406,9 @@ public class PayrollService : IPayrollService
                 throw new ApiException("You can only download your own payslips.", StatusCodes.Status403Forbidden);
         }
 
+        if (payrollRecord.PayrollPeriod.Status != PayrollStatuses.Released)
+            throw new ApiException("Payslip is not available until payroll is released.", StatusCodes.Status404NotFound);
+
         return _payslipPdfGenerator.Generate(MapPayrollRecord(payrollRecord));
     }
 
@@ -428,6 +434,8 @@ public class PayrollService : IPayrollService
             .Select(item => new
             {
                 item.Amount,
+                PeriodStart = item.PayrollRecord.PayrollPeriod.StartDate,
+                PeriodEnd = item.PayrollRecord.PayrollPeriod.EndDate,
                 EmployeeId = item.PayrollRecord.EmployeeId,
                 item.PayrollRecord.Employee.EmployeeNumber,
                 item.PayrollRecord.Employee.FirstName,
@@ -450,7 +458,17 @@ public class PayrollService : IPayrollService
             .OrderBy(group => group.Key.EmployeeNumber)
             .Select(group =>
             {
-                var basicSalaryEarned = RoundMoney(group.Sum(item => item.Amount));
+                var basicSalaryEarned = RoundMoney(group.Sum(item =>
+                {
+                    var overlapStart = item.PeriodStart < yearStart ? yearStart : item.PeriodStart;
+                    var overlapEnd = item.PeriodEnd > yearEnd ? yearEnd : item.PeriodEnd;
+                    var periodDays = item.PeriodEnd.DayNumber - item.PeriodStart.DayNumber + 1;
+                    var overlapDays = overlapEnd.DayNumber - overlapStart.DayNumber + 1;
+
+                    return periodDays <= 0
+                        ? 0m
+                        : item.Amount * overlapDays / periodDays;
+                }));
 
                 return new ThirteenthMonthPayDto
                 {
