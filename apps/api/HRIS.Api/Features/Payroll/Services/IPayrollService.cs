@@ -13,4 +13,6 @@ public interface IPayrollService
     Task<IReadOnlyList<PayrollRecordDto>> GetPayrollRecordsAsync(int payrollPeriodId);
 
     Task<IReadOnlyList<PayrollRecordDto>> GetPayslipsAsync(Guid employeeId);
+
+    Task<IReadOnlyList<ThirteenthMonthPayDto>> GetThirteenthMonthPayAsync(int year);
 }

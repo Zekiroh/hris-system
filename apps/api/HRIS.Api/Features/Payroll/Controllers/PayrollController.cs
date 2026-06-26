@@ -49,6 +49,14 @@ public class PayrollController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
+    [HttpGet("13th-month/{year:int}")]
+    public async Task<IActionResult> GetThirteenthMonthPay(int year)
+    {
+        var result = await _service.GetThirteenthMonthPayAsync(year);
+        return Ok(result);
+    }
+
     [HttpGet("payslips/{employeeId:guid}")]
     public async Task<IActionResult> GetPayslips(Guid employeeId)
     {

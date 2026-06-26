@@ -17,6 +17,9 @@ public class PayrollService : IPayrollService
     private const string CompensationTypeMonthly = "Monthly";
     private const string CompensationTypeDaily = "Daily";
 
+    private const string PayrollItemTypeEarning = "Earning";
+    private const string BasicPayDescription = "Basic Pay";
+
     private const int MonthlyCutoffs = 2;
     private const int StandardMonthlyWorkingDays = 22;
     private const int StandardWorkingMinutesPerDay = 480;
@@ -196,8 +199,8 @@ public class PayrollService : IPayrollService
 
             payrollRecord.Items.Add(new PayrollRecordItem
             {
-                Type = "Earning",
-                Description = "Basic Pay",
+                Type = PayrollItemTypeEarning,
+                Description = BasicPayDescription,
                 Amount = basicPay
             });
 
@@ -205,7 +208,7 @@ public class PayrollService : IPayrollService
             {
                 payrollRecord.Items.Add(new PayrollRecordItem
                 {
-                    Type = "Earning",
+                    Type = PayrollItemTypeEarning,
                     Description = $"Approved Overtime ({approvedOvertimeMinutes} minutes)",
                     Amount = overtimePay
                 });
@@ -386,6 +389,67 @@ public class PayrollService : IPayrollService
                     .ToList()
             })
             .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<ThirteenthMonthPayDto>> GetThirteenthMonthPayAsync(int year)
+    {
+        if (year < 1900 || year > 9999)
+            throw new InvalidOperationException("A valid payroll year is required.");
+
+        var yearStart = new DateOnly(year, 1, 1);
+        var yearEnd = new DateOnly(year, 12, 31);
+
+        var basicPayItems = await _context.PayrollRecordItems
+            .AsNoTracking()
+            .Include(item => item.PayrollRecord)
+                .ThenInclude(record => record.Employee)
+            .Include(item => item.PayrollRecord)
+                .ThenInclude(record => record.PayrollPeriod)
+            .Where(item =>
+                item.Type == PayrollItemTypeEarning &&
+                item.Description == BasicPayDescription &&
+                item.PayrollRecord.PayrollPeriod.StartDate <= yearEnd &&
+                item.PayrollRecord.PayrollPeriod.EndDate >= yearStart)
+            .Select(item => new
+            {
+                item.Amount,
+                EmployeeId = item.PayrollRecord.EmployeeId,
+                item.PayrollRecord.Employee.EmployeeNumber,
+                item.PayrollRecord.Employee.FirstName,
+                item.PayrollRecord.Employee.LastName,
+                item.PayrollRecord.Employee.Department,
+                item.PayrollRecord.Employee.Position
+            })
+            .ToListAsync();
+
+        return basicPayItems
+            .GroupBy(item => new
+            {
+                item.EmployeeId,
+                item.EmployeeNumber,
+                item.FirstName,
+                item.LastName,
+                item.Department,
+                item.Position
+            })
+            .OrderBy(group => group.Key.EmployeeNumber)
+            .Select(group =>
+            {
+                var basicSalaryEarned = RoundMoney(group.Sum(item => item.Amount));
+
+                return new ThirteenthMonthPayDto
+                {
+                    EmployeeId = group.Key.EmployeeId,
+                    EmployeeNumber = group.Key.EmployeeNumber,
+                    EmployeeName = $"{group.Key.FirstName} {group.Key.LastName}",
+                    Department = group.Key.Department ?? string.Empty,
+                    Position = group.Key.Position ?? string.Empty,
+                    Year = year,
+                    BasicSalaryEarned = basicSalaryEarned,
+                    ThirteenthMonthPay = RoundMoney(basicSalaryEarned / 12)
+                };
+            })
+            .ToList();
     }
 
     private static PayrollPeriodDto MapPayrollPeriod(PayrollPeriod payrollPeriod)
