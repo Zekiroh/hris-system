@@ -26,6 +26,14 @@ public class PayrollController : ControllerBase
     }
 
     [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
+    [HttpPost("periods/{id:int}/release")]
+    public async Task<IActionResult> ReleasePayrollPeriod(int id)
+    {
+        var result = await _service.ReleasePayrollPeriodAsync(id);
+        return Ok(result);
+    }
+
+    [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
     [HttpGet("periods")]
     public async Task<IActionResult> GetPayrollPeriods()
     {

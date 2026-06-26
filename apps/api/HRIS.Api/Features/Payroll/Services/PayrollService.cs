@@ -1,5 +1,6 @@
 using HRIS.Api.Data;
 using HRIS.Api.Features.GovernmentCompliance.Services;
+using HRIS.Api.Features.Payroll.Constants;
 using HRIS.Api.Features.Payroll.DTOs;
 using HRIS.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -8,7 +9,6 @@ namespace HRIS.Api.Features.Payroll.Services;
 
 public class PayrollService : IPayrollService
 {
-    private const string PayrollPeriodStatusProcessed = "Processed";
     private const string PayrollRecordStatusProcessed = "Processed";
 
     private const string LeaveStatusApproved = "Approved";
@@ -107,7 +107,7 @@ public class PayrollService : IPayrollService
         {
             StartDate = request.StartDate,
             EndDate = request.EndDate,
-            Status = PayrollPeriodStatusProcessed,
+            Status = PayrollStatuses.Processed,
             ProcessedAtUtc = now,
             CreatedAtUtc = now
         };
@@ -277,16 +277,29 @@ public class PayrollService : IPayrollService
         await _context.SaveChangesAsync();
         await transaction.CommitAsync();
 
-        return new PayrollPeriodDto
-        {
-            Id = payrollPeriod.Id,
-            StartDate = payrollPeriod.StartDate,
-            EndDate = payrollPeriod.EndDate,
-            Status = payrollPeriod.Status,
-            ProcessedAtUtc = payrollPeriod.ProcessedAtUtc,
-            ReleasedAtUtc = payrollPeriod.ReleasedAtUtc,
-            CreatedAtUtc = payrollPeriod.CreatedAtUtc
-        };
+        return MapPayrollPeriod(payrollPeriod);
+    }
+
+    public async Task<PayrollPeriodDto> ReleasePayrollPeriodAsync(int periodId)
+    {
+        var payrollPeriod = await _context.PayrollPeriods
+            .FirstOrDefaultAsync(period => period.Id == periodId);
+
+        if (payrollPeriod == null)
+            throw new InvalidOperationException("Payroll period was not found.");
+
+        if (payrollPeriod.Status == PayrollStatuses.Released)
+            throw new InvalidOperationException("Payroll period is already released.");
+
+        if (payrollPeriod.Status != PayrollStatuses.Processed)
+            throw new InvalidOperationException("Only processed payroll periods can be released.");
+
+        payrollPeriod.Status = PayrollStatuses.Released;
+        payrollPeriod.ReleasedAtUtc = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return MapPayrollPeriod(payrollPeriod);
     }
 
     public async Task<IReadOnlyList<PayrollPeriodDto>> GetPayrollPeriodsAsync()
@@ -373,6 +386,20 @@ public class PayrollService : IPayrollService
                     .ToList()
             })
             .ToListAsync();
+    }
+
+    private static PayrollPeriodDto MapPayrollPeriod(PayrollPeriod payrollPeriod)
+    {
+        return new PayrollPeriodDto
+        {
+            Id = payrollPeriod.Id,
+            StartDate = payrollPeriod.StartDate,
+            EndDate = payrollPeriod.EndDate,
+            Status = payrollPeriod.Status,
+            ProcessedAtUtc = payrollPeriod.ProcessedAtUtc,
+            ReleasedAtUtc = payrollPeriod.ReleasedAtUtc,
+            CreatedAtUtc = payrollPeriod.CreatedAtUtc
+        };
     }
 
     private static decimal GetDailyRate(EmployeeCompensation compensation)

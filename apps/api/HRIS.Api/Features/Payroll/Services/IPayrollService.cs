@@ -6,6 +6,8 @@ public interface IPayrollService
 {
     Task<PayrollPeriodDto> ProcessPayrollAsync(ProcessPayrollRequest request);
 
+    Task<PayrollPeriodDto> ReleasePayrollPeriodAsync(int periodId);
+
     Task<IReadOnlyList<PayrollPeriodDto>> GetPayrollPeriodsAsync();
 
     Task<IReadOnlyList<PayrollRecordDto>> GetPayrollRecordsAsync(int payrollPeriodId);
