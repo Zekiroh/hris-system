@@ -1,8 +1,12 @@
+using System.Security.Claims;
 using HRIS.Api.Data;
+using HRIS.Api.Features.Common.Exceptions;
 using HRIS.Api.Features.GovernmentCompliance.Services;
 using HRIS.Api.Features.Payroll.Constants;
 using HRIS.Api.Features.Payroll.DTOs;
+using HRIS.Api.Features.Payroll.Pdf;
 using HRIS.Api.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
 namespace HRIS.Api.Features.Payroll.Services;
@@ -26,13 +30,16 @@ public class PayrollService : IPayrollService
 
     private readonly AppDbContext _context;
     private readonly IGovernmentComplianceService _governmentComplianceService;
+    private readonly IPayslipPdfGenerator _payslipPdfGenerator;
 
     public PayrollService(
         AppDbContext context,
-        IGovernmentComplianceService governmentComplianceService)
+        IGovernmentComplianceService governmentComplianceService,
+        IPayslipPdfGenerator payslipPdfGenerator)
     {
         _context = context;
         _governmentComplianceService = governmentComplianceService;
+        _payslipPdfGenerator = payslipPdfGenerator;
     }
 
     public async Task<PayrollPeriodDto> ProcessPayrollAsync(ProcessPayrollRequest request)
@@ -327,33 +334,12 @@ public class PayrollService : IPayrollService
     {
         return await _context.PayrollRecords
             .AsNoTracking()
+            .Include(record => record.PayrollPeriod)
             .Include(record => record.Employee)
             .Include(record => record.Items)
             .Where(record => record.PayrollPeriodId == payrollPeriodId)
             .OrderBy(record => record.Employee.EmployeeNumber)
-            .Select(record => new PayrollRecordDto
-            {
-                Id = record.Id,
-                PayrollPeriodId = record.PayrollPeriodId,
-                EmployeeId = record.EmployeeId,
-                EmployeeNumber = record.Employee.EmployeeNumber,
-                EmployeeName = $"{record.Employee.FirstName} {record.Employee.LastName}",
-                GrossPay = record.GrossPay,
-                TotalDeductions = record.TotalDeductions,
-                NetPay = record.NetPay,
-                Status = record.Status,
-                CreatedAtUtc = record.CreatedAtUtc,
-                Items = record.Items
-                    .OrderBy(item => item.Id)
-                    .Select(item => new PayrollRecordItemDto
-                    {
-                        Id = item.Id,
-                        Type = item.Type,
-                        Description = item.Description,
-                        Amount = item.Amount
-                    })
-                    .ToList()
-            })
+            .Select(record => MapPayrollRecord(record))
             .ToListAsync();
     }
 
@@ -361,34 +347,63 @@ public class PayrollService : IPayrollService
     {
         return await _context.PayrollRecords
             .AsNoTracking()
+            .Include(record => record.PayrollPeriod)
             .Include(record => record.Employee)
             .Include(record => record.Items)
             .Where(record => record.EmployeeId == employeeId)
             .OrderByDescending(record => record.CreatedAtUtc)
-            .Select(record => new PayrollRecordDto
-            {
-                Id = record.Id,
-                PayrollPeriodId = record.PayrollPeriodId,
-                EmployeeId = record.EmployeeId,
-                EmployeeNumber = record.Employee.EmployeeNumber,
-                EmployeeName = $"{record.Employee.FirstName} {record.Employee.LastName}",
-                GrossPay = record.GrossPay,
-                TotalDeductions = record.TotalDeductions,
-                NetPay = record.NetPay,
-                Status = record.Status,
-                CreatedAtUtc = record.CreatedAtUtc,
-                Items = record.Items
-                    .OrderBy(item => item.Id)
-                    .Select(item => new PayrollRecordItemDto
-                    {
-                        Id = item.Id,
-                        Type = item.Type,
-                        Description = item.Description,
-                        Amount = item.Amount
-                    })
-                    .ToList()
-            })
+            .Select(record => MapPayrollRecord(record))
             .ToListAsync();
+    }
+
+    public async Task<IReadOnlyList<PayrollRecordDto>> GetMyPayslipsAsync(ClaimsPrincipal actor)
+    {
+        var userId = GetUserId(actor);
+
+        if (!userId.HasValue)
+            throw new ApiException("Authenticated user could not be resolved.", StatusCodes.Status401Unauthorized);
+
+        var employee = await _context.Employees
+            .AsNoTracking()
+            .FirstOrDefaultAsync(employee => employee.UserId == userId.Value);
+
+        if (employee is null)
+            throw new ApiException("Employee profile is not linked to this user.", StatusCodes.Status404NotFound);
+
+        return await GetPayslipsAsync(employee.Id);
+    }
+
+    public async Task<byte[]> GeneratePayslipPdfAsync(int payrollRecordId, ClaimsPrincipal actor)
+    {
+        var payrollRecord = await _context.PayrollRecords
+            .AsNoTracking()
+            .Include(record => record.PayrollPeriod)
+            .Include(record => record.Employee)
+            .Include(record => record.Items)
+            .FirstOrDefaultAsync(record => record.Id == payrollRecordId);
+
+        if (payrollRecord is null)
+            throw new ApiException("Payroll record was not found.", StatusCodes.Status404NotFound);
+
+        if (!IsAdmin(actor))
+        {
+            var userId = GetUserId(actor);
+
+            if (!userId.HasValue)
+                throw new ApiException("Authenticated user could not be resolved.", StatusCodes.Status401Unauthorized);
+
+            var employee = await _context.Employees
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.UserId == userId.Value);
+
+            if (employee is null)
+                throw new ApiException("Employee profile is not linked to this user.", StatusCodes.Status404NotFound);
+
+            if (payrollRecord.EmployeeId != employee.Id)
+                throw new ApiException("You can only download your own payslips.", StatusCodes.Status403Forbidden);
+        }
+
+        return _payslipPdfGenerator.Generate(MapPayrollRecord(payrollRecord));
     }
 
     public async Task<IReadOnlyList<ThirteenthMonthPayDto>> GetThirteenthMonthPayAsync(int year)
@@ -466,6 +481,38 @@ public class PayrollService : IPayrollService
         };
     }
 
+    private static PayrollRecordDto MapPayrollRecord(PayrollRecord record)
+    {
+        return new PayrollRecordDto
+        {
+            Id = record.Id,
+            PayrollPeriodId = record.PayrollPeriodId,
+            PayrollPeriodStartDate = record.PayrollPeriod.StartDate,
+            PayrollPeriodEndDate = record.PayrollPeriod.EndDate,
+            EmployeeId = record.EmployeeId,
+            EmployeeNumber = record.Employee.EmployeeNumber,
+            EmployeeName = $"{record.Employee.FirstName} {record.Employee.LastName}",
+            Department = record.Employee.Department ?? string.Empty,
+            Position = record.Employee.Position ?? string.Empty,
+            GrossPay = record.GrossPay,
+            TotalDeductions = record.TotalDeductions,
+            NetPay = record.NetPay,
+            Status = record.Status,
+            CreatedAtUtc = record.CreatedAtUtc,
+            ReleasedAtUtc = record.PayrollPeriod.ReleasedAtUtc,
+            Items = record.Items
+                .OrderBy(item => item.Id)
+                .Select(item => new PayrollRecordItemDto
+                {
+                    Id = item.Id,
+                    Type = item.Type,
+                    Description = item.Description,
+                    Amount = item.Amount
+                })
+                .ToList()
+        };
+    }
+
     private static decimal GetDailyRate(EmployeeCompensation compensation)
     {
         if (string.Equals(compensation.CompensationType, CompensationTypeMonthly, StringComparison.OrdinalIgnoreCase))
@@ -533,6 +580,24 @@ public class PayrollService : IPayrollService
         }
 
         return dates;
+    }
+
+    private static long? GetUserId(ClaimsPrincipal actor)
+    {
+        var value =
+            actor.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? actor.FindFirstValue("sub")
+            ?? actor.FindFirstValue("userId")
+            ?? actor.FindFirstValue("id");
+
+        return long.TryParse(value, out var userId)
+            ? userId
+            : null;
+    }
+
+    private static bool IsAdmin(ClaimsPrincipal actor)
+    {
+        return actor.IsInRole("ADMIN") || actor.IsInRole("SUPER_ADMIN");
     }
 
     private static decimal RoundMoney(decimal amount)
