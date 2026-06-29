@@ -806,7 +806,7 @@ interface Section8Props {
   setDateSubmitted: (v: string) => void;
 }
 
-export function Section8Acknowledgment({ preparedBy, setPreparedBy, preparedSig, setPreparedSig, dateSubmitted, setDateSubmitted }: Section8Props) {
+export function Section8Acknowledgment({ preparedBy, preparedSig, setPreparedSig, dateSubmitted, setDateSubmitted }: Section8Props) {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -825,12 +825,9 @@ export function Section8Acknowledgment({ preparedBy, setPreparedBy, preparedSig,
       </div>
       <div className="mt-4 text-xs text-gray-400 flex items-center gap-1.5 italic">
       <div>
-        <strong className="font-bold not-italic text-black">Note:</strong> Submit this report to your immediate supervisor before end of work day. Late submissions must be justified. Submission timestamp is mandatory.
+        <strong className="font-bold not-italic text-black">Note:</strong>Submit this report to your immediate supervisor before end of work day. Late submissions must be justified. Submission timestamp is mandatory.
       </div>
     </div>
     </>
   );
 }
-
-// alisin nalang ang delete button sa subbmissionsTable ginagamit lng ito para maulit ang pag save ng report.
-// at DeleteConfirmModalProps sa modaluser.

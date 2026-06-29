@@ -88,8 +88,8 @@ function to24Hour(time: string): string {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function SectionCard({ num, title, amber, children = 0, action, defaultOpen = true }: { 
-  num: number; title: string; amber?: boolean; children: React.ReactNode; delay?: number; action?: React.ReactNode; defaultOpen?: boolean;
+function SectionCard({ title, amber, children = 0, action, defaultOpen = true }: { 
+  title: string; amber?: boolean; children: React.ReactNode; delay?: number; action?: React.ReactNode; defaultOpen?: boolean;
   }) {
     const [open, setOpen] = useState(() => {
       const saved = localStorage.getItem(`section_open_${title}`);
@@ -105,7 +105,7 @@ function SectionCard({ num, title, amber, children = 0, action, defaultOpen = tr
     return (
       <div className="px-6 py-4 border-t border-gray-100">
         <div className={`rounded-xl border overflow-hidden ${amber ? "border-amber-200" : "border-gray-200"}`}>
-          <div className={`flex items-center justify-between px-5 py-4 cursor-pointer select-none ${amber ? "bg-amber-50" : "bg-gray-50"}`} onClick={handleToggle}>
+          <button type="button" aria-expanded={open} className={`w-full flex items-center justify-between px-5 py-4 cursor-pointer select-none ${amber ? "bg-amber-50" : "bg-gray-50"}`} onClick={handleToggle}>
             <div className="flex items-center gap-3">
               {amber && <div className="w-1 h-4 rounded-full bg-amber-400 shrink-0" />}
               <span className={`text-xs font-bold uppercase tracking-widest ${amber ? "text-amber-800" : "text-emerald-800"}`}>{title}</span>
@@ -114,7 +114,7 @@ function SectionCard({ num, title, amber, children = 0, action, defaultOpen = tr
               {action && <div onClick={e => e.stopPropagation()}>{action}</div>}
               <span className="text-gray-400 text-xs" style={{ display: "inline-block", transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▼</span>
             </div>
-          </div>
+          </button>
           {open && <div className="px-5 py-5 bg-white border-t border-gray-100">{children}</div>}
         </div>
       </div>
@@ -140,7 +140,7 @@ export default function DailyAccomplishmentReport() {
   const [timeIn, setTimeIn] = useState("");
   const [timeOut, setTimeOut] = useState("");
   const [breakMins, setBreakMins] = useState(60);
-  const [subTime, setSubTime] = useState("");
+  const [, setSubTime] = useState("");
 
   const [standup, setStandup] = useState<StandupAttended>("Yes");
   const [reachable, setReachable] = useState<Reachable>("Yes");
@@ -170,7 +170,7 @@ export default function DailyAccomplishmentReport() {
 
   const [showPreview, setShowPreview] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [successSnapshot, setSuccessSnapshot] = useState({ date: "", submitTime: "", taskCount: 0, checkCount: 0 });
+  const [, setSuccessSnapshot] = useState({ date: "", submitTime: "", taskCount: 0, checkCount: 0 });
   const [selectedSub, setSelectedSub] = React.useState<any>(null);
   const [deleteIdx, setDeleteIdx] = React.useState<number | null>(null);
   const [subSearch, setSubSearch] = React.useState("");
@@ -178,10 +178,10 @@ export default function DailyAccomplishmentReport() {
   const [subFilter, setSubFilter] = React.useState("All Status");
   const [subPage, setSubPage] = React.useState(1);
   
-  const [submitTime, setSubmitTime] = useState("");
+  const [, setSubmitTime] = useState("");
   const [activeTab, setActiveTab] = useState<"dar" | "submissions">("dar");
   const [isRevising, setIsRevising] = useState(false);
-  const [revisingDate, setRevisingDate] = useState<string | null>(null);
+  const [, setRevisingDate] = useState<string | null>(null);
 
   // ─── Fetch submissions from backend ───────────────────────────────────
   const fetchSubmissions = useCallback(async () => {
@@ -204,8 +204,6 @@ export default function DailyAccomplishmentReport() {
     async function fetchTodayAttendance() {
       try {
         const log = await getTodayMyAttendanceLog();
-        console.log("Attendance log:", log); // <- add this
-        console.log("Time In raw value:", log?.timeIn); // <- and this
         if (cancelled || !log) return;
 
         // Time In — from actual attendance record
@@ -358,7 +356,11 @@ export default function DailyAccomplishmentReport() {
 
     // TODO: once backend is ready, remove setSubmissions below and uncomment this line (await fetchSubmissions sa ibaba lng nito)
     // await fetchSubmissions(); // re-fetch after submit
-    setSubmissions(prev => [sub, ...prev]); 
+    setSubmissions(prev =>
+      isRevising
+        ? prev.map(s => s.date === sub.date && s.devName === sub.devName ? sub : s)
+        : [sub, ...prev]
+    ); 
     setIsRevising(false);
     setRevisingDate(null);
     setShowConfirm(false);
@@ -423,7 +425,7 @@ export default function DailyAccomplishmentReport() {
     if (filledTasks.length === 0) {
       errs.push("Tasks & Activities: At least one task is required.");
     } else {
-      tasks.forEach((t, i) => {
+      filledTasks.forEach((t, i) => {
         const n = i + 1;
         if (!t.priority)              errs.push(`Task #${n}: Priority is required.`);
         if (!t.taskType)              errs.push(`Task #${n}: Task Type is required.`);
@@ -536,7 +538,7 @@ export default function DailyAccomplishmentReport() {
           { label: "Actual Hours",  value: totalActual.toFixed(1) + "h", sub: `Est. ${totalEst.toFixed(1)}h`,   icon: Clock,        gradient: "linear-gradient(135deg, #6366f1 0%, #818cf8 100%)" },
           { label: "Blocked",       value: tasksBlocked,                sub: `${tasksCarry} Carry-Over`,        icon: AlertTriangle, gradient: "linear-gradient(135deg, #dc2626 0%, #ef4444 100%)" },
           { label: "Checklist",     value: `${checkCount} / 6`,         sub: `${checkPct}% completed`,          icon: Lock,          gradient: "linear-gradient(135deg, #0891b2 0%, #22d3ee 100%)" },
-        ].map((card, i) => (
+        ].map((card) => (
           <div key={card.label} className="pro-card !p-0 overflow-hidden">
             <div className="p-4 flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-white" style={{ background: card.gradient }}>
@@ -597,7 +599,7 @@ export default function DailyAccomplishmentReport() {
         )}
 
         {/* Section 1: Developer Info */}
-        <SectionCard num={1} title="Developer Information" delay={0.1}>
+        <SectionCard title="Developer Information" delay={0.1}>
           <Section1DeveloperInfo
             devName={devName}
             date={date}
@@ -623,7 +625,7 @@ export default function DailyAccomplishmentReport() {
         </SectionCard>
 
         {/* Section 3: Tasks */}
-        <SectionCard num={3} title="Tasks & Activities" delay={0.3}>
+        <SectionCard title="Tasks & Activities" delay={0.3}>
           <TasksTable
             tasks={tasks}
             onAddRow={addRow}
@@ -632,7 +634,7 @@ export default function DailyAccomplishmentReport() {
           />
         </SectionCard>
 
-        <SectionCard num={4} title="End-of-Day Summary" delay={0.4}>
+        <SectionCard title="End-of-Day Summary" delay={0.4}>
           <Section4Summary
             totalActual={totalActual} totalEst={totalEst} variance={variance}
             tasksDone={tasksDone} tasksIP={tasksIP} tasksBlocked={tasksBlocked} tasksCarry={tasksCarry}
@@ -644,11 +646,11 @@ export default function DailyAccomplishmentReport() {
           />
         </SectionCard>
 
-        <SectionCard num={5} title="End-of-Day Checklist" delay={0.5}>
+        <SectionCard title="End-of-Day Checklist" delay={0.5}>
           <Section5Checklist checklist={checklist} toggleCheck={toggleCheck} checkCount={checkCount} checkPct={checkPct} />
         </SectionCard>
 
-        <SectionCard num={2} title="Availability & Connectivity" delay={0.2}>
+        <SectionCard title="Availability & Connectivity" delay={0.2}>
           <Section2Availability
             standup={standup} setStandup={setStandup}
             reachable={reachable} setReachable={setReachable}
@@ -658,7 +660,7 @@ export default function DailyAccomplishmentReport() {
           />
         </SectionCard>
 
-        <SectionCard num={6} title="Tomorrow's Plan" delay={0.6}>
+        <SectionCard title="Tomorrow's Plan" delay={0.6}>
           <Section6TomorrowPlan
             tmrArr={tmrArr} setTmrArr={setTmrArr}
             tmrTimeIn={tmrTimeIn} setTmrTimeIn={setTmrTimeIn}
@@ -666,7 +668,7 @@ export default function DailyAccomplishmentReport() {
           />
         </SectionCard>
 
-        <SectionCard num={8} title="Acknowledgement" delay={0.7}>
+        <SectionCard title="Acknowledgement" delay={0.7}>
           <Section8Acknowledgment
             preparedBy={preparedBy} setPreparedBy={setPreparedBy}
             preparedSig={preparedSig} setPreparedSig={setPreparedSig}
@@ -688,10 +690,6 @@ export default function DailyAccomplishmentReport() {
             setSubPage={setSubPage}
             onView={setSelectedSub}
             onRevise={handleRevise}
-            onDelete={async (idx) => {
-              const target = submissions[idx];
-              await fetchSubmissions();
-            }}
           />
         </div>
       )} {/* end activeTab === "submissions" */}
@@ -708,11 +706,11 @@ export default function DailyAccomplishmentReport() {
                 You have already submitted a DAR for today. No further submissions are allowed.
               </p>
             ) : (
-              <p className="text-xs text-gray-400 flex items-center gap-1.5 italic">
+              <div className="text-xs text-gray-400 flex items-center gap-1.5 italic">
                 <div>
                   <strong className="font-bold not-italic text-black">Reminder:</strong> Please review your work carefully using the preview button before submission to ensure all details are correct.
                 </div>
-              </p>
+              </div>
             )}
             <div className="flex gap-3 flex-shrink-0">
               <button
@@ -756,10 +754,9 @@ export default function DailyAccomplishmentReport() {
         onClose={() => setDeleteIdx(null)}
         onConfirm={async () => {
           if (deleteIdx === null) return;
-          const target = submissions[deleteIdx];
           // TODO: replace with DELETE /api/dar/submissions/:id
-          // await fetch(`/api/dar/submissions/${target.id}`, { method: "DELETE", ... });
-          await fetchSubmissions();
+          // await fetch(`/api/dar/submissions/${submissions[deleteIdx].id}`, { method: "DELETE", ... });
+          setSubmissions(prev => prev.filter((_, i) => i !== deleteIdx));
           setDeleteIdx(null);
         }}
       />
@@ -820,6 +817,3 @@ export default function DailyAccomplishmentReport() {
     </div>
   );
 }
-
-// alisin nalang ang delete button sa subbmissionsTable ginagamit lng ito para maulit ang pag save ng report.
-// at DeleteConfirmModalProps sa modaluser.

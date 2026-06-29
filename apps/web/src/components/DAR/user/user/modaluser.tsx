@@ -2,7 +2,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import {
-  CheckCircle, X, FileText, Trash2, AlertTriangle, Percent, Clock, PackageCheck, GitCommit
+  CheckCircle, X, FileText, Trash2, AlertTriangle, Percent, Clock, PackageCheck, GitCommit, Send
 } from "lucide-react";
 
 // ─── Types (copied from DailyAccomplishmentReport) ───────────────────────────
@@ -31,7 +31,7 @@ interface TaskRow {
 
 // ─── Shared Constants ─────────────────────────────────────────────────────────
 
-export const checklistItems = [
+const checklistItems = [
   "All code committed & pushed to repository",
   "Tickets / task board updated with current status",
   "Pull request(s) created or reviewed",
@@ -440,8 +440,8 @@ export function DARViewModal({
           {/* Stat Cards */}
           <div className="grid grid-cols-4 gap-4 mb-5">
             {[
-              { lbl: "Tasks Done",   val: isView ? s.tasks      : tasksDone,               color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
-              { lbl: "Actual Hours", val: isView ? (net || "—") : `${totalActual.toFixed(1)}h`, color: "text-indigo-700 bg-indigo-50 border-indigo-200" },
+              { lbl: "Tasks Done",   val: tasksDone,                    color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+              { lbl: "Actual Hours", val: `${totalActual.toFixed(1)}h`, color: "text-indigo-700 bg-indigo-50 border-indigo-200" },
               { lbl: isView ? "Standup" : "Blocked", val: isView ? (standup || "—") : tasksBlocked, color: isView ? "text-cyan-700 bg-cyan-50 border-cyan-200" : "text-rose-700 bg-rose-50 border-rose-200" },
               { lbl: "Checklist",    val: `${checkCount}/6`,                                color: "text-amber-700 bg-amber-50 border-amber-200" },
             ].map(({ lbl, val, color }) => (
@@ -589,11 +589,25 @@ export function DARViewModal({
 
         </div>
 
+        {/* ─── Modal Footer ─────────────────────────────────────────── */}
+        <div className="flex justify-end gap-2 border-t border-gray-100 p-4">
+          <button type="button" className="btn btn-secondary" onClick={onClose}>
+            Close
+          </button>
+          {!isView && onSubmit && (
+            <button type="button" className="btn btn-primary" onClick={onSubmit}>
+              <Send className="w-4 h-4" /> Submit Report
+            </button>
+          )}
+          {isView && subStatus === "Revision Requested" && onRevise && (
+            <button type="button" className="btn btn-primary" onClick={() => onRevise(s)}>
+              <FileText className="w-4 h-4" /> Revise Report
+            </button>
+          )}
+        </div>
+
       </div>
     </div>,
     document.body
   );
 }
-
-// alisin nalang ang delete button sa subbmissionsTable ginagamit lng ito para maulit ang pag save ng report.
-// at DeleteConfirmModalProps sa modaluser.

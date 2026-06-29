@@ -1,6 +1,6 @@
 // src/components/DAR/user/SubmissionsTable.tsx
 import React from "react";
-import { Eye, FileText, Trash2 } from "lucide-react";
+import { Eye, FileText} from "lucide-react";
 
 interface SubmissionsTableProps {
   submissions: any[];
@@ -12,7 +12,6 @@ interface SubmissionsTableProps {
   setSubPage: React.Dispatch<React.SetStateAction<number>>;
   onView: (s: any) => void;
   onRevise: (s: any) => void;
-  onDelete: (idx: number) => void;
 }
 
 const SUB_PAGE_SIZE = 10;
@@ -34,12 +33,12 @@ const ARR_STYLE: Record<string, string> = {
 
 export default function SubmissionsTable({
   submissions, subSearch, setSubSearch, subFilter, setSubFilter,
-  subPage, setSubPage, onView, onRevise, onDelete,
+  subPage, setSubPage, onView, onRevise,
 }: SubmissionsTableProps) {
 
   const allSubmissions = submissions;
 
-  const filtered = allSubmissions.filter(s => {
+  const filtered = allSubmissions.map((s, index) => ({ s, index })).filter(({ s }) => {
     const matchSearch = s.date.includes(subSearch) || (s.project || "").toLowerCase().includes(subSearch.toLowerCase());
     const matchFilter = subFilter === "All Status" || s.status === subFilter;
     return matchSearch && matchFilter;
@@ -89,12 +88,12 @@ export default function SubmissionsTable({
               </tr>
             </thead>
             <tbody>
-              {paginatedSubs.map((s, i) => {
+              {paginatedSubs.map(({ s }, i) => {
                 const st = STATUS_STYLE[s.status] || STATUS_STYLE["Pending Review"];
                 const ar = ARR_STYLE[s.workArr || "On-site"] || ARR_STYLE["On-site"];
                 return (
                   <tr key={i} className="hover:bg-gray-50 transition-colors">
-                    <td className="text-center text-gray-400 text-xs font-semibold" style={{ width: "36px" }}>{i + 1}</td>
+                    <td className="text-center text-gray-400 text-xs font-semibold" style={{ width: "36px" }}>{(currentSubPage - 1) * SUB_PAGE_SIZE + i + 1}</td>
                     <td className="text-xs font-semibold text-gray-700" style={{ width: "90px", whiteSpace: "nowrap" }}>{s.date}</td>
                     <td className="text-xs text-gray-600 text-center" style={{ minWidth: "120px" }}>{s.project || "—"}</td>
                     <td style={{ width: "100px" }}>
@@ -130,14 +129,6 @@ export default function SubmissionsTable({
                         >
                           <FileText className="w-3.5 h-3.5" />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => onDelete(i)}
-                          className="flex items-center gap-1 text-xs text-rose-500 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-200 rounded-lg px-2 py-1.5 transition-all"
-                          title="Delete submission"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -163,6 +154,3 @@ export default function SubmissionsTable({
     </div>
   );
 }
-
-// alisin nalang ang delete button sa subbmissionsTable ginagamit lng ito para maulit ang pag save ng report.
-// at DeleteConfirmModalProps sa modaluser.
