@@ -302,22 +302,21 @@ export default function DailyAccomplishmentReport() {
     setSubmitTime(timeStr);
     // Also auto-fill the subTime input (HH:MM format)
     setSubTime(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
-    try {
-      const response = await fetch("/api/daily-report", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ devName, date, workArr, project, sprint, team, submittedTo, timeIn, timeOut, breakMins, tasks, checklist }),
-      });
-      if (!response.ok) {
-        throw new Error("Failed to submit DAR");
-      }
-      // TODO: replace with POST /api/notifications or handled server-side
-      // window.dispatchEvent(new Event("dar_submitted")); // keep if needed for UI sync
-    } catch {
-      toast.error("Unable to submit DAR. Please try again.");
-      setShowConfirm(false);
-      return;
-    }
+    // TODO: uncomment when backend is ready
+    // try {
+    //   const response = await fetch("/api/daily-report", {
+    //     method: "POST",
+    //     headers: { "Content-Type": "application/json" },
+    //     body: JSON.stringify({ devName, date, workArr, project, sprint, team, submittedTo, timeIn, timeOut, breakMins, tasks, checklist }),
+    //   });
+    //   if (!response.ok) {
+    //     throw new Error("Failed to submit DAR");
+    //   }
+    // } catch {
+    //   toast.error("Unable to submit DAR. Please try again.");
+    //   setShowConfirm(false);
+    //   return;
+    // }
     const sub = {
       date,
       project,

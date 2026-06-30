@@ -50,6 +50,12 @@ export default function SubmissionsTable({
   const canGoPrev = currentSubPage > 1;
   const canGoNext = currentSubPage < totalSubPages;
 
+  React.useEffect(() => {
+    if (subPage !== currentSubPage) {
+      setSubPage(currentSubPage);
+    }
+  }, [currentSubPage, subPage, setSubPage]);
+
   return (
     <div>
       {/* Toolbar */}
@@ -58,11 +64,12 @@ export default function SubmissionsTable({
           <input
             className="pro-input pl-10 text-sm"
             placeholder="Search by date or project..."
+            aria-label="Search submissions by date or project"
             value={subSearch}
             onChange={e => setSubSearch(e.target.value)}
           />
         </div>
-        <select className="pro-select text-sm" value={subFilter} onChange={e => setSubFilter(e.target.value)} style={{ width: "160px" }}>
+        <select className="pro-select text-sm" aria-label="Filter submissions by status" value={subFilter} onChange={e => setSubFilter(e.target.value)} style={{ width: "160px" }}>
           {["All Status", "Approved", "Pending Review", "Revision Requested", "Rejected"].map(s => (
             <option key={s}>{s}</option>
           ))}
@@ -74,8 +81,17 @@ export default function SubmissionsTable({
           <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
             <FileText className="w-5 h-5 text-gray-300" />
           </div>
-          <p className="text-sm font-medium text-gray-500">No submissions yet</p>
-          <p className="text-xs mt-1 text-gray-400">Your submitted reports will appear here</p>
+          {allSubmissions.length === 0 ? (
+            <>
+              <p className="text-sm font-medium text-gray-500">No submissions yet</p>
+              <p className="text-xs mt-1 text-gray-400">Your submitted reports will appear here</p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium text-gray-500">No results found</p>
+              <p className="text-xs mt-1 text-gray-400">Try adjusting your search or filter</p>
+            </>
+          )}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-100">
