@@ -613,24 +613,6 @@ export function TasksTable({ tasks, onAddRow, onDeleteRow, onUpdateTask }: Tasks
                           </div>
 
                           <div className="flex items-center justify-end">
-                            {/* <div className="flex items-center gap-2">
-                              {diff !== null && (
-                                <>
-                                  <span className="text-xs text-gray-400">Hours:</span>
-                                  <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
-                                    diff > 0 ? "bg-rose-50 text-rose-700 border-rose-200"
-                                    : diff < 0 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                    : "bg-gray-100 text-gray-500 border-gray-200"
-                                  }`}>
-                                    {diff > 0
-                                      ? `Over by ${diff.toFixed(1)} hr — ${actN} actual vs ${estN} estimated`
-                                      : diff < 0
-                                      ? `Under budget by ${Math.abs(diff).toFixed(1)} hr — ${actN} actual vs ${estN} estimated`
-                                      : `On target — ${actN} hrs`}
-                                  </span>
-                                </>
-                              )}
-                            </div> */}
                             <button type="button" onClick={() => onDeleteRow(task.id)} className="flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg px-2.5 py-1.5 transition-all border border-transparent hover:border-rose-200">
                               <X className="w-3.5 h-3.5" /> Delete Task
                             </button>

@@ -88,11 +88,11 @@ export default function SubmissionsTable({
               </tr>
             </thead>
             <tbody>
-              {paginatedSubs.map(({ s }, i) => {
+              {paginatedSubs.map(({ s, index }, i) => {
                 const st = STATUS_STYLE[s.status] || STATUS_STYLE["Pending Review"];
                 const ar = ARR_STYLE[s.workArr || "On-site"] || ARR_STYLE["On-site"];
                 return (
-                  <tr key={i} className="hover:bg-gray-50 transition-colors">
+                  <tr key={index} className="hover:bg-gray-50 transition-colors">
                     <td className="text-center text-gray-400 text-xs font-semibold" style={{ width: "36px" }}>{(currentSubPage - 1) * SUB_PAGE_SIZE + i + 1}</td>
                     <td className="text-xs font-semibold text-gray-700" style={{ width: "90px", whiteSpace: "nowrap" }}>{s.date}</td>
                     <td className="text-xs text-gray-600 text-center" style={{ minWidth: "120px" }}>{s.project || "—"}</td>

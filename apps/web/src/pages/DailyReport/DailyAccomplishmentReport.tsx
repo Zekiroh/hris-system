@@ -12,12 +12,12 @@ import {
   // SuccessModal,
   DeleteConfirmModal,
   DARViewModal,
-} from "../../components/DAR/user/user/modaluser";
+} from "../../components/DAR/user/modaluser";
 import {
   Section1DeveloperInfo, TasksTable, Section2Availability,
   Section4Summary, Section5Checklist, Section6TomorrowPlan, Section8Acknowledgment,
-} from "../../components/DAR/user/user/userDARsections";
-import SubmissionsTable from "../../components/DAR/user/user/SubmissionsTable";
+} from "../../components/DAR/user/userDARsections";
+import SubmissionsTable from "../../components/DAR/user/SubmissionsTable";
 
 // Types
 type WorkArrangement = "On-site" | "Remote" | "Hybrid";
@@ -303,15 +303,20 @@ export default function DailyAccomplishmentReport() {
     // Also auto-fill the subTime input (HH:MM format)
     setSubTime(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
     try {
-      await fetch("http://localhost:5169/api/daily-report", {
+      const response = await fetch("/api/daily-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ devName, date, workArr, project, sprint, team, submittedTo, timeIn, timeOut, breakMins, tasks, checklist }),
       });
+      if (!response.ok) {
+        throw new Error("Failed to submit DAR");
+      }
       // TODO: replace with POST /api/notifications or handled server-side
       // window.dispatchEvent(new Event("dar_submitted")); // keep if needed for UI sync
     } catch {
-      // Server unreachable, still show success
+      toast.error("Unable to submit DAR. Please try again.");
+      setShowConfirm(false);
+      return;
     }
     const sub = {
       date,
@@ -578,16 +583,6 @@ export default function DailyAccomplishmentReport() {
         </div>
 
       {activeTab === "dar" && <>
-
-        {/* Already-submitted warning banner */}
-        {/* {submissions.some(s => s.date === date && s.devName === devName) && !isRevising && (
-          <div className="mx-6 mb-2 mt-2 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-5 py-3">
-            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-            <p className="text-xs text-amber-800 font-medium">
-              You have already submitted a DAR for <strong>{date}</strong>. Switch to <button type="button" className="underline font-semibold hover:text-amber-900" onClick={() => setActiveTab("submissions")}>Submission History</button> to view it.
-            </p>
-          </div>
-        )} */}
 
         {isRevising && (
           <div className="mx-6 mb-2 mt-2 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-5 py-3">
