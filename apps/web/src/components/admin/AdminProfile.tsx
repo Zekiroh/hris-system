@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom';
 import { DropdownMenu, PROVINCE_OPTIONS } from '../../components/personal-records/EmployeeFormFields';
 import { LOCATION_OPTIONS } from '../../components/personal-records/locationOptions';
 import { useAvatarUrl } from '../../hooks/useAvatarUrl';
-import { MAX_AVATAR_FILE_SIZE_BYTES, readAvatarFileAsDataUrl, setStoredAvatarUrl } from '../../lib/avatar';
+import { readAvatarFileAsDataUrl, setStoredAvatarUrl } from '../../lib/avatar';
 
 
 // ─── Confirm Modal ────────────────────────────────────────────────────────────
@@ -147,11 +147,6 @@ const AdminProfile = () => {
             toast.error('Unable to update profile photo. Please sign in again.');
             return;
         }
-        if (file.size > MAX_AVATAR_FILE_SIZE_BYTES) {
-            toast.error('Image must be smaller than 2MB.');
-            return;
-        }
-
         try {
             const base64 = await readAvatarFileAsDataUrl(file);
             setStoredAvatarUrl(userId, base64);
