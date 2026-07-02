@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Eye, Edit } from "lucide-react";
 import type { EmployeeStatus } from "../../lib/employees";
 import { useAvatarUrl } from "../../hooks/useAvatarUrl";
@@ -38,12 +39,19 @@ function EmployeeAvatar({
   userId?: string | number | null;
 }) {
   const avatarUrl = useAvatarUrl(userId);
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
   const initial = name.trim().charAt(0).toUpperCase() || "?";
+  const showAvatar = Boolean(avatarUrl && avatarUrl !== failedAvatarUrl);
 
   return (
     <div className="w-8 h-8 rounded-lg overflow-hidden bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-      {avatarUrl ? (
-        <img src={avatarUrl} alt={`${name} avatar`} className="w-full h-full object-cover" />
+      {showAvatar && avatarUrl ? (
+        <img
+          src={avatarUrl}
+          alt={`${name} avatar`}
+          className="w-full h-full object-cover"
+          onError={() => setFailedAvatarUrl(avatarUrl)}
+        />
       ) : (
         initial
       )}

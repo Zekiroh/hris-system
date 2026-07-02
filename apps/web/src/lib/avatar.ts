@@ -1,7 +1,15 @@
 export const AVATAR_UPDATED_EVENT = "settings-avatar-updated";
+export const MAX_AVATAR_FILE_SIZE_BYTES = 2 * 1024 * 1024;
+
+const ALLOWED_AVATAR_MIME_TYPES = new Set([
+  "image/gif",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 
 export type AvatarUpdatedDetail = {
-  userId?: string | number;
+  userId: string | number;
   avatarUrl?: string | null;
 };
 
@@ -22,10 +30,18 @@ export function setStoredAvatarUrl(
 ) {
   const key = getAvatarStorageKey(userId);
 
-  if (avatarUrl) {
-    localStorage.setItem(key, avatarUrl);
-  } else {
-    localStorage.removeItem(key);
+  try {
+    if (avatarUrl) {
+      localStorage.setItem(key, avatarUrl);
+    } else {
+      localStorage.removeItem(key);
+    }
+  } catch (error) {
+    if (isQuotaExceededError(error)) {
+      throw new Error("Avatar is too large to save. Please choose a smaller image.");
+    }
+
+    throw new Error("Failed to save profile photo.");
   }
 
   window.dispatchEvent(
@@ -45,7 +61,29 @@ export function setStoredAvatarUrl(
   );
 }
 
+function isQuotaExceededError(error: unknown): boolean {
+  return (
+    error instanceof DOMException &&
+    (error.name === "QuotaExceededError" ||
+      error.name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+      error.code === 22 ||
+      error.code === 1014)
+  );
+}
+
+function validateAvatarFile(file: File) {
+  if (file.size > MAX_AVATAR_FILE_SIZE_BYTES) {
+    throw new Error("Image must be smaller than 2MB.");
+  }
+
+  if (!ALLOWED_AVATAR_MIME_TYPES.has(file.type)) {
+    throw new Error("Please choose a JPEG, PNG, WebP, or GIF image.");
+  }
+}
+
 export function readAvatarFileAsDataUrl(file: File): Promise<string> {
+  validateAvatarFile(file);
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 

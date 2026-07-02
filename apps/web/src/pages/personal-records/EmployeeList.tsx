@@ -459,7 +459,7 @@ const EmployeeList = () => {
 
       setAvatarUserIdsByEmail(lookup);
     } catch {
-      setAvatarUserIdsByEmail({});
+      // Preserve previously loaded avatar mappings when refresh fails.
     }
   }, []);
 

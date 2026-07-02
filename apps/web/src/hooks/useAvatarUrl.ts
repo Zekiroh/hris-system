@@ -9,22 +9,30 @@ import {
 export function useAvatarUrl(
   userId: string | number | null | undefined
 ): string | null {
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(() =>
-    getStoredAvatarUrl(userId)
-  );
+  const userIdKey = userId === null || userId === undefined ? null : String(userId);
+  const [updatedAvatar, setUpdatedAvatar] = useState<{
+    userIdKey: string;
+    avatarUrl: string | null;
+  } | null>(null);
+
+  const avatarUrl =
+    userIdKey && updatedAvatar?.userIdKey === userIdKey
+      ? updatedAvatar.avatarUrl
+      : getStoredAvatarUrl(userId);
 
   useEffect(() => {
     if (userId === null || userId === undefined) {
-      setAvatarUrl(null);
       return;
     }
 
     const storageKey = getAvatarStorageKey(userId);
-    setAvatarUrl(getStoredAvatarUrl(userId));
 
     const handleStorage = (event: StorageEvent) => {
       if (event.key === storageKey) {
-        setAvatarUrl(event.newValue);
+        setUpdatedAvatar({
+          userIdKey: String(userId),
+          avatarUrl: event.newValue,
+        });
       }
     };
 
@@ -32,13 +40,16 @@ export function useAvatarUrl(
       const detail = (event as CustomEvent<AvatarUpdatedDetail>).detail;
 
       if (
-        detail?.userId !== undefined &&
+        detail?.userId === undefined ||
         String(detail.userId) !== String(userId)
       ) {
         return;
       }
 
-      setAvatarUrl(detail?.avatarUrl ?? getStoredAvatarUrl(userId));
+      setUpdatedAvatar({
+        userIdKey: String(userId),
+        avatarUrl: detail.avatarUrl ?? getStoredAvatarUrl(userId),
+      });
     };
 
     window.addEventListener("storage", handleStorage);

@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom';
 import { DropdownMenu, PROVINCE_OPTIONS } from '../../components/personal-records/EmployeeFormFields';
 import { LOCATION_OPTIONS } from '../../components/personal-records/locationOptions';
 import { useAvatarUrl } from '../../hooks/useAvatarUrl';
-import { readAvatarFileAsDataUrl, setStoredAvatarUrl } from '../../lib/avatar';
+import { MAX_AVATAR_FILE_SIZE_BYTES, readAvatarFileAsDataUrl, setStoredAvatarUrl } from '../../lib/avatar';
 
 
 // ─── Confirm Modal ────────────────────────────────────────────────────────────
@@ -142,19 +142,22 @@ const AdminProfile = () => {
     const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (file.size > 2 * 1024 * 1024) {
+        const userId = user?.id;
+        if (userId === null || userId === undefined) {
+            toast.error('Unable to update profile photo. Please sign in again.');
+            return;
+        }
+        if (file.size > MAX_AVATAR_FILE_SIZE_BYTES) {
             toast.error('Image must be smaller than 2MB.');
             return;
         }
 
         try {
             const base64 = await readAvatarFileAsDataUrl(file);
-            if (user?.id) {
-                setStoredAvatarUrl(user.id, base64);
-            }
+            setStoredAvatarUrl(userId, base64);
             toast.success('Profile photo updated.');
-        } catch {
-            toast.error('Failed to update profile photo.');
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to update profile photo.');
         }
     };
 
