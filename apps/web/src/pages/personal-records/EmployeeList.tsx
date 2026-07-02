@@ -17,6 +17,7 @@ import {
 import { subscribeEmployeeStatsChanged } from "../../lib/events/employeeEvents";
 import { mapEmployeeMutationErrorToUiMessage } from "../../lib/employeeErrorHelpers";
 import { getEmployeeApiErrorMessage } from "./utils/employeeApiError";
+import { getAdminUsers } from "../../lib/adminUsers";
 
 import { getUserOptionsForEmployeeDropdown } from "../../lib/users";
 
@@ -82,6 +83,10 @@ function parseEmploymentTypeParam(
   return null;
 }
 
+function normalizeEmailKey(value: string | null | undefined): string {
+  return value?.trim().toLowerCase() ?? "";
+}
+
 const EmployeeList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
@@ -115,6 +120,9 @@ const EmployeeList = () => {
     useState<EmployeeDto | null>(null);
 
   const [userOptions, setUserOptions] = useState<UserOption[]>([]);
+  const [avatarUserIdsByEmail, setAvatarUserIdsByEmail] = useState<
+    Record<string, string>
+  >({});
   const [loadingUsers, setLoadingUsers] = useState(false);
 
   const [formData, setFormData] = useState<FormData>(emptyFormData());
@@ -435,6 +443,26 @@ const EmployeeList = () => {
     }
   }
 
+  const fetchAvatarUserLookup = useCallback(async () => {
+    try {
+      const res = await getAdminUsers({ page: 1, pageSize: 10000 });
+      const users = Array.isArray(res) ? res : res.items ?? [];
+
+      const lookup = users.reduce<Record<string, string>>((acc, user) => {
+        const emailKey = normalizeEmailKey(user.email);
+        if (emailKey) {
+          acc[emailKey] = String(user.id);
+        }
+
+        return acc;
+      }, {});
+
+      setAvatarUserIdsByEmail(lookup);
+    } catch {
+      // Preserve previously loaded avatar mappings when refresh fails.
+    }
+  }, []);
+
   const fetchEmployeeDtoById = useCallback(async (id: string) => {
     const res = await getEmployeeById(id);
     return unwrapData<EmployeeDto>(res);
@@ -518,13 +546,18 @@ const EmployeeList = () => {
   }, []);
 
   useEffect(() => {
+    void fetchAvatarUserLookup();
+  }, [fetchAvatarUserLookup]);
+
+  useEffect(() => {
     const unsubscribe = subscribeEmployeeStatsChanged(() => {
       void fetchEmployees();
       void fetchEmployeeSummaryOnly();
+      void fetchAvatarUserLookup();
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [fetchAvatarUserLookup]);
 
   useEffect(() => {
     if (showAddModal) {
@@ -545,8 +578,10 @@ const EmployeeList = () => {
         department: e.department,
         status: e.status,
         isNewHire: e.isNewHire,
+        avatarUserId:
+          avatarUserIdsByEmail[normalizeEmailKey(e.email)] ?? null,
       })),
-    [employees]
+    [avatarUserIdsByEmail, employees]
   );
 
   const hasEditChanges = useMemo(() => {
@@ -712,6 +747,7 @@ const EmployeeList = () => {
       resetModalState();
       await fetchEmployees();
       await fetchEmployeeSummaryOnly();
+      await fetchAvatarUserLookup();
     } catch (e) {
       const normalizedMessage = getEmployeeApiErrorMessage(e);
       const mapped = mapEmployeeMutationErrorToUiMessage(

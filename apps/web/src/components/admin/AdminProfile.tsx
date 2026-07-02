@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
 import { DropdownMenu, PROVINCE_OPTIONS } from '../../components/personal-records/EmployeeFormFields';
 import { LOCATION_OPTIONS } from '../../components/personal-records/locationOptions';
+import { useAvatarUrl } from '../../hooks/useAvatarUrl';
+import { readAvatarFileAsDataUrl, setStoredAvatarUrl } from '../../lib/avatar';
 
 
 // ─── Confirm Modal ────────────────────────────────────────────────────────────
@@ -69,8 +71,6 @@ type AdminProfileForm = {
     hiredDate:    string;
 };
 
-type AvatarState = { url: string | null };
-
 type AdminDropdownKey = 'province' | 'city' | null;
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -99,7 +99,7 @@ const AdminProfile = () => {
     const [isEditing,   setIsEditing]   = useState(false);
     const [isLoading,   setIsLoading]   = useState(true);
     const [confirmOpen, setConfirmOpen] = useState(false);
-    const [avatar,      setAvatar]      = useState<AvatarState>({ url: null });
+    const avatarUrl = useAvatarUrl(user?.id);
     const [openDropdown, setOpenDropdown] = useState<AdminDropdownKey>(null);
 
     const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -115,13 +115,6 @@ const AdminProfile = () => {
         setForm(prev => ({ ...prev, province: value, city: '' }));
         setOpenDropdown(null);
     };
-
-    // ── Load avatar from localStorage ──
-    useEffect(() => {
-        if (!user?.id) return;
-        const saved = localStorage.getItem(`settings.avatar.${user.id}`);
-        if (saved) setAvatar({ url: saved });
-    }, [user?.id]);
 
     // ── Load profile from AuthContext (backend endpoint pending) ──
     useEffect(() => {
@@ -146,27 +139,21 @@ const AdminProfile = () => {
     }, [user]);
 
     // ── Avatar change ──
-    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (file.size > 2 * 1024 * 1024) {
-            toast.error('Image must be smaller than 2MB.');
+        const userId = user?.id;
+        if (userId === null || userId === undefined) {
+            toast.error('Unable to update profile photo. Please sign in again.');
             return;
         }
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const base64 = event.target?.result as string;
-            setAvatar({ url: base64 });
-            if (user?.id) {
-                localStorage.setItem(`settings.avatar.${user.id}`, base64);
-                window.dispatchEvent(new StorageEvent('storage', {
-                    key:      `settings.avatar.${user.id}`,
-                    newValue: base64,
-                }));
-            }
+        try {
+            const base64 = await readAvatarFileAsDataUrl(file);
+            setStoredAvatarUrl(userId, base64);
             toast.success('Profile photo updated.');
-        };
-        reader.readAsDataURL(file);
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to update profile photo.');
+        }
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -253,8 +240,8 @@ const AdminProfile = () => {
                         title="Change profile photo"
                         className="relative w-24 h-24 rounded-2xl shrink-0 group overflow-hidden border border-gray-100"
                     >
-                        {avatar.url ? (
-                            <img src={avatar.url} alt="Profile" className="w-full h-full object-cover rounded-2xl" />
+                        {avatarUrl ? (
+                            <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover rounded-2xl" />
                         ) : (
                             <div className="w-full h-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-lg font-bold rounded-2xl">
                                 {initials}
