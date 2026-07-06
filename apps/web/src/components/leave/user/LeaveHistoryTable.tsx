@@ -1,5 +1,6 @@
-import { CheckCircle } from "lucide-react";
+import { CalendarDays, CheckCircle } from "lucide-react";
 import type { LeaveRequestRow, StatusBadgeMap } from "./LeaveTableTypes";
+import { formatLeaveDate, getLeaveTypeColor, getLeaveTypeIcon } from "./LeaveTableUtils";
 
 interface LeaveHistoryTableProps {
   requests: LeaveRequestRow[];
@@ -87,13 +88,41 @@ const LeaveHistoryTable = ({
                 return (
                   <tr key={isPlaceholder ? `placeholder-${r.id}` : r.id}>
                     <td className={isPlaceholder ? "text-gray-300" : "!font-medium"}>
-                      {isPlaceholder ? "--" : r.leaveType}
+                      {isPlaceholder ? (
+                        "--"
+                      ) : (
+                        (() => {
+                          const LeaveTypeIcon = getLeaveTypeIcon(r.leaveType);
+                          return (
+                            <div className="flex items-center gap-2">
+                              <LeaveTypeIcon
+                                className={`h-4 w-4 shrink-0 ${getLeaveTypeColor(r.leaveType)}`}
+                              />
+                              <span>{r.leaveType}</span>
+                            </div>
+                          );
+                        })()
+                      )}
                     </td>
                     <td className={isPlaceholder ? "text-gray-300" : undefined}>
-                      {r.startDate}
+                      <div className="flex items-center gap-2">
+                        <CalendarDays
+                          className={`h-4 w-4 shrink-0 ${
+                            isPlaceholder ? "text-gray-300" : "text-slate-400"
+                          }`}
+                        />
+                        <span>{formatLeaveDate(r.startDate)}</span>
+                      </div>
                     </td>
                     <td className={isPlaceholder ? "text-gray-300" : undefined}>
-                      {r.endDate}
+                      <div className="flex items-center gap-2">
+                        <CalendarDays
+                          className={`h-4 w-4 shrink-0 ${
+                            isPlaceholder ? "text-gray-300" : "text-slate-400"
+                          }`}
+                        />
+                        <span>{formatLeaveDate(r.endDate)}</span>
+                      </div>
                     </td>
                     <td className={isPlaceholder ? "text-gray-300" : "font-semibold"}>
                       {isPlaceholder ? "--" : r.days}

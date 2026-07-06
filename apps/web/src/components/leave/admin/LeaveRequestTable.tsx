@@ -1,6 +1,7 @@
-import { Edit, Trash2 } from "lucide-react";
+import { CalendarDays, Edit, Trash2 } from "lucide-react";
 import type { LeaveRequest } from "../../../context/LeaveContext";
 import type { StatusBadgeMap } from "./LeaveTableTypes";
+import { formatLeaveDate, getAvatarInitial, getLeaveTypeColor, getLeaveTypeIcon } from "./LeaveTableUtils";
 
 interface LeaveRequestTableProps {
   requests: LeaveRequest[];
@@ -89,17 +90,64 @@ const LeaveRequestTable = ({
 
                 return (
                   <tr key={isPlaceholder ? `placeholder-${r.id}` : r.id}>
-                    <td className={isPlaceholder ? "text-gray-300" : "!font-medium !text-gray-800"}>
-                      {isPlaceholder ? "--" : r.employee}
+                    <td className={isPlaceholder ? "text-gray-300" : undefined}>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={
+                            isPlaceholder
+                              ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs font-bold text-gray-300"
+                              : "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-xs font-bold text-white"
+                          }
+                        >
+                          {isPlaceholder ? "--" : getAvatarInitial(r.employee)}
+                        </div>
+                        <span
+                          className={
+                            isPlaceholder
+                              ? "font-medium text-gray-300"
+                              : "!font-medium !text-gray-800"
+                          }
+                        >
+                          {isPlaceholder ? "--" : r.employee}
+                        </span>
+                      </div>
                     </td>
                     <td className={isPlaceholder ? "text-gray-300" : undefined}>
-                      {isPlaceholder ? "--" : r.leaveType}
+                      {isPlaceholder ? (
+                        "--"
+                      ) : (
+                        (() => {
+                          const LeaveTypeIcon = getLeaveTypeIcon(r.leaveType);
+                          return (
+                            <div className="flex items-center gap-2">
+                              <LeaveTypeIcon
+                                className={`h-4 w-4 shrink-0 ${getLeaveTypeColor(r.leaveType)}`}
+                              />
+                              <span>{r.leaveType}</span>
+                            </div>
+                          );
+                        })()
+                      )}
                     </td>
                     <td className={isPlaceholder ? "text-gray-300" : undefined}>
-                      {r.startDate}
+                      <div className="flex items-center gap-2">
+                        <CalendarDays
+                          className={`h-4 w-4 shrink-0 ${
+                            isPlaceholder ? "text-gray-300" : "text-slate-400"
+                          }`}
+                        />
+                        <span>{formatLeaveDate(r.startDate)}</span>
+                      </div>
                     </td>
                     <td className={isPlaceholder ? "text-gray-300" : undefined}>
-                      {r.endDate}
+                      <div className="flex items-center gap-2">
+                        <CalendarDays
+                          className={`h-4 w-4 shrink-0 ${
+                            isPlaceholder ? "text-gray-300" : "text-slate-400"
+                          }`}
+                        />
+                        <span>{formatLeaveDate(r.endDate)}</span>
+                      </div>
                     </td>
                     <td className={isPlaceholder ? "text-gray-300" : "!font-semibold"}>
                       {isPlaceholder ? "--" : r.days}

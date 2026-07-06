@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import { Clock, CheckCircle, XCircle, AlertTriangle, Calendar } from "lucide-react";
+import { Clock, CheckCircle, XCircle, AlertTriangle, Calendar, Search } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import { useLeave, type LeaveRequest } from "../../../context/LeaveContext";
 import type { AdminTab, BalanceHistoryRow, StatusBadgeMap } from "./LeaveTableTypes";
 import LeaveRequestTable from "./LeaveRequestTable";
-import LeaveHistoryTable from "./LeaveHistoryTable";
+import LeaveHistoryTab from "./LeaveHistoryTab";
 import LeaveBalanceList from "./LeaveBalanceList";
 import ReviewRequestModal from "./ReviewRequestModal";
 import BalanceHistoryModal from "./BalanceHistoryModal";
@@ -29,7 +29,10 @@ const AdminLeaveManagement = () => {
   const [reviewRequest, setReviewRequest] = useState<LeaveRequest | null>(null);
 
   const [requestsPage, setRequestsPage] = useState(1);
-  const [historyPage, setHistoryPage] = useState(1);
+  const [balancePage, setBalancePage] = useState(1);
+
+  const [requestSearch, setRequestSearch] = useState("");
+  const [balanceSearch, setBalanceSearch] = useState("");
 
   const balanceHistoryData: BalanceHistoryRow[] = [
     { id: 1, date: "2026-02-20", leaveType: "Sick Leave", action: "Used", days: 2 },
@@ -87,18 +90,40 @@ const AdminLeaveManagement = () => {
     );
   }, [leaveHistory]);
 
-  const requestsTotalPages = Math.max(1, Math.ceil(leaveRequests.length / PAGE_SIZE));
-  const historyTotalPages = Math.max(1, Math.ceil(finalizedHistory.length / PAGE_SIZE));
+  const filteredRequests = useMemo(() => {
+    const query = requestSearch.trim().toLowerCase();
+    if (!query) return leaveRequests;
+
+    return leaveRequests.filter(
+      (r) =>
+        r.employee.toLowerCase().includes(query) ||
+        r.leaveType.toLowerCase().includes(query)
+    );
+  }, [leaveRequests, requestSearch]);
+
+  const filteredBalances = useMemo(() => {
+    const query = balanceSearch.trim().toLowerCase();
+    if (!query) return leaveBalances;
+
+    return leaveBalances.filter(
+      (emp) =>
+        emp.name.toLowerCase().includes(query) ||
+        emp.id.toLowerCase().includes(query)
+    );
+  }, [leaveBalances, balanceSearch]);
+
+  const requestsTotalPages = Math.max(1, Math.ceil(filteredRequests.length / PAGE_SIZE));
+  const balanceTotalPages = Math.max(1, Math.ceil(filteredBalances.length / PAGE_SIZE));
 
   const paginatedRequests = useMemo(() => {
     const start = (requestsPage - 1) * PAGE_SIZE;
-    return leaveRequests.slice(start, start + PAGE_SIZE);
-  }, [leaveRequests, requestsPage]);
+    return filteredRequests.slice(start, start + PAGE_SIZE);
+  }, [filteredRequests, requestsPage]);
 
-  const paginatedHistory = useMemo(() => {
-    const start = (historyPage - 1) * PAGE_SIZE;
-    return finalizedHistory.slice(start, start + PAGE_SIZE);
-  }, [finalizedHistory, historyPage]);
+  const paginatedBalances = useMemo(() => {
+    const start = (balancePage - 1) * PAGE_SIZE;
+    return filteredBalances.slice(start, start + PAGE_SIZE);
+  }, [filteredBalances, balancePage]);
 
   const handleOpenReview = (request: LeaveRequest) => {
     setReviewRequest(request);
@@ -122,6 +147,16 @@ const AdminLeaveManagement = () => {
   const handleDeleteRequest = (id: number) => {
     if (!window.confirm("Are you sure you want to delete this leave request?")) return;
     deleteRequest(id);
+  };
+
+  const handleRequestSearchChange = (value: string) => {
+    setRequestSearch(value);
+    setRequestsPage(1);
+  };
+
+  const handleBalanceSearchChange = (value: string) => {
+    setBalanceSearch(value);
+    setBalancePage(1);
   };
 
   return (
@@ -183,42 +218,62 @@ const AdminLeaveManagement = () => {
 
         <div className="p-6">
           {activeTab === "request" && (
-            <LeaveRequestTable
-              requests={paginatedRequests}
-              statusBadge={statusBadge}
-              page={requestsPage}
-              totalPages={requestsTotalPages}
-              onPrev={() => setRequestsPage((p) => Math.max(1, p - 1))}
-              onNext={() =>
-                setRequestsPage((p) => Math.min(requestsTotalPages, p + 1))
-              }
-              onReview={handleOpenReview}
-              onDelete={handleDeleteRequest}
-            />
+            <div className="space-y-4">
+              <div className="relative w-full lg:max-w-md">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={requestSearch}
+                  onChange={(e) => handleRequestSearchChange(e.target.value)}
+                  placeholder="Search by employee or leave type..."
+                  className="h-12 w-full rounded-2xl border border-gray-200 bg-white pl-11 pr-4 text-sm font-medium text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                />
+              </div>
+
+              <LeaveRequestTable
+                requests={paginatedRequests}
+                statusBadge={statusBadge}
+                page={requestsPage}
+                totalPages={requestsTotalPages}
+                onPrev={() => setRequestsPage((p) => Math.max(1, p - 1))}
+                onNext={() =>
+                  setRequestsPage((p) => Math.min(requestsTotalPages, p + 1))
+                }
+                onReview={handleOpenReview}
+                onDelete={handleDeleteRequest}
+              />
+            </div>
           )}
 
           {activeTab === "balance" && (
-            <LeaveBalanceList
-              balances={leaveBalances}
-              onViewHistory={(employeeName) => {
-                setSelectedEmployee(employeeName);
-                setShowBalanceHistory(true);
-              }}
-            />
+            <div className="space-y-4">
+              <div className="relative w-full lg:max-w-md">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={balanceSearch}
+                  onChange={(e) => handleBalanceSearchChange(e.target.value)}
+                  placeholder="Search by employee name or ID..."
+                  className="h-12 w-full rounded-2xl border border-gray-200 bg-white pl-11 pr-4 text-sm font-medium text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                />
+              </div>
+
+              <LeaveBalanceList
+                balances={paginatedBalances}
+                page={balancePage}
+                totalPages={balanceTotalPages}
+                onPrev={() => setBalancePage((p) => Math.max(1, p - 1))}
+                onNext={() => setBalancePage((p) => Math.min(balanceTotalPages, p + 1))}
+                onViewHistory={(employeeName) => {
+                  setSelectedEmployee(employeeName);
+                  setShowBalanceHistory(true);
+                }}
+              />
+            </div>
           )}
 
           {activeTab === "history" && (
-            <LeaveHistoryTable
-              history={paginatedHistory}
-              allHistory={finalizedHistory}
-              statusBadge={statusBadge}
-              page={historyPage}
-              totalPages={historyTotalPages}
-              onPrev={() => setHistoryPage((p) => Math.max(1, p - 1))}
-              onNext={() =>
-                setHistoryPage((p) => Math.min(historyTotalPages, p + 1))
-              }
-            />
+            <LeaveHistoryTab history={finalizedHistory} statusBadge={statusBadge} />
           )}
         </div>
       </div>

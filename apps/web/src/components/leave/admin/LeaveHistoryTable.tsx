@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { CalendarDays } from "lucide-react";
 import type { LeaveHistoryEntry } from "../../../context/LeaveContext";
 import type { StatusBadgeMap } from "./LeaveTableTypes";
+import { formatLeaveDate, getAvatarInitial, getLeaveTypeColor, getLeaveTypeIcon } from "./LeaveTableUtils";
 
 interface LeaveHistoryTableProps {
   history: LeaveHistoryEntry[];
-  allHistory: LeaveHistoryEntry[];
   statusBadge: StatusBadgeMap;
   page: number;
   totalPages: number;
@@ -24,59 +24,14 @@ const createPlaceholderRow = (id: number): LeaveHistoryEntry => ({
   approver: "",
 });
 
-const CSV_HEADERS = [
-  "Date Applied",
-  "Employee",
-  "Leave Type",
-  "Duration",
-  "Status",
-  "Approver",
-];
-
-const escapeCsvField = (value: string) => {
-  if (/[",\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
-};
-
-const rowsToCsv = (rows: LeaveHistoryEntry[]) => {
-  const lines = [
-    CSV_HEADERS.join(","),
-    ...rows.map((r) =>
-      [r.dateApplied, r.employee, r.leaveType, r.duration, r.status, r.approver]
-        .map((field) => escapeCsvField(String(field)))
-        .join(",")
-    ),
-  ];
-
-  return lines.join("\n");
-};
-
-const downloadCsv = (csv: string, filename: string) => {
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
-
 const LeaveHistoryTable = ({
   history,
-  allHistory,
   statusBadge,
   page,
   totalPages,
   onPrev,
   onNext,
 }: LeaveHistoryTableProps) => {
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-
   const safePage = Math.max(1, page || 1);
   const safeTotalPages = Math.max(1, totalPages || 1);
   const canPrev = safePage > 1;
@@ -95,64 +50,16 @@ const LeaveHistoryTable = ({
         createPlaceholderRow(-(i + 1))
       );
 
-  const handleGenerateReport = () => {
-    if (dateFrom && dateTo && dateFrom > dateTo) {
-      alert('"Date From" must be before or equal to "Date To".');
-      return;
-    }
-
-    const filtered = allHistory.filter((r) => {
-      if (dateFrom && r.dateApplied < dateFrom) return false;
-      if (dateTo && r.dateApplied > dateTo) return false;
-      return true;
-    });
-
-    if (filtered.length === 0) {
-      alert("No leave history records match that date range.");
-      return;
-    }
-
-    const csv = rowsToCsv(filtered);
-    const rangeSuffix = dateFrom || dateTo ? `_${dateFrom || "start"}_to_${dateTo || "end"}` : "";
-    downloadCsv(csv, `leave-history-report${rangeSuffix}.csv`);
-  };
-
   return (
-    <div className="space-y-5">
-      <div className="flex items-end gap-3 flex-wrap">
-        <div>
-          <label className="pro-label">Date From</label>
-          <input
-            type="date"
-            className="pro-input !w-auto"
-            value={dateFrom}
-            max={dateTo || undefined}
-            onChange={(e) => setDateFrom(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="pro-label">Date To</label>
-          <input
-            type="date"
-            className="pro-input !w-auto"
-            value={dateTo}
-            min={dateFrom || undefined}
-            onChange={(e) => setDateTo(e.target.value)}
-          />
-        </div>
-        <button className="btn btn-primary h-fit" onClick={handleGenerateReport}>
-          Generate Report
-        </button>
-      </div>
-
+    <div>
       <div className="overflow-x-auto rounded-xl border border-gray-100">
         <table className="pro-table">
           <thead>
             <tr>
               {[
-                "Date Applied",
                 "Employee",
                 "Leave Type",
+                "Date Applied",
                 "Duration",
                 "Status",
                 "Approver",
@@ -165,7 +72,7 @@ const LeaveHistoryTable = ({
             {!hasRecords && (
               <tr>
                 <td colSpan={6} className="text-center py-6 text-gray-400 italic">
-                  No finalized leave records yet. Approve or reject pending requests first.
+                  No finalized leave records found.
                 </td>
               </tr>
             )}
@@ -177,13 +84,53 @@ const LeaveHistoryTable = ({
                 return (
                   <tr key={isPlaceholder ? `placeholder-${r.id}` : r.id}>
                     <td className={isPlaceholder ? "text-gray-300" : undefined}>
-                      {r.dateApplied}
-                    </td>
-                    <td className={isPlaceholder ? "text-gray-300" : "!font-medium !text-gray-800"}>
-                      {isPlaceholder ? "--" : r.employee}
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={
+                            isPlaceholder
+                              ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs font-bold text-gray-300"
+                              : "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-xs font-bold text-white"
+                          }
+                        >
+                          {isPlaceholder ? "--" : getAvatarInitial(r.employee)}
+                        </div>
+                        <span
+                          className={
+                            isPlaceholder
+                              ? "font-medium text-gray-300"
+                              : "!font-medium !text-gray-800"
+                          }
+                        >
+                          {isPlaceholder ? "--" : r.employee}
+                        </span>
+                      </div>
                     </td>
                     <td className={isPlaceholder ? "text-gray-300" : undefined}>
-                      {isPlaceholder ? "--" : r.leaveType}
+                      {isPlaceholder ? (
+                        "--"
+                      ) : (
+                        (() => {
+                          const LeaveTypeIcon = getLeaveTypeIcon(r.leaveType);
+                          return (
+                            <div className="flex items-center gap-2">
+                              <LeaveTypeIcon
+                                className={`h-4 w-4 shrink-0 ${getLeaveTypeColor(r.leaveType)}`}
+                              />
+                              <span>{r.leaveType}</span>
+                            </div>
+                          );
+                        })()
+                      )}
+                    </td>
+                    <td className={isPlaceholder ? "text-gray-300" : undefined}>
+                      <div className="flex items-center gap-2">
+                        <CalendarDays
+                          className={`h-4 w-4 shrink-0 ${
+                            isPlaceholder ? "text-gray-300" : "text-slate-400"
+                          }`}
+                        />
+                        <span>{formatLeaveDate(r.dateApplied)}</span>
+                      </div>
                     </td>
                     <td className={isPlaceholder ? "text-gray-300" : undefined}>
                       {r.duration}

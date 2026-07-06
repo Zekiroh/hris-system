@@ -13,3 +13,12 @@ export interface BalanceHistoryRow {
 }
 
 export type StatusBadgeMap = Record<LeaveStatus, string>;
+
+export type HistorySortFilter = "latest" | "oldest";
+
+export interface HistoryFilters {
+  search: string;
+  dateFrom: string;
+  dateTo: string;
+  sort: HistorySortFilter;
+}
