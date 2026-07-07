@@ -20,6 +20,11 @@ import type {
   AssetAssignmentDto,
   AssetReturnRequestDto,
 } from "../../lib/assets";
+import {
+  getPublishedAnnouncements,
+  markAnnouncementAsRead,
+} from "../../lib/announcement";
+import type { AnnouncementDto } from "../../lib/announcement";
 
 type Tab = "assets" | "clearance" | "evaluation" | "announcements";
 
@@ -33,7 +38,6 @@ const UserAssetManagement = () => {
   const [activeTab, setActiveTab] = useState<Tab>("assets");
   const [reportOpen, setReportOpen] = useState(false);
   const [reportIssue, setReportIssue] = useState("");
-  const [acknowledged, setAcknowledged] = useState<Record<number, boolean>>({});
   const [expandedEval, setExpandedEval] = useState<number | null>(null);
   const [myAssets, setMyAssets] = useState<AssetAssignmentDto[]>([]);
   const [myReturnRequests, setMyReturnRequests] = useState<
@@ -47,6 +51,12 @@ const UserAssetManagement = () => {
   const [returnReason, setReturnReason] = useState("");
   const [returnSubmitting, setReturnSubmitting] = useState(false);
   const [returnError, setReturnError] = useState("");
+  const [announcements, setAnnouncements] = useState<AnnouncementDto[]>([]);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
+  const [announcementError, setAnnouncementError] = useState("");
+  const [readingAnnouncementId, setReadingAnnouncementId] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     const loadAssetData = async () => {
@@ -65,7 +75,9 @@ const UserAssetManagement = () => {
         }
       } catch (error) {
         setAssetError(
-          error instanceof Error ? error.message : "Unable to load assigned assets."
+          error instanceof Error
+            ? error.message
+            : "Unable to load assigned assets."
         );
       } finally {
         setLoadingAssets(false);
@@ -73,6 +85,28 @@ const UserAssetManagement = () => {
     };
 
     void loadAssetData();
+  }, []);
+
+  useEffect(() => {
+    const loadAnnouncements = async () => {
+      setLoadingAnnouncements(true);
+      setAnnouncementError("");
+
+      try {
+        const data = await getPublishedAnnouncements();
+        setAnnouncements(data);
+      } catch (error) {
+        setAnnouncementError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load company announcements."
+        );
+      } finally {
+        setLoadingAnnouncements(false);
+      }
+    };
+
+    void loadAnnouncements();
   }, []);
 
   const tabs = [
@@ -155,33 +189,6 @@ const UserAssetManagement = () => {
     Urgent: "badge-danger",
   };
 
-  const announcements = [
-    {
-      title: "Company Outing 2026",
-      date: "2026-02-20",
-      author: "HR Department",
-      priority: "Normal",
-      excerpt:
-        "Annual company outing scheduled for March 15–16, 2026 at Batangas Beach Resort. Please register by March 5.",
-    },
-    {
-      title: "Policy Update: Remote Work",
-      date: "2026-02-15",
-      author: "Admin Department",
-      priority: "Important",
-      excerpt:
-        "Updated remote work policy effective March 1, 2026. All employees must read and acknowledge this policy to remain compliant.",
-    },
-    {
-      title: "System Maintenance Notice",
-      date: "2026-02-10",
-      author: "IT Department",
-      priority: "Urgent",
-      excerpt:
-        "Scheduled system maintenance on February 28, 2026 from 10 PM to 2 AM. Please save all work beforehand.",
-    },
-  ];
-
   const scoreColor = (score: number, max: number) => {
     const pct = score / max;
     if (pct >= 0.85) return "#10b981";
@@ -199,7 +206,8 @@ const UserAssetManagement = () => {
       .filter((request) => request.assetAssignmentId === assignmentId)
       .sort(
         (a, b) =>
-          new Date(b.createdAtUtc).getTime() - new Date(a.createdAtUtc).getTime()
+          new Date(b.createdAtUtc).getTime() -
+          new Date(a.createdAtUtc).getTime()
       );
 
     return (
@@ -240,7 +248,9 @@ const UserAssetManagement = () => {
     setReturnError("");
 
     try {
-      const createdRequest = await createReturnRequest(selectedReturnAsset.id, { reason });
+      const createdRequest = await createReturnRequest(selectedReturnAsset.id, {
+        reason,
+      });
 
       setMyReturnRequests((prev) => [createdRequest, ...prev]);
       setReturnOpen(false);
@@ -261,6 +271,43 @@ const UserAssetManagement = () => {
       );
     } finally {
       setReturnSubmitting(false);
+    }
+  };
+
+  const formatAnnouncementDate = (value: string | null) => {
+    if (!value) return "Unpublished";
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+
+    return parsed.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  };
+
+  const handleMarkAnnouncementAsRead = async (announcement: AnnouncementDto) => {
+    if (announcement.isRead) return;
+
+    setReadingAnnouncementId(announcement.id);
+
+    try {
+      const updatedAnnouncement = await markAnnouncementAsRead(announcement.id);
+
+      setAnnouncements((current) =>
+        current.map((item) =>
+          item.id === updatedAnnouncement.id ? updatedAnnouncement : item
+        )
+      );
+    } catch (error) {
+      setAnnouncementError(
+        error instanceof Error
+          ? error.message
+          : "Unable to mark announcement as read."
+      );
+    } finally {
+      setReadingAnnouncementId(null);
     }
   };
 
@@ -301,7 +348,8 @@ const UserAssetManagement = () => {
           },
           {
             label: "Unread Alerts",
-            value: announcements.filter((_, i) => !acknowledged[i]).length,
+            value: announcements.filter((announcement) => !announcement.isRead)
+              .length,
             gradient: "linear-gradient(135deg, #dc2626, #ef4444)",
             icon: Bell,
           },
@@ -691,57 +739,83 @@ const UserAssetManagement = () => {
               <h3 className="text-base font-bold text-gray-800">
                 Company Announcements
               </h3>
-              <div className="space-y-4">
-                {announcements.map((a, i) => (
-                  <div
-                    key={i}
-                    className="pro-card !shadow-none border !p-5 transition-colors"
-                    style={{
-                      borderColor: acknowledged[i] ? "#d1fae5" : "#e5e7eb",
-                      background: acknowledged[i] ? "#f0fdf4" : "#fff",
-                    }}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2">
-                        {!acknowledged[i] && (
-                          <span className="w-2 h-2 rounded-full bg-red-400 inline-block flex-shrink-0" />
+
+              {announcementError && (
+                <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  {announcementError}
+                </div>
+              )}
+
+              {loadingAnnouncements && (
+                <div className="text-center py-8 text-gray-400 text-sm italic">
+                  Loading company announcements...
+                </div>
+              )}
+
+              {!loadingAnnouncements && announcements.length === 0 && (
+                <div className="text-center py-8 text-gray-400 text-sm italic">
+                  No company announcements yet.
+                </div>
+              )}
+
+              {!loadingAnnouncements && announcements.length > 0 && (
+                <div className="space-y-4">
+                  {announcements.map((a) => (
+                    <div
+                      key={a.id}
+                      className="pro-card !shadow-none border !p-5 transition-colors"
+                      style={{
+                        borderColor: a.isRead ? "#d1fae5" : "#e5e7eb",
+                        background: a.isRead ? "#f0fdf4" : "#fff",
+                      }}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <h4 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                          {!a.isRead && (
+                            <span className="w-2 h-2 rounded-full bg-red-400 inline-block flex-shrink-0" />
+                          )}
+                          {a.title}
+                        </h4>
+                        <div className="flex gap-2 flex-shrink-0 ml-2">
+                          <span
+                            className={`badge text-[10px] ${priorityBadge[a.priority] ?? "badge-neutral"}`}
+                          >
+                            <span className="badge-dot" />
+                            {a.priority}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-2 leading-relaxed">
+                        {a.content}
+                      </p>
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                        <p className="text-xs text-gray-400">
+                          {formatAnnouncementDate(
+                            a.publishedAtUtc ?? a.createdAtUtc
+                          )}{" "}
+                          • {a.createdByUserName ?? "System"}
+                        </p>
+                        {a.isRead ? (
+                          <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
+                            <CheckCircle className="w-3.5 h-3.5" /> Read
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleMarkAnnouncementAsRead(a)}
+                            disabled={readingAnnouncementId === a.id}
+                            className="btn btn-secondary flex items-center gap-1.5 text-xs !py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <BookOpen className="w-3.5 h-3.5" />{" "}
+                            {readingAnnouncementId === a.id
+                              ? "Marking..."
+                              : "Mark as Read"}
+                          </button>
                         )}
-                        {a.title}
-                      </h4>
-                      <div className="flex gap-2 flex-shrink-0 ml-2">
-                        <span
-                          className={`badge text-[10px] ${priorityBadge[a.priority]}`}
-                        >
-                          <span className="badge-dot" />
-                          {a.priority}
-                        </span>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-600 mb-2 leading-relaxed">
-                      {a.excerpt}
-                    </p>
-                    <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                      <p className="text-xs text-gray-400">
-                        {a.date} • {a.author}
-                      </p>
-                      {acknowledged[i] ? (
-                        <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
-                          <CheckCircle className="w-3.5 h-3.5" /> Read
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() =>
-                            setAcknowledged((prev) => ({ ...prev, [i]: true }))
-                          }
-                          className="btn btn-secondary flex items-center gap-1.5 text-xs !py-1.5"
-                        >
-                          <BookOpen className="w-3.5 h-3.5" /> Mark as Read
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
