@@ -116,6 +116,8 @@ const EmployeeList = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
     null
   );
+  const [selectedEmployeeAvatarUserId, setSelectedEmployeeAvatarUserId] =
+    useState<string | number | null>(null);
   const [selectedEmployeeDto, setSelectedEmployeeDto] =
     useState<EmployeeDto | null>(null);
 
@@ -190,6 +192,7 @@ const EmployeeList = () => {
 
   function resetModalState() {
     setSelectedEmployee(null);
+    setSelectedEmployeeAvatarUserId(null);
     setSelectedEmployeeDto(null);
     setFormData(emptyFormData());
     setInitialEditFormData(null);
@@ -624,13 +627,23 @@ const EmployeeList = () => {
     }
   };
 
-  const openView = useCallback(async (id: string) => {
+  const openView = useCallback(async (
+    id: string,
+    avatarUserId?: string | number | null
+  ) => {
     setEmployeesError(null);
     setDetailsLoading(true);
 
     try {
       const dto = await fetchEmployeeDtoById(id);
-      setSelectedEmployee(mapDtoToEmployee(dto));
+      const employee = mapDtoToEmployee(dto);
+
+      setSelectedEmployee(employee);
+      setSelectedEmployeeAvatarUserId(
+        avatarUserId ??
+          avatarUserIdsByEmail[normalizeEmailKey(employee.email)] ??
+          null
+      );
       setShowViewPanel(true);
     } catch (e) {
       setEmployeesError(
@@ -639,7 +652,7 @@ const EmployeeList = () => {
     } finally {
       setDetailsLoading(false);
     }
-  }, [fetchEmployeeDtoById]);
+  }, [avatarUserIdsByEmail, fetchEmployeeDtoById]);
 
   useEffect(() => {
     const employeeId = searchParams.get("employeeId");
@@ -695,7 +708,7 @@ const EmployeeList = () => {
 
   const handleViewRow = async (row: EmployeeRow) => {
     if (detailsLoading || loading) return;
-    await openView(row.id);
+    await openView(row.id, row.avatarUserId);
   };
 
   const handleEditRow = async (row: EmployeeRow) => {
@@ -905,6 +918,11 @@ const EmployeeList = () => {
     setPage(nextPage);
   };
 
+  const selectedAvatarUserId =
+    selectedEmployeeAvatarUserId ??
+    avatarUserIdsByEmail[normalizeEmailKey(selectedEmployee?.email)] ??
+    null;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between animate-fade-in-up">
@@ -992,6 +1010,7 @@ const EmployeeList = () => {
       <EmployeeViewPanel
         open={showViewPanel}
         employee={selectedEmployee}
+        avatarUserId={selectedAvatarUserId}
         onClose={() => {
           setShowViewPanel(false);
           resetModalState();

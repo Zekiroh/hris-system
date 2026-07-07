@@ -8,6 +8,7 @@ import { useEmployeeDocuments } from "../../pages/personal-records/hooks/useEmpl
 import { EmployeeDocumentsPanel } from "./EmployeeDocumentsPanel";
 import type { EmployeeDocumentDto } from "../../lib/employees";
 import { formatEmploymentTypeLabel } from "./employeeList.utils";
+import { useAvatarUrl } from "../../hooks/useAvatarUrl";
 
 type EmploymentType =
   | "Regular"
@@ -195,10 +196,12 @@ function EmptyPreviewState({
 export function EmployeeViewPanel({
   open,
   employee,
+  avatarUserId,
   onClose,
 }: {
   open: boolean;
   employee: EmployeeView | null;
+  avatarUserId?: string | number | null;
   onClose: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<EmployeeTabKey>("personal");
@@ -206,8 +209,12 @@ export function EmployeeViewPanel({
   const [preview, setPreview] = useState<PreviewState>(null);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
 
   const employeeId = employee?.id ?? null;
+  const avatarUrl = useAvatarUrl(avatarUserId);
+  const showAvatar = Boolean(avatarUrl && avatarUrl !== failedAvatarUrl);
+  const avatarInitial = employee?.name?.charAt(0) || "—";
 
   const {
     documents,
@@ -413,8 +420,17 @@ export function EmployeeViewPanel({
           </div>
 
           <div className="mb-6 flex flex-col items-center">
-            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-3xl font-bold text-white shadow-lg">
-              {employee.name?.charAt(0) || "—"}
+            <div className="mb-4 flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-3xl font-bold text-white shadow-lg">
+              {showAvatar && avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={`${employee.name} avatar`}
+                  className="h-full w-full object-cover"
+                  onError={() => setFailedAvatarUrl(avatarUrl)}
+                />
+              ) : (
+                avatarInitial
+              )}
             </div>
 
             <h4 className="text-lg font-bold text-gray-900">
