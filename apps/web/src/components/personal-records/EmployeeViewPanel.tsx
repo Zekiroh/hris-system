@@ -214,6 +214,10 @@ export function EmployeeViewPanel({
   const employeeId = employee?.id ?? null;
   const avatarUrl = useAvatarUrl(avatarUserId);
   const showAvatar = Boolean(avatarUrl && avatarUrl !== failedAvatarUrl);
+
+  useEffect(() => {
+    setFailedAvatarUrl(null);
+  }, [avatarUserId]);
   const avatarInitial = employee?.name?.charAt(0) || "—";
 
   const {

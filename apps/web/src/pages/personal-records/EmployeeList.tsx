@@ -571,6 +571,12 @@ const EmployeeList = () => {
     }
   }, [showAddModal]);
 
+  const resolveAvatarUserIdByEmail = useCallback(
+    (email: string | null | undefined) =>
+      avatarUserIdsByEmail[normalizeEmailKey(email)] ?? null,
+    [avatarUserIdsByEmail]
+  );
+
   const rows: EmployeeRow[] = useMemo(
     () =>
       employees.map((e) => ({
@@ -581,10 +587,9 @@ const EmployeeList = () => {
         department: e.department,
         status: e.status,
         isNewHire: e.isNewHire,
-        avatarUserId:
-          avatarUserIdsByEmail[normalizeEmailKey(e.email)] ?? null,
+        avatarUserId: resolveAvatarUserIdByEmail(e.email),
       })),
-    [avatarUserIdsByEmail, employees]
+    [employees, resolveAvatarUserIdByEmail]
   );
 
   const hasEditChanges = useMemo(() => {
@@ -640,9 +645,7 @@ const EmployeeList = () => {
 
       setSelectedEmployee(employee);
       setSelectedEmployeeAvatarUserId(
-        avatarUserId ??
-          avatarUserIdsByEmail[normalizeEmailKey(employee.email)] ??
-          null
+        avatarUserId ?? resolveAvatarUserIdByEmail(employee.email)
       );
       setShowViewPanel(true);
     } catch (e) {
@@ -652,7 +655,7 @@ const EmployeeList = () => {
     } finally {
       setDetailsLoading(false);
     }
-  }, [avatarUserIdsByEmail, fetchEmployeeDtoById]);
+  }, [fetchEmployeeDtoById, resolveAvatarUserIdByEmail]);
 
   useEffect(() => {
     const employeeId = searchParams.get("employeeId");
@@ -920,8 +923,7 @@ const EmployeeList = () => {
 
   const selectedAvatarUserId =
     selectedEmployeeAvatarUserId ??
-    avatarUserIdsByEmail[normalizeEmailKey(selectedEmployee?.email)] ??
-    null;
+    resolveAvatarUserIdByEmail(selectedEmployee?.email);
 
   return (
     <div className="space-y-6">
