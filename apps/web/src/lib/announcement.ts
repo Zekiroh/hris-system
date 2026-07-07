@@ -8,8 +8,8 @@ export type AnnouncementDto = {
   id: string;
   title: string;
   content: string;
-  priority: AnnouncementPriority | string;
-  status: AnnouncementStatus | string;
+  priority: AnnouncementPriority | (string & {});
+  status: AnnouncementStatus | (string & {});
   createdByUserId: string | null;
   createdByUserName: string | null;
   publishedAtUtc: string | null;
@@ -21,11 +21,11 @@ export type AnnouncementDto = {
 export type CreateAnnouncementRequest = {
   title: string;
   content: string;
-  priority: AnnouncementPriority | string;
+  priority: AnnouncementPriority | (string & {});
   publishImmediately: boolean;
 };
 
-const ANNOUNCEMENTS_BASE_PATH = "/announcements";
+const ANNOUNCEMENTS_BASE_PATH = "/api/announcements";
 
 export const getAnnouncements = async () => {
   return apiRequest<AnnouncementDto[]>(ANNOUNCEMENTS_BASE_PATH);
