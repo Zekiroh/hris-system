@@ -116,6 +116,8 @@ const EmployeeList = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
     null
   );
+  const [selectedEmployeeAvatarUserId, setSelectedEmployeeAvatarUserId] =
+    useState<string | number | null>(null);
   const [selectedEmployeeDto, setSelectedEmployeeDto] =
     useState<EmployeeDto | null>(null);
 
@@ -190,6 +192,7 @@ const EmployeeList = () => {
 
   function resetModalState() {
     setSelectedEmployee(null);
+    setSelectedEmployeeAvatarUserId(null);
     setSelectedEmployeeDto(null);
     setFormData(emptyFormData());
     setInitialEditFormData(null);
@@ -568,6 +571,12 @@ const EmployeeList = () => {
     }
   }, [showAddModal]);
 
+  const resolveAvatarUserIdByEmail = useCallback(
+    (email: string | null | undefined) =>
+      avatarUserIdsByEmail[normalizeEmailKey(email)] ?? null,
+    [avatarUserIdsByEmail]
+  );
+
   const rows: EmployeeRow[] = useMemo(
     () =>
       employees.map((e) => ({
@@ -578,10 +587,9 @@ const EmployeeList = () => {
         department: e.department,
         status: e.status,
         isNewHire: e.isNewHire,
-        avatarUserId:
-          avatarUserIdsByEmail[normalizeEmailKey(e.email)] ?? null,
+        avatarUserId: resolveAvatarUserIdByEmail(e.email),
       })),
-    [avatarUserIdsByEmail, employees]
+    [employees, resolveAvatarUserIdByEmail]
   );
 
   const hasEditChanges = useMemo(() => {
@@ -624,13 +632,21 @@ const EmployeeList = () => {
     }
   };
 
-  const openView = useCallback(async (id: string) => {
+  const openView = useCallback(async (
+    id: string,
+    avatarUserId?: string | number | null
+  ) => {
     setEmployeesError(null);
     setDetailsLoading(true);
 
     try {
       const dto = await fetchEmployeeDtoById(id);
-      setSelectedEmployee(mapDtoToEmployee(dto));
+      const employee = mapDtoToEmployee(dto);
+
+      setSelectedEmployee(employee);
+      setSelectedEmployeeAvatarUserId(
+        avatarUserId ?? resolveAvatarUserIdByEmail(employee.email)
+      );
       setShowViewPanel(true);
     } catch (e) {
       setEmployeesError(
@@ -639,7 +655,7 @@ const EmployeeList = () => {
     } finally {
       setDetailsLoading(false);
     }
-  }, [fetchEmployeeDtoById]);
+  }, [fetchEmployeeDtoById, resolveAvatarUserIdByEmail]);
 
   useEffect(() => {
     const employeeId = searchParams.get("employeeId");
@@ -695,7 +711,7 @@ const EmployeeList = () => {
 
   const handleViewRow = async (row: EmployeeRow) => {
     if (detailsLoading || loading) return;
-    await openView(row.id);
+    await openView(row.id, row.avatarUserId);
   };
 
   const handleEditRow = async (row: EmployeeRow) => {
@@ -905,6 +921,10 @@ const EmployeeList = () => {
     setPage(nextPage);
   };
 
+  const selectedAvatarUserId =
+    selectedEmployeeAvatarUserId ??
+    resolveAvatarUserIdByEmail(selectedEmployee?.email);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between animate-fade-in-up">
@@ -992,6 +1012,7 @@ const EmployeeList = () => {
       <EmployeeViewPanel
         open={showViewPanel}
         employee={selectedEmployee}
+        avatarUserId={selectedAvatarUserId}
         onClose={() => {
           setShowViewPanel(false);
           resetModalState();
