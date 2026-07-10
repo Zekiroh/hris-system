@@ -74,10 +74,17 @@ function FilterDropdown<T extends string>({
 }
 
 const escapeCsvField = (value: string) => {
-  if (/[",\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
+  let safeValue = value;
+
+  if (/^[=+\-@]/.test(safeValue)) {
+    safeValue = `'${safeValue}`;
   }
-  return value;
+
+  if (/[",\n]/.test(safeValue)) {
+    return `"${safeValue.replace(/"/g, '""')}"`;
+  }
+
+  return safeValue;
 };
 
 const CSV_HEADERS = ["Employee", "Leave Type", "Date Applied", "Duration", "Status", "Approver"];
@@ -204,15 +211,12 @@ const LeaveHistoryTab = ({ history, statusBadge }: LeaveHistoryTabProps) => {
   }, [history, filters]);
 
   const totalPages = Math.max(1, Math.ceil(filteredHistory.length / PAGE_SIZE));
-
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+  const safePage = Math.min(page, totalPages);
 
   const paginatedHistory = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
+    const start = (safePage - 1) * PAGE_SIZE;
     return filteredHistory.slice(start, start + PAGE_SIZE);
-  }, [filteredHistory, page]);
+  }, [filteredHistory, safePage]);
 
   const handleExportCsv = () => {
     if (filteredHistory.length === 0) {
@@ -341,10 +345,14 @@ const LeaveHistoryTab = ({ history, statusBadge }: LeaveHistoryTabProps) => {
       <LeaveHistoryTable
         history={paginatedHistory}
         statusBadge={statusBadge}
-        page={page}
+        page={safePage}
         totalPages={totalPages}
-        onPrev={() => setPage((p) => Math.max(1, p - 1))}
-        onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+        onPrev={() =>
+          setPage((p) => Math.max(1, Math.min(p, totalPages) - 1))
+        }
+        onNext={() =>
+          setPage((p) => Math.min(totalPages, Math.min(p, totalPages) + 1))
+        }
       />
     </div>
   );

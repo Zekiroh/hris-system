@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { CalendarDays, X } from "lucide-react";
 import type { BalanceHistoryRow } from "./LeaveTableTypes";
 import { formatLeaveDate } from "./LeaveTableUtils";
@@ -21,19 +21,14 @@ const BalanceHistoryModal = ({
   const [page, setPage] = useState(1);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-
-  useEffect(() => {
-    setPage(1);
-  }, [employeeName, rows]);
+  const safePage = Math.max(1, Math.min(page, totalPages));
 
   const paginatedRows = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
+    const start = (safePage - 1) * PAGE_SIZE;
     return rows.slice(start, start + PAGE_SIZE);
-  }, [rows, page]);
+  }, [rows, safePage]);
 
   if (!show || !employeeName) return null;
-
-  const safePage = Math.max(1, Math.min(page, totalPages));
   const canPrev = safePage > 1;
   const canNext = safePage < totalPages;
 
@@ -99,7 +94,9 @@ const BalanceHistoryModal = ({
               <button
                 type="button"
                 className="btn btn-secondary"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() =>
+                  setPage((p) => Math.max(1, Math.min(p, totalPages) - 1))
+                }
                 disabled={!canPrev}
               >
                 Prev
@@ -112,7 +109,9 @@ const BalanceHistoryModal = ({
               <button
                 type="button"
                 className="btn btn-secondary"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() =>
+                  setPage((p) => Math.min(totalPages, Math.min(p, totalPages) + 1))
+                }
                 disabled={!canNext}
               >
                 Next

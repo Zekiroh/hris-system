@@ -10,6 +10,7 @@ export const formatLeaveDate = (value: string) => {
     month: "long",
     day: "numeric",
     year: "numeric",
+    timeZone: "UTC",
   }).format(date);
 };
 

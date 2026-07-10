@@ -61,15 +61,18 @@ const UserLeaveManagement = () => {
     Math.ceil(myHistoryRequests.length / PAGE_SIZE)
   );
 
+  const safeRequestsPage = Math.min(requestsPage, requestsTotalPages);
+  const safeHistoryPage = Math.min(historyPage, historyTotalPages);
+
   const paginatedRequests = useMemo(() => {
-    const start = (requestsPage - 1) * PAGE_SIZE;
+    const start = (safeRequestsPage - 1) * PAGE_SIZE;
     return myRequests.slice(start, start + PAGE_SIZE);
-  }, [myRequests, requestsPage]);
+  }, [myRequests, safeRequestsPage]);
 
   const paginatedHistory = useMemo(() => {
-    const start = (historyPage - 1) * PAGE_SIZE;
+    const start = (safeHistoryPage - 1) * PAGE_SIZE;
     return myHistoryRequests.slice(start, start + PAGE_SIZE);
-  }, [myHistoryRequests, historyPage]);
+  }, [myHistoryRequests, safeHistoryPage]);
 
   const currentUserBalance = useMemo(() => {
     const exact = leaveBalances.find(
@@ -120,18 +123,22 @@ const UserLeaveManagement = () => {
       return;
     }
 
-    const diffTime = Math.abs(
-      new Date(applyForm.endDate).getTime() -
-        new Date(applyForm.startDate).getTime()
-    );
-    const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    if (applyForm.endDate < applyForm.startDate) {
+      alert("End date cannot be before start date.");
+      return;
+    }
+
+    const diffTime =
+      new Date(`${applyForm.endDate}T00:00:00Z`).getTime() -
+      new Date(`${applyForm.startDate}T00:00:00Z`).getTime();
+    const days = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
     submitLeaveRequest({
       employee: currentUserName,
       leaveType: applyForm.leaveType,
       startDate: applyForm.startDate,
       endDate: applyForm.endDate,
-      days: days > 0 ? days : 0,
+      days,
       reason: applyForm.reason,
     });
 
@@ -189,7 +196,13 @@ const UserLeaveManagement = () => {
                 ...myLeaveBalances.emergency,
                 gradient: "linear-gradient(135deg, #dc2626, #ef4444)",
               },
-            ].map((l) => (
+            ].map((l) => {
+              const progressWidth =
+                l.total > 0
+                  ? Math.max(0, Math.min(100, (l.remaining / l.total) * 100))
+                  : 0;
+
+              return (
               <div
                 key={l.label}
                 className="rounded-xl p-5 border border-gray-100 bg-white shadow-sm"
@@ -219,7 +232,7 @@ const UserLeaveManagement = () => {
                   <div
                     className="h-2 rounded-full transition-all"
                     style={{
-                      width: `${(l.remaining / l.total) * 100}%`,
+                      width: `${progressWidth}%`,
                       background: l.gradient,
                     }}
                   />
@@ -229,7 +242,8 @@ const UserLeaveManagement = () => {
                   {l.used} used
                 </p>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -268,11 +282,17 @@ const UserLeaveManagement = () => {
               <LeaveRequestTable
                 requests={paginatedRequests}
                 statusBadge={statusBadge}
-                page={requestsPage}
+                page={safeRequestsPage}
                 totalPages={requestsTotalPages}
-                onPrev={() => setRequestsPage((p) => Math.max(1, p - 1))}
+                onPrev={() =>
+                  setRequestsPage((p) =>
+                    Math.max(1, Math.min(p, requestsTotalPages) - 1)
+                  )
+                }
                 onNext={() =>
-                  setRequestsPage((p) => Math.min(requestsTotalPages, p + 1))
+                  setRequestsPage((p) =>
+                    Math.min(requestsTotalPages, Math.min(p, requestsTotalPages) + 1)
+                  )
                 }
               />
             )}
@@ -281,11 +301,17 @@ const UserLeaveManagement = () => {
               <LeaveHistoryTable
                 requests={paginatedHistory}
                 statusBadge={statusBadge}
-                page={historyPage}
+                page={safeHistoryPage}
                 totalPages={historyTotalPages}
-                onPrev={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                onPrev={() =>
+                  setHistoryPage((p) =>
+                    Math.max(1, Math.min(p, historyTotalPages) - 1)
+                  )
+                }
                 onNext={() =>
-                  setHistoryPage((p) => Math.min(historyTotalPages, p + 1))
+                  setHistoryPage((p) =>
+                    Math.min(historyTotalPages, Math.min(p, historyTotalPages) + 1)
+                  )
                 }
               />
             )}

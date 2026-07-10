@@ -12,7 +12,7 @@ import BalanceHistoryModal from "./BalanceHistoryModal";
 const PAGE_SIZE = 10;
 
 const AdminLeaveManagement = () => {
-  const { user } = useAuth();
+  useAuth();
   const {
     leaveRequests,
     leaveHistory,
@@ -34,11 +34,14 @@ const AdminLeaveManagement = () => {
   const [requestSearch, setRequestSearch] = useState("");
   const [balanceSearch, setBalanceSearch] = useState("");
 
-  const balanceHistoryData: BalanceHistoryRow[] = [
-    { id: 1, date: "2026-02-20", leaveType: "Sick Leave", action: "Used", days: 2 },
-    { id: 2, date: "2026-01-15", leaveType: "Vacation Leave", action: "Used", days: 3 },
-    { id: 3, date: "2026-01-01", leaveType: "All Types", action: "Credited", days: 35 },
-  ];
+  const balanceHistoryData = useMemo<BalanceHistoryRow[]>(
+    () => [
+      { id: 1, date: "2026-02-20", leaveType: "Sick Leave", action: "Used", days: 2 },
+      { id: 2, date: "2026-01-15", leaveType: "Vacation Leave", action: "Used", days: 3 },
+      { id: 3, date: "2026-01-01", leaveType: "All Types", action: "Credited", days: 35 },
+    ],
+    []
+  );
 
   const statusBadge: StatusBadgeMap = {
     Pending: "badge-warning",
@@ -115,15 +118,18 @@ const AdminLeaveManagement = () => {
   const requestsTotalPages = Math.max(1, Math.ceil(filteredRequests.length / PAGE_SIZE));
   const balanceTotalPages = Math.max(1, Math.ceil(filteredBalances.length / PAGE_SIZE));
 
+  const safeRequestsPage = Math.min(requestsPage, requestsTotalPages);
+  const safeBalancePage = Math.min(balancePage, balanceTotalPages);
+
   const paginatedRequests = useMemo(() => {
-    const start = (requestsPage - 1) * PAGE_SIZE;
+    const start = (safeRequestsPage - 1) * PAGE_SIZE;
     return filteredRequests.slice(start, start + PAGE_SIZE);
-  }, [filteredRequests, requestsPage]);
+  }, [filteredRequests, safeRequestsPage]);
 
   const paginatedBalances = useMemo(() => {
-    const start = (balancePage - 1) * PAGE_SIZE;
+    const start = (safeBalancePage - 1) * PAGE_SIZE;
     return filteredBalances.slice(start, start + PAGE_SIZE);
-  }, [filteredBalances, balancePage]);
+  }, [filteredBalances, safeBalancePage]);
 
   const handleOpenReview = (request: LeaveRequest) => {
     setReviewRequest(request);
@@ -233,11 +239,17 @@ const AdminLeaveManagement = () => {
               <LeaveRequestTable
                 requests={paginatedRequests}
                 statusBadge={statusBadge}
-                page={requestsPage}
+                page={safeRequestsPage}
                 totalPages={requestsTotalPages}
-                onPrev={() => setRequestsPage((p) => Math.max(1, p - 1))}
+                onPrev={() =>
+                  setRequestsPage((p) =>
+                    Math.max(1, Math.min(p, requestsTotalPages) - 1)
+                  )
+                }
                 onNext={() =>
-                  setRequestsPage((p) => Math.min(requestsTotalPages, p + 1))
+                  setRequestsPage((p) =>
+                    Math.min(requestsTotalPages, Math.min(p, requestsTotalPages) + 1)
+                  )
                 }
                 onReview={handleOpenReview}
                 onDelete={handleDeleteRequest}
@@ -260,10 +272,18 @@ const AdminLeaveManagement = () => {
 
               <LeaveBalanceList
                 balances={paginatedBalances}
-                page={balancePage}
+                page={safeBalancePage}
                 totalPages={balanceTotalPages}
-                onPrev={() => setBalancePage((p) => Math.max(1, p - 1))}
-                onNext={() => setBalancePage((p) => Math.min(balanceTotalPages, p + 1))}
+                onPrev={() =>
+                  setBalancePage((p) =>
+                    Math.max(1, Math.min(p, balanceTotalPages) - 1)
+                  )
+                }
+                onNext={() =>
+                  setBalancePage((p) =>
+                    Math.min(balanceTotalPages, Math.min(p, balanceTotalPages) + 1)
+                  )
+                }
                 onViewHistory={(employeeName) => {
                   setSelectedEmployee(employeeName);
                   setShowBalanceHistory(true);
@@ -290,6 +310,7 @@ const AdminLeaveManagement = () => {
       />
 
       <BalanceHistoryModal
+        key={selectedEmployee ?? "balance-history"}
         show={showBalanceHistory}
         employeeName={selectedEmployee}
         rows={balanceHistoryData}
