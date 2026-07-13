@@ -33,185 +33,27 @@ import type {
   SssContributionBracketDto,
   WithholdingTaxBracketDto,
 } from "../../lib/governmentCompliance";
-
-type Tab =
-  | "configuration"
-  | "sss"
-  | "philhealth"
-  | "pagibig"
-  | "bir"
-  | "history";
-
-type ComplianceConfigurationState = {
-  sss: SssContributionBracketDto[];
-  philhealth: PhilHealthContributionRuleDto[];
-  pagibig: PagIbigContributionRuleDto[];
-  tax: WithholdingTaxBracketDto[];
-};
-
-const emptyConfiguration: ComplianceConfigurationState = {
-  sss: [],
-  philhealth: [],
-  pagibig: [],
-  tax: [],
-};
-
-
-type ConfigurationSection = "sss" | "philhealth" | "pagibig" | "tax";
-
-type ConfigurationFormState = Record<string, string | boolean>;
-
-type ConfigurationModalState = {
-  section: ConfigurationSection;
-  mode: "create" | "edit";
-  id?: number;
-  values: ConfigurationFormState;
-} | null;
-
-const sectionLabels: Record<ConfigurationSection, string> = {
-  sss: "SSS Bracket",
-  philhealth: "PhilHealth Rule",
-  pagibig: "Pag-IBIG Rule",
-  tax: "Tax Bracket",
-};
-
-const getTodayInputDate = () => new Date().toISOString().slice(0, 10);
-
-const defaultFormValues = (section: ConfigurationSection): ConfigurationFormState => {
-  const today = getTodayInputDate();
-
-  if (section === "sss") {
-    return {
-      salaryFrom: "0",
-      salaryTo: "",
-      employeeShare: "0",
-      employerShare: "0",
-      effectiveFrom: today,
-      effectiveTo: "",
-      isActive: true,
-    };
-  }
-
-  if (section === "philhealth") {
-    return {
-      contributionRate: "0",
-      minimumContribution: "0",
-      maximumContribution: "0",
-      employeeSharePercent: "0",
-      employerSharePercent: "0",
-      effectiveFrom: today,
-      effectiveTo: "",
-      isActive: true,
-    };
-  }
-
-  if (section === "pagibig") {
-    return {
-      employeeRate: "0",
-      employerRate: "0",
-      minimumContribution: "0",
-      maximumContribution: "0",
-      effectiveFrom: today,
-      effectiveTo: "",
-      isActive: true,
-    };
-  }
-
-  return {
-    compensationFrom: "0",
-    compensationTo: "",
-    baseTax: "0",
-    excessOver: "0",
-    taxRate: "0",
-    effectiveFrom: today,
-    effectiveTo: "",
-    isActive: true,
-  };
-};
-
-const toNumber = (value: string | boolean | undefined) =>
-  Number(value === "" || value === undefined ? 0 : value);
-
-const toOptionalNumber = (value: string | boolean | undefined) =>
-  value === "" || value === undefined ? null : Number(value);
-
-const toOptionalDate = (value: string | boolean | undefined) =>
-  value === "" || value === undefined ? null : String(value);
-
-const formatCurrency = (value?: number | null) => {
-  if (value === null || value === undefined) return "No limit";
-
-  return new Intl.NumberFormat("en-PH", {
-    style: "currency",
-    currency: "PHP",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-};
-
-const formatPercent = (value: number) => `${value}%`;
-
-const formatDate = (value?: string | null) => {
-  if (!value) return "Open-ended";
-
-  return new Intl.DateTimeFormat("en-PH", {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-  }).format(new Date(value));
-};
-
-const ConfigurationStatusBadge = ({ isActive }: { isActive: boolean }) => (
-  <span className={`badge ${isActive ? "badge-success" : "badge-warning"}`}>
-    <span className="badge-dot" />
-    {isActive ? "Active" : "Inactive"}
-  </span>
-);
-
-
-const configurationFormFields: Record<
+import { ConfigurationModal } from "./components/ConfigurationModal";
+import { ConfigurationStatusBadge } from "./components/ConfigurationStatusBadge";
+import {
+  emptyConfiguration,
+  sectionLabels,
+} from "./config/configuration";
+import {
+  defaultFormValues,
+  formatCurrency,
+  formatDate,
+  formatPercent,
+  toNumber,
+  toOptionalDate,
+  toOptionalNumber,
+} from "./config/helpers";
+import type {
+  ComplianceConfigurationState,
+  ConfigurationModalState,
   ConfigurationSection,
-  { key: string; label: string; type?: "number" | "date" | "checkbox" }[]
-> = {
-  sss: [
-    { key: "salaryFrom", label: "Salary From", type: "number" },
-    { key: "salaryTo", label: "Salary To", type: "number" },
-    { key: "employeeShare", label: "Employee Share", type: "number" },
-    { key: "employerShare", label: "Employer Share", type: "number" },
-    { key: "effectiveFrom", label: "Effective From", type: "date" },
-    { key: "effectiveTo", label: "Effective To", type: "date" },
-    { key: "isActive", label: "Active", type: "checkbox" },
-  ],
-  philhealth: [
-    { key: "contributionRate", label: "Contribution Rate", type: "number" },
-    { key: "minimumContribution", label: "Minimum Contribution", type: "number" },
-    { key: "maximumContribution", label: "Maximum Contribution", type: "number" },
-    { key: "employeeSharePercent", label: "Employee Share Percent", type: "number" },
-    { key: "employerSharePercent", label: "Employer Share Percent", type: "number" },
-    { key: "effectiveFrom", label: "Effective From", type: "date" },
-    { key: "effectiveTo", label: "Effective To", type: "date" },
-    { key: "isActive", label: "Active", type: "checkbox" },
-  ],
-  pagibig: [
-    { key: "employeeRate", label: "Employee Rate", type: "number" },
-    { key: "employerRate", label: "Employer Rate", type: "number" },
-    { key: "minimumContribution", label: "Minimum Contribution", type: "number" },
-    { key: "maximumContribution", label: "Maximum Contribution", type: "number" },
-    { key: "effectiveFrom", label: "Effective From", type: "date" },
-    { key: "effectiveTo", label: "Effective To", type: "date" },
-    { key: "isActive", label: "Active", type: "checkbox" },
-  ],
-  tax: [
-    { key: "compensationFrom", label: "Compensation From", type: "number" },
-    { key: "compensationTo", label: "Compensation To", type: "number" },
-    { key: "baseTax", label: "Base Tax", type: "number" },
-    { key: "excessOver", label: "Excess Over", type: "number" },
-    { key: "taxRate", label: "Tax Rate", type: "number" },
-    { key: "effectiveFrom", label: "Effective From", type: "date" },
-    { key: "effectiveTo", label: "Effective To", type: "date" },
-    { key: "isActive", label: "Active", type: "checkbox" },
-  ],
-};
+  Tab,
+} from "./config/types";
 
 const ReportModal = ({
   title,
@@ -1558,78 +1400,14 @@ const GovernmentCompliance = () => {
 
 
       {configurationModal && (
-        <div className="pro-modal-overlay">
-          <div className="pro-modal max-w-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="pro-modal-header">
-              <h3>
-                {configurationModal.mode === "create" ? "Add" : "Edit"} {" "}
-                {sectionLabels[configurationModal.section]}
-              </h3>
-              <button
-                onClick={closeConfigurationModal}
-                className="btn-ghost btn-icon"
-                disabled={isSavingConfiguration}
-              >
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-            <div className="pro-modal-body space-y-4">
-              {configurationSaveError && (
-                <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
-                  {configurationSaveError}
-                </div>
-              )}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {configurationFormFields[configurationModal.section].map((field) => (
-                  <div key={field.key} className={field.type === "checkbox" ? "sm:col-span-2" : ""}>
-                    {field.type === "checkbox" ? (
-                      <label className="flex items-center gap-2 text-sm cursor-pointer mt-2">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(configurationModal.values[field.key])}
-                          onChange={(e) =>
-                            updateConfigurationFormValue(field.key, e.target.checked)
-                          }
-                          className="accent-emerald-600"
-                        />
-                        {field.label}
-                      </label>
-                    ) : (
-                      <>
-                        <label className="pro-label">{field.label}</label>
-                        <input
-                          className="pro-input"
-                          type={field.type ?? "text"}
-                          step={field.type === "number" ? "0.01" : undefined}
-                          value={String(configurationModal.values[field.key] ?? "")}
-                          onChange={(e) =>
-                            updateConfigurationFormValue(field.key, e.target.value)
-                          }
-                        />
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="pro-modal-footer">
-              <button
-                onClick={closeConfigurationModal}
-                className="btn btn-secondary"
-                disabled={isSavingConfiguration}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={saveConfigurationRule}
-                className="btn btn-primary"
-                disabled={isSavingConfiguration}
-              >
-                {isSavingConfiguration ? "Saving..." : "Save Configuration"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfigurationModal
+          configurationModal={configurationModal}
+          configurationSaveError={configurationSaveError}
+          isSavingConfiguration={isSavingConfiguration}
+          onClose={closeConfigurationModal}
+          onSave={saveConfigurationRule}
+          onChange={updateConfigurationFormValue}
+        />
       )}
 
       {/* BIR Alphalist Modal */}
