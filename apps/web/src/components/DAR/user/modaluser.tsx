@@ -3,7 +3,7 @@ import React from "react";
 import { createPortal } from "react-dom";
 import {
   CheckCircle, X, FileText, Trash2, AlertTriangle, Percent, Clock, PackageCheck, GitCommit, Send, ClipboardList,
-  Star, CheckSquare, Square,
+  Star, CheckSquare,
 } from "lucide-react";
 
 // ─── Types (copied from DailyAccomplishmentReport) ───────────────────────────

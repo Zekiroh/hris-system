@@ -74,6 +74,7 @@ export const SUPERVISOR_OPTIONS: string[] = [
   "Marivic R. Songalia-Magyaya",
   "Angela Reyes",
   "Michael Tan",
+  "Roberto Cruz",
 ];
 
 // TODO: replace with GET /api/departments once backend is ready
@@ -412,6 +413,7 @@ export function ReviewPanel({ report, onSave, onClose, currentAdminName }: Revie
   const handleSave = () => {
     if (!taskCompletion) { toast.error("Please select a Task Completion Rate before saving."); return; }
     if (!rating || (rating as number) === 0) { toast.error("Please provide a performance rating before saving."); return; }
+    if (!decision || decision === "Pending Review") { toast.error("Please select a Review Decision before saving."); return; }
     if (!signature) { toast.error("Supervisor signature is required before finalizing."); return; }
     setConfirmOpen(true);
   };
@@ -541,6 +543,17 @@ export function ReviewPanel({ report, onSave, onClose, currentAdminName }: Revie
                       {["Fully Completed","Mostly Completed","Partially Completed","Not Completed"].map(o => <option key={o}>{o}</option>)}
                     </select>
                   </div>
+                  {/* Review Decision */}
+                  <div style={{ marginTop: 8 }}>
+                    <label className="pro-label" style={{ fontSize: 10 }}>Review Decision <span style={{ color: "#ef4444" }}>*</span></label>
+                    <select className="pro-select" value={decision} onChange={e => setDecision(e.target.value as ReportStatus)} disabled={!isEditing}
+                      style={{ fontSize: 12, padding: "10px", fontWeight: 700, color: decisionColor[decision], opacity: !isEditing ? 0.6 : 1, cursor: !isEditing ? "not-allowed" : "pointer", width: "100%" }}>
+                      <option value="Pending Review" disabled>--- Select Decision ---</option>
+                      <option value="Approved">Approved</option>
+                      <option value="Revision Requested">Revision Requested</option>
+                      <option value="Rejected">Rejected</option>
+                    </select>
+                  </div>
                   {/* Stars container */}
                   <label className="pro-label" style={{ fontSize: 10 }}>Work Quality Rating</label>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #bbf7d0", borderRadius: 10, padding: "10px 14px", marginBottom: 10, flexWrap: "wrap" }}>
@@ -558,7 +571,7 @@ export function ReviewPanel({ report, onSave, onClose, currentAdminName }: Revie
                       ))}
                     </div>
                       <span style={{ fontSize: 11, fontWeight: 700, color: "#059669", padding: "3px 8px", background: "#dcfce7", borderRadius: 20, border: "1px solid #86efac" }}>
-                        {RATING_LABELS[displayRating]}
+                        {RATING_LABELS[displayRating] ?? "Select a rating"}
                       </span>
                   </div>
 

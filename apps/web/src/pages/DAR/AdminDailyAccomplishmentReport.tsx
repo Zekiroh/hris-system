@@ -261,7 +261,7 @@ const mockReports: SubmittedReport[] = [
 
 // TODO: replace with GET /api/dar/submissions (admin — all employees)
 // const loadReports = async () => { ... }
-// Temporarily returns empty array; wire up on API integration day
+// Returns mock data for now; wire up on API integration day
 const loadReports = (): SubmittedReport[] => mockReports;
 
 // â”€â”€ Export helpers (Excel + PDF) â”€â”€

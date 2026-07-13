@@ -52,7 +52,7 @@ function createEmptyTask(id: number): TaskRow {
 }
 
 // TODO: remove once GET /api/dar/submissions is wired up — temporary hardcoded history for UI testing
-const mockSubmissions: any[] = [
+const mockSubmissions: DarSubmission[] = [
   {
     date: "2025-06-30",
     project: "SIMPLEVIA HRIS",
@@ -148,6 +148,43 @@ const mockSubmissions: any[] = [
     managerActionItems: "Schedule 1-on-1 to discuss timeline for admin-side ReviewPanel work.",
   },
 ];
+
+interface DarSubmission {
+  date: string;
+  project: string;
+  tasks: number;
+  checklist: number;
+  status: string;
+  submittedAt: string;
+  workArr: string;
+  devName: string;
+  sprint?: string;
+  team?: string;
+  submittedTo?: string;
+  timeIn?: string;
+  timeOut?: string;
+  breakMins?: number;
+  gross?: string;
+  net?: string;
+  keyAccomp?: string;
+  blockers?: string;
+  risks?: string;
+  planTmr?: string;
+  revisionReason?: string;
+  checklistItems?: boolean[];
+  checklistDone?: boolean[];
+  taskDetails?: any[];
+  rating?: number;
+  performanceScore?: number;
+  taskCompletion?: string;
+  supervisorComment?: string;
+  supervisorName?: string;
+  reviewedDate?: string;
+  supervisorSignature?: string;
+  followUpRequired?: boolean;
+  managerActionItems?: string;
+  [key: string]: any;
+}
 
 function calcHours(timeIn: string, timeOut: string, breakMins: number) {
   if (!timeIn || !timeOut) return { gross: "", net: "" };
@@ -272,7 +309,7 @@ export default function DailyAccomplishmentReport() {
   const [selectedSub, setSelectedSub] = React.useState<any>(null);
   const [deleteIdx, setDeleteIdx] = React.useState<number | null>(null);
   const [subSearch, setSubSearch] = React.useState("");
-  const [submissions, setSubmissions] = React.useState<any[]>(mockSubmissions);
+  const [submissions, setSubmissions] = React.useState<DarSubmission[]>(mockSubmissions);
   const [subFilter, setSubFilter] = React.useState("All Status");
   const [subPage, setSubPage] = React.useState(1);
   
