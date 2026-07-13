@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, Mail } from "lucide-react";
 import {
   createPagIbigRule,
   createPhilHealthRule,
@@ -24,6 +23,11 @@ import { ConfigurationTab } from "./components/ConfigurationTab";
 import { ConfigurationModal } from "./components/ConfigurationModal";
 import { ReportModal } from "./components/ReportModal";
 import { AlphalistModal } from "./components/AlphalistModal";
+import { SssTab } from "./components/SssTab";
+import { PhilHealthTab } from "./components/PhilHealthTab";
+import { PagIbigTab } from "./components/PagIbigTab";
+import { BirTab } from "./components/BirTab";
+import { HistoryTab } from "./components/HistoryTab";
 import {
   emptyConfiguration,
   sectionLabels,
@@ -412,404 +416,46 @@ const GovernmentCompliance = () => {
 
           {/* SSS Tab */}
           {activeTab === "sss" && (
-            <div className="space-y-5">
-              <div className="flex justify-between items-center">
-                <h3 className="text-base font-bold text-gray-800">
-                  SSS Contributions Monitor
-                </h3>
-                <button
-                  onClick={() => setShowReportModal(true)}
-                  className="btn btn-primary"
-                >
-                  <Download className="w-4 h-4" /> Export Reports
-                </button>
-              </div>
-              <div className="overflow-x-auto rounded-xl border border-gray-100">
-                <table className="pro-table">
-                  <thead>
-                    <tr>
-                      {[
-                        "Employee ID",
-                        "Employee Name",
-                        "SSS Number",
-                        "Monthly",
-                        "EE Share",
-                        "ER Share",
-                        "Status",
-                      ].map((h) => (
-                        <th key={h}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sssData.map((r, i) => (
-                      <tr key={i}>
-                        <td className="font-mono text-xs">{r.empId}</td>
-                        <td className="!font-medium !text-gray-800">
-                          {r.name}
-                        </td>
-                        <td className="font-mono text-xs">{r.sssNo}</td>
-                        <td>{r.monthly}</td>
-                        <td>{r.empShare}</td>
-                        <td>{r.erShare}</td>
-                        <td>
-                          <span className={`badge ${statusBadge[r.status]}`}>
-                            <span className="badge-dot" />
-                            {r.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-5 border border-emerald-100">
-                  <h4 className="text-sm font-bold text-gray-700 mb-3">
-                    Monthly Summary
-                  </h4>
-                  <div className="space-y-2.5">
-                    {[
-                      ["Total SSS Contributions", "₱245,000"],
-                      ["Employee Share", "₱98,000"],
-                      ["Employer Share", "₱147,000"],
-                    ].map(([l, v]) => (
-                      <div key={l} className="flex justify-between text-sm">
-                        <span className="text-gray-500">{l}</span>
-                        <span className="font-bold text-gray-900">{v}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-100">
-                  <h4 className="text-sm font-bold text-gray-700 mb-3">
-                    Remittance Schedule
-                  </h4>
-                  <div className="space-y-2.5">
-                    {remittanceSchedule.map((r, i) => (
-                      <div
-                        key={i}
-                        className="flex justify-between items-center text-sm"
-                      >
-                        <span className="text-gray-600">{r.month}</span>
-                        <span className="text-gray-400 text-xs">
-                          Due: {r.dueDate}
-                        </span>
-                        <span
-                          className={`badge text-[10px] ${statusBadge[r.status]}`}
-                        >
-                          <span className="badge-dot" />
-                          {r.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <SssTab
+              data={sssData}
+              remittanceSchedule={remittanceSchedule}
+              statusBadge={statusBadge}
+              onExportReports={() => setShowReportModal(true)}
+            />
           )}
 
           {/* PhilHealth Tab */}
           {activeTab === "philhealth" && (
-            <div className="space-y-5">
-              <div className="flex justify-between items-center">
-                <h3 className="text-base font-bold text-gray-800">
-                  PhilHealth Contributions Monitor
-                </h3>
-                <button
-                  onClick={() => setShowReportModal(true)}
-                  className="btn btn-primary"
-                >
-                  <Download className="w-4 h-4" /> Export Reports
-                </button>
-              </div>
-              <div className="overflow-x-auto rounded-xl border border-gray-100">
-                <table className="pro-table">
-                  <thead>
-                    <tr>
-                      {[
-                        "Employee ID",
-                        "Employee Name",
-                        "PhilHealth No.",
-                        "Rate",
-                        "Monthly",
-                        "EE Share",
-                        "ER Share",
-                        "Status",
-                      ].map((h) => (
-                        <th key={h}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {philhealthData.map((r, i) => (
-                      <tr key={i}>
-                        <td className="font-mono text-xs">{r.empId}</td>
-                        <td className="!font-medium !text-gray-800">
-                          {r.name}
-                        </td>
-                        <td className="font-mono text-xs">{r.phNo}</td>
-                        <td>
-                          <span className="badge badge-info">
-                            <span className="badge-dot" />
-                            {r.rate}
-                          </span>
-                        </td>
-                        <td>{r.monthly}</td>
-                        <td>{r.empShare}</td>
-                        <td>{r.erShare}</td>
-                        <td>
-                          <span className={`badge ${statusBadge[r.status]}`}>
-                            <span className="badge-dot" />
-                            {r.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-100">
-                <h4 className="text-sm font-bold text-gray-700 mb-3">
-                  PhilHealth Contributions Summary
-                </h4>
-                <div className="space-y-2.5">
-                  {[
-                    ["Total Contributions", "₱128,000"],
-                    ["Remittance Deadline", "March 10, 2026"],
-                  ].map(([l, v]) => (
-                    <div key={l} className="flex justify-between text-sm">
-                      <span className="text-gray-500">{l}</span>
-                      <span className="font-bold text-gray-900">{v}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <PhilHealthTab
+              data={philhealthData}
+              statusBadge={statusBadge}
+              onExportReports={() => setShowReportModal(true)}
+            />
           )}
-
           {/* Pag-IBIG Tab */}
           {activeTab === "pagibig" && (
-            <div className="space-y-5">
-              <div className="flex justify-between items-center">
-                <h3 className="text-base font-bold text-gray-800">
-                  Pag-IBIG Fund (HDMF) Monitor
-                </h3>
-                <button
-                  onClick={() => setShowReportModal(true)}
-                  className="btn btn-primary"
-                >
-                  <Download className="w-4 h-4" /> Export Reports
-                </button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
-                <div className="pro-card !shadow-none border border-gray-100 p-5">
-                  <h4 className="text-sm font-bold text-gray-700 mb-2">
-                    Contribution Rates
-                  </h4>
-                  <div className="space-y-1.5 text-sm">
-                    <p className="text-gray-600">
-                      Employee Rate: <strong>2%</strong>
-                    </p>
-                    <p className="text-gray-600">
-                      Employer Rate: <strong>2%</strong>
-                    </p>
-                    <span className="badge badge-info mt-2 inline-flex">
-                      <span className="badge-dot" />
-                      Max Limit Applied
-                    </span>
-                  </div>
-                </div>
-                <div className="pro-card !shadow-none border border-gray-100 p-5">
-                  <h4 className="text-sm font-bold text-gray-700 mb-2">
-                    MP2 Savings Program
-                  </h4>
-                  <p className="text-3xl font-bold text-emerald-600">45</p>
-                  <p className="text-xs text-gray-500">Employees Enrolled</p>
-                </div>
-              </div>
-              <div className="overflow-x-auto rounded-xl border border-gray-100">
-                <table className="pro-table">
-                  <thead>
-                    <tr>
-                      {[
-                        "Employee",
-                        "MID Number",
-                        "Mandatory",
-                        "MP2 Savings",
-                        "Total",
-                        "Status",
-                      ].map((h) => (
-                        <th key={h}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pagibigData.map((r, i) => (
-                      <tr key={i}>
-                        <td className="!font-medium !text-gray-800">
-                          {r.name}
-                        </td>
-                        <td className="font-mono text-xs">{r.midNo}</td>
-                        <td>{r.mandatory}</td>
-                        <td>{r.mp2}</td>
-                        <td className="!font-bold">{r.total}</td>
-                        <td>
-                          <span className={`badge ${statusBadge[r.status]}`}>
-                            <span className="badge-dot" />
-                            {r.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <PagIbigTab
+              data={pagibigData}
+              statusBadge={statusBadge}
+              onExportReports={() => setShowReportModal(true)}
+            />
           )}
-
           {/* BIR 2316 Tab */}
           {activeTab === "bir" && (
-            <div className="space-y-5">
-              <div className="flex justify-between items-center flex-wrap gap-2">
-                <h3 className="text-base font-bold text-gray-800">
-                  BIR Form 2316
-                </h3>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowReportModal(true)}
-                    className="btn btn-primary"
-                  >
-                    <Download className="w-4 h-4" /> Export
-                  </button>
-                  <button className="btn btn-secondary">
-                    <Mail className="w-4 h-4" /> Email All
-                  </button>
-                  <button
-                    onClick={() => setShowAlphalistModal(true)}
-                    className="btn btn-secondary"
-                  >
-                    Alphalist
-                  </button>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4 mb-2">
-                <div className="bg-emerald-50 rounded-xl p-4 text-center border border-emerald-100">
-                  <p className="text-xl font-bold text-emerald-700">233/245</p>
-                  <p className="text-xs text-gray-500">Signed Forms</p>
-                </div>
-                <div className="bg-orange-50 rounded-xl p-4 text-center border border-orange-100">
-                  <p className="text-xl font-bold text-orange-600">12</p>
-                  <p className="text-xs text-gray-500">Pending Signature</p>
-                </div>
-                <div className="bg-blue-50 rounded-xl p-4 text-center border border-blue-100">
-                  <p className="text-xl font-bold text-blue-600">₱1.25M</p>
-                  <p className="text-xs text-gray-500">
-                    Total Tax Withheld YTD
-                  </p>
-                </div>
-              </div>
-              <div className="overflow-x-auto rounded-xl border border-gray-100">
-                <table className="pro-table">
-                  <thead>
-                    <tr>
-                      {[
-                        "Employee",
-                        "TIN",
-                        "Taxable Income",
-                        "Tax Withheld",
-                        "Form Status",
-                        "Action",
-                      ].map((h) => (
-                        <th key={h}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {birData.map((r, i) => (
-                      <tr key={i}>
-                        <td className="!font-medium !text-gray-800">
-                          {r.name}
-                        </td>
-                        <td className="font-mono text-xs">{r.tin}</td>
-                        <td>{r.taxableIncome}</td>
-                        <td>{r.taxWithheld}</td>
-                        <td>
-                          <span
-                            className={`badge ${statusBadge[r.formStatus]}`}
-                          >
-                            <span className="badge-dot" />
-                            {r.formStatus}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="flex gap-1">
-                            <button className="btn-ghost btn-icon text-gray-400 hover:bg-gray-100">
-                              <Download className="w-4 h-4" />
-                            </button>
-                            <button className="btn-ghost btn-icon text-gray-400 hover:bg-gray-100">
-                              <Mail className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <BirTab
+              data={birData}
+              statusBadge={statusBadge}
+              onExport={() => setShowReportModal(true)}
+              onAlphalist={() => setShowAlphalistModal(true)}
+            />
           )}
-
           {/* Employment History Tab */}
           {activeTab === "history" && (
-            <div className="space-y-5">
-              <div className="flex justify-between items-center">
-                <h3 className="text-base font-bold text-gray-800">
-                  Employment Status History (Government Reporting)
-                </h3>
-                <button
-                  onClick={() => setShowHistoryReportModal(true)}
-                  className="btn btn-primary"
-                >
-                  <Download className="w-4 h-4" /> Generate Reports
-                </button>
-              </div>
-              <div className="overflow-x-auto rounded-xl border border-gray-100">
-                <table className="pro-table">
-                  <thead>
-                    <tr>
-                      {[
-                        "Date",
-                        "Employee",
-                        "Event",
-                        "Reported To",
-                        "Status",
-                      ].map((h) => (
-                        <th key={h}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {historyData.map((r, i) => (
-                      <tr key={i}>
-                        <td>{r.date}</td>
-                        <td className="!font-medium !text-gray-800">
-                          {r.employee}
-                        </td>
-                        <td>{r.event}</td>
-                        <td>{r.reportedTo}</td>
-                        <td>
-                          <span className={`badge ${statusBadge[r.status]}`}>
-                            <span className="badge-dot" />
-                            {r.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <HistoryTab
+              data={historyData}
+              statusBadge={statusBadge}
+              onGenerateReports={() => setShowHistoryReportModal(true)}
+            />
           )}
         </div>
       </div>
