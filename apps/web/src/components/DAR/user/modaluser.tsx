@@ -2,7 +2,8 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import {
-  CheckCircle, X, FileText, Trash2, AlertTriangle, Percent, Clock, PackageCheck, GitCommit, Send
+  CheckCircle, X, FileText, Trash2, AlertTriangle, Percent, Clock, PackageCheck, GitCommit, Send, ClipboardList,
+  Star, CheckSquare, Square,
 } from "lucide-react";
 
 // ─── Types (copied from DailyAccomplishmentReport) ───────────────────────────
@@ -11,7 +12,7 @@ type TaskStatus = "" | "done" | "ip" | "blocked" | "todo";
 type Priority = "" | "High" | "Medium" | "Low";
 type TaskType = "" | "Development" | "Bug Fix" | "Testing" | "Review" | "Documentation" | "Meeting" | "Research";
 
-interface TaskRow {
+export interface TaskRow {
   id: number;
   carryOver: "" | "Yes" | "No";
   priority: Priority;
@@ -46,6 +47,11 @@ const STATUS_BADGE: Record<string, string> = {
 
 const STATUS_LABEL: Record<string, string> = {
   done: "Done", ip: "In Progress", blocked: "Blocked", todo: "To Do",
+};
+
+const RATING_LABELS: Record<number, string> = {
+  1: "Needs Improvement", 2: "Below Expectations", 3: "Meets Expectations",
+  4: "Exceeds Expectations", 5: "Outstanding",
 };
 
 const TRUNCATE_LIMIT = 30;
@@ -111,16 +117,17 @@ function DescriptionCell({ text, label = "Details" }: { text: string; label?: st
   );
 }
 
-// ─── TaskTableReadOnly (shared by Preview and View modals) ────────────────────
+// ─── TaskTableReadOnly (shared by Preview and View modals, and admin ViewDarModal) ─
 
-function TaskTableReadOnly({ tasks, emptyText = "No tasks entered" }: { tasks: TaskRow[]; emptyText?: string }) {
+export function TaskTableReadOnly({ tasks, emptyText = "No tasks entered" }: { tasks: TaskRow[]; emptyText?: string }) {
   const filtered = tasks.filter(t => t.description || t.ticketRef || t.status);
   if (filtered.length === 0) {
     return <div className="text-center text-gray-400 py-4 text-xs">{emptyText}</div>;
   }
   return (
     <div className="space-y-0 rounded-xl overflow-hidden border border-gray-100">
-      {filtered.map((t, tIdx) => (
+      {filtered.map((t, tIdx) => {
+        return (
         <table key={t.id} className="pro-table text-xs w-full">
           <thead>
             <tr>{["#", "Carry Over", "Priority", "Type", "Ticket", "Description", "Module", "Status"].map(h => <th key={h}>{h}</th>)}</tr>
@@ -200,7 +207,8 @@ function TaskTableReadOnly({ tasks, emptyText = "No tasks entered" }: { tasks: T
             </tr>
           </tbody>
         </table>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -321,6 +329,13 @@ interface DARViewModalProps {
   preparedBy?: string;
   preparedSig?: string;
   dateSubmitted?: string;
+  // Admin-view extensions (optional — walang epekto sa employee preview/history)
+  title?: string;
+  extraBadges?: React.ReactNode;
+  beforeAcknowledgment?: React.ReactNode;
+  footerLeft?: React.ReactNode;
+  footerRight?: React.ReactNode;
+  shiftRight?: boolean;
 }
 
 export function DARViewModal({
@@ -341,6 +356,7 @@ export function DARViewModal({
   tmrTimeIn: tmrTimeInProp, leaveNotice: leaveNoticeProp,
   preparedBy: preparedByProp, preparedSig: preparedSigProp,
   dateSubmitted: dateSubmittedProp,
+  title, extraBadges, beforeAcknowledgment, footerLeft, footerRight, shiftRight,
 }: DARViewModalProps) {
   if (!open) return null;
 
@@ -398,59 +414,144 @@ export function DARViewModal({
 
   return createPortal(
     <div className="pro-modal-overlay" style={{ zIndex: 9999, position: "fixed", inset: 0 }} onClick={onClose}>
-      <div className="pro-modal" style={{ maxWidth: "860px", width: "100%", maxHeight: "90vh", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
+      <div className="pro-modal" style={{ maxWidth: "860px", width: "100%", maxHeight: "90vh", display: "flex", flexDirection: "column", transition: "transform 0.25s ease", transform: shiftRight ? "translateX(220px)" : "translateX(0)" }} onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="pro-modal-header">
-          <div className="flex items-center gap-3">
-            <FileText className="w-5 h-5 text-emerald-600" />
-            <h3>
-              {isView
-                ? `Daily Accomplishment Report — ${date}`
-                : "Daily Accomplishment Report — Preview"}
-            </h3>
+        <div className="pro-modal-header" style={{ background: "linear-gradient(135deg, #064e3b 0%, #059669 100%)", borderRadius: "16px 16px 0 0", padding: "22px 28px", display: "block" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.9)", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 6, padding: "3px 10px", letterSpacing: "0.04em" }}>
+                SIMPLEVIA HRIS
+              </span>
+              {isView && subStatus && (
+                <span className={`badge ${
+                  subStatus === "Approved"           ? "badge-success" :
+                  subStatus === "Rejected"           ? "badge-danger" :
+                  subStatus === "Revision Requested" ? "badge-info" :
+                  "badge-warning"
+                }`}>
+                  <span className="badge-dot" />{subStatus}
+                </span>
+              )}
+              {extraBadges}
+            </div>
+            <button onClick={onClose} className="btn-ghost btn-icon" style={{ color: "rgba(255,255,255,0.8)" }}>
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <button onClick={onClose} className="btn-ghost btn-icon">
-            <X className="w-5 h-5 text-gray-400" />
-          </button>
+          <div style={{ marginBottom: 16 }}>
+            <h3 style={{ color: "#fff", fontWeight: 800, fontSize: 20, margin: 0, lineHeight: 1.2 }}>
+              {title
+                ? title
+                : isView
+                ? "Daily Accomplishment Report"
+                : "Daily Accomplishment Report - Preview"}
+            </h3>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 3 }}>
+              {[devName, workArr, project, date].filter(Boolean).join(" · ")}
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {[
+              { icon: <Clock className="w-3 h-3" />, label: "Actual hrs", val: `${totalActual.toFixed(1)}h` },
+              { icon: <CheckCircle className="w-3 h-3" />, label: "Tasks", val: `${tasksDone}/${tasks.length}` },
+              { icon: <ClipboardList className="w-3 h-3" />, label: "Checklist", val: `${checkCount}/6` },
+              { icon: <Clock className="w-3 h-3" />, label: "Submitted", val: isView ? (submittedAt || "—") : (timeOut || "—") },
+            ].map(c => (
+              <div key={c.label} style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.1)", borderRadius: 8, padding: "5px 12px", border: "1px solid rgba(255,255,255,0.15)" }}>
+                <span style={{ color: "rgba(255,255,255,0.6)" }}>{c.icon}</span>
+                <span style={{ fontWeight: 700, fontSize: 12, color: "#fff" }}>{c.val}</span>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}>{c.label}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="pro-modal-body overflow-y-auto" style={{ flex: 1 }}>
 
-          {/* Hero Banner */}
-          <div className="rounded-xl p-5 mb-5 text-white" style={{ background: "linear-gradient(135deg, #064e3b 0%, #047857 100%)" }}>
-            <p className="text-xs font-semibold uppercase tracking-widest text-emerald-300 mb-1">SIMPLEVIA HRIS</p>
-            <h2 className="text-lg font-bold">Daily Accomplishment Report</h2>
-            <p className="text-xs text-emerald-200 mt-0.5">Software Development — Individual Submission</p>
-            <div className="flex flex-wrap gap-3 mt-3">
-              {[date, devName, workArr, project].map(val => (
-                <span key={val} className="bg-white/10 text-emerald-100 text-xs px-2.5 py-1 rounded-full">{val || "—"}</span>
-              ))}
-              {isView && subStatus && (
-                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                  subStatus === "Approved"           ? "bg-emerald-500 text-white" :
-                  subStatus === "Rejected"           ? "bg-rose-500 text-white" :
-                  subStatus === "Revision Requested" ? "bg-blue-500 text-white" :
-                  "bg-amber-400 text-white"
-                }`}>{subStatus}</span>
-              )}
+          {/* Revision Reason — shown when supervisor requested changes */}
+          {isView && subStatus === "Revision Requested" && s.revisionReason && (
+            <div className="mb-4 bg-blue-50 rounded-xl p-4 border border-blue-200">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-blue-700 mb-1.5 flex items-center gap-2">
+                <AlertTriangle className="w-3.5 h-3.5" /> Supervisor's Feedback
+              </p>
+              <p className="text-xs text-blue-900 leading-relaxed">{s.revisionReason}</p>
             </div>
-          </div>
+          )}
 
-          {/* Stat Cards */}
-          <div className="grid grid-cols-4 gap-4 mb-5">
-            {[
-              { lbl: "Tasks Done",   val: tasksDone,                    color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
-              { lbl: "Actual Hours", val: `${totalActual.toFixed(1)}h`, color: "text-indigo-700 bg-indigo-50 border-indigo-200" },
-              { lbl: isView ? "Standup" : "Blocked", val: isView ? (standup || "—") : tasksBlocked, color: isView ? "text-cyan-700 bg-cyan-50 border-cyan-200" : "text-rose-700 bg-rose-50 border-rose-200" },
-              { lbl: "Checklist",    val: `${checkCount}/6`,                                color: "text-amber-700 bg-amber-50 border-amber-200" },
-            ].map(({ lbl, val, color }) => (
-              <div key={lbl} className={`rounded-xl p-3 text-center border ${color}`}>
-                <p className="text-xl font-bold">{val}</p>
-                <p className="text-[10px] font-medium mt-0.5">{lbl}</p>
+          {/* Supervisor Review — shown once the report has been Approved, unified "Report Summary" card */}
+          {isView && subStatus === "Approved" && (
+            <div className="mb-4 rounded-xl p-4" style={{ background: "#eff6ff", border: "1px solid #bfdbfe" }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "#1d4ed8" }}>Report Summary</p>
+
+              {/* Date + Status */}
+              <div className="flex items-center gap-2.5 flex-wrap mb-3">
+                {date && <span className="text-xs" style={{ color: "#64748b" }}>{date}{submittedAt ? ` at ${submittedAt}` : ""}</span>}
+                <span className="badge badge-success"><span className="badge-dot" />Approved</span>
               </div>
-            ))}
-          </div>
+
+              {/* Rating + Score + Task Completion — laging nakikita, blangko/"---" lang kapag walang laman */}
+              <div className="bg-white rounded-lg p-3 mb-3" style={{ border: "1px solid #bfdbfe" }}>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <Star key={i} className={`w-4 h-4 ${i <= (s.rating || 0) ? "fill-amber-400 text-amber-400" : "text-gray-200"}`} />
+                    ))}
+                  </div>
+                  {s.rating ? (
+                    <span className="text-xs font-medium text-gray-700">{RATING_LABELS[s.rating]}</span>
+                  ) : null}
+                  {s.performanceScore ? (
+                    <span className="ml-auto text-base font-black" style={{ color: s.performanceScore >= 90 ? "#059669" : s.performanceScore >= 70 ? "#d97706" : "#dc2626" }}>
+                      {s.performanceScore}<span className="text-[10px] font-medium text-gray-400">/100</span>
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-2 pt-2 mt-2" style={{ borderTop: "1px solid #eff6ff" }}>
+                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Task Completion</span>
+                  <span className="text-xs font-medium text-gray-700">{s.taskCompletion || "---"}</span>
+                </div>
+              </div>
+
+              {/* Supervisor Follow-Up — lalabas lang kapag meron */}
+              {s.followUpRequired && s.managerActionItems ? (
+                <div className="bg-amber-50 rounded-lg p-3 mb-3 border border-amber-200">
+                  <p className="text-[10px] text-amber-700 font-semibold uppercase tracking-wide mb-1 flex items-center gap-1.5">
+                    <CheckSquare className="w-3 h-3" /> Supervisor Follow-Up
+                  </p>
+                  <p className="text-xs text-gray-700 leading-relaxed">{s.managerActionItems}</p>
+                </div>
+              ) : null}
+
+              {/* Supervisor Notes / Feedback — lalabas lang kapag meron */}
+              {s.supervisorComment ? (
+                <div className="bg-white rounded-lg p-3 mb-3" style={{ border: "1px solid #bfdbfe" }}>
+                  <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide mb-1">Supervisor Notes / Feedback</p>
+                  <p className="text-xs text-gray-700 leading-relaxed">{s.supervisorComment}</p>
+                </div>
+              ) : null}
+
+              {/* Supervisor Name + Reviewed Date */}
+              <div className="grid grid-cols-2 gap-3 pt-3" style={{ borderTop: "1px solid #bfdbfe" }}>
+                <div>
+                  <p className="text-[10px] text-gray-400 font-medium">Supervisor Name</p>
+                  <p className="text-xs font-semibold text-gray-700 mt-0.5">{s.supervisorName || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 font-medium">Reviewed Date</p>
+                  <p className="text-xs font-semibold text-gray-700 mt-0.5">{s.reviewedDate || "—"}</p>
+                </div>
+              </div>
+
+              {/* Supervisor Signature */}
+              <div className="mt-3 pt-3" style={{ borderTop: "1px solid #bfdbfe" }}>
+                <p className="text-[10px] text-gray-400 font-medium mb-2">Supervisor Signature</p>
+                {s.supervisorSignature && s.supervisorSignature.startsWith("data:image")
+                  ? <img src={s.supervisorSignature} alt="Supervisor Signature" className="max-h-[60px] max-w-[200px] object-contain border border-white rounded-lg bg-white px-2 py-1" />
+                  : <p className="text-xs text-gray-400 italic">Not signed</p>}
+              </div>
+            </div>
+          )}
 
           {/* Section 1: Developer Info */}
           <div className="mb-4 border border-gray-200 p-2 rounded-xl">
@@ -559,6 +660,8 @@ export function DARViewModal({
             </div>
           </div>
 
+          {beforeAcknowledgment}
+
           {/* Tomorrow + Acknowledgment */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border border-gray-200 p-2 rounded-xl">
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
@@ -575,8 +678,10 @@ export function DARViewModal({
                 <p><span className="text-gray-400">Prepared by:</span> {preparedBy || "—"}</p>
                 <div className="flex items-start gap-2 mt-0.5">
                   <span className="text-gray-400 text-xs shrink-0">Signature:</span>
-                  {preparedSig
+                  {preparedSig && preparedSig.startsWith("data:image")
                     ? <img src={preparedSig} alt="Signature" className="max-h-[60px] max-w-[200px] object-contain border border-gray-100 rounded-lg bg-white px-2 py-1" />
+                    : preparedSig
+                    ? <span className="text-xs italic font-semibold text-gray-700">{preparedSig}</span>
                     : <span className="text-xs text-gray-700">—</span>}
                 </div>
                 <p><span className="text-gray-400">Date Submitted:</span> {dateSubmitted || "—"}</p>
@@ -590,20 +695,26 @@ export function DARViewModal({
         </div>
 
         {/* ─── Modal Footer ─────────────────────────────────────────── */}
-        <div className="flex justify-end gap-2 border-t border-gray-100 p-4">
-          <button type="button" className="btn btn-secondary" onClick={onClose}>
-            Close
-          </button>
-          {!isView && onSubmit && (
-            <button type="button" className="btn btn-primary" onClick={onSubmit}>
-              <Send className="w-4 h-4" /> Submit Report
-            </button>
-          )}
-          {isView && subStatus === "Revision Requested" && onRevise && (
-            <button type="button" className="btn btn-primary" onClick={() => onRevise(s)}>
-              <FileText className="w-4 h-4" /> Revise Report
-            </button>
-          )}
+        <div className="flex items-center justify-between gap-2 border-t border-gray-100 p-4">
+          <div className="flex items-center gap-2">{footerLeft}</div>
+          <div className="flex items-center gap-2">
+            {!footerRight && (
+              <button type="button" className="btn btn-secondary" onClick={onClose}>
+                Close
+              </button>
+            )}
+            {!isView && onSubmit && (
+              <button type="button" className="btn btn-primary" onClick={onSubmit}>
+                <Send className="w-4 h-4" /> Submit Report
+              </button>
+            )}
+            {isView && subStatus === "Revision Requested" && onRevise && (
+              <button type="button" className="btn btn-primary" onClick={() => onRevise(s)}>
+                <FileText className="w-4 h-4" /> Revise Report
+              </button>
+            )}
+            {footerRight}
+          </div>
         </div>
 
       </div>

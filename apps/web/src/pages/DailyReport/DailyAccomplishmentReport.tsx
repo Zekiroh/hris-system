@@ -51,6 +51,104 @@ function createEmptyTask(id: number): TaskRow {
   return { id, carryOver: "", priority: "", taskType: "", ticketRef: "", description: "", module: "", status: "", percentDone: "", estHrs: "", actualHrs: "", output: "", commitLink: "", remarks: "", _expanded: false };
 }
 
+// TODO: remove once GET /api/dar/submissions is wired up — temporary hardcoded history for UI testing
+const mockSubmissions: any[] = [
+  {
+    date: "2025-06-30",
+    project: "SIMPLEVIA HRIS",
+    tasks: 5,
+    checklist: 6,
+    status: "Approved",
+    submittedAt: "5:45 PM",
+    workArr: "On-site",
+    devName: "Charleston James S. Cabanatan",
+    sprint: "Sprint 12",
+    team: "Frontend Team",
+    submittedTo: "Marivic R. Songalia-Magyaya",
+    timeIn: "09:00",
+    timeOut: "17:00",
+    breakMins: 60,
+    gross: "8h 0m",
+    net: "7h 0m",
+    keyAccomp: "Completed DAR admin review flow and stat card refactor.",
+    blockers: "None",
+    risks: "None",
+    planTmr: "Start on shared constants file migration.",
+    checklistItems: Array(6).fill(true),
+    checklistDone: Array(6).fill(true),
+    taskDetails: [],
+    rating: 5,
+    performanceScore: 95,
+    taskCompletion: "Exceeds Expectations",
+    supervisorComment: "Excellent work today. All tasks completed on time and communication was clear throughout.",
+    supervisorName: "Marivic R. Songalia-Magyaya",
+    reviewedDate: "7/1/2025",
+    supervisorSignature: "",
+    followUpRequired: false,
+    managerActionItems: "",
+  },
+  {
+    date: "2025-06-27",
+    project: "SIMPLEVIA HRIS",
+    tasks: 4,
+    checklist: 5,
+    status: "Revision Requested",
+    submittedAt: "6:10 PM",
+    workArr: "Work From Home",
+    devName: "Charleston James S. Cabanatan",
+    sprint: "Sprint 11",
+    team: "Frontend Team",
+    submittedTo: "Marivic R. Songalia-Magyaya",
+    timeIn: "09:00",
+    timeOut: "18:00",
+    breakMins: 60,
+    gross: "9h 0m",
+    net: "8h 0m",
+    keyAccomp: "Worked on ticket references and task list updates.",
+    blockers: "Waiting for backend endpoint",
+    risks: "Possible delay on integration",
+    planTmr: "Fix ticket reference formatting per supervisor feedback.",
+    revisionReason: "Please update the ticket references in your task list — some are missing the SIM- prefix.",
+    checklistItems: [true, true, true, true, true, false],
+    checklistDone: [true, true, true, true, true, false],
+    taskDetails: [],
+  },
+  {
+    date: "2025-06-25",
+    project: "SIMPLEVIA HRIS",
+    tasks: 5,
+    checklist: 6,
+    status: "Approved",
+    submittedAt: "5:30 PM",
+    workArr: "On-site",
+    devName: "Charleston James S. Cabanatan",
+    sprint: "Sprint 11",
+    team: "Frontend Team",
+    submittedTo: "Marivic R. Songalia-Magyaya",
+    timeIn: "09:00",
+    timeOut: "17:30",
+    breakMins: 60,
+    gross: "8h 30m",
+    net: "7h 30m",
+    keyAccomp: "Built SignaturePad component and wired up employee acknowledgment section.",
+    blockers: "None",
+    risks: "None",
+    planTmr: "Start on admin-side ReviewPanel.",
+    checklistItems: Array(6).fill(true),
+    checklistDone: Array(6).fill(true),
+    taskDetails: [],
+    rating: 4,
+    performanceScore: 85,
+    taskCompletion: "Fully Completed",
+    supervisorComment: "Good progress on the SignaturePad component. Keep it up.",
+    supervisorName: "Marivic R. Songalia-Magyaya",
+    reviewedDate: "6/26/2025",
+    supervisorSignature: "",
+    followUpRequired: true,
+    managerActionItems: "Schedule 1-on-1 to discuss timeline for admin-side ReviewPanel work.",
+  },
+];
+
 function calcHours(timeIn: string, timeOut: string, breakMins: number) {
   if (!timeIn || !timeOut) return { gross: "", net: "" };
   const [ih, im] = timeIn.split(":").map(Number);
@@ -174,7 +272,7 @@ export default function DailyAccomplishmentReport() {
   const [selectedSub, setSelectedSub] = React.useState<any>(null);
   const [deleteIdx, setDeleteIdx] = React.useState<number | null>(null);
   const [subSearch, setSubSearch] = React.useState("");
-  const [submissions, setSubmissions] = React.useState<any[]>([]);
+  const [submissions, setSubmissions] = React.useState<any[]>(mockSubmissions);
   const [subFilter, setSubFilter] = React.useState("All Status");
   const [subPage, setSubPage] = React.useState(1);
   
@@ -182,6 +280,7 @@ export default function DailyAccomplishmentReport() {
   const [activeTab, setActiveTab] = useState<"dar" | "submissions">("dar");
   const [isRevising, setIsRevising] = useState(false);
   const [, setRevisingDate] = useState<string | null>(null);
+  const [revisingReason, setRevisingReason] = useState<string>("");
 
   // ─── Fetch submissions from backend ───────────────────────────────────
   const fetchSubmissions = useCallback(async () => {
@@ -367,6 +466,7 @@ export default function DailyAccomplishmentReport() {
     ); 
     setIsRevising(false);
     setRevisingDate(null);
+    setRevisingReason("");
     setShowConfirm(false);
     setSuccessSnapshot({
       date,
@@ -480,6 +580,7 @@ export default function DailyAccomplishmentReport() {
   const handleRevise = async (sub: any) => {
     setIsRevising(true);
     setRevisingDate(sub.date);
+    setRevisingReason(sub.revisionReason || "");
     setDevName(sub.devName || "");
     setDate(sub.date || today);
     setWorkArr(sub.workArr || "On-site");
@@ -584,11 +685,19 @@ export default function DailyAccomplishmentReport() {
       {activeTab === "dar" && <>
 
         {isRevising && (
-          <div className="mx-6 mb-2 mt-2 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-5 py-3">
-            <FileText className="w-4 h-4 text-blue-500 shrink-0" />
-            <p className="text-xs text-blue-800 font-medium">
-              You are revising your DAR for <strong>{date}</strong>. Make your changes and re-submit when ready.
-            </p>
+          <div className="mx-6 mb-2 mt-2 bg-blue-50 border border-blue-200 rounded-xl px-5 py-3">
+            <div className="flex items-center gap-3">
+              <FileText className="w-4 h-4 text-blue-500 shrink-0" />
+              <p className="text-xs text-blue-800 font-medium">
+                You are revising your DAR for <strong>{date}</strong>. Make your changes and re-submit when ready.
+              </p>
+            </div>
+            {revisingReason && (
+              <div className="mt-2.5 pt-2.5 border-t border-blue-100 pl-7">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600 mb-1">Supervisor's Feedback</p>
+                <p className="text-xs text-blue-900 leading-relaxed">{revisingReason}</p>
+              </div>
+            )}
           </div>
         )}
 

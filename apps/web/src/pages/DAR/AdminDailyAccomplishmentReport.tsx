@@ -2,903 +2,273 @@
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
-  ClipboardList,
-  Clock,
-  CheckCircle,
-  RefreshCw,
-  Star,
-  Eye,
-  Download,
-  Search,
-  X,
-  CheckSquare,
-  Square,
-  AlertTriangle,
-  ChevronLeft,
-  ChevronRight,
+  ClipboardList, Clock, CheckCircle, RefreshCw, X, Download,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import {
+  ViewDarModal, ReviewPanel, SUPERVISOR_OPTIONS, DEPARTMENT_OPTIONS
+} from "../../components/DAR/admin/modaladmin";
+import type { SubmittedReport, ReportStatus } from "../../components/DAR/admin/modaladmin";
+import ReviewTable from "../../components/DAR/admin/reviewTable";
+import { useAuth } from "../../context/AuthContext"; // i-adjust ang path base sa aktwal na lokasyon ng AuthContext.tsx
 
-// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const mockReports: SubmittedReport[] = [
+  // ─── Pending Review (4) ───────────────────────────────────────────────
+  {
+    id: "DAR-2025-001",
+    referenceNo: "DAR-2025-001",
+    employeeName: "Charleston James S. Cabanatan",
+    department: "Frontend Team",
+    project: "SIMPLEVIA HRIS",
+    date: "2025-07-01",
+    submittedAt: "5:00 PM",
+    workArrangement: "On-site",
+    totalActualHours: 8.5,
+    totalEstHours: 8,
+    tasksCompleted: 4,
+    tasksTotal: 5,
+    checklistDone: 5,
+    status: "Pending Review",
+    assignedSupervisor: "Marivic R. Songalia-Magyaya",
+    _raw: {
+      taskDetails: [
+        {
+          id: 1,
+          taskType: "Development",
+          ticketRef: "SIM-142",
+          description: "Implement supervisor dropdown filter across admin DAR tables",
+          module: "DAR - Admin",
+          status: "done",
+          percentDone: 100,
+          estHrs: 3,
+          actualHrs: 3.5,
+          output: "PR #218 merged",
+        },
+        {
+          id: 2,
+          taskType: "Bug Fix",
+          ticketRef: "SIM-145",
+          description: "Fix mock data bug causing empty pending table",
+          module: "DAR - Admin",
+          status: "done",
+          percentDone: 100,
+          estHrs: 1,
+          actualHrs: 1,
+          output: "loadReports() now returns mockReports",
+        },
+        {
+          id: 3,
+          taskType: "Development",
+          ticketRef: "SIM-149",
+          description: "Refactor stat cards to match employee-side UI pattern",
+          module: "DAR - Admin",
+          status: "done",
+          percentDone: 100,
+          estHrs: 2,
+          actualHrs: 2,
+          output: "Updated statCards + card markup",
+        },
+        {
+          id: 4,
+          taskType: "Enhancement",
+          ticketRef: "SIM-151",
+          description: "Add Print/Export and Proceed to Review actions to ViewDarModal",
+          module: "DAR - Admin",
+          status: "done",
+          percentDone: 100,
+          estHrs: 1.5,
+          actualHrs: 1.5,
+          output: "jsPDF single-report export wired up",
+        },
+        {
+          id: 5,
+          taskType: "Development",
+          ticketRef: "SIM-153",
+          description: "Move shared DAR constants to neutral shared file",
+          module: "DAR - Shared",
+          status: "ip",
+          percentDone: 60,
+          estHrs: 2,
+          actualHrs: 0.5,
+          output: "In progress — pending file split",
+        },
+      ],
+      submittedTo: "Marivic R. Songalia-Magyaya",
+      timeIn: "9:00 AM",
+      timeOut: "5:00 PM",
+      gross: "8h",
+      net: "8h",
+      keyAccomp: "Completed supervisor dropdown filter, fixed mock data bug, revised stat card UI to match employee-side design.",
+      planTmr: "Continue moving shared constants (SUPERVISOR_OPTIONS, checklistItems) to a neutral constants file.",
+    },
+  },
+  {
+    id: "DAR-2025-002",
+    referenceNo: "DAR-2025-002",
+    employeeName: "Maria Santos",
+    department: "Frontend Team",
+    project: "SIMPLEVIA HRIS",
+    date: "2025-07-01",
+    submittedAt: "6:00 PM",
+    workArrangement: "Work From Home",
+    totalActualHours: 7,
+    totalEstHours: 8,
+    tasksCompleted: 3,
+    tasksTotal: 4,
+    checklistDone: 4,
+    status: "Pending Review",
+    assignedSupervisor: "Angela Reyes",
+  },
+  {
+    id: "DAR-2025-003",
+    referenceNo: "DAR-2025-003",
+    employeeName: "Carlo Reyes",
+    department: "QA Team",
+    project: "SIMPLEVIA HRIS",
+    date: "2025-07-01",
+    submittedAt: "5:30 PM",
+    workArrangement: "Hybrid",
+    totalActualHours: 9,
+    totalEstHours: 8,
+    tasksCompleted: 6,
+    tasksTotal: 6,
+    checklistDone: 6,
+    status: "Pending Review",
+    assignedSupervisor: "Roberto Cruz",
+  },
+  {
+    id: "DAR-2025-004",
+    referenceNo: "DAR-2025-004",
+    employeeName: "Ana Lim",
+    department: "Backend Team",
+    project: "SIMPLEVIA HRIS",
+    date: "2025-07-01",
+    submittedAt: "5:55 PM",
+    workArrangement: "On-site",
+    totalActualHours: 7.5,
+    totalEstHours: 8,
+    tasksCompleted: 3,
+    tasksTotal: 5,
+    checklistDone: 3,
+    status: "Pending Review",
+    assignedSupervisor: "Michael Tan",
+  },
 
-type ReportStatus = "Pending Review" | "Approved" | "Revision Requested" | "Rejected";
-type Rating = 1 | 2 | 3 | 4 | 5;
-
-interface SubmittedReport {
-  id: string;
-  employeeName: string;
-  department: string;
-  project: string;
-  date: string;
-  submittedAt: string;
-  workArrangement: string;
-  totalActualHours: number;
-  totalEstHours: number;
-  tasksCompleted: number;
-  tasksTotal: number;
-  checklistDone: number;
-  status: ReportStatus;
-  rating?: Rating;
-  supervisorName?: string;
-  supervisorComment?: string;
-  performanceScore?: number;
-  taskVerification?: string;
-  attendanceVerified?: boolean;
-  outputQuality?: string;
-  acknowledgedByEmployee?: boolean;
-  acknowledgedByAdmin?: boolean;
-  finalRemarks?: string;
-  referenceNo: string;
-}
-
-// â”€â”€â”€ Mock Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-const MOCK_REPORTS: SubmittedReport[] = [
+  // ─── Reviewed (4) ────────────────────────────────────────────────────
   {
-    id: "DAR-2026-0521-001", referenceNo: "DAR-2026-0521-001",
-    employeeName: "Dela Cruz, Juan", department: "Software Development", project: "HRIS System",
-    date: "2026-05-21", submittedAt: "05:58 PM", workArrangement: "On-site",
-    totalActualHours: 7.5, totalEstHours: 8, tasksCompleted: 3, tasksTotal: 4,
-    checklistDone: 5, status: "Pending Review",
+    id: "DAR-2025-005",
+    referenceNo: "DAR-2025-005",
+    employeeName: "Jose Ramos",
+    department: "Frontend Team",
+    project: "SIMPLEVIA HRIS",
+    date: "2025-06-30",
+    submittedAt: "5:45 PM",
+    workArrangement: "On-site",
+    totalActualHours: 8,
+    totalEstHours: 8,
+    tasksCompleted: 5,
+    tasksTotal: 5,
+    checklistDone: 6,
+    status: "Approved",
+    rating: 5,
+    performanceScore: 95,
+    supervisorName: "Roberto Cruz",
+    supervisorComment: "Excellent work today. All tasks completed on time.",
+    taskCompletion: "Exceeds Expectations",
+    taskVerification: "Verified",
+    attendanceVerified: true,
+    acknowledgedByEmployee: true,
+    acknowledgedByAdmin: true,
   },
   {
-    id: "DAR-2026-0521-002", referenceNo: "DAR-2026-0521-002",
-    employeeName: "Santos, Maria", department: "QA & Testing", project: "HRIS System",
-    date: "2026-05-21", submittedAt: "06:02 PM", workArrangement: "Work From Home",
-    totalActualHours: 8, totalEstHours: 8, tasksCompleted: 5, tasksTotal: 5,
-    checklistDone: 6, status: "Approved", rating: 5,
-    supervisorName: "Reyes, Antonio", supervisorComment: "Excellent work. All tasks completed on time.",
-    performanceScore: 95, taskVerification: "Verified", attendanceVerified: true,
-    outputQuality: "Exceeds Expectations", acknowledgedByEmployee: true, acknowledgedByAdmin: true,
-    finalRemarks: "Great performance. Keep it up!",
+    id: "DAR-2025-006",
+    referenceNo: "DAR-2025-006",
+    employeeName: "Lea Gonzales",
+    department: "QA Team",
+    project: "SIMPLEVIA HRIS",
+    date: "2025-06-30",
+    submittedAt: "6:10 PM",
+    workArrangement: "Work From Home",
+    totalActualHours: 7.5,
+    totalEstHours: 8,
+    tasksCompleted: 4,
+    tasksTotal: 5,
+    checklistDone: 5,
+    status: "Revision Requested",
+    rating: 3,
+    performanceScore: 65,
+    supervisorName: "Roberto Cruz",
+    supervisorComment: "Please update the ticket references in your task list.",
+    taskCompletion: "Meets Expectations",
+    taskVerification: "Partially Verified",
+    attendanceVerified: true,
+    acknowledgedByEmployee: true,
+    acknowledgedByAdmin: true,
   },
   {
-    id: "DAR-2026-0521-003", referenceNo: "DAR-2026-0521-003",
-    employeeName: "Reyes, Jose", department: "Software Development", project: "Client Portal",
-    date: "2026-05-21", submittedAt: "06:15 PM", workArrangement: "On-site",
-    totalActualHours: 6, totalEstHours: 8, tasksCompleted: 2, tasksTotal: 5,
-    checklistDone: 3, status: "Revision Requested", rating: 2,
-    supervisorName: "Reyes, Antonio", supervisorComment: "Please provide more detail on blockers encountered.",
+    id: "DAR-2025-007",
+    referenceNo: "DAR-2025-007",
+    employeeName: "Mark Villanueva",
+    department: "Backend Team",
+    project: "SIMPLEVIA HRIS",
+    date: "2025-06-29",
+    submittedAt: "5:30 PM",
+    workArrangement: "On-site",
+    totalActualHours: 8,
+    totalEstHours: 8,
+    tasksCompleted: 5,
+    tasksTotal: 5,
+    checklistDone: 6,
+    status: "Approved",
+    rating: 4,
+    performanceScore: 85,
+    supervisorName: "Roberto Cruz",
+    supervisorComment: "Good work. Keep it up.",
+    taskCompletion: "Exceeds Expectations",
+    taskVerification: "Verified",
+    attendanceVerified: true,
+    acknowledgedByEmployee: true,
+    acknowledgedByAdmin: true,
   },
   {
-    id: "DAR-2026-0521-004", referenceNo: "DAR-2026-0521-004",
-    employeeName: "Garcia, Ana", department: "UI/UX Design", project: "Mobile App",
-    date: "2026-05-21", submittedAt: "05:45 PM", workArrangement: "Hybrid",
-    totalActualHours: 8.5, totalEstHours: 8, tasksCompleted: 4, tasksTotal: 4,
-    checklistDone: 6, status: "Pending Review",
-  },
-  {
-    id: "DAR-2026-0521-005", referenceNo: "DAR-2026-0521-005",
-    employeeName: "Fernandez, Rosa", department: "Backend Development", project: "HRIS System",
-    date: "2026-05-21", submittedAt: "06:00 PM", workArrangement: "Work From Home",
-    totalActualHours: 7, totalEstHours: 7.5, tasksCompleted: 3, tasksTotal: 3,
-    checklistDone: 6, status: "Approved", rating: 4,
-    supervisorName: "Reyes, Antonio", supervisorComment: "Good work. Minor improvements needed on documentation.",
-    performanceScore: 87, taskVerification: "Verified", attendanceVerified: true,
-    outputQuality: "Meets Expectations", acknowledgedByEmployee: true, acknowledgedByAdmin: true,
-    finalRemarks: "Solid performance.",
-  },
-  {
-    id: "DAR-2026-0521-006", referenceNo: "DAR-2026-0521-006",
-    employeeName: "Torres, Carlo", department: "Software Development", project: "Client Portal",
-    date: "2026-05-21", submittedAt: "05:50 PM", workArrangement: "On-site",
-    totalActualHours: 8, totalEstHours: 8, tasksCompleted: 4, tasksTotal: 4,
-    checklistDone: 6, status: "Pending Review",
-  },
-  {
-    id: "DAR-2026-0521-007", referenceNo: "DAR-2026-0521-007",
-    employeeName: "Villanueva, Lea", department: "QA & Testing", project: "Mobile App",
-    date: "2026-05-21", submittedAt: "06:10 PM", workArrangement: "Work From Home",
-    totalActualHours: 7.5, totalEstHours: 8, tasksCompleted: 3, tasksTotal: 4,
-    checklistDone: 5, status: "Approved", rating: 3,
-    supervisorName: "Reyes, Antonio", supervisorComment: "Meets expectations. Continue improving test coverage.",
-    performanceScore: 78, taskVerification: "Verified", attendanceVerified: true,
-    outputQuality: "Meets Expectations", acknowledgedByEmployee: true, acknowledgedByAdmin: true,
-    finalRemarks: "Keep up the good work.",
-  },
-  {
-    id: "DAR-2026-0521-008", referenceNo: "DAR-2026-0521-008",
-    employeeName: "Mendoza, Rico", department: "UI/UX Design", project: "HRIS System",
-    date: "2026-05-21", submittedAt: "05:55 PM", workArrangement: "Hybrid",
-    totalActualHours: 8.5, totalEstHours: 8, tasksCompleted: 5, tasksTotal: 5,
-    checklistDone: 6, status: "Approved", rating: 5,
-    supervisorName: "Reyes, Antonio", supervisorComment: "Outstanding output. Design deliverables exceeded expectations.",
-    performanceScore: 98, taskVerification: "Verified", attendanceVerified: true,
-    outputQuality: "Exceeds Expectations", acknowledgedByEmployee: true, acknowledgedByAdmin: true,
-    finalRemarks: "Excellent work this sprint.",
-  },
-  {
-    id: "DAR-2026-0521-009", referenceNo: "DAR-2026-0521-009",
-    employeeName: "Cruz, Patricia", department: "Backend Development", project: "Client Portal",
-    date: "2026-05-21", submittedAt: "06:20 PM", workArrangement: "On-site",
-    totalActualHours: 6.5, totalEstHours: 8, tasksCompleted: 2, tasksTotal: 4,
-    checklistDone: 4, status: "Revision Requested", rating: 2,
-    supervisorName: "Reyes, Antonio", supervisorComment: "Please clarify the blockers and update the task board.",
-  },
-  {
-    id: "DAR-2026-0521-010", referenceNo: "DAR-2026-0521-010",
-    employeeName: "Bautista, Mark", department: "Software Development", project: "Mobile App",
-    date: "2026-05-21", submittedAt: "05:48 PM", workArrangement: "Work From Home",
-    totalActualHours: 8, totalEstHours: 8, tasksCompleted: 4, tasksTotal: 4,
-    checklistDone: 6, status: "Pending Review",
+    id: "DAR-2025-008",
+    referenceNo: "DAR-2025-008",
+    employeeName: "Nina Torres",
+    department: "Frontend Team",
+    project: "SIMPLEVIA HRIS",
+    date: "2025-06-29",
+    submittedAt: "6:05 PM",
+    workArrangement: "Hybrid",
+    totalActualHours: 6,
+    totalEstHours: 8,
+    tasksCompleted: 2,
+    tasksTotal: 5,
+    checklistDone: 2,
+    status: "Rejected",
+    rating: 1,
+    performanceScore: 30,
+    supervisorName: "Roberto Cruz",
+    supervisorComment: "Report is incomplete. Tasks and checklist not fully accomplished.",
+    taskCompletion: "Needs Improvement",
+    taskVerification: "Not Verified",
+    attendanceVerified: false,
+    acknowledgedByEmployee: true,
+    acknowledgedByAdmin: true,
   },
 ];
 
-// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-const RATING_LABELS: Record<number, string> = {
-  1: "Needs Improvement", 2: "Below Expectations", 3: "Meets Expectations",
-  4: "Exceeds Expectations", 5: "Outstanding",
-};
-
-// Maps to the project's existing badge CSS classes
-const statusBadgeClass: Record<ReportStatus, string> = {
-  "Pending Review":     "badge badge-warning",
-  "Approved":           "badge badge-success",
-  "Revision Requested": "badge badge-info",
-  "Rejected":           "badge badge-danger",
-};
-
-
-function StatusBadge({ status }: { status: ReportStatus }) {
-  return (
-    <span className={statusBadgeClass[status]}>
-      <span className="badge-dot" />
-      {status}
-    </span>
-  );
-}
-
-function StarRow({ rating, interactive = false, hoverRating = 0, onHover, onClick }: {
-  rating: number;
-  interactive?: boolean;
-  hoverRating?: number;
-  onHover?: (r: number) => void;
-  onClick?: (r: number) => void;
-}) {
-  const display = hoverRating || rating;
-  return (
-    <div style={{ display: "inline-flex", gap: 2 }}>
-      {[1, 2, 3, 4, 5].map(i => (
-        <button
-          key={i}
-          type="button"
-          disabled={!interactive}
-          onMouseEnter={() => onHover?.(i)}
-          onMouseLeave={() => onHover?.(0)}
-          onClick={() => onClick?.(i)}
-          className={interactive ? "transition-transform hover:scale-125" : "cursor-default"}
-          style={{ background: "none", border: "none", padding: "1px" }}
-        >
-          <Star
-            className={`w-4 h-4 ${i <= display ? "fill-amber-400 text-amber-400" : "text-gray-300"}`}
-          />
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function ArrangementBadge({ arr }: { arr: string }) {
-  const cls =
-    arr === "On-site"        ? "badge badge-success" :
-    arr === "Work From Home" ? "badge badge-info" :
-                               "badge badge-warning";
-  return <span className={cls}><span className="badge-dot" />{arr}</span>;
-}
-
-// â”€â”€â”€ Review Panel (Section 7 + Section 8) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-function ReviewPanel({
-  report,
-  onSave,
-  onClose,
-}: {
-  report: SubmittedReport;
-  onSave: (updated: Partial<SubmittedReport>) => void;
-  onClose: () => void;
-}) {
-  const now = new Date();
-  const timeStr = now.toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" });
-
-  const [activeTab, setActiveTab]           = useState<"s7" | "s8">("s7");
-  const [rating, setRating]                 = useState<Rating>(report.rating || 0 as Rating);
-  const [hoverRating, setHoverRating]       = useState(0);
-  const [supervisorName, setSupervisorName] = useState(report.supervisorName || "");
-  const [comment, setComment]               = useState(report.supervisorComment || "");
-  const [perfScore, setPerfScore]           = useState(report.performanceScore || 0);
-  const [taskVerif, setTaskVerif]           = useState(report.taskVerification || "Verified");
-  const [attendVerif, setAttendVerif]       = useState(report.attendanceVerified ?? true);
-  const [outputQuality, setOutputQuality]   = useState(report.outputQuality || "Meets Expectations");
-  const [decision, setDecision]             = useState<ReportStatus>(
-    report.status === "Pending Review" ? "Approved" : report.status
-  );
-  const [empAck, setEmpAck]                 = useState(report.acknowledgedByEmployee ?? false);
-  const [adminAck, setAdminAck]             = useState(report.acknowledgedByAdmin ?? false);
-  const [finalRemarks, setFinalRemarks]     = useState(report.finalRemarks || "");
-  const [isEditing, setIsEditing] = useState(report.status === "Pending Review");
-  const [confirmOpen, setConfirmOpen] = useState(false);
-
-  const handleSave = () => {
-    if (!rating || (rating as number) === 0) {
-      toast.error("Please provide a performance rating before saving.");
-      return;
-    }
-    if (!decision || decision === "Pending Review") {
-      toast.error("Please select a Review Decision (Approved, Revision Requested, or Rejected).");
-      return;
-    }
-    if (!supervisorName.trim()) {
-      toast.error("Please enter the Supervisor Name before saving.");
-      return;
-    }
-    if (!empAck) {
-      toast.error("Employee acknowledgment is required before finalizing.");
-      return;
-    }
-    if (!adminAck) {
-      toast.error("Supervisor sign-off is required before finalizing.");
-      return;
-    }
-    setConfirmOpen(true);
-  };
-
-const handleConfirmSave = () => {
-  setConfirmOpen(false);
-  onSave({
-    rating, supervisorName, supervisorComment: comment,
-    performanceScore: perfScore, taskVerification: taskVerif,
-    attendanceVerified: attendVerif, outputQuality,
-    status: decision,
-    acknowledgedByEmployee: empAck, acknowledgedByAdmin: adminAck,
-    finalRemarks,
-  });
-  const notif = {
-    id: Date.now(),
-    title: decision === "Approved" ? "âœ“ Report Approved"
-      : decision === "Revision Requested" ? "â†© Revision Requested"
-      : decision === "Rejected" ? "âœ• Report Rejected"
-      : "Report Reviewed",
-    message: `${report.employeeName}'s DAR (${report.referenceNo}) has been ${decision.toLowerCase()} by ${supervisorName || "Supervisor"}.`,
-    time: "Just now", type: "system",
-  };
-  localStorage.setItem("attendance_notification", JSON.stringify(notif));
-
-  toast.success(`${report.employeeName}'s report has been ${decision.toLowerCase()}.`); 
-
-  onClose();
-};
-
-  const goToTab = (key: "s7" | "s8") => {
-    if (key === "s8") {
-      if (!rating || (rating as number) === 0) {
-        toast.error("Please provide a performance rating first.");
-        return;
-      }
-      if (!decision || decision === "Pending Review") {
-        toast.error("Please select a Review Decision (not Pending Review).");
-        return;
-      }
-      if (!supervisorName.trim()) {
-        toast.error("Please enter the Supervisor Name.");
-        return;
-      }
-    }
-    setActiveTab(key);
-  };
-
-  const displayRating = hoverRating || rating;
-
-  const decisionColor: Record<ReportStatus, string> = {
-    "Approved":           "#059669",
-    "Revision Requested": "#2563eb",
-    "Rejected":           "#dc2626",
-    "Pending Review":     "#d97706",
-  };
-
-  const scoreColor = perfScore >= 90 ? "#059669" : perfScore >= 70 ? "#d97706" : "#dc2626";
-
-  return (
-    <div onClick={onClose} style={{
-      position: "fixed",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      margin: 0,
-      padding: 0,
-      width: "100vw",
-      height: "100vh",
-      zIndex: 9999,
-      backgroundColor: "rgba(0,0,0,0.6)",
-      backdropFilter: "blur(6px)",
-      WebkitBackdropFilter: "blur(6px)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      boxSizing: "border-box",
-      overflowY: "auto",
-    }}>
-      <div
-        className="pro-modal"
-        style={{ maxWidth: 740, width: "95vw", maxHeight: "90vh", display: "flex", flexDirection: "column" }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* â”€â”€ Header â”€â”€ */}
-        <div
-          className="pro-modal-header"
-          style={{
-            background: "linear-gradient(135deg, #064e3b 0%, #059669 100%)",
-            borderRadius: "16px 16px 0 0",
-            padding: "22px 28px",
-            display: "block",
-          }}
-        >
-          {/* Top row: ref + status + close */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{
-                fontFamily: "monospace", fontSize: 11, fontWeight: 700,
-                color: "rgba(255,255,255,0.9)", background: "rgba(255,255,255,0.12)",
-                border: "1px solid rgba(255,255,255,0.2)", borderRadius: 6,
-                padding: "3px 10px", letterSpacing: "0.04em",
-              }}>
-                {report.referenceNo}
-              </span>
-              <span className={statusBadgeClass[report.status]} style={{ fontSize: 11 }}>
-                <span className="badge-dot" />{report.status}
-              </span>
-            </div>
-            <button onClick={onClose} className="btn-ghost btn-icon" style={{ color: "rgba(255,255,255,0.8)" }}>
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Employee info */}
-          <div style={{ marginBottom: 16 }}>
-            <h3 style={{ color: "#fff", fontWeight: 800, fontSize: 20, margin: 0, lineHeight: 1.2 }}>
-              {report.employeeName}
-            </h3>
-            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 3 }}>
-              {report.department} &nbsp;Â·&nbsp; {report.project} &nbsp;Â·&nbsp; {report.date}
-            </p>
-          </div>
-
-          {/* Stats row */}
-          <div style={{
-            display: "flex", gap: 6, flexWrap: "wrap",
-          }}>
-            {[
-              { icon: <Clock className="w-3 h-3" />, label: "Actual hrs", val: `${report.totalActualHours}h` },
-              { icon: <CheckCircle className="w-3 h-3" />, label: "Tasks", val: `${report.tasksCompleted}/${report.tasksTotal}` },
-              { icon: <ClipboardList className="w-3 h-3" />, label: "Checklist", val: `${report.checklistDone}/6` },
-              { icon: <Clock className="w-3 h-3" />, label: "Submitted", val: report.submittedAt },
-            ].map(c => (
-              <div key={c.label} style={{
-                display: "flex", alignItems: "center", gap: 6,
-                background: "rgba(255,255,255,0.1)", borderRadius: 8,
-                padding: "5px 12px", border: "1px solid rgba(255,255,255,0.15)",
-              }}>
-                <span style={{ color: "rgba(255,255,255,0.6)" }}>{c.icon}</span>
-                <span style={{ fontWeight: 700, fontSize: 12, color: "#fff" }}>{c.val}</span>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}>{c.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* â”€â”€ Tabs â”€â”€ */}
-        <div className="px-6 pt-3">
-          <div className="pro-tabs">
-            {[
-              { key: "s7", label: "Section 7: Supervisor Review" },
-              { key: "s8", label: "Section 8: Final Sign-off" },
-            ].map(t => (
-              <button
-                key={t.key}
-                onClick={() => goToTab(t.key as "s7" | "s8")}
-                className={`pro-tab ${activeTab === t.key ? "active" : ""}`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* â”€â”€ Body â”€â”€ */}
-        <div className="pro-modal-body" style={{ maxHeight: "45vh", overflowY: "auto" }}>
-
-          {/* â•â• SECTION 7 â•â• */}
-          {activeTab === "s7" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-              {/* Section label â€” left border accent style */}
-              <div style={{
-                borderLeft: "3px solid #059669", paddingLeft: 12,
-                display: "flex", flexDirection: "column", gap: 1,
-              }}>
-                <span style={{ fontSize: 11, fontWeight: 800, color: "#059669", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                  Section 7
-                </span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>
-                  Supervisor / Admin Review
-                </span>
-              </div>
-
-              {/* â”€â”€ Rating + Score side by side â”€â”€ */}
-              <div style={{
-                display: "grid", gridTemplateColumns: "1fr auto", gap: 12,
-                background: "#f0fdf4", border: "1px solid #bbf7d0",
-                borderRadius: 12, padding: 14,
-              }}>
-                {/* Left: stars + fields */}
-                <div>
-                  <p className="pro-label" style={{ marginBottom: 8, fontSize: 11 }}>Overall Performance Rating</p>
-
-                  {/* Stars */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
-                    <div style={{ display: "flex", gap: 2 }}>
-                      {[1,2,3,4,5].map(i => (
-                        <button
-                          key={i} type="button"
-                          onMouseEnter={() => setHoverRating(i)}
-                          onMouseLeave={() => setHoverRating(0)}
-                          onClick={() => {
-                          setRating(i as Rating);
-                          setPerfScore(i * 20);
-                        }}
-                        disabled={!isEditing}
-                          style={{ background: "none", border: "none", padding: 1, cursor: !isEditing ? "not-allowed" : "pointer", 
-                            opacity: !isEditing ? 0.6 : 1, transition: "transform 0.1s" }}
-                          onMouseDown={e => (e.currentTarget.style.transform = "scale(1.3)")}
-                          onMouseUp={e => (e.currentTarget.style.transform = "scale(1)")}
-                        >
-                          <Star style={{
-                            width: 18, height: 18,
-                            fill: i <= displayRating ? "#f59e0b" : "none",
-                            color: i <= displayRating ? "#f59e0b" : "#d1d5db",
-                            transition: "all 0.1s",
-                          }} />
-                        </button>
-                      ))}
-                    </div>
-                    <span style={{
-                      fontSize: 11, fontWeight: 700,
-                      color: "#059669", padding: "3px 8px",
-                      background: "#dcfce7", borderRadius: 20,
-                      border: "1px solid #86efac",
-                    }}>
-                      {RATING_LABELS[displayRating]}
-                    </span>
-                  </div>
-
-                  {/* Supervisor + Date */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    <div>
-                      <label className="pro-label" style={{ fontSize: 10 }}>Supervisor Name <span style={{ color: "#ef4444" }}>*</span></label>
-                      <input className="pro-input" value={supervisorName}
-                        onChange={e => setSupervisorName(e.target.value)}
-                        placeholder="Enter supervisor name"
-                        disabled={!isEditing}
-                        style={{ fontSize: 12, padding: "6px 10px", opacity: !isEditing ? 0.6 : 1, cursor: !isEditing ? "not-allowed" : "text" }} />
-                    </div>
-                    <div>
-                      <label className="pro-label" style={{ fontSize: 10 }}>Review Date & Time</label>
-                      <input className="pro-input" value={timeStr} readOnly
-                        style={{ background: "#f9fafb", color: "#9ca3af", cursor: "not-allowed", fontSize: 12, padding: "6px 10px" }} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right: Score dial */}
-                <div style={{
-                  display: "flex", flexDirection: "column", alignItems: "center",
-                  justifyContent: "center", gap: 4,
-                  background: "#fff", border: "1px solid #bbf7d0",
-                  borderRadius: 12, padding: "10px 14px", minWidth: 80,
-                }}>
-                  <div style={{ fontSize: 9, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                    Score
-                  </div>
-
-                  {/* â”€â”€ + / âˆ’ buttons â”€â”€ */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <button type="button"
-                      disabled={!isEditing || perfScore <= 0}
-                      onClick={() => {
-                        const val = Math.max(0, perfScore - 1);
-                        setPerfScore(val);
-                        const newRating = val <= 20 ? 1 : val <= 40 ? 2 : val <= 60 ? 3 : val <= 80 ? 4 : 5;
-                        setRating(newRating as Rating);
-                      }}
-                      style={{width: 20, height: 20, borderRadius: "50%", border: "1.5px solid #bbf7d0",
-                        background: "#f0fdf4", color: "#059669", fontWeight: 700, fontSize: 14,
-                        cursor: !isEditing || perfScore <= 0 ? "not-allowed" : "pointer",
-                        opacity: !isEditing || perfScore <= 0 ? 0.4 : 1,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                      }}>âˆ’</button>
-
-                    <div style={{ fontSize: 32, fontWeight: 900, color: scoreColor, lineHeight: 1 }}>
-                      {perfScore}
-                    </div>
-
-                    <button type="button"
-                      disabled={!isEditing || perfScore >= 100}
-                      onClick={() => {
-                        const val = Math.min(100, perfScore + 1);
-                        setPerfScore(val);
-                        const newRating = val <= 20 ? 1 : val <= 40 ? 2 : val <= 60 ? 3 : val <= 80 ? 4 : 5;
-                        setRating(newRating as Rating);
-                      }}
-                      style={{width: 20, height: 20, borderRadius: "50%", border: "1.5px solid #bbf7d0",
-                        background: "#f0fdf4", color: "#059669", fontWeight: 700, fontSize: 14,
-                        cursor: !isEditing || perfScore >= 100 ? "not-allowed" : "pointer",
-                        opacity: !isEditing || perfScore >= 100 ? 0.4 : 1,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                      }}>+</button>
-                  </div>
-
-                  <div style={{ fontSize: 9, color: "#9ca3af" }}>out of 100</div>
-                  <input type="range" min={0} max={100} value={perfScore}
-                    onChange={e => {
-                      const val = Number(e.target.value);
-                      setPerfScore(val);
-                      const newRating = val <= 20 ? 1 : val <= 40 ? 2 : val <= 60 ? 3 : val <= 80 ? 4 : 5;
-                      setRating(newRating as Rating);
-                    }}
-                    disabled={!isEditing}
-                    style={{ width: 70, accentColor: "#0b6346", marginTop: 2, opacity: !isEditing ? 0.6 : 1, cursor: !isEditing ? "not-allowed" : "pointer" }} />
-                </div>
-              </div>
-
-              {/* â”€â”€ Verification & Decision â”€â”€ */}
-              <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20 }}>
-                <p style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 14, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Verification & Decision
-                </p>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 14 }}>
-                  {[
-                    { label: "Task Verification", val: taskVerif, set: setTaskVerif,
-                      opts: ["Verified","Partially Verified","Not Verified","Pending Verification"] },
-                    { label: "Output Quality", val: outputQuality, set: setOutputQuality,
-                      opts: ["Exceeds Expectations","Meets Expectations","Below Expectations","Needs Improvement"] },
-                    { label: "Review Decision", val: decision,
-                      set: (v: string) => setDecision(v as ReportStatus),
-                      opts: ["Approved","Revision Requested","Rejected","Pending Review"],
-                      color: decisionColor[decision] },
-                  ].map(f => (
-                    <div key={f.label}>
-                      <label className="pro-label">{f.label}</label>
-                      <select className="pro-select"
-                        value={f.val} onChange={e => f.set(e.target.value)}
-                        style={{ ...(f.color ? { color: f.color, fontWeight: 700 } : {}), opacity: !isEditing ? 0.6 : 1, cursor: !isEditing ? "not-allowed" : "pointer" }}
-                        disabled={!isEditing}
-                      >
-                        {f.opts.map(o => <option key={o}>{o}</option>)}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Attendance toggle */}
-                <button type="button" onClick={() => setAttendVerif(v => !v)}
-                  style={{
-                    width: "100%", display: "flex", alignItems: "center", gap: 10,
-                    padding: "11px 16px", borderRadius: 10, cursor: !isEditing ? "not-allowed" : "pointer", textAlign: "left",
-                    border: `1.5px solid ${attendVerif ? "#6ee7b7" : "#e5e7eb"}`,
-                    background: attendVerif ? "#f0fdf4" : "#f9fafb",
-                    transition: "all 0.15s", opacity: !isEditing ? 0.6 : 1,
-                    
-                  }}
-                  disabled={!isEditing}
-                >
-                  {attendVerif
-                    ? <CheckSquare style={{ width: 16, height: 16, color: "#059669", flexShrink: 0 }} />
-                    : <Square style={{ width: 16, height: 16, color: "#9ca3af", flexShrink: 0 }} />
-                  }
-                  <span style={{ fontSize: 13, fontWeight: 500, color: attendVerif ? "#065f46" : "#6b7280" }}>
-                    Attendance & time log verified against system records
-                  </span>
-                </button>
-              </div>
-
-              {/* â”€â”€ Comments â”€â”€ */}
-              <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20 }}>
-                <label className="pro-label" style={{ marginBottom: 8, display: "block" }}>
-                  Supervisor Comments & Feedback
-                </label>
-                <textarea className="pro-input" rows={4} value={comment}
-                  onChange={e => setComment(e.target.value)}
-                  placeholder="Provide detailed feedback on employee performance, quality of work, areas for improvement..."
-                  disabled={!isEditing}
-                  style={{ resize: "vertical", marginTop: 4, opacity: !isEditing ? 0.6 : 1, cursor: !isEditing ? "not-allowed" : "text" }}
-                />
-                <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 6 }}>
-                  This comment will be visible to the employee once the report is approved.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* â•â• SECTION 8 â•â• */}
-          {activeTab === "s8" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-              {/* Section label */}
-              <div style={{ borderLeft: "3px solid #2563eb", paddingLeft: 12 }}>
-                <span style={{ fontSize: 11, fontWeight: 800, color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.1em", display: "block" }}>
-                  Section 8
-                </span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#111827", display: "block" }}>
-                  Final Acknowledgment & Sign-off
-                </span>
-              </div>
-
-              {/* Summary card */}
-              <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 12, padding: 18 }}>
-                <p className="pro-label" style={{ marginBottom: 10 }}>Report Summary</p>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
-                  <span style={{
-                    fontFamily: "monospace", fontSize: 11, fontWeight: 700,
-                    background: "#fff", border: "1px solid #bfdbfe",
-                    borderRadius: 6, padding: "3px 10px", color: "#1d4ed8",
-                  }}>{report.referenceNo}</span>
-                  <span style={{ fontSize: 12, color: "#64748b" }}>
-                    {report.date} at {report.submittedAt}
-                  </span>
-                  <StatusBadge status={decision} />
-                </div>
-                {rating > 0 && (
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: 12,
-                    background: "#fff", borderRadius: 8, padding: "10px 14px",
-                    border: "1px solid #bfdbfe",
-                  }}>
-                    <StarRow rating={rating} />
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#1d4ed8" }}>
-                      {RATING_LABELS[rating]}
-                    </span>
-                    <span style={{
-                      marginLeft: "auto", fontSize: 16, fontWeight: 900,
-                      color: scoreColor,
-                    }}>{perfScore}<span style={{ fontSize: 10, fontWeight: 500, color: "#9ca3af" }}>/100</span></span>
-                  </div>
-                )}
-              </div>
-
-              {/* Final remarks */}
-              <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20 }}>
-                <label className="pro-label" style={{ display: "block", marginBottom: 8 }}>
-                  Final Remarks <span style={{ fontWeight: 400, color: "#9ca3af", textTransform: "none", letterSpacing: 0 }}>(Optional)</span>
-                </label>
-                <textarea className="pro-input" rows={3} value={finalRemarks}
-                  onChange={e => setFinalRemarks(e.target.value)}
-                  placeholder="Any final remarks or instructions for the employee..."
-                  disabled={!isEditing}
-                  style={{ resize: "vertical", opacity: !isEditing ? 0.6 : 1, cursor: !isEditing ? "not-allowed" : "text" }}
-                />
-              </div>
-
-              {/* Dual sign-off */}
-              <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20 }}>
-                <p className="pro-label" style={{ marginBottom: 14 }}>Digital Sign-off <span style={{ color: "#ef4444" }}>*</span></p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                  {[
-                    { title: "Employee Acknowledgment", checked: empAck, toggle: () => setEmpAck(v => !v),
-                      label: "Employee confirms report accuracy", sigName: report.employeeName.split(",")[0] },
-                    { title: "Supervisor Sign-off", checked: adminAck, toggle: () => setAdminAck(v => !v),
-                      label: "I certify this review is accurate", sigName: supervisorName || "Supervisor" },
-                  ].map(sig => (
-                    <div key={sig.title}>
-                      <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>{sig.title}</p>
-                      <button type="button" onClick={sig.toggle} 
-                      disabled={!isEditing}
-                      style={{
-                        width: "100%", display: "flex", alignItems: "center", gap: 8,
-                        padding: "9px 12px", borderRadius: 8, cursor: !isEditing ? "not-allowed" : "pointer", textAlign: "left",
-                        marginBottom: 8, fontSize: 12, fontWeight: 500,
-                        border: `1.5px solid ${sig.checked ? "#6ee7b7" : "#e5e7eb"}`,
-                        background: sig.checked ? "#f0fdf4" : "#f9fafb",
-                        color: sig.checked ? "#065f46" : "#6b7280",
-                        transition: "all 0.15s",
-                      }}>
-                        {sig.checked
-                          ? <CheckSquare style={{ width: 15, height: 15, color: "#059669", flexShrink: 0 }} />
-                          : <Square style={{ width: 15, height: 15, color: "#9ca3af", flexShrink: 0 }} />
-                        }
-                        {sig.label}
-                      </button>
-                      <div style={{
-                        borderRadius: 10, padding: "14px 12px", textAlign: "center",
-                        minHeight: 64, display: "flex", flexDirection: "column",
-                        alignItems: "center", justifyContent: "center", gap: 4,
-                        border: `1.5px ${sig.checked ? "solid #6ee7b7" : "dashed #e5e7eb"}`,
-                        background: sig.checked ? "#f0fdf4" : "#fafafa",
-                        transition: "all 0.2s",
-                      }}>
-                        {sig.checked ? (
-                          <>
-                            <p style={{ fontWeight: 800, fontStyle: "italic", color: "#065f46", fontSize: 15 }}>
-                              {sig.sigName}
-                            </p>
-                            <p style={{ fontSize: 10, color: "#9ca3af" }}>âœ“ Acknowledged Â· {timeStr}</p>
-                          </>
-                        ) : (
-                          <p style={{ fontSize: 12, color: "#9ca3af" }}>Awaiting acknowledgment</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Warning */}
-              <div style={{
-                display: "flex", gap: 10, alignItems: "flex-start",
-                background: "#fffbeb", border: "1px solid #fde68a",
-                borderRadius: 10, padding: "12px 16px",
-              }}>
-                <AlertTriangle style={{ width: 15, height: 15, color: "#d97706", flexShrink: 0, marginTop: 1 }} />
-                <p style={{ fontSize: 12, color: "#92400e", lineHeight: 1.5 }}>
-                  Once submitted, this review will be finalized and the employee will be notified.
-                  Ensure all information is accurate before saving.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* â”€â”€ Footer â”€â”€ */}
-        <div className="pro-modal-footer" style={{ borderTop: "1px solid #f1f5f9", gap: 8 }}>
-          <div style={{ flex: 1 }} />
-          <button onClick={onClose} className="btn btn-secondary">
-            Cancel
-          </button>
-          {activeTab === "s7" ? (
-            <button
-              onClick={() => {
-                if (!rating || (rating as number) === 0) {
-                  toast.error("Please provide a performance rating first.");
-                  return;
-                }
-                if (!decision || decision === "Pending Review") {
-                  toast.error("Please select a Review Decision (not Pending Review).");
-                  return;
-                }
-                if (!supervisorName.trim()) {
-                  toast.error("Please enter the Supervisor Name.");
-                  return;
-                }
-                setActiveTab("s8");
-              }}
-              className="btn btn-primary"
-            >
-              Next â†’ Section 8
-            </button>
-          ) : isEditing ? (
-              <button
-                onClick={handleSave}
-                className="btn flex items-center gap-2 text-white font-semibold px-5 py-2 rounded-xl"
-                style={{ background: "linear-gradient(135deg, #059669, #047857)" }}
-              >
-                <CheckSquare className="w-4 h-4" /> Save & Finalize
-              </button>
-            ) : (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="btn flex items-center gap-2 text-white font-semibold px-5 py-2 rounded-xl"
-                style={{ background: "linear-gradient(135deg, #2563eb, #1d4ed8)" }}
-              >
-                <RefreshCw className="w-4 h-4" /> Edit
-              </button>
-            )}
-        </div>
-      </div>
-
-      {/* â”€â”€ Confirmation Modal â”€â”€ */}
-      {confirmOpen && createPortal(
-        <div
-          className="pro-modal-overlay"
-          onClick={() => setConfirmOpen(false)}
-        >
-          <div
-            className="pro-modal w-full max-w-sm p-6 space-y-5"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-                <CheckSquare className="w-5 h-5 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-800">Save this review?</p>
-                <p className="text-xs text-gray-400">
-                  This will finalize the review for <strong>{report.employeeName}</strong> and notify them of the result.
-                </p>
-              </div>
-            </div>
-            <div className="border-t border-gray-100" />
-            <div className="flex gap-2 justify-end">
-              <button
-                type="button"
-                onClick={() => setConfirmOpen(false)}
-                className="btn btn-secondary text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmSave}
-                className="btn btn-primary flex items-center gap-2 text-sm"
-              >
-                <CheckSquare className="w-4 h-4" /> Yes, Save
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-    </div>
-    
-  );
-}
-
-
-
-// â”€â”€â”€ Main Admin Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-const loadReports = () => {
-    try {
-      const subs = JSON.parse(localStorage.getItem("dar_submissions") || "[]");
-      const fromStorage: SubmittedReport[] = subs.map((s: any, i: number) => ({
-        id: `DAR-LS-${i}`,
-        referenceNo: `DAR-LS-${String(i + 1).padStart(3, "0")}`,
-        employeeName: s.devName || "Unknown",
-        department: s.team || "â€”",
-        project: s.project || "â€”",
-        date: s.date || "â€”",
-        submittedAt: s.submittedAt || "â€”",
-        workArrangement: s.workArr || "On-site",
-        totalActualHours: parseFloat(s.actualHrs) || 0,
-        totalEstHours: parseFloat(s.estHrs) || 0,
-        tasksCompleted: (s.taskDetails || []).filter((t: any) => t.status === "done").length,
-        tasksTotal: (s.taskDetails || []).length,
-        checklistDone: s.checklist ? s.checklist.filter(Boolean).length : 0,
-        status: (s.status as ReportStatus) || "Pending Review",
-      }));
-  return [...fromStorage, ...MOCK_REPORTS];
-  } catch {
-    return MOCK_REPORTS;
-  }
-};
+// TODO: replace with GET /api/dar/submissions (admin — all employees)
+// const loadReports = async () => { ... }
+// Temporarily returns empty array; wire up on API integration day
+const loadReports = (): SubmittedReport[] => mockReports;
 
 // â”€â”€ Export helpers (Excel + PDF) â”€â”€
 function buildExportData(rows: SubmittedReport[], mode: string) {
   const isHistory = mode === "history";
   const headers = isHistory
-    ? ["Reference No","Employee","Department","Project","Date","Submitted","Arrangement","Actual Hrs","Est Hrs","Tasks","Checklist","Status","Rating","Score","Supervisor","Output Quality","Remarks"]
+    ? ["Reference No","Employee","Department","Project","Date","Submitted","Arrangement","Actual Hrs","Est Hrs","Tasks","Checklist","Status","Rating","Score","Supervisor","Task Completion","Remarks"]
     : ["Reference No","Employee","Department","Project","Date","Submitted","Arrangement","Actual Hrs","Est Hrs","Tasks","Checklist","Status"];
   const body = rows.map((r: SubmittedReport) => {
     const base = [
@@ -908,7 +278,7 @@ function buildExportData(rows: SubmittedReport[], mode: string) {
     ];
     const extra = isHistory ? [
       r.rating || "", r.performanceScore || "", r.supervisorName || "",
-      r.outputQuality || "", r.finalRemarks || r.supervisorComment || "",
+      r.taskCompletion || "", r.finalRemarks || r.supervisorComment || "",
     ] : [];
     return base.concat(extra);
   });
@@ -946,32 +316,34 @@ function generatePDF(rows: SubmittedReport[], mode: string) {
 }
 
 const AdminDailyAccomplishmentReport = () => {
+  const { user } = useAuth();
+  const currentAdminName = user?.fullName || "";
+
   const [reports, setReports] = useState<SubmittedReport[]>(loadReports);
   const [selectedReport, setSelectedReport] = useState<SubmittedReport | null>(null);
   const [search, setSearch]                 = useState("");
   const [filterStatus, setFilterStatus]     = useState("All");
   const [filterDept, setFilterDept]         = useState("All");
+  const [filterSupervisor, setFilterSupervisor] = useState("All");
+  const [historySupervisor, setHistorySupervisor] = useState("All");
   const [currentPage, setCurrentPage]       = useState(1);
   const [historyPage, setHistoryPage]       = useState(1);
   const [historySearch, setHistorySearch]   = useState("");
   const [historyStatus, setHistoryStatus]   = useState("All");
+  const [activeMainTab, setActiveMainTab]   = useState<"pending" | "history">("pending");
+  const [exportOpen, setExportOpen]         = useState(false);
+  const [exportRows, setExportRows]         = useState<SubmittedReport[]>([]);
+  const [exportMode, setExportMode]         = useState<"pending" | "history">("pending");
+  const [exportFormat, setExportFormat]     = useState<"excel" | "pdf">("excel");
+  const [viewDarReport, setViewDarReport]   = useState<SubmittedReport | null>(null);
 
-  // Listen for new DAR submissions
   React.useEffect(() => {
-    const handler = () => setReports(loadReports());
-    window.addEventListener("dar_submitted", handler);
-    window.addEventListener("storage", handler);
-    return () => {
-      window.removeEventListener("dar_submitted", handler);
-      window.removeEventListener("storage", handler);
-    };
+    // TODO: replace with real-time polling or WebSocket/SignalR
+    // when employee submits a DAR, admin table should refresh via fetchReports()
   }, []);
+
   const PAGE_SIZE = 10;
 
-  const [exportOpen, setExportOpen]     = useState(false);
-  const [exportRows, setExportRows]     = useState<SubmittedReport[]>([]);
-  const [exportMode, setExportMode]     = useState<"pending" | "history">("pending");
-  const [exportFormat, setExportFormat] = useState<"excel" | "pdf">("excel");
   const openExport = (rows: SubmittedReport[], mode: "pending" | "history") => {
     setExportRows(rows); setExportMode(mode); setExportFormat("excel"); setExportOpen(true);
   };
@@ -981,25 +353,25 @@ const AdminDailyAccomplishmentReport = () => {
   const revision = reports.filter(r => r.status === "Revision Requested").length;
   const total    = reports.length;
 
-  const departments = ["All", ...Array.from(new Set(reports.map(r => r.department)))];
+  const departments = ["All", ...DEPARTMENT_OPTIONS];
 
-  // Reset to page 1 on filter change
-  const handleSearch = (v: string) => { setSearch(v); setCurrentPage(1); setHistoryPage(1); };
-  const handleFilterStatus = (v: string) => { setFilterStatus(v); setCurrentPage(1); setHistoryPage(1); };
-  const handleFilterDept = (v: string) => { setFilterDept(v); setCurrentPage(1); setHistoryPage(1); };
+  const handleSearch      = (v: string) => { setSearch(v);       setCurrentPage(1); };
+  const handleFilterDept  = (v: string) => { setFilterDept(v);   setCurrentPage(1); };
+  const handleFilterSupervisor = (v: string) => { setFilterSupervisor(v); setCurrentPage(1); };
+  const handleHistorySupervisor = (v: string) => { setHistorySupervisor(v); setHistoryPage(1); };
 
-  const filtered = reports.filter(r => {
+  const activeReports = reports.filter(r => {
     const q = search.toLowerCase();
     return (
+      r.status === "Pending Review" &&
       (r.employeeName.toLowerCase().includes(q) ||
         r.project.toLowerCase().includes(q) ||
         r.id.toLowerCase().includes(q)) &&
-      (filterStatus === "All" || r.status === filterStatus) &&
-      (filterDept   === "All" || r.department === filterDept)
+      (filterDept === "All" || r.department === filterDept) &&
+      (filterSupervisor === "All" || r.assignedSupervisor === filterSupervisor)
     );
   });
 
-  const activeReports  = filtered.filter(r => r.status === "Pending Review");
   const historyReports = reports.filter(r => {
     if (r.status === "Pending Review") return false;
     const hq = historySearch.toLowerCase();
@@ -1007,14 +379,19 @@ const AdminDailyAccomplishmentReport = () => {
       r.employeeName.toLowerCase().includes(hq) ||
       r.project.toLowerCase().includes(hq) ||
       r.id.toLowerCase().includes(hq);
-    return matchSearch && (historyStatus === "All" || r.status === historyStatus);
+    return matchSearch &&
+      (historyStatus === "All" || r.status === historyStatus) &&
+      (historySupervisor === "All" || r.supervisorName === historySupervisor);
   });
 
-  const totalPages = Math.max(1, Math.ceil(activeReports.length / PAGE_SIZE));
-  const paginated  = activeReports.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-
+  const totalPages       = Math.max(1, Math.ceil(activeReports.length / PAGE_SIZE));
+  const paginated        = activeReports.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   const historyTotalPages = Math.max(1, Math.ceil(historyReports.length / PAGE_SIZE));
   const historyPaginated  = historyReports.slice((historyPage - 1) * PAGE_SIZE, historyPage * PAGE_SIZE);
+
+  const currentTabPages    = activeMainTab === "pending" ? totalPages        : historyTotalPages;
+  const currentTabPage     = activeMainTab === "pending" ? currentPage       : historyPage;
+  const setCurrentTabPage  = activeMainTab === "pending" ? setCurrentPage    : setHistoryPage;
 
   const handleSaveReview = (updated: Partial<SubmittedReport>) => {
     if (!selectedReport) return;
@@ -1022,30 +399,10 @@ const AdminDailyAccomplishmentReport = () => {
   };
 
   const statCards = [
-    {
-      label: "Total Submitted",
-      value: total,
-      icon: ClipboardList,
-      gradient: "linear-gradient(135deg, #0f766e, #0d9488)",
-    },
-    {
-      label: "Pending Review",
-      value: pending,
-      icon: Clock,
-      gradient: "linear-gradient(135deg, #d97706, #f59e0b)",
-    },
-    {
-      label: "Approved",
-      value: approved,
-      icon: CheckCircle,
-      gradient: "linear-gradient(135deg, #059669, #10b981)",
-    },
-    {
-      label: "Revision Needed",
-      value: revision,
-      icon: RefreshCw,
-      gradient: "linear-gradient(135deg, #2563eb, #3b82f6)",
-    },
+    { label: "Total Submitted", value: total,    sub: "All submissions",       icon: ClipboardList, gradient: "linear-gradient(135deg, #0f766e 0%, #0d9488 100%)" },
+    { label: "Pending Review",  value: pending,  sub: "Awaiting action",       icon: Clock,         gradient: "linear-gradient(135deg, #d97706 0%, #f59e0b 100%)" },
+    { label: "Approved",        value: approved, sub: "Finalized reports",     icon: CheckCircle,   gradient: "linear-gradient(135deg, #059669 0%, #10b981 100%)" },
+    { label: "Revision Needed", value: revision, sub: "Needs employee update", icon: RefreshCw,     gradient: "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)" },
   ];
 
   return (
@@ -1059,492 +416,81 @@ const AdminDailyAccomplishmentReport = () => {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {statCards.map((card, i) => (
-          <div
-            key={card.label}
-            className="stat-card animate-fade-in-up"
-            style={{
-              background: card.gradient,
-              animationDelay: `${i * 0.1}s`,
-              opacity: 0,
-            }}
-          >
-            <div className="flex items-center justify-between relative z-10">
-              <div>
-                <p className="stat-label">{card.label}</p>
-                <p className="stat-value">{card.value}</p>
-              </div>
-              <div className="stat-icon">
-                <card.icon className="w-5 h-5" />
+          <div key={card.label} className="animate-fade-in-up" style={{ animationDelay: `${i * 0.1}s`, opacity: 0 }}>
+            <div className="pro-card !p-0 overflow-hidden">
+              <div className="p-4 flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-white" style={{ background: card.gradient }}>
+                  <card.icon className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">{card.label}</p>
+                  <p className="text-base font-bold text-gray-800 mt-0.5">{card.value}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">{card.sub}</p>
+                </div>
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Table Card */}
-      <div className="pro-card animate-fade-in-up" style={{ animationDelay: "0.4s", opacity: 0 }}>
+      <ReviewTable
+        activeMainTab={activeMainTab}
+        setActiveMainTab={setActiveMainTab}
+        search={search}
+        onSearch={handleSearch}
+        filterDept={filterDept}
+        onFilterDept={handleFilterDept}
+        filterSupervisor={filterSupervisor}
+        onFilterSupervisor={handleFilterSupervisor}
+        supervisors={SUPERVISOR_OPTIONS}
+        departments={departments}
+        activeReports={activeReports}
+        paginated={paginated}
+        onExportPending={() => openExport(activeReports, "pending")}
+        historySearch={historySearch}
+        onHistorySearch={v => { setHistorySearch(v); setHistoryPage(1); }}
+        historyStatus={historyStatus}
+        onHistoryStatus={v => { setHistoryStatus(v); setHistoryPage(1); }}
+        historySupervisor={historySupervisor}
+        onHistorySupervisor={handleHistorySupervisor}
+        historyReports={historyReports}
+        historyPaginated={historyPaginated}
+        onExportHistory={() => openExport(historyReports, "history")}
+        onViewDar={setViewDarReport}
+        onReview={setSelectedReport}
+        currentTabPage={currentTabPage}
+        currentTabPages={currentTabPages}
+        setCurrentTabPage={setCurrentTabPage}
+        PAGE_SIZE={PAGE_SIZE}
+      />
 
-        {/* Card Header */}
-        <div className="px-6 py-4 border-b border-gray-100">
-
-          {/* DESKTOP (lg+): single row */}
-          <div className="hidden lg:flex items-center gap-3">
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#1f2937", whiteSpace: "nowrap" }}>
-                Pending Submissions
-              </span>
-              {/* <span style={{
-                fontSize: 10, fontWeight: 700, color: "#b45309",
-                background: "#fef3c7", borderRadius: 20, padding: "2px 8px",
-              }}>
-                {filtered.length}
-              </span> */}
-            </div>
-
-            <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
-              <Search style={{
-                position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
-                width: 14, height: 14, color: "#9ca3af", pointerEvents: "none",
-              }} />
-              <input
-                className="pro-input"
-                style={{ paddingLeft: 32, width: "100%", boxSizing: "border-box" }}
-                placeholder="Search employee, project..."
-                value={search}
-                onChange={e => handleSearch(e.target.value)}
-              />
-            </div>
-
-            <select
-              className="pro-select"
-              style={{ width: 160, flexShrink: 0, boxSizing: "border-box" }}
-              value={filterStatus}
-              onChange={e => handleFilterStatus(e.target.value)}
-            >
-              <option value="All">All Status</option>
-              {["Pending Review", "Approved", "Revision Requested", "Rejected"].map(s => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
-
-            <select
-              className="pro-select"
-              style={{ width: 180, flexShrink: 0, boxSizing: "border-box" }}
-              value={filterDept}
-              onChange={e => handleFilterDept(e.target.value)}
-            >
-              {departments.map(d => <option key={d}>{d}</option>)}
-            </select>
-
-            <button onClick={() => openExport(activeReports, "pending")}
-              className="btn btn-primary"
-              style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0 }}
-            >
-              <Download className="w-3.5 h-3.5" /> Export
-            </button>
-          </div>
-
-          {/* MOBILE (< lg): stacked rows, same as dati */}
-          <div className="flex flex-col gap-2 lg:hidden">
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#1f2937" }}>Pending Submissions</span>
-              {/* <span style={{
-                fontSize: 10, fontWeight: 700, color: "#b45309",
-                background: "#fef3c7", borderRadius: 20, padding: "2px 8px",
-              }}>
-                {filtered.length}
-              </span> */}
-              <div style={{ position: "relative", flex: 1, marginLeft: 4 }}>
-                <Search style={{
-                  position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
-                  width: 14, height: 14, color: "#9ca3af", pointerEvents: "none",
-                }} />
-                <input
-                  className="pro-input"
-                  style={{ paddingLeft: 32, width: "100%", boxSizing: "border-box" }}
-                  placeholder="Search employee, project..."
-                  value={search}
-                  onChange={e => handleSearch(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <select
-                className="pro-select"
-                style={{ flex: 1, minWidth: 130, boxSizing: "border-box" }}
-                value={filterStatus}
-                onChange={e => setFilterStatus(e.target.value)}
-              >
-                <option value="All">All Status</option>
-                {["Pending Review", "Approved", "Revision Requested", "Rejected"].map(s => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-
-              <select
-                className="pro-select"
-                style={{ flex: 1, minWidth: 130, boxSizing: "border-box" }}
-                value={filterDept}
-                onChange={e => setFilterDept(e.target.value)}
-              >
-                {departments.map(d => <option key={d}>{d}</option>)}
-              </select>
-
-              <button onClick={() => openExport(activeReports, "pending")}
-                className="btn btn-primary"
-                style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
-              >
-                <Download className="w-3.5 h-3.5" /> Export
-              </button>
-            </div>
-          </div>
-
-        </div>
-
-        {/* Table */}
-        <div className="p-6">
-          <div className="overflow-x-auto rounded-xl border border-gray-100">
-            <table className="pro-table" style={{ tableLayout: "auto", width: "100%" }}>
-              <thead>
-                <tr>
-                  <th style={{ whiteSpace: "nowrap" }}>Employee</th>
-                  <th className="hidden md:table-cell" style={{ whiteSpace: "nowrap" }}>Project</th>
-                  <th style={{ whiteSpace: "nowrap" }}>Arrangement</th>
-                  <th className="hidden md:table-cell" style={{ whiteSpace: "nowrap" }}>Status</th>
-                  <th style={{ whiteSpace: "nowrap", textAlign: "center" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeReports.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-8 text-gray-400 italic">
-                      No reports found matching your filters.
-                    </td>
-                  </tr>
-                ) : paginated.map(r => (
-                  <tr key={r.id} className="cursor-pointer">
-
-                    {/* Employee */}
-                    <td style={{ whiteSpace: "nowrap" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <div style={{
-                          width: 34, height: 34, borderRadius: "10px", flexShrink: 0,
-                          background: "linear-gradient(135deg, #059669, #10b981)",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          color: "#fff", fontWeight: 800, fontSize: 13,
-                        }}>
-                          {r.employeeName.trim().charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p style={{ fontWeight: 700, fontSize: 13, color: "#111827", lineHeight: 1.2 }}>{r.employeeName}</p>
-                          <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 1 }}>{r.department}</p>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Project */}
-                    <td className="hidden md:table-cell" style={{ whiteSpace: "nowrap", color: "#374151", fontSize: 13 }}>
-                      {r.project}
-                    </td>
-
-                    {/* Arrangement */}
-                    <td style={{ whiteSpace: "nowrap", textAlign: "center" }}>
-                      <ArrangementBadge arr={r.workArrangement} />
-                    </td>
-
-
-                    {/* Status */}
-                    <td className="hidden md:table-cell" style={{ whiteSpace: "nowrap", textAlign: "center" }}>
-                      <StatusBadge status={r.status} />
-                    </td>
-
-                    {/* Actions */}
-                    <td style={{ textAlign: "center", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-
-                        
-
-                        {/* Action Button â€” Star if Pending, Eye if others */}
-                        <button
-                          onClick={() => setSelectedReport(r)}
-                          title={r.status === "Pending Review" ? "Review" : "View"}
-                          style={{
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            padding: "5px 8px", borderRadius: 8, cursor: "pointer",
-                            border: `1.5px solid ${r.status === "Pending Review" ? "#fde68a" : "#bfdbfe"}`,
-                            background: r.status === "Pending Review" ? "#fffbeb" : "#eff6ff",
-                            color: r.status === "Pending Review" ? "#f59e0b" : "#2563eb",
-                            transition: "all 0.15s",
-                          }}
-                          onMouseEnter={e => {
-                            e.currentTarget.style.background = r.status === "Pending Review" ? "#f59e0b" : "#2563eb";
-                            e.currentTarget.style.color = "#fff";
-                          }}
-                          onMouseLeave={e => {
-                            e.currentTarget.style.background = r.status === "Pending Review" ? "#fffbeb" : "#eff6ff";
-                            e.currentTarget.style.color = r.status === "Pending Review" ? "#f59e0b" : "#2563eb";
-                          }}
-                        >
-                          {r.status === "Pending Review"
-                            ? <Star className="w-4 h-4" />
-                            : <Eye className="w-4 h-4" />
-                          }
-                        </button>
-
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          <div className="flex items-center justify-between mt-4 flex-wrap gap-2">
-            <span className="text-xs text-gray-400">
-              Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, activeReports.length)}â€“{Math.min(currentPage * PAGE_SIZE, activeReports.length)} of {activeReports.length} pending
-            </span>
-            <div className="flex gap-1 flex-wrap">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center transition-colors text-gray-600 border-gray-200 bg-gray-50 hover:bg-gray-100 disabled:opacity-40"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                <button
-                  key={p}
-                  onClick={() => setCurrentPage(p)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center transition-colors ${
-                    p === currentPage
-                      ? "text-white border-transparent"
-                      : "text-gray-600 border-gray-200 bg-gray-50 hover:bg-gray-100"
-                  }`}
-                  style={p === currentPage ? { background: "linear-gradient(90deg,#059669,#047857)" } : {}}
-                >
-                  {p}
-                </button>
-              ))}
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center transition-colors text-gray-600 border-gray-200 bg-gray-50 hover:bg-gray-100 disabled:opacity-40"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-            {/* History Table Card */}
-      <div className="pro-card animate-fade-in-up" style={{ animationDelay: "0.55s", opacity: 0 }}>
-        <div className="px-6 py-4 border-b border-gray-100">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-3">
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#1f2937", whiteSpace: "nowrap" }}>
-                Review History
-              </span>
-              <span style={{
-                fontSize: 10, fontWeight: 700, color: "#047857",
-                background: "#d1fae5", borderRadius: 20, padding: "2px 8px",
-              }}>
-                {historyReports.length} reviewed
-              </span>
-            </div>
-
-            <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
-              <Search style={{
-                position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
-                width: 14, height: 14, color: "#9ca3af", pointerEvents: "none",
-              }} />
-              <input
-                className="pro-input"
-                style={{ paddingLeft: 32, width: "100%", boxSizing: "border-box" }}
-                placeholder="Search reviewed employee, project..."
-                value={historySearch}
-                onChange={e => { setHistorySearch(e.target.value); setHistoryPage(1); }}
-              />
-            </div>
-
-            <select
-              className="pro-select"
-              style={{ width: 180, flexShrink: 0, boxSizing: "border-box" }}
-              value={historyStatus}
-              onChange={e => { setHistoryStatus(e.target.value); setHistoryPage(1); }}
-            >
-              <option value="All">All Reviewed</option>
-              {["Approved", "Revision Requested", "Rejected"].map(s => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
-            <button
-              onClick={() => openExport(historyReports, "history")}
-              className="btn btn-primary"
-              style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", flexShrink: 0, marginLeft: "auto" }}
-            >
-              <Download className="w-3.5 h-3.5" /> Export
-            </button>
-          </div>
-        </div>
-
-        <div className="p-6">
-          <div className="overflow-x-auto rounded-xl border border-gray-100">
-            <table className="pro-table" style={{ tableLayout: "auto", width: "100%" }}>
-              <thead>
-                <tr>
-                  <th style={{ whiteSpace: "nowrap" }}>Employee</th>
-                  <th className="hidden md:table-cell" style={{ whiteSpace: "nowrap" }}>Project</th>
-                  <th className="hidden md:table-cell" style={{ whiteSpace: "nowrap" }}>Rating</th>
-                  <th style={{ whiteSpace: "nowrap" }}>Status</th>
-                  <th style={{ whiteSpace: "nowrap", textAlign: "center" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {historyReports.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="text-center py-8 text-gray-400 italic">
-                      No reviewed reports yet.
-                    </td>
-                  </tr>
-                ) : historyPaginated.map(r => (
-                  <tr key={r.id} className="cursor-pointer">
-
-                    {/* Employee */}
-                    <td style={{ whiteSpace: "nowrap" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <div style={{
-                          width: 34, height: 34, borderRadius: "10px", flexShrink: 0,
-                          background: "linear-gradient(135deg, #059669, #10b981)",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          color: "#fff", fontWeight: 800, fontSize: 13,
-                        }}>
-                          {r.employeeName.trim().charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p style={{ fontWeight: 700, fontSize: 13, color: "#111827", lineHeight: 1.2 }}>{r.employeeName}</p>
-                          <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 1 }}>{r.department}</p>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Project */}
-                    <td className="hidden md:table-cell" style={{ whiteSpace: "nowrap", color: "#374151", fontSize: 13 }}>
-                      {r.project}
-                    </td>
-
-                    {/* Rating */}
-                    <td className="hidden md:table-cell" style={{ whiteSpace: "nowrap", textAlign: "center" }}>
-                      {r.rating
-                        ? <StarRow rating={r.rating} />
-                        : <span style={{ color: "#d1d5db", fontSize: 13 }}>â€”</span>
-                      }
-                    </td>
-
-                    {/* Status */}
-                    <td style={{ whiteSpace: "nowrap", textAlign: "center" }}>
-                      <StatusBadge status={r.status} />
-                    </td>
-
-                    {/* Actions â€” View only */}
-                    <td style={{ textAlign: "center", whiteSpace: "nowrap" }} onClick={e => e.stopPropagation()}>
-                      <button
-                        onClick={() => setSelectedReport(r)}
-                        title="View"
-                        style={{
-                          display: "inline-flex", alignItems: "center", justifyContent: "center",
-                          padding: "5px 8px", borderRadius: 8, cursor: "pointer",
-                          border: "1.5px solid #bfdbfe", background: "#eff6ff", color: "#2563eb",
-                          transition: "all 0.15s",
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.background = "#2563eb"; e.currentTarget.style.color = "#fff"; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = "#eff6ff"; e.currentTarget.style.color = "#2563eb"; }}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* History Pagination */}
-          <div className="flex items-center justify-between mt-4 flex-wrap gap-2">
-            <span className="text-xs text-gray-400">
-              Showing {Math.min((historyPage - 1) * PAGE_SIZE + 1, historyReports.length)}â€“{Math.min(historyPage * PAGE_SIZE, historyReports.length)} of {historyReports.length} reviewed
-            </span>
-            <div className="flex gap-1 flex-wrap">
-              <button
-                onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
-                disabled={historyPage === 1}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center transition-colors text-gray-600 border-gray-200 bg-gray-50 hover:bg-gray-100 disabled:opacity-40"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              {Array.from({ length: historyTotalPages }, (_, i) => i + 1).map(p => (
-                <button
-                  key={p}
-                  onClick={() => setHistoryPage(p)}
-                  className={p === historyPage
-                    ? "px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center transition-colors text-white border-transparent"
-                    : "px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center transition-colors text-gray-600 border-gray-200 bg-gray-50 hover:bg-gray-100"}
-                  style={p === historyPage ? { background: "linear-gradient(90deg,#059669,#047857)" } : {}}
-                >
-                  {p}
-                </button>
-              ))}
-              <button
-                onClick={() => setHistoryPage(p => Math.min(historyTotalPages, p + 1))}
-                disabled={historyPage === historyTotalPages}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center transition-colors text-gray-600 border-gray-200 bg-gray-50 hover:bg-gray-100 disabled:opacity-40"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-            {/* Export Modal */}
+      {/* Export Modal */}
       {exportOpen && createPortal(
         <div className="pro-modal-overlay" onClick={() => setExportOpen(false)}>
           <div className="pro-modal w-full max-w-sm p-6 space-y-5" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <p className="text-base font-bold text-gray-800">Generate Report</p>
-              <button onClick={() => setExportOpen(false)} className="btn-ghost btn-icon">
-                <X className="w-4 h-4" />
-              </button>
+              <button onClick={() => setExportOpen(false)} className="btn-ghost btn-icon"><X className="w-4 h-4" /></button>
             </div>
-
             <div>
               <p className="pro-label" style={{ marginBottom: 6 }}>
-                {exportMode === "history" ? "Review History" : "Pending Submissions"} Â· {exportRows.length} record(s)
+                {exportMode === "history" ? "Review History" : "Pending Submissions"} · {exportRows.length} record(s)
               </p>
             </div>
-
             <div>
               <p className="pro-label" style={{ marginBottom: 8 }}>Format</p>
               <div style={{ display: "flex", gap: 20 }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 14, fontWeight: 500 }}>
-                  <input type="radio" name="exportfmt" checked={exportFormat === "excel"}
-                    onChange={() => setExportFormat("excel")} style={{ accentColor: "#059669", width: 16, height: 16 }} />
-                  Excel
+                  <input type="radio" name="exportfmt" checked={exportFormat === "excel"} onChange={() => setExportFormat("excel")} style={{ accentColor: "#059669", width: 16, height: 16 }} /> Excel
                 </label>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 14, fontWeight: 500 }}>
-                  <input type="radio" name="exportfmt" checked={exportFormat === "pdf"}
-                    onChange={() => setExportFormat("pdf")} style={{ accentColor: "#059669", width: 16, height: 16 }} />
-                  PDF
+                  <input type="radio" name="exportfmt" checked={exportFormat === "pdf"} onChange={() => setExportFormat("pdf")} style={{ accentColor: "#059669", width: 16, height: 16 }} /> PDF
                 </label>
               </div>
             </div>
-
             <div className="border-t border-gray-100" />
-
             <div className="flex gap-2 justify-end">
               <button onClick={() => setExportOpen(false)} className="btn btn-secondary text-sm">Cancel</button>
               <button
@@ -1556,8 +502,7 @@ const AdminDailyAccomplishmentReport = () => {
                   setExportOpen(false);
                 }}
                 className="btn btn-primary flex items-center gap-2 text-sm text-white"
-                style={{ background: "linear-gradient(135deg, #059669, #047857)" }}
-              >
+                style={{ background: "linear-gradient(135deg, #059669, #047857)" }}>
                 <Download className="w-4 h-4" /> Generate & Download
               </button>
             </div>
@@ -1566,12 +511,33 @@ const AdminDailyAccomplishmentReport = () => {
         document.body
       )}
 
-{/* Review Modal */}
+      {/* Review Modal */}
       {selectedReport && (
         <ReviewPanel
           report={selectedReport}
           onSave={handleSaveReview}
           onClose={() => setSelectedReport(null)}
+          currentAdminName={currentAdminName}
+        />
+      )}
+
+      {/* View Full DAR Modal */}
+      {viewDarReport && (
+        <ViewDarModal
+          report={viewDarReport}
+          onClose={() => setViewDarReport(null)}
+          onReviewClick={() => {
+            setSelectedReport(viewDarReport);
+            setViewDarReport(null);
+          }}
+          onRequestRevision={(reason) => {
+            setReports(prev => prev.map(r =>
+              r.id === viewDarReport.id
+                ? { ...r, status: "Revision Requested" as ReportStatus, revisionReason: reason }
+                : r
+            ));
+            setViewDarReport(null);
+          }}
         />
       )}
     </div>
