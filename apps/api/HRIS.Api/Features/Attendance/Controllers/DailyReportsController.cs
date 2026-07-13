@@ -38,6 +38,7 @@ public class DailyReportsController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [PermissionAuthorize("ATTENDANCE", "View")]
     public async Task<IActionResult> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);

@@ -11,10 +11,11 @@ namespace HRIS.Api.Features.Attendance.Services;
 public class DailyReportsService : IDailyReportsService
 {
     private readonly AppDbContext _db;
+    private const int MaxPageSize = 100;
 
     public DailyReportsService(AppDbContext db) => _db = db;
 
-    public async Task<DailyReportDto> CreateAsync(ClaimsPrincipal user, CreateDailyReportRequest request)
+    private async Task<Employee> GetCurrentEmployeeAsync(ClaimsPrincipal user)
     {
         var userIdRaw =
             user.FindFirstValue(ClaimTypes.NameIdentifier) ??
@@ -28,6 +29,23 @@ public class DailyReportsService : IDailyReportsService
 
         if (employee == null)
             throw new ApiException("Employee not found.", StatusCodes.Status404NotFound);
+
+        return employee;
+    }
+
+    public async Task<DailyReportDto> CreateAsync(ClaimsPrincipal user, CreateDailyReportRequest request)
+    {
+        var employee = await GetCurrentEmployeeAsync(user);
+
+        // Validate tasks
+        if (request.Tasks.Count > 10)
+            throw new ApiException("A report cannot have more than 10 tasks.", StatusCodes.Status400BadRequest);
+
+        if (request.Tasks.Any(t => t.TaskNumber < 1 || t.TaskNumber > 10))
+            throw new ApiException("TaskNumber must be between 1 and 10.", StatusCodes.Status400BadRequest);
+
+        if (request.Tasks.GroupBy(t => t.TaskNumber).Any(g => g.Count() > 1))
+            throw new ApiException("Duplicate TaskNumber values are not allowed.", StatusCodes.Status400BadRequest);
 
         var exists = await _db.DailyReports
             .AnyAsync(r => r.EmployeeId == employee.Id && r.ReportDate == request.ReportDate);
@@ -80,18 +98,7 @@ public class DailyReportsService : IDailyReportsService
 
     public async Task<DailyReportDto> UpdateAsync(int id, ClaimsPrincipal user, UpdateDailyReportRequest request)
     {
-        var userIdRaw =
-            user.FindFirstValue(ClaimTypes.NameIdentifier) ??
-            user.FindFirstValue("sub");
-
-        if (!long.TryParse(userIdRaw, out var userId))
-            throw new ApiException("Invalid user.", StatusCodes.Status401Unauthorized);
-
-        var employee = await _db.Employees
-            .FirstOrDefaultAsync(x => x.UserId == userId);
-
-        if (employee == null)
-            throw new ApiException("Employee not found.", StatusCodes.Status404NotFound);
+        var employee = await GetCurrentEmployeeAsync(user);
 
         var report = await _db.DailyReports
             .FirstOrDefaultAsync(r => r.Id == id);
@@ -102,25 +109,39 @@ public class DailyReportsService : IDailyReportsService
         if (report.EmployeeId != employee.Id)
             throw new ApiException("You can only update your own report.", StatusCodes.Status403Forbidden);
 
-        // Section 4
-        report.KeyAccomplishments      = request.KeyAccomplishments;
-        report.BlockersIssues          = request.BlockersIssues;
-        report.RisksEarlyWarnings      = request.RisksEarlyWarnings;
-        report.PlanForTomorrow         = request.PlanForTomorrow;
-        report.SupportEscalationNeeded = request.SupportEscalationNeeded;
+        // Section 4 — only update if provided
+        if (request.KeyAccomplishments != null)
+            report.KeyAccomplishments = request.KeyAccomplishments;
+        if (request.BlockersIssues != null)
+            report.BlockersIssues = request.BlockersIssues;
+        if (request.RisksEarlyWarnings != null)
+            report.RisksEarlyWarnings = request.RisksEarlyWarnings;
+        if (request.PlanForTomorrow != null)
+            report.PlanForTomorrow = request.PlanForTomorrow;
+        if (request.SupportEscalationNeeded != null)
+            report.SupportEscalationNeeded = request.SupportEscalationNeeded;
 
-        // Section 5
-        report.CodeCommitted         = request.CodeCommitted;
-        report.TicketsUpdated        = request.TicketsUpdated;
-        report.PullRequestCreated    = request.PullRequestCreated;
-        report.DocumentationUpdated  = request.DocumentationUpdated;
-        report.TestsPassing          = request.TestsPassing;
-        report.ReportSubmittedOnTime = request.ReportSubmittedOnTime;
+        // Section 5 — only update if provided
+        if (request.CodeCommitted.HasValue)
+            report.CodeCommitted = request.CodeCommitted.Value;
+        if (request.TicketsUpdated.HasValue)
+            report.TicketsUpdated = request.TicketsUpdated.Value;
+        if (request.PullRequestCreated.HasValue)
+            report.PullRequestCreated = request.PullRequestCreated.Value;
+        if (request.DocumentationUpdated.HasValue)
+            report.DocumentationUpdated = request.DocumentationUpdated.Value;
+        if (request.TestsPassing.HasValue)
+            report.TestsPassing = request.TestsPassing.Value;
+        if (request.ReportSubmittedOnTime.HasValue)
+            report.ReportSubmittedOnTime = request.ReportSubmittedOnTime.Value;
 
-        // Section 6
-        report.WorkArrangementTomorrow = request.WorkArrangementTomorrow;
-        report.ExpectedTimeIn          = request.ExpectedTimeIn;
-        report.LeaveAbsenceNotice      = request.LeaveAbsenceNotice;
+        // Section 6 — only update if provided
+        if (request.WorkArrangementTomorrow != null)
+            report.WorkArrangementTomorrow = request.WorkArrangementTomorrow;
+        if (request.ExpectedTimeIn.HasValue)
+            report.ExpectedTimeIn = request.ExpectedTimeIn.Value;
+        if (request.LeaveAbsenceNotice != null)
+            report.LeaveAbsenceNotice = request.LeaveAbsenceNotice;
 
         await _db.SaveChangesAsync();
 
@@ -135,16 +156,23 @@ public class DailyReportsService : IDailyReportsService
         if (report == null)
             throw new ApiException("Report not found.", StatusCodes.Status404NotFound);
 
-        // Section 7
-        report.SupervisorNotes    = request.SupervisorNotes;
-        report.PerformanceRating  = request.PerformanceRating;
-        report.FollowUpRequired   = request.FollowUpRequired;
-        report.ReviewDate         = request.ReviewDate;
-        report.ManagerActionItems = request.ManagerActionItems;
+        // Section 7 — only update if provided
+        if (request.SupervisorNotes != null)
+            report.SupervisorNotes = request.SupervisorNotes;
+        if (request.PerformanceRating != null)
+            report.PerformanceRating = request.PerformanceRating;
+        if (request.FollowUpRequired.HasValue)
+            report.FollowUpRequired = request.FollowUpRequired.Value;
+        if (request.ReviewDate.HasValue)
+            report.ReviewDate = request.ReviewDate.Value;
+        if (request.ManagerActionItems != null)
+            report.ManagerActionItems = request.ManagerActionItems;
 
         // Section 8
-        report.ReviewedBy   = request.ReviewedBy;
-        report.DateReviewed = request.DateReviewed;
+        if (request.ReviewedBy != null)
+            report.ReviewedBy = request.ReviewedBy;
+        if (request.DateReviewed.HasValue)
+            report.DateReviewed = request.DateReviewed.Value;
 
         await _db.SaveChangesAsync();
 
@@ -173,6 +201,9 @@ public class DailyReportsService : IDailyReportsService
 
     public async Task<List<DailyReportDto>> GetAllAsync(GetDailyReportsQuery query)
     {
+        var page = Math.Max(1, query.Page);
+        var pageSize = Math.Clamp(query.PageSize, 1, MaxPageSize);
+
         var q = _db.DailyReports
             .Include(r => r.Employee)
             .Include(r => r.Tasks)
@@ -186,8 +217,8 @@ public class DailyReportsService : IDailyReportsService
 
         var reports = await q
             .OrderByDescending(r => r.ReportDate)
-            .Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
         return reports.Select(MapToDto).ToList();
@@ -213,15 +244,11 @@ public class DailyReportsService : IDailyReportsService
         AvgResponseTime      = report.AvgResponseTime,
         ConnectivityIssues   = report.ConnectivityIssues,
         CollaborationLog     = report.CollaborationLog,
-
-        // Section 4
         KeyAccomplishments      = report.KeyAccomplishments,
         BlockersIssues          = report.BlockersIssues,
         RisksEarlyWarnings      = report.RisksEarlyWarnings,
         PlanForTomorrow         = report.PlanForTomorrow,
         SupportEscalationNeeded = report.SupportEscalationNeeded,
-
-        // Section 5
         CodeCommitted         = report.CodeCommitted,
         TicketsUpdated        = report.TicketsUpdated,
         PullRequestCreated    = report.PullRequestCreated,
@@ -232,23 +259,16 @@ public class DailyReportsService : IDailyReportsService
             report.CodeCommitted, report.TicketsUpdated, report.PullRequestCreated,
             report.DocumentationUpdated, report.TestsPassing, report.ReportSubmittedOnTime
         }.Count(x => x),
-
-        // Section 6
         WorkArrangementTomorrow = report.WorkArrangementTomorrow,
         ExpectedTimeIn          = report.ExpectedTimeIn,
         LeaveAbsenceNotice      = report.LeaveAbsenceNotice,
-
-        // Section 7
         SupervisorNotes    = report.SupervisorNotes,
         PerformanceRating  = report.PerformanceRating,
         FollowUpRequired   = report.FollowUpRequired,
         ReviewDate         = report.ReviewDate,
         ManagerActionItems = report.ManagerActionItems,
-
-        // Section 8
         ReviewedBy  = report.ReviewedBy,
         DateReviewed = report.DateReviewed,
-
         Tasks = report.Tasks.Select(t => new DailyReportTaskDto
         {
             Id                = t.Id,
