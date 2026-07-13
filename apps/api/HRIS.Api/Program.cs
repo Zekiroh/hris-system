@@ -114,6 +114,12 @@ builder.Services.AddScoped<IClearanceService, ClearanceService>();
 builder.Services.AddScoped<IPerformanceEvaluationService, PerformanceEvaluationService>();
 
 builder.Services.AddScoped<IAnnouncementService, AnnouncementService>();
+// Daily Reports
+builder.Services.AddScoped<IDailyReportsService, DailyReportsService>();
+
+// =====================
+// Dashboard Services
+// =====================
 
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 

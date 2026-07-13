@@ -9,6 +9,8 @@ public class AppDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();
+    public DbSet<DailyReport> DailyReports => Set<DailyReport>();
+    public DbSet<DailyReportTask> DailyReportTasks => Set<DailyReportTask>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
     public DbSet<Employee> Employees => Set<Employee>();
