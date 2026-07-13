@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   XCircle,
   Download,
-  X,
   Mail,
   Shield,
   Settings,
@@ -31,6 +30,8 @@ import type {
 } from "../../lib/governmentCompliance";
 import { ConfigurationTab } from "./components/ConfigurationTab";
 import { ConfigurationModal } from "./components/ConfigurationModal";
+import { ReportModal } from "./components/ReportModal";
+import { AlphalistModal } from "./components/AlphalistModal";
 import {
   emptyConfiguration,
   sectionLabels,
@@ -47,71 +48,6 @@ import type {
   ConfigurationSection,
   Tab,
 } from "./config/types";
-
-const ReportModal = ({
-  title,
-  show,
-  onClose,
-}: {
-  title: string;
-  show: boolean;
-  onClose: () => void;
-}) => {
-  if (!show) return null;
-  return (
-    <div className="pro-modal-overlay">
-      <div className="pro-modal max-w-md" onClick={(e) => e.stopPropagation()}>
-        <div className="pro-modal-header">
-          <h3>{title}</h3>
-          <button onClick={onClose} className="btn-ghost btn-icon">
-            <X className="w-5 h-5 text-gray-400" />
-          </button>
-        </div>
-        <div className="pro-modal-body space-y-4">
-          <div>
-            <label className="pro-label">Report Period</label>
-            <select className="pro-select">
-              <option>January 2026</option>
-              <option>February 2026</option>
-              <option>Q1 2026</option>
-              <option>Annual 2025</option>
-            </select>
-          </div>
-          <div>
-            <label className="pro-label">Format</label>
-            <div className="flex gap-4 mt-1">
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="radio"
-                  name="reportFmt"
-                  defaultChecked
-                  className="accent-emerald-600"
-                />{" "}
-                Excel
-              </label>
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="radio"
-                  name="reportFmt"
-                  className="accent-emerald-600"
-                />{" "}
-                PDF
-              </label>
-            </div>
-          </div>
-        </div>
-        <div className="pro-modal-footer">
-          <button onClick={onClose} className="btn btn-secondary">
-            Cancel
-          </button>
-          <button onClick={onClose} className="btn btn-primary">
-            Generate & Download
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const GovernmentCompliance = () => {
   const [activeTab, setActiveTab] = useState<Tab>("configuration");
@@ -1076,70 +1012,10 @@ const GovernmentCompliance = () => {
         />
       )}
 
-      {/* BIR Alphalist Modal */}
-      {showAlphalistModal && (
-        <div className="pro-modal-overlay">
-          <div
-            className="pro-modal max-w-md"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="pro-modal-header">
-              <h3>BIR Alphalist</h3>
-              <button
-                onClick={() => setShowAlphalistModal(false)}
-                className="btn-ghost btn-icon"
-              >
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-            <div className="pro-modal-body space-y-4">
-              <div>
-                <label className="pro-label">Report Period</label>
-                <select className="pro-select">
-                  <option>Annual 2025</option>
-                  <option>Annual 2026</option>
-                </select>
-              </div>
-              <div>
-                <label className="pro-label">Format</label>
-                <div className="flex gap-4 mt-1">
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input
-                      type="radio"
-                      name="alphaFmt"
-                      defaultChecked
-                      className="accent-emerald-600"
-                    />{" "}
-                    Excel
-                  </label>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input
-                      type="radio"
-                      name="alphaFmt"
-                      className="accent-emerald-600"
-                    />{" "}
-                    PDF
-                  </label>
-                </div>
-              </div>
-            </div>
-            <div className="pro-modal-footer">
-              <button
-                onClick={() => setShowAlphalistModal(false)}
-                className="btn btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => setShowAlphalistModal(false)}
-                className="btn btn-primary"
-              >
-                Generate & Download
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AlphalistModal
+        show={showAlphalistModal}
+        onClose={() => setShowAlphalistModal(false)}
+      />
 
       <ReportModal
         title="Employment History Report"
