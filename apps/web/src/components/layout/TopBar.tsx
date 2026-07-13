@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { getEmployees } from "../../lib/employees";
 import { subscribeEmployeeStatsChanged } from "../../lib/events/employeeEvents";
+import { useAvatarUrl } from "../../hooks/useAvatarUrl";
 
 type NotificationItem = {
   id: number;
@@ -37,6 +38,7 @@ const routeLabels: Record<string, string> = {
   "/dashboard/my-performance": "My Performance",
   "/dashboard/company-directory": "Company Directory",
   "/dashboard/help-support": "Help & Support",
+  "/dashboard/my-assets": "My Assets",
   "/dashboard/daily-accomplishment": "Daily Accomplishment",
   "/dashboard/daily-accomplishment-reports": "Daily Accomplishment Reports",
 };
@@ -62,42 +64,7 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
       : "Unknown Role";
 
   const displayInitial = displayName?.charAt(0)?.toUpperCase() || "U";
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!user?.id) {
-      setAvatarUrl(null);
-      return;
-    }
-    const saved = localStorage.getItem(`settings.avatar.${user.id}`);
-    setAvatarUrl(saved ?? null);
-
-    const avatarStorageKey = `settings.avatar.${user.id}`;
-
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === avatarStorageKey) {
-        setAvatarUrl(e.newValue);
-      }
-    };
-
-    const handleAvatarUpdated = (event: Event) => {
-      const detail = (event as CustomEvent<{ userId?: string | number; avatarUrl?: string | null }>).detail;
-
-      if (detail?.userId !== undefined && String(detail.userId) !== String(user.id)) {
-        return;
-      }
-
-      setAvatarUrl(detail?.avatarUrl ?? localStorage.getItem(avatarStorageKey));
-    };
-
-    window.addEventListener("storage", handleStorage);
-    window.addEventListener("settings-avatar-updated", handleAvatarUpdated);
-
-    return () => {
-      window.removeEventListener("storage", handleStorage);
-      window.removeEventListener("settings-avatar-updated", handleAvatarUpdated);
-    };
-  }, [user?.id]);
+  const avatarUrl = useAvatarUrl(user?.id);
 
   const [activeEmployees, setActiveEmployees] = useState<number>(0);
 

@@ -17,6 +17,7 @@ import {
 import { subscribeEmployeeStatsChanged } from "../../lib/events/employeeEvents";
 import { mapEmployeeMutationErrorToUiMessage } from "../../lib/employeeErrorHelpers";
 import { getEmployeeApiErrorMessage } from "./utils/employeeApiError";
+import { getAdminUsers } from "../../lib/adminUsers";
 
 import { getUserOptionsForEmployeeDropdown } from "../../lib/users";
 
@@ -82,6 +83,10 @@ function parseEmploymentTypeParam(
   return null;
 }
 
+function normalizeEmailKey(value: string | null | undefined): string {
+  return value?.trim().toLowerCase() ?? "";
+}
+
 const EmployeeList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
@@ -111,10 +116,15 @@ const EmployeeList = () => {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
     null
   );
+  const [selectedEmployeeAvatarUserId, setSelectedEmployeeAvatarUserId] =
+    useState<string | number | null>(null);
   const [selectedEmployeeDto, setSelectedEmployeeDto] =
     useState<EmployeeDto | null>(null);
 
   const [userOptions, setUserOptions] = useState<UserOption[]>([]);
+  const [avatarUserIdsByEmail, setAvatarUserIdsByEmail] = useState<
+    Record<string, string>
+  >({});
   const [loadingUsers, setLoadingUsers] = useState(false);
 
   const [formData, setFormData] = useState<FormData>(emptyFormData());
@@ -182,6 +192,7 @@ const EmployeeList = () => {
 
   function resetModalState() {
     setSelectedEmployee(null);
+    setSelectedEmployeeAvatarUserId(null);
     setSelectedEmployeeDto(null);
     setFormData(emptyFormData());
     setInitialEditFormData(null);
@@ -435,6 +446,26 @@ const EmployeeList = () => {
     }
   }
 
+  const fetchAvatarUserLookup = useCallback(async () => {
+    try {
+      const res = await getAdminUsers({ page: 1, pageSize: 10000 });
+      const users = Array.isArray(res) ? res : res.items ?? [];
+
+      const lookup = users.reduce<Record<string, string>>((acc, user) => {
+        const emailKey = normalizeEmailKey(user.email);
+        if (emailKey) {
+          acc[emailKey] = String(user.id);
+        }
+
+        return acc;
+      }, {});
+
+      setAvatarUserIdsByEmail(lookup);
+    } catch {
+      // Preserve previously loaded avatar mappings when refresh fails.
+    }
+  }, []);
+
   const fetchEmployeeDtoById = useCallback(async (id: string) => {
     const res = await getEmployeeById(id);
     return unwrapData<EmployeeDto>(res);
@@ -518,13 +549,18 @@ const EmployeeList = () => {
   }, []);
 
   useEffect(() => {
+    void fetchAvatarUserLookup();
+  }, [fetchAvatarUserLookup]);
+
+  useEffect(() => {
     const unsubscribe = subscribeEmployeeStatsChanged(() => {
       void fetchEmployees();
       void fetchEmployeeSummaryOnly();
+      void fetchAvatarUserLookup();
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [fetchAvatarUserLookup]);
 
   useEffect(() => {
     if (showAddModal) {
@@ -534,6 +570,12 @@ const EmployeeList = () => {
       setFieldErrors({});
     }
   }, [showAddModal]);
+
+  const resolveAvatarUserIdByEmail = useCallback(
+    (email: string | null | undefined) =>
+      avatarUserIdsByEmail[normalizeEmailKey(email)] ?? null,
+    [avatarUserIdsByEmail]
+  );
 
   const rows: EmployeeRow[] = useMemo(
     () =>
@@ -545,8 +587,9 @@ const EmployeeList = () => {
         department: e.department,
         status: e.status,
         isNewHire: e.isNewHire,
+        avatarUserId: resolveAvatarUserIdByEmail(e.email),
       })),
-    [employees]
+    [employees, resolveAvatarUserIdByEmail]
   );
 
   const hasEditChanges = useMemo(() => {
@@ -589,13 +632,21 @@ const EmployeeList = () => {
     }
   };
 
-  const openView = useCallback(async (id: string) => {
+  const openView = useCallback(async (
+    id: string,
+    avatarUserId?: string | number | null
+  ) => {
     setEmployeesError(null);
     setDetailsLoading(true);
 
     try {
       const dto = await fetchEmployeeDtoById(id);
-      setSelectedEmployee(mapDtoToEmployee(dto));
+      const employee = mapDtoToEmployee(dto);
+
+      setSelectedEmployee(employee);
+      setSelectedEmployeeAvatarUserId(
+        avatarUserId ?? resolveAvatarUserIdByEmail(employee.email)
+      );
       setShowViewPanel(true);
     } catch (e) {
       setEmployeesError(
@@ -604,7 +655,7 @@ const EmployeeList = () => {
     } finally {
       setDetailsLoading(false);
     }
-  }, [fetchEmployeeDtoById]);
+  }, [fetchEmployeeDtoById, resolveAvatarUserIdByEmail]);
 
   useEffect(() => {
     const employeeId = searchParams.get("employeeId");
@@ -660,7 +711,7 @@ const EmployeeList = () => {
 
   const handleViewRow = async (row: EmployeeRow) => {
     if (detailsLoading || loading) return;
-    await openView(row.id);
+    await openView(row.id, row.avatarUserId);
   };
 
   const handleEditRow = async (row: EmployeeRow) => {
@@ -712,6 +763,7 @@ const EmployeeList = () => {
       resetModalState();
       await fetchEmployees();
       await fetchEmployeeSummaryOnly();
+      await fetchAvatarUserLookup();
     } catch (e) {
       const normalizedMessage = getEmployeeApiErrorMessage(e);
       const mapped = mapEmployeeMutationErrorToUiMessage(
@@ -869,6 +921,10 @@ const EmployeeList = () => {
     setPage(nextPage);
   };
 
+  const selectedAvatarUserId =
+    selectedEmployeeAvatarUserId ??
+    resolveAvatarUserIdByEmail(selectedEmployee?.email);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between animate-fade-in-up">
@@ -956,6 +1012,7 @@ const EmployeeList = () => {
       <EmployeeViewPanel
         open={showViewPanel}
         employee={selectedEmployee}
+        avatarUserId={selectedAvatarUserId}
         onClose={() => {
           setShowViewPanel(false);
           resetModalState();

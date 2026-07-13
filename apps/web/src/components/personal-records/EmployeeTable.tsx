@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Eye, Edit } from "lucide-react";
 import type { EmployeeStatus } from "../../lib/employees";
+import { useAvatarUrl } from "../../hooks/useAvatarUrl";
 
 export type EmployeeRow = {
   id: string;
@@ -9,6 +11,7 @@ export type EmployeeRow = {
   department: string;
   status: EmployeeStatus;
   isNewHire?: boolean;
+  avatarUserId?: string | number | null;
 };
 
 const statusBadge: Record<EmployeeStatus, string> = {
@@ -27,6 +30,34 @@ type Props = {
   onPageChange: (nextPage: number) => void;
   loading?: boolean;
 };
+
+function EmployeeAvatar({
+  name,
+  userId,
+}: {
+  name: string;
+  userId?: string | number | null;
+}) {
+  const avatarUrl = useAvatarUrl(userId);
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
+  const initial = name.trim().charAt(0).toUpperCase() || "?";
+  const showAvatar = Boolean(avatarUrl && avatarUrl !== failedAvatarUrl);
+
+  return (
+    <div className="w-8 h-8 rounded-lg overflow-hidden bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+      {showAvatar && avatarUrl ? (
+        <img
+          src={avatarUrl}
+          alt={`${name} avatar`}
+          className="w-full h-full object-cover"
+          onError={() => setFailedAvatarUrl(avatarUrl)}
+        />
+      ) : (
+        initial
+      )}
+    </div>
+  );
+}
 
 export function EmployeeTable({
   rows,
@@ -110,9 +141,10 @@ export function EmployeeTable({
                     <td className="font-mono text-xs">{emp.employeeId}</td>
                     <td>
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                          {emp.name.charAt(0)}
-                        </div>
+                        <EmployeeAvatar
+                          name={emp.name}
+                          userId={emp.avatarUserId}
+                        />
                         <span className="font-medium text-gray-800">
                           {emp.name}
                         </span>

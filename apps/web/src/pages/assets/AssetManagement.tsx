@@ -5,6 +5,8 @@ import { approveReturnRequest, assignAsset, createAsset, getAssets, getReturnReq
 import type { AssetDto, AssetReturnRequestDto } from '../../lib/assets';
 import { getEmployees } from '../../lib/employees';
 import type { EmployeeDto, PagedEmployeesResponse } from '../../lib/employees';
+import { createAnnouncement, getAnnouncements, publishAnnouncement } from '../../lib/announcement';
+import type { AnnouncementDto } from '../../lib/announcement';
 
 type Tab = 'inventory' | 'clearance' | 'evaluation' | 'announcements';
 type ClearanceStatus = 'In Progress' | 'Completed';
@@ -46,6 +48,12 @@ const initialAssignForm = {
     remarks: '',
 };
 
+const initialAnnouncementForm = {
+    title: '',
+    priority: 'Normal',
+    content: '',
+};
+
 const unwrapEmployeesResponse = (
     response: Awaited<ReturnType<typeof getEmployees>>
 ): PagedEmployeesResponse => {
@@ -66,20 +74,26 @@ const AssetManagement = () => {
     const [assets, setAssets] = useState<AssetDto[]>([]);
     const [returnRequests, setReturnRequests] = useState<AssetReturnRequestDto[]>([]);
     const [activeEmployees, setActiveEmployees] = useState<EmployeeDto[]>([]);
+    const [announcements, setAnnouncements] = useState<AnnouncementDto[]>([]);
     const [isLoadingAssets, setIsLoadingAssets] = useState(false);
     const [isLoadingReturnRequests, setIsLoadingReturnRequests] = useState(false);
     const [isLoadingEmployees, setIsLoadingEmployees] = useState(false);
+    const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(false);
     const [assetError, setAssetError] = useState('');
     const [returnRequestError, setReturnRequestError] = useState('');
     const [employeeError, setEmployeeError] = useState('');
+    const [announcementError, setAnnouncementError] = useState('');
     const [isSavingAsset, setIsSavingAsset] = useState(false);
     const [isAssigningAsset, setIsAssigningAsset] = useState(false);
+    const [isSavingAnnouncement, setIsSavingAnnouncement] = useState(false);
+    const [publishingAnnouncementId, setPublishingAnnouncementId] = useState<string | null>(null);
     const [isReviewingReturnRequest, setIsReviewingReturnRequest] = useState(false);
     const [selectedReturnRequest, setSelectedReturnRequest] = useState<AssetReturnRequestDto | null>(null);
     const [returnReviewAction, setReturnReviewAction] = useState<ReturnReviewAction>('approve');
     const [returnReviewRemarks, setReturnReviewRemarks] = useState('');
     const [assetForm, setAssetForm] = useState(initialAssetForm);
     const [assignForm, setAssignForm] = useState(initialAssignForm);
+    const [announcementForm, setAnnouncementForm] = useState(initialAnnouncementForm);
 
     const [clearanceForm, setClearanceForm] = useState({
         employee: '',
@@ -92,6 +106,7 @@ const AssetManagement = () => {
         void loadAssets();
         void loadReturnRequests();
         void loadEmployees();
+        void loadAnnouncements();
     }, []);
 
     const loadAssets = async () => {
@@ -134,6 +149,81 @@ const AssetManagement = () => {
             setEmployeeError(error instanceof Error ? error.message : 'Unable to load employees.');
         } finally {
             setIsLoadingEmployees(false);
+        }
+    };
+
+    const loadAnnouncements = async () => {
+        setIsLoadingAnnouncements(true);
+        setAnnouncementError('');
+
+        try {
+            const data = await getAnnouncements();
+            setAnnouncements(data);
+        } catch (error) {
+            setAnnouncementError(error instanceof Error ? error.message : 'Unable to load announcements.');
+        } finally {
+            setIsLoadingAnnouncements(false);
+        }
+    };
+
+    const closeAnnouncementModal = () => {
+        if (isSavingAnnouncement) return;
+
+        setAnnouncementForm(initialAnnouncementForm);
+        setShowAddAnnouncement(false);
+    };
+
+    const formatAnnouncementDate = (announcement: AnnouncementDto) => {
+        const value = announcement.publishedAtUtc ?? announcement.createdAtUtc;
+
+        if (!value) return 'Unpublished';
+
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return value;
+
+        return parsed.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        });
+    };
+
+    const handleSaveAnnouncement = async (publishImmediately: boolean) => {
+        if (!announcementForm.title.trim() || !announcementForm.content.trim()) {
+            alert('Please fill in the announcement title and content.');
+            return;
+        }
+
+        setIsSavingAnnouncement(true);
+
+        try {
+            await createAnnouncement({
+                title: announcementForm.title.trim(),
+                content: announcementForm.content.trim(),
+                priority: announcementForm.priority,
+                publishImmediately,
+            });
+
+            setAnnouncementForm(initialAnnouncementForm);
+            setShowAddAnnouncement(false);
+            await loadAnnouncements();
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'Unable to save announcement.');
+        } finally {
+            setIsSavingAnnouncement(false);
+        }
+    };
+
+    const handlePublishAnnouncement = async (id: string) => {
+        setPublishingAnnouncementId(id);
+
+        try {
+            await publishAnnouncement(id);
+            await loadAnnouncements();
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'Unable to publish announcement.');
+        } finally {
+            setPublishingAnnouncementId(null);
         }
     };
 
@@ -301,12 +391,6 @@ const AssetManagement = () => {
         { employee: 'Dela Cruz, Juan', period: 'Q4 2025', reviewer: 'Admin Manager', score: '4.5/5.0', rating: 'Excellent', status: 'Excellent' },
         { employee: 'Santos, Maria', period: 'Q4 2025', reviewer: 'Admin Manager', score: '4.0/5.0', rating: 'Good', status: 'Good' },
         { employee: 'Reyes, Jose', period: 'Q4 2025', reviewer: 'Admin Manager', score: '3.2/5.0', rating: 'Needs Improvement', status: 'Needs Improvement' },
-    ];
-
-    const announcements = [
-        { title: 'Company Outing 2026', date: '2026-02-20', author: 'HR Department', priority: 'Normal', status: 'Published', excerpt: 'Annual company outing scheduled for March 15-16, 2026 at Batangas Beach Resort.' },
-        { title: 'Policy Update: Remote Work', date: '2026-02-15', author: 'Admin Department', priority: 'Important', status: 'Published', excerpt: 'Updated remote work policy effective March 1, 2026. All employees must acknowledge.' },
-        { title: 'System Maintenance Notice', date: '2026-02-10', author: 'IT Department', priority: 'Urgent', status: 'Draft', excerpt: 'Scheduled system maintenance on February 28, 2026 from 10 PM to 2 AM.' },
     ];
 
     const [clearanceRecords, setClearanceRecords] = useState<ClearanceRecord[]>([
@@ -640,19 +724,46 @@ const AssetManagement = () => {
                                 <button onClick={() => setShowAddAnnouncement(true)} className="btn btn-primary"><Plus className="w-4 h-4" /> New Announcement</button>
                             </div>
                             <div className="space-y-4">
-                                {announcements.map((a, i) => (
-                                    <div key={i} className="pro-card !shadow-none border border-gray-100 !p-5 hover:border-emerald-200 transition-colors">
+                                {announcementError && (
+                                    <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+                                        {announcementError}
+                                    </div>
+                                )}
+                                {isLoadingAnnouncements && (
+                                    <div className="pro-card !shadow-none border border-gray-100 !p-5">
+                                        <p className="text-sm text-gray-500">Loading announcements...</p>
+                                    </div>
+                                )}
+                                {!isLoadingAnnouncements && announcements.map(a => (
+                                    <div key={a.id} className="pro-card !shadow-none border border-gray-100 !p-5 hover:border-emerald-200 transition-colors">
                                         <div className="flex items-start justify-between mb-2">
                                             <h4 className="text-sm font-bold text-gray-800">{a.title}</h4>
                                             <div className="flex gap-2">
-                                                <span className={`badge text-[10px] ${priorityBadge[a.priority]}`}><span className="badge-dot" />{a.priority}</span>
-                                                <span className={`badge text-[10px] ${statusBadge[a.status]}`}><span className="badge-dot" />{a.status}</span>
+                                                <span className={`badge text-[10px] ${priorityBadge[a.priority] ?? 'badge-neutral'}`}><span className="badge-dot" />{a.priority}</span>
+                                                <span className={`badge text-[10px] ${statusBadge[a.status] ?? 'badge-neutral'}`}><span className="badge-dot" />{a.status}</span>
                                             </div>
                                         </div>
-                                        <p className="text-sm text-gray-600 mb-2">{a.excerpt}</p>
-                                        <p className="text-xs text-gray-400">{a.date} • {a.author}</p>
+                                        <p className="text-sm text-gray-600 mb-2">{a.content}</p>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <p className="text-xs text-gray-400">{formatAnnouncementDate(a)} • {a.createdByUserName ?? 'System'}</p>
+                                            {a.status !== 'Published' && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handlePublishAnnouncement(a.id)}
+                                                    disabled={publishingAnnouncementId === a.id}
+                                                    className="btn btn-secondary flex items-center gap-1.5 text-xs !py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {publishingAnnouncementId === a.id ? 'Publishing...' : 'Publish'}
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
+                                {!isLoadingAnnouncements && announcements.length === 0 && (
+                                    <div className="pro-card !shadow-none border border-gray-100 !p-5">
+                                        <p className="text-sm text-gray-500">No announcements yet.</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -785,7 +896,9 @@ const AssetManagement = () => {
                         </div>
                         <div className="pro-modal-footer border-t border-gray-100">
                             <button type="button" onClick={() => setShowAddAsset(false)} className="btn btn-secondary">Cancel</button>
-                            <button type="submit" disabled={isSavingAsset} className="btn btn-primary">{isSavingAsset ? 'Adding...' : 'Add Asset'}</button>
+                            <button type="submit" disabled={isSavingAsset} className="btn btn-primary">
+                                {isSavingAsset ? 'Saving...' : 'Save Asset'}
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -793,28 +906,20 @@ const AssetManagement = () => {
 
             {showAssignAsset && selectedAsset && (
                 <div className="pro-modal-overlay" onClick={() => setShowAssignAsset(false)}>
-                    <form className="pro-modal max-w-lg overflow-hidden" onClick={e => e.stopPropagation()} onSubmit={handleAssignAsset}>
+                    <form className="pro-modal max-w-md overflow-hidden" onClick={e => e.stopPropagation()} onSubmit={handleAssignAsset}>
                         <div className="pro-modal-header border-b border-gray-100">
                             <div>
                                 <h3>Assign Asset</h3>
-                                <p className="text-xs text-gray-400 mt-1">Link this company asset to an active employee.</p>
+                                <p className="text-xs text-gray-400 mt-1">Assign {selectedAsset.assetCode} to an active employee.</p>
                             </div>
-                            <button type="button" onClick={() => setShowAssignAsset(false)} className="btn-ghost btn-icon">
+                            <button type="button" onClick={() => setShowAssignAsset(false)} className="btn-ghost btn-icon" disabled={isAssigningAsset}>
                                 <X className="w-5 h-5 text-gray-400" />
                             </button>
                         </div>
                         <div className="pro-modal-body space-y-5">
-                            <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
-                                <div className="flex items-start gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                                        <Laptop className="w-5 h-5 text-blue-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-bold text-gray-800">{selectedAsset.assetName}</p>
-                                        <p className="text-xs text-gray-500 mt-1">{selectedAsset.assetCode} • {selectedAsset.category}</p>
-                                        <p className="text-xs text-gray-400 mt-1">{selectedAsset.brand || 'No brand'} {selectedAsset.model || ''}</p>
-                                    </div>
-                                </div>
+                            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                                <p className="text-sm font-bold text-gray-800">{selectedAsset.assetName}</p>
+                                <p className="text-xs text-gray-500 mt-1">{selectedAsset.assetCode} • {selectedAsset.category}</p>
                             </div>
 
                             <div>
@@ -823,12 +928,12 @@ const AssetManagement = () => {
                                     className="pro-select"
                                     value={assignForm.employeeId}
                                     onChange={e => setAssignForm({ ...assignForm, employeeId: e.target.value })}
-                                    disabled={isLoadingEmployees}
+                                    disabled={isLoadingEmployees || isAssigningAsset}
                                 >
-                                    <option value="">{isLoadingEmployees ? 'Loading employees...' : '-- Select Employee --'}</option>
+                                    <option value="">-- Choose Employee --</option>
                                     {activeEmployees.map(employee => (
                                         <option key={employee.id} value={employee.id}>
-                                            {employee.employeeNumber} - {getEmployeeName(employee)}
+                                            {getEmployeeName(employee)}
                                         </option>
                                     ))}
                                 </select>
@@ -915,13 +1020,13 @@ const AssetManagement = () => {
             {showAddAnnouncement && (
                 <div className="pro-modal-overlay">
                     <div className="pro-modal max-w-md" onClick={e => e.stopPropagation()}>
-                        <div className="pro-modal-header"><h3>New Announcement</h3><button onClick={() => setShowAddAnnouncement(false)} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button></div>
+                        <div className="pro-modal-header"><h3>New Announcement</h3><button onClick={closeAnnouncementModal} disabled={isSavingAnnouncement} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button></div>
                         <div className="pro-modal-body space-y-4">
-                            <div><label className="pro-label">Title</label><input type="text" placeholder="Announcement title" className="pro-input" /></div>
-                            <div><label className="pro-label">Priority</label><select className="pro-select"><option>Normal</option><option>Important</option><option>Urgent</option></select></div>
-                            <div><label className="pro-label">Content</label><textarea rows={4} placeholder="Write your announcement..." className="pro-input resize-none" /></div>
+                            <div><label className="pro-label">Title</label><input type="text" placeholder="Announcement title" className="pro-input" value={announcementForm.title} onChange={e => setAnnouncementForm({ ...announcementForm, title: e.target.value })} disabled={isSavingAnnouncement} /></div>
+                            <div><label className="pro-label">Priority</label><select className="pro-select" value={announcementForm.priority} onChange={e => setAnnouncementForm({ ...announcementForm, priority: e.target.value })} disabled={isSavingAnnouncement}><option>Normal</option><option>Important</option><option>Urgent</option></select></div>
+                            <div><label className="pro-label">Content</label><textarea rows={4} placeholder="Write your announcement..." className="pro-input resize-none" value={announcementForm.content} onChange={e => setAnnouncementForm({ ...announcementForm, content: e.target.value })} disabled={isSavingAnnouncement} /></div>
                         </div>
-                        <div className="pro-modal-footer"><button onClick={() => setShowAddAnnouncement(false)} className="btn btn-secondary">Save Draft</button><button onClick={() => setShowAddAnnouncement(false)} className="btn btn-primary">Publish</button></div>
+                        <div className="pro-modal-footer"><button type="button" onClick={() => handleSaveAnnouncement(false)} disabled={isSavingAnnouncement} className="btn btn-secondary">{isSavingAnnouncement ? 'Saving...' : 'Save Draft'}</button><button type="button" onClick={() => handleSaveAnnouncement(true)} disabled={isSavingAnnouncement} className="btn btn-primary">{isSavingAnnouncement ? 'Publishing...' : 'Publish'}</button></div>
                     </div>
                 </div>
             )}

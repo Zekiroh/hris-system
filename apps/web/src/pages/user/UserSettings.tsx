@@ -16,6 +16,8 @@ import { getUserActivityLogs, createActivityLog, type ActivityLogItemDto } from 
 import { apiRequest } from '../../lib/api';
 import { DropdownMenu, PROVINCE_OPTIONS } from '../../components/personal-records/EmployeeFormFields';
 import { LOCATION_OPTIONS } from '../../components/personal-records/locationOptions';
+import { useAvatarUrl } from '../../hooks/useAvatarUrl';
+import { readAvatarFileAsDataUrl, setStoredAvatarUrl } from '../../lib/avatar';
 
 
 
@@ -618,7 +620,7 @@ const ProfileTab = ({ user, onSaved }: { user: any; onSaved?: () => void }) => {
     const [isEditing,     setIsEditing]     = useState(false);
     const [isLoading,     setIsLoading]     = useState(true);
     const [confirmOpen,   setConfirmOpen]   = useState(false);
-    const [avatar,        setAvatar]        = useState<AvatarState>({ url: null });
+    const avatarUrl = useAvatarUrl(user?.id);
     const avatarInputRef = useRef<HTMLInputElement>(null);
 
     type ProfileDropdownKey = 'province' | 'city' | null;
@@ -634,12 +636,6 @@ const ProfileTab = ({ user, onSaved }: { user: any; onSaved?: () => void }) => {
         setForm(prev => ({ ...prev, province: value, city: '' }));
         setOpenDropdown(null);
     };
-
-    useEffect(() => {
-        if (!user?.id) return;
-        const saved = localStorage.getItem(`settings.avatar.${user.id}`);
-        if (saved) setAvatar({ url: saved });
-    }, [user?.id]);
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -688,30 +684,21 @@ const ProfileTab = ({ user, onSaved }: { user: any; onSaved?: () => void }) => {
         void fetchProfile();
     }, [user]);
 
-    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const base64 = event.target?.result as string;
-            setAvatar({ url: base64 });
-            if (user?.id) {
-                localStorage.setItem(`settings.avatar.${user.id}`, base64);
-                window.dispatchEvent(new StorageEvent("storage", {
-                    key: `settings.avatar.${user.id}`,
-                    newValue: base64,
-                }));
-                window.dispatchEvent(new CustomEvent("settings-avatar-updated", {
-                    detail: {
-                        userId: user.id,
-                        avatarUrl: base64,
-                    },
-                }));
-                }
+        const userId = user?.id;
+        if (userId === null || userId === undefined) {
+            toast.error('Unable to update profile photo. Please sign in again.');
+            return;
+        }
+        try {
+            const base64 = await readAvatarFileAsDataUrl(file);
+            setStoredAvatarUrl(userId, base64);
             toast.success('Profile photo updated.');
-        };
-        reader.readAsDataURL(file);
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to update profile photo.');
+        }
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -840,9 +827,9 @@ const ProfileTab = ({ user, onSaved }: { user: any; onSaved?: () => void }) => {
                         title="Change profile photo"
                         className="relative w-24 h-24 rounded-2xl shrink-0 group overflow-hidden border border-gray-100"
                     >
-                        {avatar.url ? (
+                        {avatarUrl ? (
                             <img
-                                src={avatar.url}
+                                src={avatarUrl}
                                 alt="Profile"
                                 className="w-full h-full object-cover rounded-2xl"
                             />
@@ -1179,8 +1166,6 @@ function FilterDropdown({ value, options, onSelect, disabled }: FilterDropdownPr
 }
 
 // ─── Documents Tab ────────────────────────────────────────────────────────────
-
-type AvatarState = { url: string | null };
 
 type DocumentPreviewState = {
     url: string;
