@@ -33,6 +33,8 @@ import {
     getInitials,
 } from './config/helpers';
 import type { CompensationFormState, PayrollRecordRow, Tab } from './config/types';
+import PayrollDetailsModal from './components/PayrollDetailsModal';
+import PayrollRecordsTab from './components/PayrollRecordsTab';
 
 const Payroll = () => {
     const [activeTab, setActiveTab] = useState<Tab>('records');
@@ -378,52 +380,20 @@ const Payroll = () => {
                 <div className="p-6">
                 {/* Tab: Payroll Records */}
                 {activeTab === 'records' && (
-                    <div className="space-y-5">
-                        <div className="flex justify-between items-center">
-                            <h3 className="text-base font-bold text-gray-800">Payroll Records</h3>
-                            <button onClick={() => setShowProcessModal(true)} className="btn btn-primary">Process Payroll</button>
-                        </div>
-                        <div className="overflow-x-auto rounded-xl border border-gray-100">
-                            <table className="pro-table">
-                                <thead><tr>{['Period', 'Employees', 'Gross Pay', 'Deductions', 'Net Pay', 'Status', 'Action'].map(h => <th key={h}>{h}</th>)}</tr></thead>
-                                <tbody>
-                                    {loadingPayroll ? (
-                                        <tr>
-                                            <td colSpan={7} className="text-center py-8 text-sm text-gray-500">Loading payroll records...</td>
-                                        </tr>
-                                    ) : payrollRecords.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={7} className="text-center py-8 text-sm text-gray-500">No payroll records found.</td>
-                                        </tr>
-                                    ) : (
-                                        payrollRecords.map((r, idx) => (
-                                            <tr key={r.periodId} style={{ animationDelay: `${idx * 0.05}s` }}>
-                                                <td className="font-medium">{r.period}</td>
-                                                <td>{r.employees}</td>
-                                                <td>{r.grossPay}</td>
-                                                <td className="!text-red-500">{r.deductions}</td>
-                                                <td className="font-bold">{r.netPay}</td>
-                                                <td><span className={`badge ${statusBadge[r.status] || 'badge-warning'}`}>● {r.status}</span></td>
-                                                <td>
-                                                    <button onClick={() => { setSelectedRecord(r); setShowDetailsModal(true); }} className="btn-ghost btn-icon text-slate-500">
-                                                        <Eye className="w-4 h-4" />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-5">
-                            <h4 className="text-sm font-bold text-gray-700 mb-3">Payroll Summary</h4>
-                            <div className="grid grid-cols-3 gap-4 text-center">
-                                <div><p className="text-xl font-bold text-gray-900">{formatCurrency(totals.grossPay)}</p><p className="text-xs text-gray-500">Total Gross</p></div>
-                                <div><p className="text-xl font-bold text-red-500">{formatCurrency(totals.deductions)}</p><p className="text-xs text-gray-500">Total Deductions</p></div>
-                                <div><p className="text-xl font-bold text-emerald-600">{formatCurrency(totals.netPay)}</p><p className="text-xs text-gray-500">Total Net</p></div>
-                            </div>
-                        </div>
-                    </div>
+                    <PayrollRecordsTab
+                        loadingPayroll={loadingPayroll}
+                        payrollRecords={payrollRecords}
+                        totals={{
+                            grossPay: totals.grossPay,
+                            deductions: totals.deductions,
+                            netPay: totals.netPay,
+                        }}
+                        onProcessPayroll={() => setShowProcessModal(true)}
+                        onViewRecord={(record) => {
+                            setSelectedRecord(record);
+                            setShowDetailsModal(true);
+                        }}
+                    />
                 )}
 
                 {/* Tab: Compensation */}
@@ -705,26 +675,11 @@ const Payroll = () => {
             )}
 
             {/* Details Modal */}
-            {showDetailsModal && selectedRecord && (
-                <div className="pro-modal-overlay">
-                    <div className="pro-modal max-w-lg">
-                        <div className="pro-modal-header"><h3>Payroll Details</h3><button onClick={() => setShowDetailsModal(false)} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button></div>
-                        <div className="pro-modal-body space-y-4">
-                            {[
-                                ['Period', selectedRecord.period],
-                                ['Employees', String(selectedRecord.employees)],
-                                ['Gross Pay', selectedRecord.grossPay],
-                                ['Deductions', selectedRecord.deductions],
-                                ['Net Pay', selectedRecord.netPay],
-                                ['Status', selectedRecord.status],
-                            ].map(([label, value]) => (
-                                <div key={label} className="flex justify-between py-2 border-b border-gray-100"><span className="text-gray-500">{label}</span><span className="font-bold">{value}</span></div>
-                            ))}
-                        </div>
-                        <div className="pro-modal-footer"><button onClick={() => setShowDetailsModal(false)} className="btn btn-primary">Close</button></div>
-                    </div>
-                </div>
-            )}
+            <PayrollDetailsModal
+                open={showDetailsModal}
+                record={selectedRecord}
+                onClose={() => setShowDetailsModal(false)}
+            />
 
             {/* Remittance Modal */}
             {showRemittanceModal && (
