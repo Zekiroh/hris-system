@@ -3,12 +3,9 @@ import {
     DollarSign,
     TrendingDown,
     Percent,
-    FileText,
     X,
     Download,
     Eye,
-    Printer,
-    WalletCards,
     Plus,
     Edit3,
 } from 'lucide-react';
@@ -26,105 +23,16 @@ import {
     type UpdateEmployeeCompensationRequestDto,
 } from '../../lib/payroll';
 import { getEmployees, type EmployeeDto } from '../../lib/employees';
-
-type Tab = 'records' | 'compensation' | 'deductions' | '13th' | 'payslip';
-
-type PayrollRecordRow = {
-    period: string;
-    employees: number;
-    grossPay: string;
-    deductions: string;
-    netPay: string;
-    status: string;
-    periodId: number;
-    records: PayrollRecordDto[];
-};
-
-type CompensationFormState = {
-    employeeId: string;
-    compensationType: string;
-    baseAmount: string;
-    effectiveFrom: string;
-    effectiveTo: string;
-    isActive: boolean;
-};
-
-const emptyCompensationForm: CompensationFormState = {
-    employeeId: '',
-    compensationType: 'Monthly',
-    baseAmount: '',
-    effectiveFrom: new Date().toISOString().slice(0, 10),
-    effectiveTo: '',
-    isActive: true,
-};
-
-const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('en-PH', {
-        style: 'currency',
-        currency: 'PHP',
-        minimumFractionDigits: 2,
-    }).format(Number.isFinite(value) ? value : 0);
-
-const formatDate = (value?: string | null) => {
-    if (!value) return '—';
-
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return value.slice(0, 10);
-
-    return parsed.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-    });
-};
-
-const formatPeriod = (period: PayrollPeriodDto) => {
-    const start = new Date(period.startDate);
-    const end = new Date(period.endDate);
-
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-        return `${period.startDate} - ${period.endDate}`;
-    }
-
-    const startMonth = start.toLocaleString('en-US', { month: 'short' });
-    const endMonth = end.toLocaleString('en-US', { month: 'short' });
-    const year = end.getFullYear();
-
-    if (startMonth === endMonth) {
-        return `${startMonth} ${start.getDate()}-${end.getDate()}, ${year}`;
-    }
-
-    return `${startMonth} ${start.getDate()} - ${endMonth} ${end.getDate()}, ${year}`;
-};
-
-const getInitials = (name: string) => {
-    const parts = name.trim().split(/\s+/).filter(Boolean);
-    if (parts.length === 0) return 'E';
-    if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
-
-    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-};
-
-const getEmployeeDisplayName = (employee: EmployeeDto) => {
-    const firstName = employee.firstName?.trim() ?? '';
-    const lastName = employee.lastName?.trim() ?? '';
-    const fullName = `${firstName} ${lastName}`.trim();
-
-    return fullName || employee.employeeNumber;
-};
-
-
-type EmployeesResponse = Awaited<ReturnType<typeof getEmployees>>;
-
-const extractEmployeeItems = (response: EmployeesResponse): EmployeeDto[] => {
-    const payload = response && typeof response === 'object' && 'data' in response
-        ? response.data
-        : response;
-
-    return payload && typeof payload === 'object' && 'items' in payload
-        ? payload.items ?? []
-        : [];
-};
+import { emptyCompensationForm, tabs } from './config/constants';
+import {
+    extractEmployeeItems,
+    formatCurrency,
+    formatDate,
+    formatPeriod,
+    getEmployeeDisplayName,
+    getInitials,
+} from './config/helpers';
+import type { CompensationFormState, PayrollRecordRow, Tab } from './config/types';
 
 const Payroll = () => {
     const [activeTab, setActiveTab] = useState<Tab>('records');
@@ -156,14 +64,6 @@ const Payroll = () => {
     const [payrollSuccess, setPayrollSuccess] = useState('');
     const [compensationError, setCompensationError] = useState('');
     const [compensationSuccess, setCompensationSuccess] = useState('');
-
-    const tabs = [
-        { id: 'records' as Tab, label: 'Payroll Records', icon: FileText },
-        { id: 'compensation' as Tab, label: 'Compensation', icon: WalletCards },
-        { id: 'deductions' as Tab, label: 'Deductions', icon: TrendingDown },
-        { id: '13th' as Tab, label: '13th Month Pay', icon: DollarSign },
-        { id: 'payslip' as Tab, label: 'Payslip', icon: Printer },
-    ];
 
     const loadPayrollData = async () => {
         setLoadingPayroll(true);
