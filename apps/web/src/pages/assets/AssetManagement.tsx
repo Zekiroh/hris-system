@@ -1,18 +1,17 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Package, Laptop, Wrench, AlertTriangle, Plus, X } from 'lucide-react';
+import { Package, Laptop, Wrench, AlertTriangle, X } from 'lucide-react';
 import { approveReturnRequest, assignAsset, createAsset, getAssets, getReturnRequests, rejectReturnRequest } from '../../lib/assets';
 import type { AssetDto, AssetReturnRequestDto } from '../../lib/assets';
 import { getEmployees } from '../../lib/employees';
 import type { EmployeeDto } from '../../lib/employees';
 import { createAnnouncement, getAnnouncements, publishAnnouncement } from '../../lib/announcement';
 import type { AnnouncementDto } from '../../lib/announcement';
-import AdminAnnouncementCard from '../../components/assets/AdminAnnouncementCard';
-import AdminAssetInventoryTable from '../../components/assets/AdminAssetInventoryTable';
-import AdminClearanceRecordCard from '../../components/assets/AdminClearanceRecordCard';
-import AdminEvaluationTable from '../../components/assets/AdminEvaluationTable';
-import AdminReturnRequestTable from '../../components/assets/AdminReturnRequestTable';
 import AssetStatCard from '../../components/assets/AssetStatCard';
+import AdminAnnouncementsTab from '../../components/assets/tabs/AdminAnnouncementsTab';
+import AdminClearanceTab from '../../components/assets/tabs/AdminClearanceTab';
+import AdminEvaluationTab from '../../components/assets/tabs/AdminEvaluationTab';
+import AdminInventoryTab from '../../components/assets/tabs/AdminInventoryTab';
 import {
     adminAssetTabs,
     clearanceDepartments,
@@ -361,116 +360,42 @@ const AssetManagement = () => {
                 </div>
                 <div className="p-6">
                     {activeTab === 'inventory' && (
-                        <div className="space-y-6">
-                            <div className="space-y-5">
-                                <div className="flex justify-between items-center">
-                                    <h3 className="text-base font-bold text-gray-800">Assets</h3>
-                                    <button onClick={() => setShowAddAsset(true)} className="btn btn-primary"><Plus className="w-4 h-4" /> Add Asset</button>
-                                </div>
-                                {assetError && (
-                                    <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
-                                        {assetError}
-                                    </div>
-                                )}
-                                {employeeError && (
-                                    <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                                        {employeeError}
-                                    </div>
-                                )}
-                                <AdminAssetInventoryTable
-                                    assets={assets}
-                                    isLoading={isLoadingAssets}
-                                    onAssignAsset={openAssignAssetModal}
-                                />
-                            </div>
-
-                            <div className="space-y-5">
-                                <div className="flex justify-between items-center">
-                                    <div>
-                                        <h3 className="text-base font-bold text-gray-800">Return Requests</h3>
-                                        <p className="text-xs text-gray-400 mt-1">Review employee asset return requests before physical receiving.</p>
-                                    </div>
-                                    <button onClick={() => void loadReturnRequests()} className="btn btn-secondary text-xs !py-1.5">
-                                        Refresh
-                                    </button>
-                                </div>
-
-                                {returnRequestError && (
-                                    <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
-                                        {returnRequestError}
-                                    </div>
-                                )}
-
-                                <AdminReturnRequestTable
-                                    returnRequests={returnRequests}
-                                    isLoading={isLoadingReturnRequests}
-                                    onReviewReturnRequest={openReturnReviewModal}
-                                />
-                            </div>
-                        </div>
+                        <AdminInventoryTab
+                            assets={assets}
+                            returnRequests={returnRequests}
+                            isLoadingAssets={isLoadingAssets}
+                            isLoadingReturnRequests={isLoadingReturnRequests}
+                            assetError={assetError}
+                            employeeError={employeeError}
+                            returnRequestError={returnRequestError}
+                            onAddAsset={() => setShowAddAsset(true)}
+                            onAssignAsset={openAssignAssetModal}
+                            onRefreshReturnRequests={() => void loadReturnRequests()}
+                            onReviewReturnRequest={openReturnReviewModal}
+                        />
                     )}
 
                     {activeTab === 'clearance' && (
-                        <div className="space-y-5">
-                            <div className="flex justify-between items-center">
-                                <h3 className="text-base font-bold text-gray-800">Exit Clearance Records</h3>
-                                <button onClick={() => setShowNewClearance(true)} className="btn btn-primary"><Plus className="w-4 h-4" /> New Clearance</button>
-                            </div>
-
-                            <div className="space-y-4">
-                                {clearanceRecords.map(record => (
-                                    <AdminClearanceRecordCard
-                                        key={record.id}
-                                        record={record}
-                                        onToggleChecklistItem={toggleChecklistItem}
-                                    />
-                                ))}
-                                {clearanceRecords.length === 0 && (
-                                    <div className="text-center py-8 text-gray-400 text-sm italic">No clearance records yet.</div>
-                                )}
-                            </div>
-                        </div>
+                        <AdminClearanceTab
+                            clearanceRecords={clearanceRecords}
+                            onOpenNewClearance={() => setShowNewClearance(true)}
+                            onToggleChecklistItem={toggleChecklistItem}
+                        />
                     )}
 
                     {activeTab === 'evaluation' && (
-                        <div className="space-y-5">
-                            <h3 className="text-base font-bold text-gray-800">Performance Evaluation Results</h3>
-                            <AdminEvaluationTable evaluations={evaluations} />
-                        </div>
+                        <AdminEvaluationTab evaluations={evaluations} />
                     )}
 
                     {activeTab === 'announcements' && (
-                        <div className="space-y-5">
-                            <div className="flex justify-between items-center">
-                                <h3 className="text-base font-bold text-gray-800">Announcements</h3>
-                                <button onClick={() => setShowAddAnnouncement(true)} className="btn btn-primary"><Plus className="w-4 h-4" /> New Announcement</button>
-                            </div>
-                            <div className="space-y-4">
-                                {announcementError && (
-                                    <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
-                                        {announcementError}
-                                    </div>
-                                )}
-                                {isLoadingAnnouncements && (
-                                    <div className="pro-card !shadow-none border border-gray-100 !p-5">
-                                        <p className="text-sm text-gray-500">Loading announcements...</p>
-                                    </div>
-                                )}
-                                {!isLoadingAnnouncements && announcements.map(a => (
-                                    <AdminAnnouncementCard
-                                        key={a.id}
-                                        announcement={a}
-                                        publishingAnnouncementId={publishingAnnouncementId}
-                                        onPublishAnnouncement={handlePublishAnnouncement}
-                                    />
-                                ))}
-                                {!isLoadingAnnouncements && announcements.length === 0 && (
-                                    <div className="pro-card !shadow-none border border-gray-100 !p-5">
-                                        <p className="text-sm text-gray-500">No announcements yet.</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                        <AdminAnnouncementsTab
+                            announcements={announcements}
+                            isLoadingAnnouncements={isLoadingAnnouncements}
+                            announcementError={announcementError}
+                            publishingAnnouncementId={publishingAnnouncementId}
+                            onNewAnnouncement={() => setShowAddAnnouncement(true)}
+                            onPublishAnnouncement={handlePublishAnnouncement}
+                        />
                     )}
                 </div>
             </div>
