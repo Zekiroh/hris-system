@@ -1,8 +1,5 @@
 import { useState } from 'react';
 import { Package, Laptop, Wrench, AlertTriangle } from 'lucide-react';
-import { approveReturnRequest, rejectReturnRequest } from '../../lib/assets';
-import type { AssetReturnRequestDto } from '../../lib/assets';
-import { createAnnouncement, publishAnnouncement } from '../../lib/announcement';
 import AssetStatCard from '../../components/assets/AssetStatCard';
 import AddAnnouncementModal from '../../components/assets/modals/AddAnnouncementModal';
 import AddAssetModal from '../../components/assets/modals/AddAssetModal';
@@ -19,7 +16,6 @@ import {
     clearanceEmployees,
     clearanceStats,
     evaluations,
-    initialAnnouncementForm,
     initialClearanceForm,
     initialClearanceRecords,
 } from '../../components/assets/assetManagementConfig';
@@ -30,11 +26,12 @@ import type {
     AdminAssetTab,
     ClearanceChecklist,
     ClearanceRecord,
-    ReturnReviewAction,
 } from '../../components/assets/assetManagementTypes';
+import { useAdminAnnouncementWorkflow } from '../../components/assets/hooks/useAdminAnnouncementWorkflow';
 import { useAdminAssetData } from '../../components/assets/hooks/useAdminAssetData';
 import { useAssetAssignmentWorkflow } from '../../components/assets/hooks/useAssetAssignmentWorkflow';
 import { useAssetCreationWorkflow } from '../../components/assets/hooks/useAssetCreationWorkflow';
+import { useReturnReviewWorkflow } from '../../components/assets/hooks/useReturnReviewWorkflow';
 
 const AssetManagement = () => {
     const [activeTab, setActiveTab] = useState<AdminAssetTab['id']>('inventory');
@@ -77,101 +74,30 @@ const AssetManagement = () => {
         closeAssignAssetModal,
         handleAssignAsset,
     } = useAssetAssignmentWorkflow({ loadAssets });
-    const [isSavingAnnouncement, setIsSavingAnnouncement] = useState(false);
-    const [publishingAnnouncementId, setPublishingAnnouncementId] = useState<string | null>(null);
-    const [isReviewingReturnRequest, setIsReviewingReturnRequest] = useState(false);
-    const [selectedReturnRequest, setSelectedReturnRequest] = useState<AssetReturnRequestDto | null>(null);
-    const [returnReviewAction, setReturnReviewAction] = useState<ReturnReviewAction>('approve');
-    const [returnReviewRemarks, setReturnReviewRemarks] = useState('');
-    const [announcementForm, setAnnouncementForm] = useState(initialAnnouncementForm);
+    const {
+        selectedReturnRequest,
+        returnReviewAction,
+        returnReviewRemarks,
+        setReturnReviewRemarks,
+        isReviewingReturnRequest,
+        openReturnReviewModal,
+        closeReturnReviewModal,
+        handleReviewReturnRequest,
+    } = useReturnReviewWorkflow({ loadReturnRequests });
+    const {
+        announcementForm,
+        setAnnouncementForm,
+        isSavingAnnouncement,
+        publishingAnnouncementId,
+        closeAnnouncementWorkflowModal,
+        handleSaveAnnouncement,
+        handlePublishAnnouncement,
+    } = useAdminAnnouncementWorkflow({
+        loadAnnouncements,
+        closeAnnouncementModal: () => setShowAddAnnouncement(false),
+    });
 
     const [clearanceForm, setClearanceForm] = useState(initialClearanceForm);
-
-    const closeAnnouncementModal = () => {
-        if (isSavingAnnouncement) return;
-
-        setAnnouncementForm(initialAnnouncementForm);
-        setShowAddAnnouncement(false);
-    };
-
-    const handleSaveAnnouncement = async (publishImmediately: boolean) => {
-        if (!announcementForm.title.trim() || !announcementForm.content.trim()) {
-            alert('Please fill in the announcement title and content.');
-            return;
-        }
-
-        setIsSavingAnnouncement(true);
-
-        try {
-            await createAnnouncement({
-                title: announcementForm.title.trim(),
-                content: announcementForm.content.trim(),
-                priority: announcementForm.priority,
-                publishImmediately,
-            });
-
-            setAnnouncementForm(initialAnnouncementForm);
-            setShowAddAnnouncement(false);
-            await loadAnnouncements();
-        } catch (error) {
-            alert(error instanceof Error ? error.message : 'Unable to save announcement.');
-        } finally {
-            setIsSavingAnnouncement(false);
-        }
-    };
-
-    const handlePublishAnnouncement = async (id: string) => {
-        setPublishingAnnouncementId(id);
-
-        try {
-            await publishAnnouncement(id);
-            await loadAnnouncements();
-        } catch (error) {
-            alert(error instanceof Error ? error.message : 'Unable to publish announcement.');
-        } finally {
-            setPublishingAnnouncementId(null);
-        }
-    };
-
-    const openReturnReviewModal = (request: AssetReturnRequestDto, action: ReturnReviewAction) => {
-        setSelectedReturnRequest(request);
-        setReturnReviewAction(action);
-        setReturnReviewRemarks('');
-    };
-
-    const closeReturnReviewModal = () => {
-        if (isReviewingReturnRequest) return;
-
-        setSelectedReturnRequest(null);
-        setReturnReviewAction('approve');
-        setReturnReviewRemarks('');
-    };
-
-    const handleReviewReturnRequest = async () => {
-        if (!selectedReturnRequest) return;
-
-        setIsReviewingReturnRequest(true);
-
-        try {
-            if (returnReviewAction === 'approve') {
-                await approveReturnRequest(selectedReturnRequest.id, {
-                    remarks: returnReviewRemarks.trim() || null,
-                });
-            } else {
-                await rejectReturnRequest(selectedReturnRequest.id, {
-                    remarks: returnReviewRemarks.trim() || null,
-                });
-            }
-
-            setSelectedReturnRequest(null);
-            setReturnReviewRemarks('');
-            await loadReturnRequests();
-        } catch (error) {
-            alert(error instanceof Error ? error.message : 'Unable to review return request.');
-        } finally {
-            setIsReviewingReturnRequest(false);
-        }
-    };
 
     const statCards = [
         { label: 'Total Assets', value: assets.length, icon: Package, gradient: 'linear-gradient(135deg, #059669, #10b981)' },
@@ -330,7 +256,7 @@ const AssetManagement = () => {
                 <AddAnnouncementModal
                     announcementForm={announcementForm}
                     isSavingAnnouncement={isSavingAnnouncement}
-                    onClose={closeAnnouncementModal}
+                    onClose={closeAnnouncementWorkflowModal}
                     onSaveDraft={() => handleSaveAnnouncement(false)}
                     onPublish={() => handleSaveAnnouncement(true)}
                     onFormChange={(field, value) =>
