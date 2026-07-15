@@ -1,12 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Package, Laptop, Wrench, AlertTriangle } from 'lucide-react';
-import { approveReturnRequest, assignAsset, createAsset, getAssets, getReturnRequests, rejectReturnRequest } from '../../lib/assets';
+import { approveReturnRequest, assignAsset, createAsset, rejectReturnRequest } from '../../lib/assets';
 import type { AssetDto, AssetReturnRequestDto } from '../../lib/assets';
-import { getEmployees } from '../../lib/employees';
-import type { EmployeeDto } from '../../lib/employees';
-import { createAnnouncement, getAnnouncements, publishAnnouncement } from '../../lib/announcement';
-import type { AnnouncementDto } from '../../lib/announcement';
+import { createAnnouncement, publishAnnouncement } from '../../lib/announcement';
 import AssetStatCard from '../../components/assets/AssetStatCard';
 import AddAnnouncementModal from '../../components/assets/modals/AddAnnouncementModal';
 import AddAssetModal from '../../components/assets/modals/AddAssetModal';
@@ -31,7 +28,6 @@ import {
 } from '../../components/assets/assetManagementConfig';
 import {
     getEmployeeName,
-    unwrapEmployeesResponse,
 } from '../../components/assets/assetManagementHelpers';
 import type {
     AdminAssetTab,
@@ -39,6 +35,7 @@ import type {
     ClearanceRecord,
     ReturnReviewAction,
 } from '../../components/assets/assetManagementTypes';
+import { useAdminAssetData } from '../../components/assets/hooks/useAdminAssetData';
 
 const AssetManagement = () => {
     const [activeTab, setActiveTab] = useState<AdminAssetTab['id']>('inventory');
@@ -47,18 +44,23 @@ const AssetManagement = () => {
     const [showNewClearance, setShowNewClearance] = useState(false);
     const [showAssignAsset, setShowAssignAsset] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState<AssetDto | null>(null);
-    const [assets, setAssets] = useState<AssetDto[]>([]);
-    const [returnRequests, setReturnRequests] = useState<AssetReturnRequestDto[]>([]);
-    const [activeEmployees, setActiveEmployees] = useState<EmployeeDto[]>([]);
-    const [announcements, setAnnouncements] = useState<AnnouncementDto[]>([]);
-    const [isLoadingAssets, setIsLoadingAssets] = useState(false);
-    const [isLoadingReturnRequests, setIsLoadingReturnRequests] = useState(false);
-    const [isLoadingEmployees, setIsLoadingEmployees] = useState(false);
-    const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(false);
-    const [assetError, setAssetError] = useState('');
-    const [returnRequestError, setReturnRequestError] = useState('');
-    const [employeeError, setEmployeeError] = useState('');
-    const [announcementError, setAnnouncementError] = useState('');
+    const {
+        assets,
+        returnRequests,
+        activeEmployees,
+        announcements,
+        isLoadingAssets,
+        isLoadingReturnRequests,
+        isLoadingEmployees,
+        isLoadingAnnouncements,
+        assetError,
+        returnRequestError,
+        employeeError,
+        announcementError,
+        loadAssets,
+        loadReturnRequests,
+        loadAnnouncements,
+    } = useAdminAssetData();
     const [isSavingAsset, setIsSavingAsset] = useState(false);
     const [isAssigningAsset, setIsAssigningAsset] = useState(false);
     const [isSavingAnnouncement, setIsSavingAnnouncement] = useState(false);
@@ -72,70 +74,6 @@ const AssetManagement = () => {
     const [announcementForm, setAnnouncementForm] = useState(initialAnnouncementForm);
 
     const [clearanceForm, setClearanceForm] = useState(initialClearanceForm);
-
-    useEffect(() => {
-        void loadAssets();
-        void loadReturnRequests();
-        void loadEmployees();
-        void loadAnnouncements();
-    }, []);
-
-    const loadAssets = async () => {
-        setIsLoadingAssets(true);
-        setAssetError('');
-
-        try {
-            const data = await getAssets();
-            setAssets(data);
-        } catch (error) {
-            setAssetError(error instanceof Error ? error.message : 'Unable to load assets.');
-        } finally {
-            setIsLoadingAssets(false);
-        }
-    };
-
-    const loadReturnRequests = async () => {
-        setIsLoadingReturnRequests(true);
-        setReturnRequestError('');
-
-        try {
-            const data = await getReturnRequests();
-            setReturnRequests(data);
-        } catch (error) {
-            setReturnRequestError(error instanceof Error ? error.message : 'Unable to load return requests.');
-        } finally {
-            setIsLoadingReturnRequests(false);
-        }
-    };
-
-    const loadEmployees = async () => {
-        setIsLoadingEmployees(true);
-        setEmployeeError('');
-
-        try {
-            const response = await getEmployees({ page: 1, pageSize: 100 });
-            const payload = unwrapEmployeesResponse(response);
-            setActiveEmployees(payload.items.filter((employee: EmployeeDto) => employee.isActive));
-        } catch (error) {
-            setEmployeeError(error instanceof Error ? error.message : 'Unable to load employees.');
-        } finally {
-            setIsLoadingEmployees(false);
-        }
-    };
-
-    const loadAnnouncements = async () => {
-        setIsLoadingAnnouncements(true);
-        setAnnouncementError('');
-
-        try {
-            const data = await getAnnouncements();
-            setAnnouncements(data);
-        } catch (error) {
-            setAnnouncementError(error instanceof Error ? error.message : 'Unable to load announcements.');
-        } finally {
-            setIsLoadingAnnouncements(false);
-        }
-    };
 
     const closeAnnouncementModal = () => {
         if (isSavingAnnouncement) return;
