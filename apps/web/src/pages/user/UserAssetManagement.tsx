@@ -3,7 +3,6 @@ import {
   Laptop,
   ClipboardCheck,
   Star,
-  Megaphone,
   AlertTriangle,
   CheckCircle,
   XCircle,
@@ -25,17 +24,28 @@ import {
   markAnnouncementAsRead,
 } from "../../lib/announcement";
 import type { AnnouncementDto } from "../../lib/announcement";
-
-type Tab = "assets" | "clearance" | "evaluation" | "announcements";
-
-interface ChecklistItem {
-  key: string;
-  label: string;
-  done: boolean;
-}
+import {
+  assetStatusBadge,
+  priorityBadge,
+  ratingBadge,
+  returnRequestStatusBadge,
+  userAssetTabs,
+  userClearanceChecklist,
+  userEvaluations,
+} from "../../components/assets/assetManagementConfig";
+import {
+  formatAnnouncementDate,
+  getAssetSpecs,
+  getReturnRequestForAsset,
+  scoreColor,
+} from "../../components/assets/assetManagementHelpers";
+import type {
+  ChecklistItem,
+  UserAssetTab,
+} from "../../components/assets/assetManagementTypes";
 
 const UserAssetManagement = () => {
-  const [activeTab, setActiveTab] = useState<Tab>("assets");
+  const [activeTab, setActiveTab] = useState<UserAssetTab["id"]>("assets");
   const [reportOpen, setReportOpen] = useState(false);
   const [reportIssue, setReportIssue] = useState("");
   const [expandedEval, setExpandedEval] = useState<number | null>(null);
@@ -109,114 +119,13 @@ const UserAssetManagement = () => {
     void loadAnnouncements();
   }, []);
 
-  const tabs = [
-    { id: "assets" as Tab, label: "My Assets", icon: Laptop },
-    { id: "clearance" as Tab, label: "My Clearance", icon: ClipboardCheck },
-    { id: "evaluation" as Tab, label: "My Evaluation", icon: Star },
-    { id: "announcements" as Tab, label: "Announcements", icon: Megaphone },
-  ];
-
-  const statusBadge: Record<string, string> = {
-    "In Use": "badge-success",
-    Available: "badge-info",
-    Maintenance: "badge-warning",
-  };
-
-  const returnStatusBadge: Record<string, string> = {
-    Pending: "badge-warning",
-    Approved: "badge-success",
-    Rejected: "badge-danger",
-  };
-
-  const [checklist] = useState<ChecklistItem[]>([
-    { key: "laptop", label: "Laptop Returned", done: true },
-    { key: "idCard", label: "ID Card Returned", done: true },
-    { key: "keys", label: "Keys Returned", done: false },
-    { key: "documents", label: "Documents Submitted", done: true },
-    {
-      key: "deptClearance",
-      label: "Department Clearance Approved",
-      done: false,
-    },
-  ]);
+  const [checklist] = useState<ChecklistItem[]>(userClearanceChecklist);
 
   const completedCount = checklist.filter((c) => c.done).length;
   const progressPct = Math.round((completedCount / checklist.length) * 100);
   const clearanceStatus = progressPct === 100 ? "Completed" : "In Progress";
 
-  const evaluations = [
-    {
-      period: "Q4 2025",
-      reviewer: "Admin Manager",
-      score: 4.5,
-      maxScore: 5.0,
-      rating: "Excellent",
-      remarks:
-        "Dosan consistently delivers high-quality work and demonstrates excellent teamwork. Proactive in problem-solving and a reliable asset to the department.",
-      date: "2026-01-10",
-    },
-    {
-      period: "Q3 2025",
-      reviewer: "Admin Manager",
-      score: 4.2,
-      maxScore: 5.0,
-      rating: "Good",
-      remarks:
-        "Strong performance this quarter with consistent output. Minor areas for improvement in documentation practices.",
-      date: "2025-10-08",
-    },
-    {
-      period: "Q2 2025",
-      reviewer: "Admin Manager",
-      score: 3.9,
-      maxScore: 5.0,
-      rating: "Good",
-      remarks:
-        "Met expectations across most KPIs. Showed improvement in communication and collaborative tasks.",
-      date: "2025-07-12",
-    },
-  ];
-
-  const ratingBadge: Record<string, string> = {
-    Excellent: "badge-success",
-    Good: "badge-info",
-    "Needs Improvement": "badge-warning",
-  };
-
-  const priorityBadge: Record<string, string> = {
-    Normal: "badge-neutral",
-    Important: "badge-warning",
-    Urgent: "badge-danger",
-  };
-
-  const scoreColor = (score: number, max: number) => {
-    const pct = score / max;
-    if (pct >= 0.85) return "#10b981";
-    if (pct >= 0.7) return "#3b82f6";
-    return "#f59e0b";
-  };
-
-  const getAssetSpecs = (asset: AssetAssignmentDto) => {
-    const details = [asset.brand, asset.model].filter(Boolean).join(" ");
-    return details || "No device details available";
-  };
-
-  const getReturnRequestForAsset = (assignmentId: number) => {
-    const requests = myReturnRequests
-      .filter((request) => request.assetAssignmentId === assignmentId)
-      .sort(
-        (a, b) =>
-          new Date(b.createdAtUtc).getTime() -
-          new Date(a.createdAtUtc).getTime()
-      );
-
-    return (
-      requests.find((request) => request.status === "Pending") ??
-      requests.find((request) => request.status === "Approved") ??
-      requests[0] ??
-      null
-    );
-  };
+  const evaluations = userEvaluations;
 
   const openReturnModal = (asset: AssetAssignmentDto) => {
     setSelectedReturnAsset(asset);
@@ -272,19 +181,6 @@ const UserAssetManagement = () => {
     } finally {
       setReturnSubmitting(false);
     }
-  };
-
-  const formatAnnouncementDate = (value: string | null) => {
-    if (!value) return "Unpublished";
-
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return value;
-
-    return parsed.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
   };
 
   const handleMarkAnnouncementAsRead = async (announcement: AnnouncementDto) => {
@@ -383,7 +279,7 @@ const UserAssetManagement = () => {
       >
         <div className="px-6 pt-4">
           <div className="pro-tabs">
-            {tabs.map((tab) => (
+            {userAssetTabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
@@ -425,7 +321,7 @@ const UserAssetManagement = () => {
               {!loadingAssets && myAssets.length > 0 && (
                 <div className="space-y-4">
                   {myAssets.map((asset) => {
-                    const returnRequest = getReturnRequestForAsset(asset.id);
+                    const returnRequest = getReturnRequestForAsset(myReturnRequests, asset.id);
                     const isReturnLocked =
                       returnRequest?.status === "Pending" ||
                       returnRequest?.status === "Approved";
@@ -450,14 +346,14 @@ const UserAssetManagement = () => {
                             </div>
                           </div>
                           <div className="flex flex-col items-end gap-1.5">
-                            <span className={`badge ${statusBadge["In Use"]}`}>
+                            <span className={`badge ${assetStatusBadge["In Use"]}`}>
                               <span className="badge-dot" />
                               In Use
                             </span>
                             {returnRequest && (
                               <span
                                 className={`badge ${
-                                  returnStatusBadge[returnRequest.status] ??
+                                  returnRequestStatusBadge[returnRequest.status] ??
                                   "badge-neutral"
                                 }`}
                               >

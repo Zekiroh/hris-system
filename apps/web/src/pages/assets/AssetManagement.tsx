@@ -1,71 +1,45 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Package, Laptop, Wrench, AlertTriangle, Plus, X, Star, Megaphone, CheckCircle, XCircle, Clock, ClipboardCheck, Calendar, UserPlus } from 'lucide-react';
+import { Package, Laptop, Wrench, AlertTriangle, Plus, X, CheckCircle, XCircle, UserPlus } from 'lucide-react';
 import { approveReturnRequest, assignAsset, createAsset, getAssets, getReturnRequests, rejectReturnRequest } from '../../lib/assets';
 import type { AssetDto, AssetReturnRequestDto } from '../../lib/assets';
 import { getEmployees } from '../../lib/employees';
-import type { EmployeeDto, PagedEmployeesResponse } from '../../lib/employees';
+import type { EmployeeDto } from '../../lib/employees';
 import { createAnnouncement, getAnnouncements, publishAnnouncement } from '../../lib/announcement';
 import type { AnnouncementDto } from '../../lib/announcement';
-
-type Tab = 'inventory' | 'clearance' | 'evaluation' | 'announcements';
-type ClearanceStatus = 'In Progress' | 'Completed';
-type ReturnReviewAction = 'approve' | 'reject';
-
-interface ClearanceChecklist {
-    laptop: boolean;
-    idCard: boolean;
-    keys: boolean;
-    documents: boolean;
-    deptClearance: boolean;
-}
-
-interface ClearanceRecord {
-    id: string;
-    employee: string;
-    empId: string;
-    department: string;
-    lastDay: string;
-    status: ClearanceStatus;
-    checklist: ClearanceChecklist;
-}
-
-const initialAssetForm = {
-    assetCode: '',
-    assetName: '',
-    category: 'IT Equipment',
-    brand: '',
-    model: '',
-    serialNumber: '',
-    purchaseDate: '',
-    status: 'Available',
-    notes: '',
-};
-
-const initialAssignForm = {
-    employeeId: '',
-    assignedDate: new Date().toISOString().slice(0, 10),
-    remarks: '',
-};
-
-const initialAnnouncementForm = {
-    title: '',
-    priority: 'Normal',
-    content: '',
-};
-
-const unwrapEmployeesResponse = (
-    response: Awaited<ReturnType<typeof getEmployees>>
-): PagedEmployeesResponse => {
-    if ('data' in response && response.data) {
-        return response.data;
-    }
-
-    return response as PagedEmployeesResponse;
-};
+import {
+    adminAssetTabs,
+    announcementStatusBadge,
+    assetStatusBadge,
+    clearanceChecklistLabels,
+    clearanceDepartments,
+    clearanceEmployees,
+    clearanceStats,
+    clearanceStatusBadge,
+    createInitialAssignForm,
+    evaluations,
+    initialAnnouncementForm,
+    initialAssetForm,
+    initialClearanceForm,
+    initialClearanceRecords,
+    priorityBadge,
+    ratingBadge,
+    returnRequestStatusBadge,
+} from '../../components/assets/assetManagementConfig';
+import {
+    formatAnnouncementDate,
+    getEmployeeName,
+    unwrapEmployeesResponse,
+} from '../../components/assets/assetManagementHelpers';
+import type {
+    AdminAssetTab,
+    ClearanceChecklist,
+    ClearanceRecord,
+    ReturnReviewAction,
+} from '../../components/assets/assetManagementTypes';
 
 const AssetManagement = () => {
-    const [activeTab, setActiveTab] = useState<Tab>('inventory');
+    const [activeTab, setActiveTab] = useState<AdminAssetTab['id']>('inventory');
     const [showAddAsset, setShowAddAsset] = useState(false);
     const [showAddAnnouncement, setShowAddAnnouncement] = useState(false);
     const [showNewClearance, setShowNewClearance] = useState(false);
@@ -92,15 +66,10 @@ const AssetManagement = () => {
     const [returnReviewAction, setReturnReviewAction] = useState<ReturnReviewAction>('approve');
     const [returnReviewRemarks, setReturnReviewRemarks] = useState('');
     const [assetForm, setAssetForm] = useState(initialAssetForm);
-    const [assignForm, setAssignForm] = useState(initialAssignForm);
+    const [assignForm, setAssignForm] = useState(createInitialAssignForm);
     const [announcementForm, setAnnouncementForm] = useState(initialAnnouncementForm);
 
-    const [clearanceForm, setClearanceForm] = useState({
-        employee: '',
-        department: '',
-        lastDay: '',
-        notes: '',
-    });
+    const [clearanceForm, setClearanceForm] = useState(initialClearanceForm);
 
     useEffect(() => {
         void loadAssets();
@@ -173,21 +142,6 @@ const AssetManagement = () => {
         setShowAddAnnouncement(false);
     };
 
-    const formatAnnouncementDate = (announcement: AnnouncementDto) => {
-        const value = announcement.publishedAtUtc ?? announcement.createdAtUtc;
-
-        if (!value) return 'Unpublished';
-
-        const parsed = new Date(value);
-        if (Number.isNaN(parsed.getTime())) return value;
-
-        return parsed.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-        });
-    };
-
     const handleSaveAnnouncement = async (publishImmediately: boolean) => {
         if (!announcementForm.title.trim() || !announcementForm.content.trim()) {
             alert('Please fill in the announcement title and content.');
@@ -227,15 +181,9 @@ const AssetManagement = () => {
         }
     };
 
-    const getEmployeeName = (employee: EmployeeDto) => {
-        return [employee.firstName, employee.middleName, employee.lastName]
-            .filter(Boolean)
-            .join(' ');
-    };
-
     const openAssignAssetModal = (asset: AssetDto) => {
         setSelectedAsset(asset);
-        setAssignForm(initialAssignForm);
+        setAssignForm(createInitialAssignForm());
         setShowAssignAsset(true);
     };
 
@@ -331,7 +279,7 @@ const AssetManagement = () => {
                 remarks: assignForm.remarks.trim() || null,
             });
 
-            setAssignForm(initialAssignForm);
+            setAssignForm(createInitialAssignForm());
             setSelectedAsset(null);
             setShowAssignAsset(false);
             await loadAssets();
@@ -342,13 +290,6 @@ const AssetManagement = () => {
         }
     };
 
-    const tabs = [
-        { id: 'inventory' as Tab, label: 'Laptop Monitoring', icon: Laptop },
-        { id: 'clearance' as Tab, label: 'Clearance & Exit', icon: ClipboardCheck },
-        { id: 'evaluation' as Tab, label: 'Performance Evaluation', icon: Star },
-        { id: 'announcements' as Tab, label: 'Announcement Board', icon: Megaphone },
-    ];
-
     const statCards = [
         { label: 'Total Assets', value: assets.length, icon: Package, gradient: 'linear-gradient(135deg, #059669, #10b981)' },
         { label: 'In Use', value: assets.filter(asset => asset.status === 'In Use').length, icon: Laptop, gradient: 'linear-gradient(135deg, #2563eb, #3b82f6)' },
@@ -356,70 +297,7 @@ const AssetManagement = () => {
         { label: 'Needs Replacement', value: assets.filter(asset => asset.status === 'Needs Replacement').length, icon: AlertTriangle, gradient: 'linear-gradient(135deg, #dc2626, #ef4444)' },
     ];
 
-    const clearanceStats = [
-        { label: 'In Progress', value: 3, icon: Clock, gradient: 'linear-gradient(135deg, #d97706, #f59e0b)' },
-        { label: 'Completed', value: 15, icon: CheckCircle, gradient: 'linear-gradient(135deg, #059669, #10b981)' },
-        { label: 'This Month', value: 5, icon: Calendar, gradient: 'linear-gradient(135deg, #2563eb, #3b82f6)' },
-    ];
-
-    const statusBadge: Record<string, string> = {
-        'In Use': 'badge-success',
-        Available: 'badge-info',
-        Maintenance: 'badge-warning',
-        'Under Maintenance': 'badge-warning',
-        'Needs Replacement': 'badge-danger',
-        Disposed: 'badge-neutral',
-        Excellent: 'badge-success',
-        Good: 'badge-info',
-        'Needs Improvement': 'badge-warning',
-        Published: 'badge-success',
-        Draft: 'badge-neutral',
-        'In Progress': 'badge-warning',
-        Completed: 'badge-success',
-        Pending: 'badge-warning',
-        Approved: 'badge-success',
-        Rejected: 'badge-danger',
-    };
-
-    const priorityBadge: Record<string, string> = {
-        Normal: 'badge-neutral',
-        Important: 'badge-warning',
-        Urgent: 'badge-danger',
-    };
-
-    const evaluations = [
-        { employee: 'Dela Cruz, Juan', period: 'Q4 2025', reviewer: 'Admin Manager', score: '4.5/5.0', rating: 'Excellent', status: 'Excellent' },
-        { employee: 'Santos, Maria', period: 'Q4 2025', reviewer: 'Admin Manager', score: '4.0/5.0', rating: 'Good', status: 'Good' },
-        { employee: 'Reyes, Jose', period: 'Q4 2025', reviewer: 'Admin Manager', score: '3.2/5.0', rating: 'Needs Improvement', status: 'Needs Improvement' },
-    ];
-
-    const [clearanceRecords, setClearanceRecords] = useState<ClearanceRecord[]>([
-        {
-            id: 'CLR-001',
-            employee: 'Roberto Gomez',
-            empId: 'EMP-025',
-            department: 'Sales',
-            lastDay: '2026-03-15',
-            status: 'In Progress',
-            checklist: { laptop: true, idCard: true, keys: false, documents: true, deptClearance: false },
-        },
-        {
-            id: 'CLR-002',
-            employee: 'Ana Reyes',
-            empId: 'EMP-018',
-            department: 'Marketing',
-            lastDay: '2026-02-20',
-            status: 'Completed',
-            checklist: { laptop: true, idCard: true, keys: true, documents: true, deptClearance: true },
-        },
-    ]);
-
-    const employees = [
-        'Dela Cruz, Juan', 'Santos, Maria', 'Reyes, Jose', 'Garcia, Ana', 'Fernandez, Rosa',
-        'Roberto Gomez', 'Ana Reyes', 'Carlos Mendoza', 'Lisa Tan',
-    ];
-
-    const departments = ['Administration', 'Sales', 'Marketing', 'IT', 'Finance', 'HR'];
+    const [clearanceRecords, setClearanceRecords] = useState<ClearanceRecord[]>(initialClearanceRecords);
 
     const toggleChecklistItem = (recordId: string, item: keyof ClearanceChecklist) => {
         setClearanceRecords(prev => prev.map(r => {
@@ -445,17 +323,9 @@ const AssetManagement = () => {
             checklist: { laptop: false, idCard: false, keys: false, documents: false, deptClearance: false },
         };
         setClearanceRecords(prev => [newRecord, ...prev]);
-        setClearanceForm({ employee: '', department: '', lastDay: '', notes: '' });
+        setClearanceForm(initialClearanceForm);
         setShowNewClearance(false);
     };
-
-    const checklistLabels: { key: keyof ClearanceChecklist; label: string }[] = [
-        { key: 'laptop', label: 'Laptop' },
-        { key: 'idCard', label: 'ID Card' },
-        { key: 'keys', label: 'Keys' },
-        { key: 'documents', label: 'Documents' },
-        { key: 'deptClearance', label: 'Dept. Clearance' },
-    ];
 
     const currentStats = activeTab === 'clearance' ? clearanceStats : statCards;
 
@@ -483,7 +353,7 @@ const AssetManagement = () => {
             <div className="pro-card animate-fade-in-up" style={{ animationDelay: '0.4s', opacity: 0 }}>
                 <div className="px-6 pt-4">
                     <div className="pro-tabs">
-                        {tabs.map(tab => (
+                        {adminAssetTabs.map(tab => (
                             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                                 className={`pro-tab flex items-center gap-2 ${activeTab === tab.id ? 'active' : ''}`}>
                                 <tab.icon className="w-4 h-4" />
@@ -530,7 +400,7 @@ const AssetManagement = () => {
                                                     <td>{a.category}</td>
                                                     <td>{a.assignedEmployeeName || '-'}</td>
                                                     <td>{a.purchaseDate || '-'}</td>
-                                                    <td><span className={`badge ${statusBadge[a.status] ?? 'badge-neutral'}`}><span className="badge-dot" />{a.status}</span></td>
+                                                    <td><span className={`badge ${assetStatusBadge[a.status] ?? 'badge-neutral'}`}><span className="badge-dot" />{a.status}</span></td>
                                                     <td>
                                                         <button
                                                             type="button"
@@ -604,7 +474,7 @@ const AssetManagement = () => {
                                                             </p>
                                                         )}
                                                     </td>
-                                                    <td><span className={`badge ${statusBadge[request.status] ?? 'badge-neutral'}`}><span className="badge-dot" />{request.status}</span></td>
+                                                    <td><span className={`badge ${returnRequestStatusBadge[request.status] ?? 'badge-neutral'}`}><span className="badge-dot" />{request.status}</span></td>
                                                     <td>{request.reviewedByUserName || '-'}</td>
                                                     <td>
                                                         {request.status === 'Pending' ? (
@@ -664,13 +534,13 @@ const AssetManagement = () => {
                                                     {record.empId} • {record.department} • Last Day: {record.lastDay}
                                                 </p>
                                             </div>
-                                            <span className={`badge ${statusBadge[record.status]}`}>
+                                            <span className={`badge ${clearanceStatusBadge[record.status]}`}>
                                                 <span className="badge-dot" />{record.status}
                                             </span>
                                         </div>
                                         <p className="text-xs font-bold text-gray-600 mb-3 uppercase tracking-wide">Clearance Checklist</p>
                                         <div className="flex flex-wrap gap-x-8 gap-y-2">
-                                            {checklistLabels.map(item => (
+                                            {clearanceChecklistLabels.map(item => (
                                                 <button
                                                     key={item.key}
                                                     onClick={() => toggleChecklistItem(record.id, item.key)}
@@ -708,7 +578,7 @@ const AssetManagement = () => {
                                                 <td>{e.period}</td>
                                                 <td>{e.reviewer}</td>
                                                 <td className="!font-bold">{e.score}</td>
-                                                <td><span className={`badge ${statusBadge[e.status]}`}><span className="badge-dot" />{e.rating}</span></td>
+                                                <td><span className={`badge ${ratingBadge[e.status]}`}><span className="badge-dot" />{e.rating}</span></td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -740,12 +610,12 @@ const AssetManagement = () => {
                                             <h4 className="text-sm font-bold text-gray-800">{a.title}</h4>
                                             <div className="flex gap-2">
                                                 <span className={`badge text-[10px] ${priorityBadge[a.priority] ?? 'badge-neutral'}`}><span className="badge-dot" />{a.priority}</span>
-                                                <span className={`badge text-[10px] ${statusBadge[a.status] ?? 'badge-neutral'}`}><span className="badge-dot" />{a.status}</span>
+                                                <span className={`badge text-[10px] ${announcementStatusBadge[a.status] ?? 'badge-neutral'}`}><span className="badge-dot" />{a.status}</span>
                                             </div>
                                         </div>
                                         <p className="text-sm text-gray-600 mb-2">{a.content}</p>
                                         <div className="flex items-center justify-between gap-3">
-                                            <p className="text-xs text-gray-400">{formatAnnouncementDate(a)} • {a.createdByUserName ?? 'System'}</p>
+                                            <p className="text-xs text-gray-400">{formatAnnouncementDate(a.publishedAtUtc ?? a.createdAtUtc)} • {a.createdByUserName ?? 'System'}</p>
                                             {a.status !== 'Published' && (
                                                 <button
                                                     type="button"
@@ -1047,7 +917,7 @@ const AssetManagement = () => {
                                     onChange={e => setClearanceForm({ ...clearanceForm, employee: e.target.value })}
                                 >
                                     <option value="">-- Choose Employee --</option>
-                                    {employees.map(emp => (
+                                    {clearanceEmployees.map(emp => (
                                         <option key={emp} value={emp}>{emp}</option>
                                     ))}
                                 </select>
@@ -1060,7 +930,7 @@ const AssetManagement = () => {
                                     onChange={e => setClearanceForm({ ...clearanceForm, department: e.target.value })}
                                 >
                                     <option value="">-- Choose Department --</option>
-                                    {departments.map(dept => (
+                                    {clearanceDepartments.map(dept => (
                                         <option key={dept} value={dept}>{dept}</option>
                                     ))}
                                 </select>

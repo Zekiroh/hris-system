@@ -1,0 +1,188 @@
+import { Laptop, ClipboardCheck, Star, Megaphone, Clock, CheckCircle, Calendar } from 'lucide-react';
+import type {
+    AdminAssetTab,
+    AssetFormState,
+    AssignAssetFormState,
+    AnnouncementFormState,
+    ChecklistItem,
+    ClearanceFormState,
+    ClearanceRecord,
+    ClearanceChecklist,
+    EvaluationRecord,
+    UserAssetTab,
+} from './assetManagementTypes';
+
+export const initialAssetForm: AssetFormState = {
+    assetCode: '',
+    assetName: '',
+    category: 'IT Equipment',
+    brand: '',
+    model: '',
+    serialNumber: '',
+    purchaseDate: '',
+    status: 'Available',
+    notes: '',
+};
+
+export const createInitialAssignForm = (): AssignAssetFormState => ({
+    employeeId: '',
+    assignedDate: new Date().toISOString().slice(0, 10),
+    remarks: '',
+});
+
+export const initialAnnouncementForm: AnnouncementFormState = {
+    title: '',
+    priority: 'Normal',
+    content: '',
+};
+
+export const initialClearanceForm: ClearanceFormState = {
+    employee: '',
+    department: '',
+    lastDay: '',
+    notes: '',
+};
+
+export const adminAssetTabs: AdminAssetTab[] = [
+    { id: 'inventory', label: 'Laptop Monitoring', icon: Laptop },
+    { id: 'clearance', label: 'Clearance & Exit', icon: ClipboardCheck },
+    { id: 'evaluation', label: 'Performance Evaluation', icon: Star },
+    { id: 'announcements', label: 'Announcement Board', icon: Megaphone },
+];
+
+export const userAssetTabs: UserAssetTab[] = [
+    { id: 'assets', label: 'My Assets', icon: Laptop },
+    { id: 'clearance', label: 'My Clearance', icon: ClipboardCheck },
+    { id: 'evaluation', label: 'My Evaluation', icon: Star },
+    { id: 'announcements', label: 'Announcements', icon: Megaphone },
+];
+
+export const assetStatusBadge: Record<string, string> = {
+    'In Use': 'badge-success',
+    Available: 'badge-info',
+    Maintenance: 'badge-warning',
+    'Under Maintenance': 'badge-warning',
+    'Needs Replacement': 'badge-danger',
+    Disposed: 'badge-neutral',
+};
+
+export const clearanceStatusBadge: Record<string, string> = {
+    'In Progress': 'badge-warning',
+    Completed: 'badge-success',
+};
+
+export const announcementStatusBadge: Record<string, string> = {
+    Published: 'badge-success',
+    Draft: 'badge-neutral',
+};
+
+export const returnRequestStatusBadge: Record<string, string> = {
+    Pending: 'badge-warning',
+    Approved: 'badge-success',
+    Rejected: 'badge-danger',
+};
+
+export const ratingBadge: Record<string, string> = {
+    Excellent: 'badge-success',
+    Good: 'badge-info',
+    'Needs Improvement': 'badge-warning',
+};
+
+export const priorityBadge: Record<string, string> = {
+    Normal: 'badge-neutral',
+    Important: 'badge-warning',
+    Urgent: 'badge-danger',
+};
+
+export const clearanceStats = [
+    { label: 'In Progress', value: 3, icon: Clock, gradient: 'linear-gradient(135deg, #d97706, #f59e0b)' },
+    { label: 'Completed', value: 15, icon: CheckCircle, gradient: 'linear-gradient(135deg, #059669, #10b981)' },
+    { label: 'This Month', value: 5, icon: Calendar, gradient: 'linear-gradient(135deg, #2563eb, #3b82f6)' },
+];
+
+export const evaluations = [
+    { employee: 'Dela Cruz, Juan', period: 'Q4 2025', reviewer: 'Admin Manager', score: '4.5/5.0', rating: 'Excellent', status: 'Excellent' },
+    { employee: 'Santos, Maria', period: 'Q4 2025', reviewer: 'Admin Manager', score: '4.0/5.0', rating: 'Good', status: 'Good' },
+    { employee: 'Reyes, Jose', period: 'Q4 2025', reviewer: 'Admin Manager', score: '3.2/5.0', rating: 'Needs Improvement', status: 'Needs Improvement' },
+];
+
+export const userEvaluations: EvaluationRecord[] = [
+    {
+        period: 'Q4 2025',
+        reviewer: 'Admin Manager',
+        score: 4.5,
+        maxScore: 5.0,
+        rating: 'Excellent',
+        remarks:
+            'Dosan consistently delivers high-quality work and demonstrates excellent teamwork. Proactive in problem-solving and a reliable asset to the department.',
+        date: '2026-01-10',
+    },
+    {
+        period: 'Q3 2025',
+        reviewer: 'Admin Manager',
+        score: 4.2,
+        maxScore: 5.0,
+        rating: 'Good',
+        remarks:
+            'Strong performance this quarter with consistent output. Minor areas for improvement in documentation practices.',
+        date: '2025-10-08',
+    },
+    {
+        period: 'Q2 2025',
+        reviewer: 'Admin Manager',
+        score: 3.9,
+        maxScore: 5.0,
+        rating: 'Good',
+        remarks:
+            'Met expectations across most KPIs. Showed improvement in communication and collaborative tasks.',
+        date: '2025-07-12',
+    },
+];
+
+export const initialClearanceRecords: ClearanceRecord[] = [
+    {
+        id: 'CLR-001',
+        employee: 'Roberto Gomez',
+        empId: 'EMP-025',
+        department: 'Sales',
+        lastDay: '2026-03-15',
+        status: 'In Progress',
+        checklist: { laptop: true, idCard: true, keys: false, documents: true, deptClearance: false },
+    },
+    {
+        id: 'CLR-002',
+        employee: 'Ana Reyes',
+        empId: 'EMP-018',
+        department: 'Marketing',
+        lastDay: '2026-02-20',
+        status: 'Completed',
+        checklist: { laptop: true, idCard: true, keys: true, documents: true, deptClearance: true },
+    },
+];
+
+export const clearanceEmployees = [
+    'Dela Cruz, Juan', 'Santos, Maria', 'Reyes, Jose', 'Garcia, Ana', 'Fernandez, Rosa',
+    'Roberto Gomez', 'Ana Reyes', 'Carlos Mendoza', 'Lisa Tan',
+];
+
+export const clearanceDepartments = ['Administration', 'Sales', 'Marketing', 'IT', 'Finance', 'HR'];
+
+export const clearanceChecklistLabels: { key: keyof ClearanceChecklist; label: string }[] = [
+    { key: 'laptop', label: 'Laptop' },
+    { key: 'idCard', label: 'ID Card' },
+    { key: 'keys', label: 'Keys' },
+    { key: 'documents', label: 'Documents' },
+    { key: 'deptClearance', label: 'Dept. Clearance' },
+];
+
+export const userClearanceChecklist: ChecklistItem[] = [
+    { key: 'laptop', label: 'Laptop Returned', done: true },
+    { key: 'idCard', label: 'ID Card Returned', done: true },
+    { key: 'keys', label: 'Keys Returned', done: false },
+    { key: 'documents', label: 'Documents Submitted', done: true },
+    {
+        key: 'deptClearance',
+        label: 'Department Clearance Approved',
+        done: false,
+    },
+];
