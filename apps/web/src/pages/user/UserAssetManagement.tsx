@@ -25,20 +25,15 @@ import {
   userClearanceChecklist,
   userEvaluations,
 } from "../../components/assets/assetManagementConfig";
-import {
-  getReturnRequestForAsset,
-} from "../../components/assets/assetManagementHelpers";
 import type {
   ChecklistItem,
   UserAssetTab,
 } from "../../components/assets/assetManagementTypes";
 import AssetStatCard from "../../components/assets/AssetStatCard";
-import UserAnnouncementCard from "../../components/assets/UserAnnouncementCard";
-import UserAssignedAssetCard from "../../components/assets/UserAssignedAssetCard";
-import UserClearanceChecklistItem from "../../components/assets/UserClearanceChecklistItem";
-import UserClearanceProgressCard from "../../components/assets/UserClearanceProgressCard";
-import UserEvaluationHistoryCard from "../../components/assets/UserEvaluationHistoryCard";
-import UserEvaluationSummaryCard from "../../components/assets/UserEvaluationSummaryCard";
+import UserAnnouncementsTab from "../../components/assets/tabs/UserAnnouncementsTab";
+import UserAssetsTab from "../../components/assets/tabs/UserAssetsTab";
+import UserClearanceTab from "../../components/assets/tabs/UserClearanceTab";
+import UserEvaluationTab from "../../components/assets/tabs/UserEvaluationTab";
 
 const UserAssetManagement = () => {
   const [activeTab, setActiveTab] = useState<UserAssetTab["id"]>("assets");
@@ -280,157 +275,46 @@ const UserAssetManagement = () => {
         <div className="p-6">
           {/* ── MY ASSETS ── */}
           {activeTab === "assets" && (
-            <div className="space-y-5">
-              <h3 className="text-base font-bold text-gray-800">
-                Assigned Equipment
-              </h3>
-
-              {assetError && (
-                <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
-                  {assetError}
-                </div>
-              )}
-
-              {loadingAssets && (
-                <div className="text-center py-8 text-gray-400 text-sm italic">
-                  Loading assigned assets...
-                </div>
-              )}
-
-              {!loadingAssets && myAssets.length === 0 && (
-                <div className="text-center py-8 text-gray-400 text-sm italic">
-                  No assigned assets found.
-                </div>
-              )}
-
-              {!loadingAssets && myAssets.length > 0 && (
-                <div className="space-y-4">
-                  {myAssets.map((asset) => {
-                    const returnRequest = getReturnRequestForAsset(myReturnRequests, asset.id);
-                    const isReturnLocked =
-                      returnRequest?.status === "Pending" ||
-                      returnRequest?.status === "Approved";
-
-                    return (
-                      <UserAssignedAssetCard
-                        key={asset.id}
-                        asset={asset}
-                        returnRequest={returnRequest}
-                        isReturnLocked={isReturnLocked}
-                        onReportIssue={() => setReportOpen(true)}
-                        onRequestReturn={openReturnModal}
-                      />
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            <UserAssetsTab
+              myAssets={myAssets}
+              myReturnRequests={myReturnRequests}
+              loadingAssets={loadingAssets}
+              assetError={assetError}
+              onReportIssue={() => setReportOpen(true)}
+              onRequestReturn={openReturnModal}
+            />
           )}
 
           {/* ── MY CLEARANCE ── */}
           {activeTab === "clearance" && (
-            <div className="space-y-5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-gray-800">
-                  My Clearance Status
-                </h3>
-                <span
-                  className={`badge ${clearanceStatus === "Completed" ? "badge-success" : "badge-warning"}`}
-                >
-                  <span className="badge-dot" />
-                  {clearanceStatus}
-                </span>
-              </div>
-
-              {/* Progress Bar */}
-              <UserClearanceProgressCard
-                completedCount={completedCount}
-                totalCount={checklist.length}
-                progressPct={progressPct}
-              />
-
-              {/* Checklist */}
-              <div className="space-y-2">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
-                  Clearance Checklist
-                </p>
-                {checklist.map((item) => (
-                  <UserClearanceChecklistItem key={item.key} item={item} />
-                ))}
-              </div>
-            </div>
+            <UserClearanceTab
+              checklist={checklist}
+              completedCount={completedCount}
+              progressPct={progressPct}
+              clearanceStatus={clearanceStatus}
+            />
           )}
 
           {/* ── MY EVALUATION ── */}
           {activeTab === "evaluation" && (
-            <div className="space-y-5">
-              <h3 className="text-base font-bold text-gray-800">
-                Performance Evaluation
-              </h3>
-
-              {/* Latest evaluation */}
-              <UserEvaluationSummaryCard evaluation={evaluations[0]} />
-
-              {/* History */}
-              <div>
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
-                  Evaluation History
-                </p>
-                <div className="space-y-2">
-                  {evaluations.map((ev, i) => (
-                    <UserEvaluationHistoryCard
-                      key={i}
-                      evaluation={ev}
-                      index={i}
-                      isExpanded={expandedEval === i}
-                      onToggle={(index) =>
-                        setExpandedEval(expandedEval === index ? null : index)
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
+            <UserEvaluationTab
+              evaluations={evaluations}
+              expandedEval={expandedEval}
+              onToggleEvaluation={(index) =>
+                setExpandedEval(expandedEval === index ? null : index)
+              }
+            />
           )}
 
           {/* ── ANNOUNCEMENTS ── */}
           {activeTab === "announcements" && (
-            <div className="space-y-5">
-              <h3 className="text-base font-bold text-gray-800">
-                Company Announcements
-              </h3>
-
-              {announcementError && (
-                <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
-                  {announcementError}
-                </div>
-              )}
-
-              {loadingAnnouncements && (
-                <div className="text-center py-8 text-gray-400 text-sm italic">
-                  Loading company announcements...
-                </div>
-              )}
-
-              {!loadingAnnouncements && announcements.length === 0 && (
-                <div className="text-center py-8 text-gray-400 text-sm italic">
-                  No company announcements yet.
-                </div>
-              )}
-
-              {!loadingAnnouncements && announcements.length > 0 && (
-                <div className="space-y-4">
-                  {announcements.map((a) => (
-                    <UserAnnouncementCard
-                      key={a.id}
-                      announcement={a}
-                      readingAnnouncementId={readingAnnouncementId}
-                      onMarkAsRead={handleMarkAnnouncementAsRead}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+            <UserAnnouncementsTab
+              announcements={announcements}
+              loadingAnnouncements={loadingAnnouncements}
+              announcementError={announcementError}
+              readingAnnouncementId={readingAnnouncementId}
+              onMarkAsRead={handleMarkAnnouncementAsRead}
+            />
           )}
         </div>
       </div>
