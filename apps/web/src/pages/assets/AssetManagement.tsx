@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import type { FormEvent } from 'react';
 import { Package, Laptop, Wrench, AlertTriangle } from 'lucide-react';
-import { approveReturnRequest, assignAsset, createAsset, rejectReturnRequest } from '../../lib/assets';
-import type { AssetDto, AssetReturnRequestDto } from '../../lib/assets';
+import { approveReturnRequest, rejectReturnRequest } from '../../lib/assets';
+import type { AssetReturnRequestDto } from '../../lib/assets';
 import { createAnnouncement, publishAnnouncement } from '../../lib/announcement';
 import AssetStatCard from '../../components/assets/AssetStatCard';
 import AddAnnouncementModal from '../../components/assets/modals/AddAnnouncementModal';
@@ -19,10 +18,8 @@ import {
     clearanceDepartments,
     clearanceEmployees,
     clearanceStats,
-    createInitialAssignForm,
     evaluations,
     initialAnnouncementForm,
-    initialAssetForm,
     initialClearanceForm,
     initialClearanceRecords,
 } from '../../components/assets/assetManagementConfig';
@@ -36,14 +33,14 @@ import type {
     ReturnReviewAction,
 } from '../../components/assets/assetManagementTypes';
 import { useAdminAssetData } from '../../components/assets/hooks/useAdminAssetData';
+import { useAssetAssignmentWorkflow } from '../../components/assets/hooks/useAssetAssignmentWorkflow';
+import { useAssetCreationWorkflow } from '../../components/assets/hooks/useAssetCreationWorkflow';
 
 const AssetManagement = () => {
     const [activeTab, setActiveTab] = useState<AdminAssetTab['id']>('inventory');
     const [showAddAsset, setShowAddAsset] = useState(false);
     const [showAddAnnouncement, setShowAddAnnouncement] = useState(false);
     const [showNewClearance, setShowNewClearance] = useState(false);
-    const [showAssignAsset, setShowAssignAsset] = useState(false);
-    const [selectedAsset, setSelectedAsset] = useState<AssetDto | null>(null);
     const {
         assets,
         returnRequests,
@@ -61,16 +58,31 @@ const AssetManagement = () => {
         loadReturnRequests,
         loadAnnouncements,
     } = useAdminAssetData();
-    const [isSavingAsset, setIsSavingAsset] = useState(false);
-    const [isAssigningAsset, setIsAssigningAsset] = useState(false);
+    const {
+        assetForm,
+        setAssetForm,
+        isSavingAsset,
+        handleAddAsset,
+    } = useAssetCreationWorkflow({
+        loadAssets,
+        closeAddAssetModal: () => setShowAddAsset(false),
+    });
+    const {
+        showAssignAsset,
+        selectedAsset,
+        assignForm,
+        setAssignForm,
+        isAssigningAsset,
+        openAssignAssetModal,
+        closeAssignAssetModal,
+        handleAssignAsset,
+    } = useAssetAssignmentWorkflow({ loadAssets });
     const [isSavingAnnouncement, setIsSavingAnnouncement] = useState(false);
     const [publishingAnnouncementId, setPublishingAnnouncementId] = useState<string | null>(null);
     const [isReviewingReturnRequest, setIsReviewingReturnRequest] = useState(false);
     const [selectedReturnRequest, setSelectedReturnRequest] = useState<AssetReturnRequestDto | null>(null);
     const [returnReviewAction, setReturnReviewAction] = useState<ReturnReviewAction>('approve');
     const [returnReviewRemarks, setReturnReviewRemarks] = useState('');
-    const [assetForm, setAssetForm] = useState(initialAssetForm);
-    const [assignForm, setAssignForm] = useState(createInitialAssignForm);
     const [announcementForm, setAnnouncementForm] = useState(initialAnnouncementForm);
 
     const [clearanceForm, setClearanceForm] = useState(initialClearanceForm);
@@ -121,12 +133,6 @@ const AssetManagement = () => {
         }
     };
 
-    const openAssignAssetModal = (asset: AssetDto) => {
-        setSelectedAsset(asset);
-        setAssignForm(createInitialAssignForm());
-        setShowAssignAsset(true);
-    };
-
     const openReturnReviewModal = (request: AssetReturnRequestDto, action: ReturnReviewAction) => {
         setSelectedReturnRequest(request);
         setReturnReviewAction(action);
@@ -164,69 +170,6 @@ const AssetManagement = () => {
             alert(error instanceof Error ? error.message : 'Unable to review return request.');
         } finally {
             setIsReviewingReturnRequest(false);
-        }
-    };
-
-    const handleAddAsset = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-
-        if (!assetForm.assetCode.trim() || !assetForm.assetName.trim() || !assetForm.category.trim()) {
-            alert('Please fill in all required asset fields.');
-            return;
-        }
-
-        setIsSavingAsset(true);
-
-        try {
-            await createAsset({
-                assetCode: assetForm.assetCode.trim(),
-                assetName: assetForm.assetName.trim(),
-                category: assetForm.category.trim(),
-                brand: assetForm.brand.trim() || null,
-                model: assetForm.model.trim() || null,
-                serialNumber: assetForm.serialNumber.trim() || null,
-                purchaseDate: assetForm.purchaseDate || null,
-                status: assetForm.status || null,
-                notes: assetForm.notes.trim() || null,
-            });
-
-            setAssetForm(initialAssetForm);
-            setShowAddAsset(false);
-            await loadAssets();
-        } catch (error) {
-            alert(error instanceof Error ? error.message : 'Unable to add asset.');
-        } finally {
-            setIsSavingAsset(false);
-        }
-    };
-
-    const handleAssignAsset = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-
-        if (!selectedAsset) return;
-
-        if (!assignForm.employeeId) {
-            alert('Please select an employee.');
-            return;
-        }
-
-        setIsAssigningAsset(true);
-
-        try {
-            await assignAsset(selectedAsset.id, {
-                employeeId: assignForm.employeeId,
-                assignedDate: assignForm.assignedDate || null,
-                remarks: assignForm.remarks.trim() || null,
-            });
-
-            setAssignForm(createInitialAssignForm());
-            setSelectedAsset(null);
-            setShowAssignAsset(false);
-            await loadAssets();
-        } catch (error) {
-            alert(error instanceof Error ? error.message : 'Unable to assign asset.');
-        } finally {
-            setIsAssigningAsset(false);
         }
     };
 
@@ -362,7 +305,7 @@ const AssetManagement = () => {
                     activeEmployees={activeEmployees}
                     isLoadingEmployees={isLoadingEmployees}
                     isAssigningAsset={isAssigningAsset}
-                    onClose={() => setShowAssignAsset(false)}
+                    onClose={closeAssignAssetModal}
                     onSubmit={handleAssignAsset}
                     onFormChange={(field, value) =>
                         setAssignForm(current => ({ ...current, [field]: value }))
