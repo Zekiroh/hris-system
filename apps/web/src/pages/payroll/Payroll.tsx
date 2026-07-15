@@ -3,7 +3,6 @@ import {
     DollarSign,
     TrendingDown,
     Percent,
-    X,
     Download,
     Eye,
 } from 'lucide-react';
@@ -32,8 +31,12 @@ import {
 import type { CompensationFormState, PayrollRecordRow, Tab } from './config/types';
 import CompensationModal from './components/CompensationModal';
 import CompensationTab from './components/CompensationTab';
+import ComputeThirteenthMonthModal from './components/ComputeThirteenthMonthModal';
+import GeneratePayslipsModal from './components/GeneratePayslipsModal';
 import PayrollDetailsModal from './components/PayrollDetailsModal';
 import PayrollRecordsTab from './components/PayrollRecordsTab';
+import ProcessPayrollModal from './components/ProcessPayrollModal';
+import RemittanceModal from './components/RemittanceModal';
 
 const Payroll = () => {
     const [activeTab, setActiveTab] = useState<Tab>('records');
@@ -505,24 +508,16 @@ const Payroll = () => {
             </div>
 
             {/* Process Payroll Modal */}
-            {showProcessModal && (
-                <div className="pro-modal-overlay">
-                    <div className="pro-modal max-w-lg">
-                        <div className="pro-modal-header"><h3>Process Payroll</h3><button onClick={() => setShowProcessModal(false)} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button></div>
-                        <div className="pro-modal-body space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div><label className="pro-label">Start Date</label><input type="date" value={processStartDate} onChange={(event) => setProcessStartDate(event.target.value)} className="pro-input" /></div>
-                                <div><label className="pro-label">End Date</label><input type="date" value={processEndDate} onChange={(event) => setProcessEndDate(event.target.value)} className="pro-input" /></div>
-                            </div>
-                            <div className="bg-blue-50 p-4 rounded-xl">
-                                <p className="text-gray-600">Employees to process: <strong>Based on active compensation</strong></p>
-                                <p className="text-gray-600">Includes: <strong>Basic pay, approved overtime, late/undertime deductions, and absence deductions</strong></p>
-                            </div>
-                        </div>
-                        <div className="pro-modal-footer"><button onClick={() => setShowProcessModal(false)} className="btn btn-secondary">Cancel</button><button onClick={handleProcessPayroll} disabled={processingPayroll} className="btn btn-primary">{processingPayroll ? 'Processing...' : 'Process Payroll'}</button></div>
-                    </div>
-                </div>
-            )}
+            <ProcessPayrollModal
+                open={showProcessModal}
+                processStartDate={processStartDate}
+                processEndDate={processEndDate}
+                processingPayroll={processingPayroll}
+                onStartDateChange={setProcessStartDate}
+                onEndDateChange={setProcessEndDate}
+                onClose={() => setShowProcessModal(false)}
+                onProcess={handleProcessPayroll}
+            />
 
             {/* Compensation Modal */}
             <CompensationModal
@@ -548,49 +543,23 @@ const Payroll = () => {
             />
 
             {/* Remittance Modal */}
-            {showRemittanceModal && (
-                <div className="pro-modal-overlay">
-                    <div className="pro-modal max-w-md">
-                        <div className="pro-modal-header"><h3>Generate Remittance Report</h3><button onClick={() => setShowRemittanceModal(false)} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button></div>
-                        <div className="pro-modal-body space-y-4">
-                            <p className="text-sm text-gray-600">Government remittance reports will be available after the Government Compliance module is implemented.</p>
-                        </div>
-                        <div className="pro-modal-footer"><button onClick={() => setShowRemittanceModal(false)} className="btn btn-primary">Close</button></div>
-                    </div>
-                </div>
-            )}
+            <RemittanceModal
+                open={showRemittanceModal}
+                onClose={() => setShowRemittanceModal(false)}
+            />
 
             {/* Compute 13th Modal */}
-            {showComputeModal && (
-                <div className="pro-modal-overlay">
-                    <div className="pro-modal max-w-md">
-                        <div className="pro-modal-header"><h3>Compute 13th Month Pay</h3><button onClick={() => setShowComputeModal(false)} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button></div>
-                        <div className="pro-modal-body space-y-4">
-                            <p className="text-sm text-gray-600">13th month computation is not available yet. This will be enabled once the backend service is implemented.</p>
-                            <div className="bg-orange-50 p-4 rounded-xl">
-                                <p className="text-orange-700 text-sm font-medium">Current payroll scope: compensation, payroll processing, payroll records, and payslips.</p>
-                            </div>
-                        </div>
-                        <div className="pro-modal-footer"><button onClick={() => setShowComputeModal(false)} className="btn btn-primary">Close</button></div>
-                    </div>
-                </div>
-            )}
+            <ComputeThirteenthMonthModal
+                open={showComputeModal}
+                onClose={() => setShowComputeModal(false)}
+            />
 
             {/* Generate Payslips Modal */}
-            {showGeneratePayslips && (
-                <div className="pro-modal-overlay">
-                    <div className="pro-modal max-w-md">
-                        <div className="pro-modal-header"><h3>Generate All Payslips</h3><button onClick={() => setShowGeneratePayslips(false)} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button></div>
-                        <div className="pro-modal-body space-y-4">
-                            <p className="text-sm text-gray-600">Payslips are generated automatically from processed payroll records.</p>
-                            <div className="bg-emerald-50 p-4 rounded-xl">
-                                <p className="text-sm text-gray-500">{latestPayrollRecords.length} payslips available for the latest payroll period.</p>
-                            </div>
-                        </div>
-                        <div className="pro-modal-footer"><button onClick={() => setShowGeneratePayslips(false)} className="btn btn-primary">Close</button></div>
-                    </div>
-                </div>
-            )}
+            <GeneratePayslipsModal
+                open={showGeneratePayslips}
+                payslipCount={latestPayrollRecords.length}
+                onClose={() => setShowGeneratePayslips(false)}
+            />
 
             {/* Payslip Preview Modal */}
             {showPayslipPreview && selectedPayslip && (
