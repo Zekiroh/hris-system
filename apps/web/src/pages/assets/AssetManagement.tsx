@@ -1,33 +1,31 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Package, Laptop, Wrench, AlertTriangle, Plus, X, CheckCircle, XCircle, UserPlus } from 'lucide-react';
+import { Package, Laptop, Wrench, AlertTriangle, Plus, X } from 'lucide-react';
 import { approveReturnRequest, assignAsset, createAsset, getAssets, getReturnRequests, rejectReturnRequest } from '../../lib/assets';
 import type { AssetDto, AssetReturnRequestDto } from '../../lib/assets';
 import { getEmployees } from '../../lib/employees';
 import type { EmployeeDto } from '../../lib/employees';
 import { createAnnouncement, getAnnouncements, publishAnnouncement } from '../../lib/announcement';
 import type { AnnouncementDto } from '../../lib/announcement';
+import AdminAnnouncementCard from '../../components/assets/AdminAnnouncementCard';
+import AdminAssetInventoryTable from '../../components/assets/AdminAssetInventoryTable';
+import AdminClearanceRecordCard from '../../components/assets/AdminClearanceRecordCard';
+import AdminEvaluationTable from '../../components/assets/AdminEvaluationTable';
+import AdminReturnRequestTable from '../../components/assets/AdminReturnRequestTable';
+import AssetStatCard from '../../components/assets/AssetStatCard';
 import {
     adminAssetTabs,
-    announcementStatusBadge,
-    assetStatusBadge,
-    clearanceChecklistLabels,
     clearanceDepartments,
     clearanceEmployees,
     clearanceStats,
-    clearanceStatusBadge,
     createInitialAssignForm,
     evaluations,
     initialAnnouncementForm,
     initialAssetForm,
     initialClearanceForm,
     initialClearanceRecords,
-    priorityBadge,
-    ratingBadge,
-    returnRequestStatusBadge,
 } from '../../components/assets/assetManagementConfig';
 import {
-    formatAnnouncementDate,
     getEmployeeName,
     unwrapEmployeesResponse,
 } from '../../components/assets/assetManagementHelpers';
@@ -338,15 +336,14 @@ const AssetManagement = () => {
 
             <div className={`grid gap-4 ${activeTab === 'clearance' ? 'grid-cols-3' : 'grid-cols-2 lg:grid-cols-4'}`}>
                 {currentStats.map((card, i) => (
-                    <div key={card.label} className="stat-card animate-fade-in-up" style={{ background: card.gradient, animationDelay: `${i * 0.1}s`, opacity: 0 }}>
-                        <div className="flex items-center justify-between relative z-10">
-                            <div>
-                                <p className="stat-label">{card.label}</p>
-                                <p className="stat-value">{card.value}</p>
-                            </div>
-                            <div className="stat-icon"><card.icon className="w-5 h-5" /></div>
-                        </div>
-                    </div>
+                    <AssetStatCard
+                        key={card.label}
+                        label={card.label}
+                        value={card.value}
+                        gradient={card.gradient}
+                        icon={card.icon}
+                        index={i}
+                    />
                 ))}
             </div>
 
@@ -380,48 +377,11 @@ const AssetManagement = () => {
                                         {employeeError}
                                     </div>
                                 )}
-                                <div className="overflow-x-auto rounded-xl border border-gray-100">
-                                    <table className="pro-table">
-                                        <thead>
-                                            <tr>
-                                                {['Asset ID', 'Name', 'Category', 'Assigned To', 'Purchase Date', 'Status', 'Actions'].map(h => <th key={h}>{h}</th>)}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {isLoadingAssets && (
-                                                <tr>
-                                                    <td colSpan={7} className="text-center py-8 text-gray-400 text-sm italic">Loading assets...</td>
-                                                </tr>
-                                            )}
-                                            {!isLoadingAssets && assets.map(a => (
-                                                <tr key={a.id}>
-                                                    <td className="font-mono text-xs">{a.assetCode}</td>
-                                                    <td className="!font-medium !text-gray-800">{a.assetName}</td>
-                                                    <td>{a.category}</td>
-                                                    <td>{a.assignedEmployeeName || '-'}</td>
-                                                    <td>{a.purchaseDate || '-'}</td>
-                                                    <td><span className={`badge ${assetStatusBadge[a.status] ?? 'badge-neutral'}`}><span className="badge-dot" />{a.status}</span></td>
-                                                    <td>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => openAssignAssetModal(a)}
-                                                            disabled={a.status !== 'Available' || Boolean(a.activeAssignmentId)}
-                                                            className="btn btn-secondary flex items-center gap-1.5 text-xs !py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        >
-                                                            <UserPlus className="w-3.5 h-3.5" />
-                                                            Assign
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                            {!isLoadingAssets && assets.length === 0 && (
-                                                <tr>
-                                                    <td colSpan={7} className="text-center py-8 text-gray-400 text-sm italic">No assets found.</td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                <AdminAssetInventoryTable
+                                    assets={assets}
+                                    isLoading={isLoadingAssets}
+                                    onAssignAsset={openAssignAssetModal}
+                                />
                             </div>
 
                             <div className="space-y-5">
@@ -441,78 +401,11 @@ const AssetManagement = () => {
                                     </div>
                                 )}
 
-                                <div className="overflow-x-auto rounded-xl border border-gray-100">
-                                    <table className="pro-table">
-                                        <thead>
-                                            <tr>
-                                                {['Request ID', 'Asset', 'Employee', 'Requested Date', 'Reason', 'Status', 'Reviewed By', 'Actions'].map(h => <th key={h}>{h}</th>)}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {isLoadingReturnRequests && (
-                                                <tr>
-                                                    <td colSpan={8} className="text-center py-8 text-gray-400 text-sm italic">Loading return requests...</td>
-                                                </tr>
-                                            )}
-                                            {!isLoadingReturnRequests && returnRequests.map(request => (
-                                                <tr key={request.id}>
-                                                    <td className="font-mono text-xs">RR-{String(request.id).padStart(3, '0')}</td>
-                                                    <td>
-                                                        <div className="!font-medium !text-gray-800">{request.assetName}</div>
-                                                        <div className="text-xs text-gray-400">{request.assetCode}</div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="!font-medium !text-gray-800">{request.requestedByEmployeeName}</div>
-                                                        <div className="text-xs text-gray-400">{request.requestedByEmployeeNumber}</div>
-                                                    </td>
-                                                    <td>{request.requestedDate}</td>
-                                                    <td className="max-w-[220px]">
-                                                        <p className="truncate" title={request.reason}>{request.reason}</p>
-                                                        {request.reviewRemarks && (
-                                                            <p className="text-xs text-gray-400 truncate mt-1" title={request.reviewRemarks}>
-                                                                Review: {request.reviewRemarks}
-                                                            </p>
-                                                        )}
-                                                    </td>
-                                                    <td><span className={`badge ${returnRequestStatusBadge[request.status] ?? 'badge-neutral'}`}><span className="badge-dot" />{request.status}</span></td>
-                                                    <td>{request.reviewedByUserName || '-'}</td>
-                                                    <td>
-                                                        {request.status === 'Pending' ? (
-                                                            <div className="flex flex-wrap gap-2">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => openReturnReviewModal(request, 'approve')}
-                                                                    className="btn btn-secondary flex items-center gap-1.5 text-xs !py-1.5"
-                                                                >
-                                                                    <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
-                                                                    Approve
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => openReturnReviewModal(request, 'reject')}
-                                                                    className="btn btn-secondary flex items-center gap-1.5 text-xs !py-1.5"
-                                                                >
-                                                                    <XCircle className="w-3.5 h-3.5 text-red-400" />
-                                                                    Reject
-                                                                </button>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="badge badge-neutral">
-                                                                <span className="badge-dot" />
-                                                                Reviewed
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                            {!isLoadingReturnRequests && returnRequests.length === 0 && (
-                                                <tr>
-                                                    <td colSpan={8} className="text-center py-8 text-gray-400 text-sm italic">No return requests found.</td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                <AdminReturnRequestTable
+                                    returnRequests={returnRequests}
+                                    isLoading={isLoadingReturnRequests}
+                                    onReviewReturnRequest={openReturnReviewModal}
+                                />
                             </div>
                         </div>
                     )}
@@ -526,37 +419,11 @@ const AssetManagement = () => {
 
                             <div className="space-y-4">
                                 {clearanceRecords.map(record => (
-                                    <div key={record.id} className="pro-card !shadow-none border border-gray-100 !p-5 hover:border-emerald-200 transition-colors">
-                                        <div className="flex items-start justify-between mb-3">
-                                            <div>
-                                                <h4 className="text-sm font-bold text-gray-800">{record.employee}</h4>
-                                                <p className="text-xs text-gray-400 mt-0.5">
-                                                    {record.empId} • {record.department} • Last Day: {record.lastDay}
-                                                </p>
-                                            </div>
-                                            <span className={`badge ${clearanceStatusBadge[record.status]}`}>
-                                                <span className="badge-dot" />{record.status}
-                                            </span>
-                                        </div>
-                                        <p className="text-xs font-bold text-gray-600 mb-3 uppercase tracking-wide">Clearance Checklist</p>
-                                        <div className="flex flex-wrap gap-x-8 gap-y-2">
-                                            {clearanceChecklistLabels.map(item => (
-                                                <button
-                                                    key={item.key}
-                                                    onClick={() => toggleChecklistItem(record.id, item.key)}
-                                                    className="flex items-center gap-1.5 text-xs font-medium transition-colors hover:opacity-70"
-                                                    title={`Click to toggle ${item.label}`}
-                                                >
-                                                    {record.checklist[item.key] ? (
-                                                        <CheckCircle className="w-4 h-4 text-emerald-500" />
-                                                    ) : (
-                                                        <XCircle className="w-4 h-4 text-red-400" />
-                                                    )}
-                                                    <span className={record.checklist[item.key] ? 'text-gray-700' : 'text-gray-400'}>{item.label}</span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
+                                    <AdminClearanceRecordCard
+                                        key={record.id}
+                                        record={record}
+                                        onToggleChecklistItem={toggleChecklistItem}
+                                    />
                                 ))}
                                 {clearanceRecords.length === 0 && (
                                     <div className="text-center py-8 text-gray-400 text-sm italic">No clearance records yet.</div>
@@ -568,22 +435,7 @@ const AssetManagement = () => {
                     {activeTab === 'evaluation' && (
                         <div className="space-y-5">
                             <h3 className="text-base font-bold text-gray-800">Performance Evaluation Results</h3>
-                            <div className="overflow-x-auto rounded-xl border border-gray-100">
-                                <table className="pro-table">
-                                    <thead><tr>{['Employee', 'Review Period', 'Reviewer', 'Score', 'Rating'].map(h => <th key={h}>{h}</th>)}</tr></thead>
-                                    <tbody>
-                                        {evaluations.map((e, i) => (
-                                            <tr key={i}>
-                                                <td className="!font-medium !text-gray-800">{e.employee}</td>
-                                                <td>{e.period}</td>
-                                                <td>{e.reviewer}</td>
-                                                <td className="!font-bold">{e.score}</td>
-                                                <td><span className={`badge ${ratingBadge[e.status]}`}><span className="badge-dot" />{e.rating}</span></td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <AdminEvaluationTable evaluations={evaluations} />
                         </div>
                     )}
 
@@ -605,29 +457,12 @@ const AssetManagement = () => {
                                     </div>
                                 )}
                                 {!isLoadingAnnouncements && announcements.map(a => (
-                                    <div key={a.id} className="pro-card !shadow-none border border-gray-100 !p-5 hover:border-emerald-200 transition-colors">
-                                        <div className="flex items-start justify-between mb-2">
-                                            <h4 className="text-sm font-bold text-gray-800">{a.title}</h4>
-                                            <div className="flex gap-2">
-                                                <span className={`badge text-[10px] ${priorityBadge[a.priority] ?? 'badge-neutral'}`}><span className="badge-dot" />{a.priority}</span>
-                                                <span className={`badge text-[10px] ${announcementStatusBadge[a.status] ?? 'badge-neutral'}`}><span className="badge-dot" />{a.status}</span>
-                                            </div>
-                                        </div>
-                                        <p className="text-sm text-gray-600 mb-2">{a.content}</p>
-                                        <div className="flex items-center justify-between gap-3">
-                                            <p className="text-xs text-gray-400">{formatAnnouncementDate(a.publishedAtUtc ?? a.createdAtUtc)} • {a.createdByUserName ?? 'System'}</p>
-                                            {a.status !== 'Published' && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handlePublishAnnouncement(a.id)}
-                                                    disabled={publishingAnnouncementId === a.id}
-                                                    className="btn btn-secondary flex items-center gap-1.5 text-xs !py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                >
-                                                    {publishingAnnouncementId === a.id ? 'Publishing...' : 'Publish'}
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
+                                    <AdminAnnouncementCard
+                                        key={a.id}
+                                        announcement={a}
+                                        publishingAnnouncementId={publishingAnnouncementId}
+                                        onPublishAnnouncement={handlePublishAnnouncement}
+                                    />
                                 ))}
                                 {!isLoadingAnnouncements && announcements.length === 0 && (
                                     <div className="pro-card !shadow-none border border-gray-100 !p-5">

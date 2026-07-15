@@ -1,6 +1,7 @@
 import { Laptop, ClipboardCheck, Star, Megaphone, Clock, CheckCircle, Calendar } from 'lucide-react';
 import type {
     AdminAssetTab,
+    AdminEvaluationRecord,
     AssetFormState,
     AssignAssetFormState,
     AnnouncementFormState,
@@ -100,7 +101,7 @@ export const clearanceStats = [
     { label: 'This Month', value: 5, icon: Calendar, gradient: 'linear-gradient(135deg, #2563eb, #3b82f6)' },
 ];
 
-export const evaluations = [
+export const evaluations: AdminEvaluationRecord[] = [
     { employee: 'Dela Cruz, Juan', period: 'Q4 2025', reviewer: 'Admin Manager', score: '4.5/5.0', rating: 'Excellent', status: 'Excellent' },
     { employee: 'Santos, Maria', period: 'Q4 2025', reviewer: 'Admin Manager', score: '4.0/5.0', rating: 'Good', status: 'Good' },
     { employee: 'Reyes, Jose', period: 'Q4 2025', reviewer: 'Admin Manager', score: '3.2/5.0', rating: 'Needs Improvement', status: 'Needs Improvement' },
