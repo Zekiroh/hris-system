@@ -23,3 +23,19 @@ export const tabs = [
     { id: '13th' as Tab, label: '13th Month Pay', icon: DollarSign },
     { id: 'payslip' as Tab, label: 'Payslip', icon: Printer },
 ];
+
+export const govDeductions: Array<{ name: string; status: string; desc: string; color: string }> = [
+    { name: 'SSS Contributions', status: 'Not configured', desc: 'Awaiting Government Compliance setup', color: '#2563eb' },
+    { name: 'PhilHealth', status: 'Not configured', desc: 'Awaiting Government Compliance setup', color: '#059669' },
+    { name: 'Pag-IBIG', status: 'Not configured', desc: 'Awaiting Government Compliance setup', color: '#d97706' },
+    { name: 'Withholding Tax', status: 'Not configured', desc: 'Awaiting Government Compliance setup', color: '#dc2626' },
+];
+
+export const statusBadge: Record<string, string> = {
+    Processed: 'badge-success',
+    Pending: 'badge-warning',
+    Computed: 'badge-success',
+    Generated: 'badge-success',
+    Active: 'badge-success',
+    Inactive: 'badge-warning',
+};
