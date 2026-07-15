@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { Package, Laptop, Wrench, AlertTriangle, X } from 'lucide-react';
+import { Package, Laptop, Wrench, AlertTriangle } from 'lucide-react';
 import { approveReturnRequest, assignAsset, createAsset, getAssets, getReturnRequests, rejectReturnRequest } from '../../lib/assets';
 import type { AssetDto, AssetReturnRequestDto } from '../../lib/assets';
 import { getEmployees } from '../../lib/employees';
@@ -8,6 +8,11 @@ import type { EmployeeDto } from '../../lib/employees';
 import { createAnnouncement, getAnnouncements, publishAnnouncement } from '../../lib/announcement';
 import type { AnnouncementDto } from '../../lib/announcement';
 import AssetStatCard from '../../components/assets/AssetStatCard';
+import AddAnnouncementModal from '../../components/assets/modals/AddAnnouncementModal';
+import AddAssetModal from '../../components/assets/modals/AddAssetModal';
+import AssignAssetModal from '../../components/assets/modals/AssignAssetModal';
+import NewClearanceModal from '../../components/assets/modals/NewClearanceModal';
+import ReturnReviewModal from '../../components/assets/modals/ReturnReviewModal';
 import AdminAnnouncementsTab from '../../components/assets/tabs/AdminAnnouncementsTab';
 import AdminClearanceTab from '../../components/assets/tabs/AdminClearanceTab';
 import AdminEvaluationTab from '../../components/assets/tabs/AdminEvaluationTab';
@@ -401,326 +406,69 @@ const AssetManagement = () => {
             </div>
 
             {showAddAsset && (
-                <div className="pro-modal-overlay" onClick={() => setShowAddAsset(false)}>
-                    <form className="pro-modal max-w-2xl overflow-hidden" onClick={e => e.stopPropagation()} onSubmit={handleAddAsset}>
-                        <div className="pro-modal-header border-b border-gray-100">
-                            <div>
-                                <h3>Add New Asset</h3>
-                                <p className="text-xs text-gray-400 mt-1">Create a company asset record. Assignment is handled separately.</p>
-                            </div>
-                            <button type="button" onClick={() => setShowAddAsset(false)} className="btn-ghost btn-icon">
-                                <X className="w-5 h-5 text-gray-400" />
-                            </button>
-                        </div>
-                        <div className="pro-modal-body space-y-5 max-h-[70vh] overflow-y-auto">
-                            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
-                                <div className="flex items-start gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                                        <Laptop className="w-5 h-5 text-emerald-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-bold text-gray-800">Asset Information</p>
-                                        <p className="text-xs text-gray-500 mt-1">Use a unique asset ID and complete the device details for monitoring.</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="pro-label">Asset ID <span className="text-red-500">*</span></label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. AST-001"
-                                        className="pro-input"
-                                        value={assetForm.assetCode}
-                                        onChange={e => setAssetForm({ ...assetForm, assetCode: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="pro-label">Asset Name <span className="text-red-500">*</span></label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. Dell Laptop XPS 15"
-                                        className="pro-input"
-                                        value={assetForm.assetName}
-                                        onChange={e => setAssetForm({ ...assetForm, assetName: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="pro-label">Category <span className="text-red-500">*</span></label>
-                                    <select
-                                        className="pro-select"
-                                        value={assetForm.category}
-                                        onChange={e => setAssetForm({ ...assetForm, category: e.target.value })}
-                                    >
-                                        <option>IT Equipment</option>
-                                        <option>Office Equipment</option>
-                                        <option>Furniture</option>
-                                        <option>Vehicle</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="pro-label">Status</label>
-                                    <select
-                                        className="pro-select"
-                                        value={assetForm.status}
-                                        onChange={e => setAssetForm({ ...assetForm, status: e.target.value })}
-                                    >
-                                        <option>Available</option>
-                                        <option>Maintenance</option>
-                                        <option>Needs Replacement</option>
-                                        <option>Disposed</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="pro-label">Brand</label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. Dell"
-                                        className="pro-input"
-                                        value={assetForm.brand}
-                                        onChange={e => setAssetForm({ ...assetForm, brand: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="pro-label">Model</label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. XPS 15"
-                                        className="pro-input"
-                                        value={assetForm.model}
-                                        onChange={e => setAssetForm({ ...assetForm, model: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="pro-label">Serial Number</label>
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. SN-123456"
-                                        className="pro-input"
-                                        value={assetForm.serialNumber}
-                                        onChange={e => setAssetForm({ ...assetForm, serialNumber: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="pro-label">Purchase Date</label>
-                                    <input
-                                        type="date"
-                                        className="pro-input"
-                                        value={assetForm.purchaseDate}
-                                        onChange={e => setAssetForm({ ...assetForm, purchaseDate: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="pro-label">Notes</label>
-                                <textarea
-                                    rows={3}
-                                    placeholder="Optional notes..."
-                                    className="pro-input resize-none"
-                                    value={assetForm.notes}
-                                    onChange={e => setAssetForm({ ...assetForm, notes: e.target.value })}
-                                />
-                            </div>
-                        </div>
-                        <div className="pro-modal-footer border-t border-gray-100">
-                            <button type="button" onClick={() => setShowAddAsset(false)} className="btn btn-secondary">Cancel</button>
-                            <button type="submit" disabled={isSavingAsset} className="btn btn-primary">
-                                {isSavingAsset ? 'Saving...' : 'Save Asset'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                <AddAssetModal
+                    assetForm={assetForm}
+                    isSavingAsset={isSavingAsset}
+                    onClose={() => setShowAddAsset(false)}
+                    onSubmit={handleAddAsset}
+                    onFormChange={(field, value) =>
+                        setAssetForm(current => ({ ...current, [field]: value }))
+                    }
+                />
             )}
 
             {showAssignAsset && selectedAsset && (
-                <div className="pro-modal-overlay" onClick={() => setShowAssignAsset(false)}>
-                    <form className="pro-modal max-w-md overflow-hidden" onClick={e => e.stopPropagation()} onSubmit={handleAssignAsset}>
-                        <div className="pro-modal-header border-b border-gray-100">
-                            <div>
-                                <h3>Assign Asset</h3>
-                                <p className="text-xs text-gray-400 mt-1">Assign {selectedAsset.assetCode} to an active employee.</p>
-                            </div>
-                            <button type="button" onClick={() => setShowAssignAsset(false)} className="btn-ghost btn-icon" disabled={isAssigningAsset}>
-                                <X className="w-5 h-5 text-gray-400" />
-                            </button>
-                        </div>
-                        <div className="pro-modal-body space-y-5">
-                            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
-                                <p className="text-sm font-bold text-gray-800">{selectedAsset.assetName}</p>
-                                <p className="text-xs text-gray-500 mt-1">{selectedAsset.assetCode} • {selectedAsset.category}</p>
-                            </div>
-
-                            <div>
-                                <label className="pro-label">Employee <span className="text-red-500">*</span></label>
-                                <select
-                                    className="pro-select"
-                                    value={assignForm.employeeId}
-                                    onChange={e => setAssignForm({ ...assignForm, employeeId: e.target.value })}
-                                    disabled={isLoadingEmployees || isAssigningAsset}
-                                >
-                                    <option value="">-- Choose Employee --</option>
-                                    {activeEmployees.map(employee => (
-                                        <option key={employee.id} value={employee.id}>
-                                            {getEmployeeName(employee)}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="pro-label">Assigned Date</label>
-                                <input
-                                    type="date"
-                                    className="pro-input"
-                                    value={assignForm.assignedDate}
-                                    onChange={e => setAssignForm({ ...assignForm, assignedDate: e.target.value })}
-                                />
-                            </div>
-
-                            <div>
-                                <label className="pro-label">Remarks</label>
-                                <textarea
-                                    rows={3}
-                                    placeholder="Optional assignment remarks..."
-                                    className="pro-input resize-none"
-                                    value={assignForm.remarks}
-                                    onChange={e => setAssignForm({ ...assignForm, remarks: e.target.value })}
-                                />
-                            </div>
-                        </div>
-                        <div className="pro-modal-footer border-t border-gray-100">
-                            <button type="button" onClick={() => setShowAssignAsset(false)} className="btn btn-secondary">Cancel</button>
-                            <button type="submit" disabled={isAssigningAsset || isLoadingEmployees} className="btn btn-primary">
-                                {isAssigningAsset ? 'Assigning...' : 'Assign Asset'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                <AssignAssetModal
+                    selectedAsset={selectedAsset}
+                    assignForm={assignForm}
+                    activeEmployees={activeEmployees}
+                    isLoadingEmployees={isLoadingEmployees}
+                    isAssigningAsset={isAssigningAsset}
+                    onClose={() => setShowAssignAsset(false)}
+                    onSubmit={handleAssignAsset}
+                    onFormChange={(field, value) =>
+                        setAssignForm(current => ({ ...current, [field]: value }))
+                    }
+                    getEmployeeName={getEmployeeName}
+                />
             )}
 
             {selectedReturnRequest && (
-                <div className="pro-modal-overlay" onClick={closeReturnReviewModal}>
-                    <div className="pro-modal max-w-md" onClick={e => e.stopPropagation()}>
-                        <div className="pro-modal-header border-b border-gray-100">
-                            <div>
-                                <h3>{returnReviewAction === 'approve' ? 'Approve Return Request' : 'Reject Return Request'}</h3>
-                                <p className="text-xs text-gray-400 mt-1">
-                                    Review request RR-{String(selectedReturnRequest.id).padStart(3, '0')}.
-                                </p>
-                            </div>
-                            <button type="button" onClick={closeReturnReviewModal} className="btn-ghost btn-icon" disabled={isReviewingReturnRequest}>
-                                <X className="w-5 h-5 text-gray-400" />
-                            </button>
-                        </div>
-                        <div className="pro-modal-body space-y-4">
-                            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                                <p className="text-sm font-bold text-gray-800">{selectedReturnRequest.assetName}</p>
-                                <p className="text-xs text-gray-500 mt-1">{selectedReturnRequest.assetCode} • {selectedReturnRequest.requestedByEmployeeName}</p>
-                                <p className="text-xs text-gray-400 mt-2">{selectedReturnRequest.reason}</p>
-                            </div>
-
-                            <div>
-                                <label className="pro-label">Review Remarks</label>
-                                <textarea
-                                    rows={3}
-                                    className="pro-input resize-none"
-                                    placeholder={returnReviewAction === 'approve' ? 'e.g. Approved for physical return.' : 'e.g. Request rejected due to incomplete details.'}
-                                    value={returnReviewRemarks}
-                                    onChange={e => setReturnReviewRemarks(e.target.value)}
-                                    disabled={isReviewingReturnRequest}
-                                />
-                            </div>
-                        </div>
-                        <div className="pro-modal-footer border-t border-gray-100">
-                            <button type="button" onClick={closeReturnReviewModal} className="btn btn-secondary" disabled={isReviewingReturnRequest}>Cancel</button>
-                            <button type="button" onClick={handleReviewReturnRequest} disabled={isReviewingReturnRequest} className="btn btn-primary">
-                                {isReviewingReturnRequest
-                                    ? 'Saving...'
-                                    : returnReviewAction === 'approve'
-                                        ? 'Approve Request'
-                                        : 'Reject Request'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <ReturnReviewModal
+                    selectedReturnRequest={selectedReturnRequest}
+                    returnReviewAction={returnReviewAction}
+                    returnReviewRemarks={returnReviewRemarks}
+                    isReviewingReturnRequest={isReviewingReturnRequest}
+                    onClose={closeReturnReviewModal}
+                    onConfirm={handleReviewReturnRequest}
+                    onRemarksChange={setReturnReviewRemarks}
+                />
             )}
 
             {showAddAnnouncement && (
-                <div className="pro-modal-overlay">
-                    <div className="pro-modal max-w-md" onClick={e => e.stopPropagation()}>
-                        <div className="pro-modal-header"><h3>New Announcement</h3><button onClick={closeAnnouncementModal} disabled={isSavingAnnouncement} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button></div>
-                        <div className="pro-modal-body space-y-4">
-                            <div><label className="pro-label">Title</label><input type="text" placeholder="Announcement title" className="pro-input" value={announcementForm.title} onChange={e => setAnnouncementForm({ ...announcementForm, title: e.target.value })} disabled={isSavingAnnouncement} /></div>
-                            <div><label className="pro-label">Priority</label><select className="pro-select" value={announcementForm.priority} onChange={e => setAnnouncementForm({ ...announcementForm, priority: e.target.value })} disabled={isSavingAnnouncement}><option>Normal</option><option>Important</option><option>Urgent</option></select></div>
-                            <div><label className="pro-label">Content</label><textarea rows={4} placeholder="Write your announcement..." className="pro-input resize-none" value={announcementForm.content} onChange={e => setAnnouncementForm({ ...announcementForm, content: e.target.value })} disabled={isSavingAnnouncement} /></div>
-                        </div>
-                        <div className="pro-modal-footer"><button type="button" onClick={() => handleSaveAnnouncement(false)} disabled={isSavingAnnouncement} className="btn btn-secondary">{isSavingAnnouncement ? 'Saving...' : 'Save Draft'}</button><button type="button" onClick={() => handleSaveAnnouncement(true)} disabled={isSavingAnnouncement} className="btn btn-primary">{isSavingAnnouncement ? 'Publishing...' : 'Publish'}</button></div>
-                    </div>
-                </div>
+                <AddAnnouncementModal
+                    announcementForm={announcementForm}
+                    isSavingAnnouncement={isSavingAnnouncement}
+                    onClose={closeAnnouncementModal}
+                    onSaveDraft={() => handleSaveAnnouncement(false)}
+                    onPublish={() => handleSaveAnnouncement(true)}
+                    onFormChange={(field, value) =>
+                        setAnnouncementForm(current => ({ ...current, [field]: value }))
+                    }
+                />
             )}
 
             {showNewClearance && (
-                <div className="pro-modal-overlay">
-                    <div className="pro-modal max-w-md" onClick={e => e.stopPropagation()}>
-                        <div className="pro-modal-header">
-                            <h3>Process Employee Clearance</h3>
-                            <button onClick={() => setShowNewClearance(false)} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button>
-                        </div>
-                        <div className="pro-modal-body space-y-4">
-                            <div>
-                                <label className="pro-label">Select Employee</label>
-                                <select
-                                    className="pro-select"
-                                    value={clearanceForm.employee}
-                                    onChange={e => setClearanceForm({ ...clearanceForm, employee: e.target.value })}
-                                >
-                                    <option value="">-- Choose Employee --</option>
-                                    {clearanceEmployees.map(emp => (
-                                        <option key={emp} value={emp}>{emp}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="pro-label">Department</label>
-                                <select
-                                    className="pro-select"
-                                    value={clearanceForm.department}
-                                    onChange={e => setClearanceForm({ ...clearanceForm, department: e.target.value })}
-                                >
-                                    <option value="">-- Choose Department --</option>
-                                    {clearanceDepartments.map(dept => (
-                                        <option key={dept} value={dept}>{dept}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="pro-label">Last Day of Work</label>
-                                <input
-                                    type="date"
-                                    className="pro-input"
-                                    value={clearanceForm.lastDay}
-                                    onChange={e => setClearanceForm({ ...clearanceForm, lastDay: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="pro-label">Notes / Remarks</label>
-                                <textarea
-                                    rows={3}
-                                    className="pro-input resize-none"
-                                    placeholder="Add any final notes..."
-                                    value={clearanceForm.notes}
-                                    onChange={e => setClearanceForm({ ...clearanceForm, notes: e.target.value })}
-                                />
-                            </div>
-                        </div>
-                        <div className="pro-modal-footer">
-                            <button onClick={() => setShowNewClearance(false)} className="btn btn-secondary">Cancel</button>
-                            <button onClick={handleAddClearance} className="btn btn-primary">Save Record</button>
-                        </div>
-                    </div>
-                </div>
+                <NewClearanceModal
+                    clearanceForm={clearanceForm}
+                    employees={clearanceEmployees}
+                    departments={clearanceDepartments}
+                    onClose={() => setShowNewClearance(false)}
+                    onSave={handleAddClearance}
+                    onFormChange={(field, value) =>
+                        setClearanceForm(current => ({ ...current, [field]: value }))
+                    }
+                />
             )}
         </div>
     );
