@@ -7,13 +7,9 @@ import {
 } from "lucide-react";
 import {
   createReturnRequest,
-  getMyAssets,
   getMyReturnRequests,
 } from "../../lib/assets";
-import type {
-  AssetAssignmentDto,
-  AssetReturnRequestDto,
-} from "../../lib/assets";
+import type { AssetAssignmentDto } from "../../lib/assets";
 import {
   getPublishedAnnouncements,
   markAnnouncementAsRead,
@@ -35,18 +31,20 @@ import UserClearanceTab from "../../components/assets/tabs/UserClearanceTab";
 import UserEvaluationTab from "../../components/assets/tabs/UserEvaluationTab";
 import ReportAssetIssueModal from "../../components/assets/modals/ReportAssetIssueModal";
 import RequestAssetReturnModal from "../../components/assets/modals/RequestAssetReturnModal";
+import { useUserAssetData } from "../../components/assets/hooks/useUserAssetData";
 
 const UserAssetManagement = () => {
   const [activeTab, setActiveTab] = useState<UserAssetTab["id"]>("assets");
   const [reportOpen, setReportOpen] = useState(false);
   const [reportIssue, setReportIssue] = useState("");
   const [expandedEval, setExpandedEval] = useState<number | null>(null);
-  const [myAssets, setMyAssets] = useState<AssetAssignmentDto[]>([]);
-  const [myReturnRequests, setMyReturnRequests] = useState<
-    AssetReturnRequestDto[]
-  >([]);
-  const [loadingAssets, setLoadingAssets] = useState(true);
-  const [assetError, setAssetError] = useState("");
+  const {
+    myAssets,
+    myReturnRequests,
+    loadingAssets,
+    assetError,
+    setMyReturnRequests,
+  } = useUserAssetData();
   const [returnOpen, setReturnOpen] = useState(false);
   const [selectedReturnAsset, setSelectedReturnAsset] =
     useState<AssetAssignmentDto | null>(null);
@@ -59,35 +57,6 @@ const UserAssetManagement = () => {
   const [readingAnnouncementId, setReadingAnnouncementId] = useState<
     string | null
   >(null);
-
-  useEffect(() => {
-    const loadAssetData = async () => {
-      setLoadingAssets(true);
-      setAssetError("");
-
-      try {
-        const assets = await getMyAssets();
-        setMyAssets(assets);
-
-        try {
-          const returnRequests = await getMyReturnRequests();
-          setMyReturnRequests(returnRequests);
-        } catch {
-          setMyReturnRequests([]);
-        }
-      } catch (error) {
-        setAssetError(
-          error instanceof Error
-            ? error.message
-            : "Unable to load assigned assets."
-        );
-      } finally {
-        setLoadingAssets(false);
-      }
-    };
-
-    void loadAssetData();
-  }, []);
 
   useEffect(() => {
     const loadAnnouncements = async () => {
