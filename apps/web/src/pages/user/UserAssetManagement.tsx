@@ -3,7 +3,6 @@ import {
   Laptop,
   ClipboardCheck,
   Star,
-  XCircle,
   Bell,
 } from "lucide-react";
 import {
@@ -34,6 +33,8 @@ import UserAnnouncementsTab from "../../components/assets/tabs/UserAnnouncements
 import UserAssetsTab from "../../components/assets/tabs/UserAssetsTab";
 import UserClearanceTab from "../../components/assets/tabs/UserClearanceTab";
 import UserEvaluationTab from "../../components/assets/tabs/UserEvaluationTab";
+import ReportAssetIssueModal from "../../components/assets/modals/ReportAssetIssueModal";
+import RequestAssetReturnModal from "../../components/assets/modals/RequestAssetReturnModal";
 
 const UserAssetManagement = () => {
   const [activeTab, setActiveTab] = useState<UserAssetTab["id"]>("assets");
@@ -321,140 +322,29 @@ const UserAssetManagement = () => {
 
       {/* Report Issue Modal */}
       {reportOpen && (
-        <div className="pro-modal-overlay">
-          <div
-            className="pro-modal max-w-md"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="pro-modal-header">
-              <h3>Report Asset Issue</h3>
-              <button
-                onClick={() => setReportOpen(false)}
-                className="btn-ghost btn-icon"
-              >
-                <XCircle className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-            <div className="pro-modal-body space-y-4">
-              <div>
-                <label className="pro-label">Asset</label>
-                <select className="pro-select">
-                  {myAssets.map((a) => (
-                    <option key={a.id}>
-                      {a.assetName} ({a.assetCode})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="pro-label">Issue Type</label>
-                <select className="pro-select">
-                  <option>Hardware Damage</option>
-                  <option>Software Problem</option>
-                  <option>Connectivity Issue</option>
-                  <option>Performance Issue</option>
-                  <option>Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="pro-label">Description</label>
-                <textarea
-                  rows={4}
-                  className="pro-input resize-none"
-                  placeholder="Describe the issue in detail..."
-                  value={reportIssue}
-                  onChange={(e) => setReportIssue(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="pro-modal-footer">
-              <button
-                onClick={() => setReportOpen(false)}
-                className="btn btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setReportOpen(false);
-                  setReportIssue("");
-                }}
-                className="btn btn-primary"
-              >
-                Submit Report
-              </button>
-            </div>
-          </div>
-        </div>
+        <ReportAssetIssueModal
+          myAssets={myAssets}
+          reportIssue={reportIssue}
+          onClose={() => setReportOpen(false)}
+          onSubmit={() => {
+            setReportOpen(false);
+            setReportIssue("");
+          }}
+          onIssueChange={setReportIssue}
+        />
       )}
 
       {/* Return Request Modal */}
       {returnOpen && selectedReturnAsset && (
-        <div className="pro-modal-overlay">
-          <div
-            className="pro-modal max-w-md"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="pro-modal-header">
-              <h3>Request Asset Return</h3>
-              <button
-                onClick={closeReturnModal}
-                className="btn-ghost btn-icon"
-                disabled={returnSubmitting}
-              >
-                <XCircle className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-            <div className="pro-modal-body space-y-4">
-              {returnError && (
-                <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
-                  {returnError}
-                </div>
-              )}
-
-              <div>
-                <label className="pro-label">Asset</label>
-                <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
-                  <p className="text-sm font-bold text-gray-800">
-                    {selectedReturnAsset.assetName}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {selectedReturnAsset.category} •{" "}
-                    {selectedReturnAsset.assetCode}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <label className="pro-label">Reason</label>
-                <textarea
-                  rows={4}
-                  className="pro-input resize-none"
-                  placeholder="Explain why this asset is ready for return..."
-                  value={returnReason}
-                  onChange={(e) => setReturnReason(e.target.value)}
-                  disabled={returnSubmitting}
-                />
-              </div>
-            </div>
-            <div className="pro-modal-footer">
-              <button
-                onClick={closeReturnModal}
-                className="btn btn-secondary"
-                disabled={returnSubmitting}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmitReturnRequest}
-                className="btn btn-primary"
-                disabled={returnSubmitting}
-              >
-                {returnSubmitting ? "Submitting..." : "Submit Request"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <RequestAssetReturnModal
+          selectedReturnAsset={selectedReturnAsset}
+          returnReason={returnReason}
+          returnSubmitting={returnSubmitting}
+          returnError={returnError}
+          onClose={closeReturnModal}
+          onSubmit={handleSubmitReturnRequest}
+          onReasonChange={setReturnReason}
+        />
       )}
     </div>
   );
