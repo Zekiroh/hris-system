@@ -3,8 +3,6 @@ import {
     DollarSign,
     TrendingDown,
     Percent,
-    Download,
-    Eye,
 } from 'lucide-react';
 import {
     createCompensation,
@@ -24,19 +22,21 @@ import { emptyCompensationForm, tabs } from './config/constants';
 import {
     extractEmployeeItems,
     formatCurrency,
-    formatDate,
     formatPeriod,
-    getInitials,
 } from './config/helpers';
 import type { CompensationFormState, PayrollRecordRow, Tab } from './config/types';
 import CompensationModal from './components/CompensationModal';
 import CompensationTab from './components/CompensationTab';
 import ComputeThirteenthMonthModal from './components/ComputeThirteenthMonthModal';
+import DeductionsTab from './components/DeductionsTab';
 import GeneratePayslipsModal from './components/GeneratePayslipsModal';
+import PayslipPreviewModal from './components/PayslipPreviewModal';
+import PayslipTab from './components/PayslipTab';
 import PayrollDetailsModal from './components/PayrollDetailsModal';
 import PayrollRecordsTab from './components/PayrollRecordsTab';
 import ProcessPayrollModal from './components/ProcessPayrollModal';
 import RemittanceModal from './components/RemittanceModal';
+import ThirteenthMonthTab from './components/ThirteenthMonthTab';
 
 const Payroll = () => {
     const [activeTab, setActiveTab] = useState<Tab>('records');
@@ -414,95 +414,30 @@ const Payroll = () => {
 
                 {/* Tab: Deductions */}
                 {activeTab === 'deductions' && (
-                    <div className="space-y-6">
-                        <h3 className="text-base font-bold text-gray-800">Government Deductions</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {govDeductions.map(d => (
-                                <div key={d.name} className="p-5 border border-gray-100 rounded-xl flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl" style={{ background: `${d.color}15`, color: d.color }}>
-                                        <DollarSign className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-gray-800">{d.name}</h4>
-                                        <p className="text-lg font-bold" style={{ color: d.color }}>{d.status}</p>
-                                        <p className="text-xs text-gray-400">{d.desc}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="p-5 border border-gray-100 rounded-xl">
-                            <h4 className="text-sm font-bold text-gray-700 mb-2">Deductions Tracking — Monthly Breakdown</h4>
-                            <p className="text-sm text-gray-500">
-                                Government contribution and withholding tax tracking will be available once the Government Compliance module is configured.
-                            </p>
-                        </div>
-                        <div className="flex gap-3">
-                            <button onClick={() => setShowRemittanceModal(true)} className="btn btn-primary">Generate Remittance Report</button>
-                            <button className="btn btn-secondary"><Download className="w-4 h-4" /> Export to Excel</button>
-                        </div>
-                    </div>
+                    <DeductionsTab
+                        govDeductions={govDeductions}
+                        onGenerateRemittance={() => setShowRemittanceModal(true)}
+                    />
                 )}
-
                 {/* Tab: 13th Month */}
                 {activeTab === '13th' && (
-                    <div className="space-y-5">
-                        <div className="flex justify-between items-center">
-                            <h3 className="text-base font-bold text-gray-800">13th Month Pay Computation</h3>
-                            <button onClick={() => setShowComputeModal(true)} className="btn btn-primary">Compute All</button>
-                        </div>
-                        <div className="rounded-xl border border-gray-100 bg-gray-50 p-10 text-center">
-                            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
-                                <DollarSign className="w-5 h-5" />
-                            </div>
-                            <h4 className="font-bold text-gray-800">13th month computation is not yet configured</h4>
-                            <p className="mx-auto mt-2 max-w-xl text-sm text-gray-500">
-                                Payroll currently supports compensation-based salary computation, overtime inclusion, deductions, payroll records, and payslip generation. 13th month computation will be enabled once its backend service is available.
-                            </p>
-                        </div>
-                        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-5">
-                            <h4 className="text-sm font-bold text-gray-700 mb-3">Computation Summary</h4>
-                            <div className="grid grid-cols-3 gap-4 text-center">
-                                <div><p className="text-xl font-bold text-gray-900">—</p><p className="text-xs text-gray-500">Total Employees</p></div>
-                                <div><p className="text-xl font-bold text-gray-900">—</p><p className="text-xs text-gray-500">Total Basic Salary Annual</p></div>
-                                <div><p className="text-xl font-bold text-emerald-600">—</p><p className="text-xs text-gray-500">Total 13th Month</p></div>
-                            </div>
-                        </div>
-                    </div>
+                    <ThirteenthMonthTab
+                        onCompute={() => setShowComputeModal(true)}
+                    />
                 )}
 
                 {/* Tab: Payslip */}
                 {activeTab === 'payslip' && (
-                    <div className="space-y-5">
-                        <div className="flex justify-between items-center">
-                            <h3 className="text-base font-bold text-gray-800">Employee Payslips</h3>
-                            <button onClick={() => setShowGeneratePayslips(true)} className="btn btn-primary">Generate All Payslips</button>
-                        </div>
-                        {loadingPayroll ? (
-                            <div className="text-center py-8 text-sm text-gray-500">Loading payslips...</div>
-                        ) : payslipList.length === 0 ? (
-                            <div className="text-center py-8 text-sm text-gray-500">No payslips found.</div>
-                        ) : (
-                            payslipList.map(emp => (
-                                <div key={`${emp.id}-${emp.record.id}`} className="pro-card !shadow-none border border-gray-100 p-4 flex items-center justify-between hover:shadow-md transition-all">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-sm font-bold shadow-sm">{getInitials(emp.name)}</div>
-                                        <div>
-                                            <p className="font-bold text-gray-800">{emp.name}</p>
-                                            <p className="text-xs text-gray-400">{emp.id}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                        <div className="text-right">
-                                            <p className="font-bold">{emp.netPay}</p>
-                                            <span className={`badge ${statusBadge[emp.status] || 'badge-success'}`}>● {emp.status}</span>
-                                        </div>
-                                        <button onClick={() => { setSelectedPayslipRecord(emp.record); setShowPayslipPreview(true); }} className="btn-ghost btn-icon text-blue-500 hover:bg-blue-50"><Eye className="w-4 h-4" /></button>
-                                        <button className="btn-ghost btn-icon text-slate-500"><Download className="w-4 h-4" /></button>
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
+                    <PayslipTab
+                        loadingPayroll={loadingPayroll}
+                        payslipList={payslipList}
+                        statusBadge={statusBadge}
+                        onGeneratePayslips={() => setShowGeneratePayslips(true)}
+                        onPreview={(record) => {
+                            setSelectedPayslipRecord(record);
+                            setShowPayslipPreview(true);
+                        }}
+                    />
                 )}
                 </div>
             </div>
@@ -562,63 +497,14 @@ const Payroll = () => {
             />
 
             {/* Payslip Preview Modal */}
-            {showPayslipPreview && selectedPayslip && (
-                <div className="pro-modal-overlay">
-                    <div className="pro-modal max-w-lg">
-                        <div className="bg-gradient-to-r from-emerald-600 to-teal-500 text-white p-6 rounded-t-2xl text-center">
-                            <h3 className="text-lg font-bold">SIMPLEVIA Technologies, Inc.</h3>
-                            <p className="text-xs text-emerald-100/80">Employee Payslip</p>
-                        </div>
-                        <div className="pro-modal-body space-y-5">
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                                {[
-                                    ['Employee ID', selectedPayslip.employeeNumber],
-                                    ['Employee', selectedPayslip.employeeName],
-                                    ['Department', '—'],
-                                    ['Pay Period', selectedPayrollPeriod ? formatPeriod(selectedPayrollPeriod) : '—'],
-                                    ['Payment Date', formatDate(selectedPayslip.createdAtUtc)],
-                                ].map(([label, val]) => (
-                                    <div key={label}><p className="text-gray-400 text-xs">{label}</p><p className="font-bold text-gray-800">{val}</p></div>
-                                ))}
-                            </div>
-                            <div className="border-t border-gray-100 pt-4">
-                                <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 tracking-wider">Earnings</h4>
-                                <div className="space-y-2">
-                                    {selectedPayslipEarnings.length === 0 ? (
-                                        <div className="flex justify-between text-sm"><span className="text-gray-600">Gross Pay</span><span className="font-semibold">{formatCurrency(selectedPayslip.grossPay)}</span></div>
-                                    ) : (
-                                        selectedPayslipEarnings.map((item) => (
-                                            <div key={item.id} className="flex justify-between text-sm"><span className="text-gray-600">{item.description}</span><span className="font-semibold">{formatCurrency(item.amount)}</span></div>
-                                        ))
-                                    )}
-                                    <div className="flex justify-between text-sm font-bold border-t border-gray-100 pt-1.5"><span>Total Earnings</span><span>{formatCurrency(selectedPayslip.grossPay)}</span></div>
-                                </div>
-                            </div>
-                            <div>
-                                <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 tracking-wider">Deductions</h4>
-                                <div className="space-y-2">
-                                    {selectedPayslipDeductions.length === 0 ? (
-                                        <div className="flex justify-between text-sm"><span className="text-gray-600">Total Deductions</span><span className="text-red-500 font-medium">{formatCurrency(selectedPayslip.totalDeductions)}</span></div>
-                                    ) : (
-                                        selectedPayslipDeductions.map((item) => (
-                                            <div key={item.id} className="flex justify-between text-sm"><span className="text-gray-600">{item.description}</span><span className="text-red-500 font-medium">{formatCurrency(item.amount)}</span></div>
-                                        ))
-                                    )}
-                                    <div className="flex justify-between text-sm font-bold border-t border-gray-100 pt-1.5"><span>Total Deductions</span><span className="text-red-500">{formatCurrency(selectedPayslip.totalDeductions)}</span></div>
-                                </div>
-                            </div>
-                            <div className="bg-emerald-500 text-white rounded-xl p-4 flex justify-between items-center">
-                                <span className="font-bold">Net Pay</span>
-                                <span className="font-bold text-xl">{formatCurrency(selectedPayslip.netPay)}</span>
-                            </div>
-                        </div>
-                        <div className="pro-modal-footer">
-                            <button className="btn btn-secondary"><Download className="w-4 h-4" /> Download PDF</button>
-                            <button onClick={() => setShowPayslipPreview(false)} className="btn btn-primary">Close</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <PayslipPreviewModal
+                open={showPayslipPreview}
+                selectedPayslip={selectedPayslip}
+                selectedPayslipEarnings={selectedPayslipEarnings}
+                selectedPayslipDeductions={selectedPayslipDeductions}
+                selectedPayrollPeriod={selectedPayrollPeriod}
+                onClose={() => setShowPayslipPreview(false)}
+            />
         </div>
     );
 };
