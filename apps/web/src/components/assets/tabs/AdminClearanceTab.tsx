@@ -8,9 +8,11 @@ type AdminClearanceTabProps = {
     clearanceError: string;
     updatingDepartmentApprovalId: number | null;
     updatingHrApprovalId: number | null;
+    completingClearanceId: number | null;
     onOpenNewClearance: () => void;
     onUpdateDepartmentApproval: (id: number, approved: boolean) => void;
     onUpdateHrApproval: (id: number, approved: boolean) => void;
+    onCompleteClearance: (id: number) => void;
 };
 
 const AdminClearanceTab = ({
@@ -19,9 +21,11 @@ const AdminClearanceTab = ({
     clearanceError,
     updatingDepartmentApprovalId,
     updatingHrApprovalId,
+    completingClearanceId,
     onOpenNewClearance,
     onUpdateDepartmentApproval,
     onUpdateHrApproval,
+    onCompleteClearance,
 }: AdminClearanceTabProps) => {
     return (
         <div className="space-y-5">
@@ -46,8 +50,10 @@ const AdminClearanceTab = ({
                         record={record}
                         updatingDepartmentApprovalId={updatingDepartmentApprovalId}
                         updatingHrApprovalId={updatingHrApprovalId}
+                        completingClearanceId={completingClearanceId}
                         onUpdateDepartmentApproval={onUpdateDepartmentApproval}
                         onUpdateHrApproval={onUpdateHrApproval}
+                        onCompleteClearance={onCompleteClearance}
                     />
                 ))}
                 {!isLoadingClearances && clearances.length === 0 && (

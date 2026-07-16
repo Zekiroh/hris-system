@@ -6,8 +6,10 @@ type AdminClearanceRecordCardProps = {
     record: ClearanceDto;
     updatingDepartmentApprovalId: number | null;
     updatingHrApprovalId: number | null;
+    completingClearanceId: number | null;
     onUpdateDepartmentApproval: (id: number, approved: boolean) => void;
     onUpdateHrApproval: (id: number, approved: boolean) => void;
+    onCompleteClearance: (id: number) => void;
 };
 
 const formatStatusLabel = (status: string) =>
@@ -38,8 +40,10 @@ const AdminClearanceRecordCard = ({
     record,
     updatingDepartmentApprovalId,
     updatingHrApprovalId,
+    completingClearanceId,
     onUpdateDepartmentApproval,
     onUpdateHrApproval,
+    onCompleteClearance,
 }: AdminClearanceRecordCardProps) => {
     const isUpdatingDepartmentApproval = updatingDepartmentApprovalId === record.id;
     const isDepartmentApprovalDisabled =
@@ -47,6 +51,12 @@ const AdminClearanceRecordCard = ({
     const isUpdatingHrApproval = updatingHrApprovalId === record.id;
     const isHrApprovalDisabled =
         isUpdatingHrApproval || record.status === 'Completed';
+    const isCompletingClearance = completingClearanceId === record.id;
+    const canCompleteClearance =
+        record.assetRequirementCompleted &&
+        record.departmentApproved &&
+        record.hrApproved &&
+        record.status !== 'Completed';
 
     return (
         <div className="pro-card !shadow-none border border-gray-100 !p-5 hover:border-emerald-200 transition-colors">
@@ -102,6 +112,18 @@ const AdminClearanceRecordCard = ({
                         )}
                     </div>
                 ))}
+            </div>
+            <div className="flex justify-end mt-4">
+                <button
+                    type="button"
+                    className="btn btn-primary !py-1 !px-3 !text-xs"
+                    disabled={isCompletingClearance || !canCompleteClearance}
+                    onClick={() => onCompleteClearance(record.id)}
+                >
+                    {isCompletingClearance
+                        ? 'Completing...'
+                        : record.status === 'Completed' ? 'Completed' : 'Complete Clearance'}
+                </button>
             </div>
         </div>
     );
