@@ -67,7 +67,6 @@ export const assetStatusBadge: Record<string, string> = {
 export const clearanceStatusBadge: Record<string, string> = {
     Pending: 'badge-warning',
     InProgress: 'badge-warning',
-    'In Progress': 'badge-warning',
     Completed: 'badge-success',
 };
 
