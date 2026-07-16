@@ -8,6 +8,8 @@ type UserEvaluationSummaryCardProps = {
 const UserEvaluationSummaryCard = ({
   evaluation,
 }: UserEvaluationSummaryCardProps) => {
+  const badgeClass = ratingBadge[evaluation.rating] ?? "badge-neutral";
+
   return (
     <div
       className="pro-card !shadow-none border border-blue-100 !p-5"
@@ -26,7 +28,7 @@ const UserEvaluationSummaryCard = ({
               /{evaluation.maxScore}
             </span>
           </p>
-          <span className={`badge ${ratingBadge[evaluation.rating]} mt-1`}>
+          <span className={`badge ${badgeClass} mt-1`}>
             <span className="badge-dot" />
             {evaluation.rating}
           </span>

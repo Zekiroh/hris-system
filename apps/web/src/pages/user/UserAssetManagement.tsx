@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Laptop,
   ClipboardCheck,
@@ -7,10 +7,10 @@ import {
 } from "lucide-react";
 import {
   userAssetTabs,
-  userEvaluations,
 } from "../../components/assets/assetManagementConfig";
 import type {
   ChecklistItem,
+  EvaluationRecord,
   UserAssetTab,
 } from "../../components/assets/assetManagementTypes";
 import AssetStatCard from "../../components/assets/AssetStatCard";
@@ -24,6 +24,32 @@ import { useAssetReturnRequestWorkflow } from "../../components/assets/hooks/use
 import { useUserAssetData } from "../../components/assets/hooks/useUserAssetData";
 import { useUserAnnouncementWorkflow } from "../../components/assets/hooks/useUserAnnouncementWorkflow";
 import { useUserClearanceData } from "../../components/assets/hooks/useUserClearanceData";
+import { useUserPerformanceData } from "../../components/assets/hooks/useUserPerformanceData";
+import type { PerformanceEvaluationDto } from "../../lib/performance";
+
+const MAX_EVALUATION_SCORE = 5.0;
+
+const formatEvaluationDate = (dateValue: string) => {
+  const parsedDate = new Date(dateValue);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return dateValue;
+  }
+
+  return parsedDate.toISOString().slice(0, 10);
+};
+
+const toEvaluationRecord = (
+  evaluation: PerformanceEvaluationDto
+): EvaluationRecord => ({
+  period: evaluation.reviewPeriod,
+  reviewer: evaluation.reviewerName ?? "Reviewer unavailable",
+  score: evaluation.score,
+  maxScore: MAX_EVALUATION_SCORE,
+  rating: evaluation.rating,
+  remarks: evaluation.remarks ?? "No remarks provided.",
+  date: formatEvaluationDate(evaluation.createdAtUtc),
+});
 
 const UserAssetManagement = () => {
   const [activeTab, setActiveTab] = useState<UserAssetTab["id"]>("assets");
@@ -64,6 +90,11 @@ const UserAssetManagement = () => {
     isLoadingClearance,
     clearanceError,
   } = useUserClearanceData();
+  const {
+    evaluations: performanceEvaluations,
+    isLoadingEvaluations,
+    evaluationError,
+  } = useUserPerformanceData();
 
   const checklist: ChecklistItem[] = clearance
     ? [
@@ -96,7 +127,18 @@ const UserAssetManagement = () => {
     : "—";
   const clearanceStatus = clearance?.status ?? "";
 
-  const evaluations = userEvaluations;
+  const evaluations = useMemo(
+    () =>
+      [...performanceEvaluations]
+        .sort(
+          (a, b) =>
+            new Date(b.createdAtUtc).getTime() -
+            new Date(a.createdAtUtc).getTime()
+        )
+        .map(toEvaluationRecord),
+    [performanceEvaluations]
+  );
+  const latestEvaluation = evaluations[0];
 
   return (
     <div className="space-y-6">
@@ -129,7 +171,11 @@ const UserAssetManagement = () => {
           },
           {
             label: "Latest Score",
-            value: evaluations[0].score + "/5.0",
+            value: isLoadingEvaluations
+              ? "Loading"
+              : evaluationError || !latestEvaluation
+                ? "N/A"
+                : latestEvaluation.score + "/5.0",
             gradient: "linear-gradient(135deg, #2563eb, #3b82f6)",
             icon: Star,
           },
@@ -202,6 +248,8 @@ const UserAssetManagement = () => {
           {activeTab === "evaluation" && (
             <UserEvaluationTab
               evaluations={evaluations}
+              loading={isLoadingEvaluations}
+              error={evaluationError}
               expandedEval={expandedEval}
               onToggleEvaluation={(index) =>
                 setExpandedEval(expandedEval === index ? null : index)

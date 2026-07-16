@@ -16,6 +16,8 @@ const UserEvaluationHistoryCard = ({
   isExpanded,
   onToggle,
 }: UserEvaluationHistoryCardProps) => {
+  const badgeClass = ratingBadge[evaluation.rating] ?? "badge-neutral";
+
   return (
     <div className="pro-card !shadow-none border border-gray-100 !p-4">
       <button
@@ -41,7 +43,7 @@ const UserEvaluationHistoryCard = ({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`badge ${ratingBadge[evaluation.rating]}`}>
+          <span className={`badge ${badgeClass}`}>
             <span className="badge-dot" />
             {evaluation.rating}
           </span>
