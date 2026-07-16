@@ -7,6 +7,9 @@ type UserClearanceTabProps = {
   completedCount: number;
   progressPct: number;
   clearanceStatus: string;
+  loading: boolean;
+  error: string;
+  hasRecord: boolean;
 };
 
 const UserClearanceTab = ({
@@ -14,6 +17,9 @@ const UserClearanceTab = ({
   completedCount,
   progressPct,
   clearanceStatus,
+  loading,
+  error,
+  hasRecord,
 }: UserClearanceTabProps) => {
   return (
     <div className="space-y-5">
@@ -21,30 +27,54 @@ const UserClearanceTab = ({
         <h3 className="text-base font-bold text-gray-800">
           My Clearance Status
         </h3>
-        <span
-          className={`badge ${clearanceStatus === "Completed" ? "badge-success" : "badge-warning"}`}
-        >
-          <span className="badge-dot" />
-          {clearanceStatus}
-        </span>
+        {hasRecord && (
+          <span
+            className={`badge ${clearanceStatus === "Completed" ? "badge-success" : "badge-warning"}`}
+          >
+            <span className="badge-dot" />
+            {clearanceStatus}
+          </span>
+        )}
       </div>
 
-      {/* Progress Bar */}
-      <UserClearanceProgressCard
-        completedCount={completedCount}
-        totalCount={checklist.length}
-        progressPct={progressPct}
-      />
+      {error && (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+          {error}
+        </div>
+      )}
 
-      {/* Checklist */}
-      <div className="space-y-2">
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
-          Clearance Checklist
-        </p>
-        {checklist.map((item) => (
-          <UserClearanceChecklistItem key={item.key} item={item} />
-        ))}
-      </div>
+      {loading && (
+        <div className="text-center py-8 text-gray-400 text-sm italic">
+          Loading clearance record...
+        </div>
+      )}
+
+      {!loading && !error && !hasRecord && (
+        <div className="text-center py-8 text-gray-400 text-sm italic">
+          No clearance record is available.
+        </div>
+      )}
+
+      {!loading && !error && hasRecord && (
+        <>
+          {/* Progress Bar */}
+          <UserClearanceProgressCard
+            completedCount={completedCount}
+            totalCount={checklist.length}
+            progressPct={progressPct}
+          />
+
+          {/* Checklist */}
+          <div className="space-y-2">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
+              Clearance Checklist
+            </p>
+            {checklist.map((item) => (
+              <UserClearanceChecklistItem key={item.key} item={item} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 };

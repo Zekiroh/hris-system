@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 import {
   userAssetTabs,
-  userClearanceChecklist,
   userEvaluations,
 } from "../../components/assets/assetManagementConfig";
 import type {
@@ -24,6 +23,7 @@ import RequestAssetReturnModal from "../../components/assets/modals/RequestAsset
 import { useAssetReturnRequestWorkflow } from "../../components/assets/hooks/useAssetReturnRequestWorkflow";
 import { useUserAssetData } from "../../components/assets/hooks/useUserAssetData";
 import { useUserAnnouncementWorkflow } from "../../components/assets/hooks/useUserAnnouncementWorkflow";
+import { useUserClearanceData } from "../../components/assets/hooks/useUserClearanceData";
 
 const UserAssetManagement = () => {
   const [activeTab, setActiveTab] = useState<UserAssetTab["id"]>("assets");
@@ -59,12 +59,42 @@ const UserAssetManagement = () => {
     readingAnnouncementId,
     handleMarkAnnouncementAsRead,
   } = useUserAnnouncementWorkflow();
+  const {
+    clearance,
+    isLoadingClearance,
+    clearanceError,
+  } = useUserClearanceData();
 
-  const [checklist] = useState<ChecklistItem[]>(userClearanceChecklist);
-
+  const checklist: ChecklistItem[] = clearance
+    ? [
+        {
+          key: "assetRequirementCompleted",
+          label: "Asset requirements completed",
+          done: clearance.assetRequirementCompleted,
+        },
+        {
+          key: "departmentApproved",
+          label: "Department clearance approved",
+          done: clearance.departmentApproved,
+        },
+        {
+          key: "hrApproved",
+          label: "HR clearance approved",
+          done: clearance.hrApproved,
+        },
+      ]
+    : [];
   const completedCount = checklist.filter((c) => c.done).length;
-  const progressPct = Math.round((completedCount / checklist.length) * 100);
-  const clearanceStatus = progressPct === 100 ? "Completed" : "In Progress";
+  const progressPct =
+    checklist.length > 0
+      ? Math.round((completedCount / checklist.length) * 100)
+      : 0;
+  const canShowClearanceProgress =
+    Boolean(clearance) && !isLoadingClearance && !clearanceError;
+  const clearanceProgressValue = canShowClearanceProgress
+    ? progressPct + "%"
+    : "—";
+  const clearanceStatus = clearance?.status ?? "";
 
   const evaluations = userEvaluations;
 
@@ -90,7 +120,7 @@ const UserAssetManagement = () => {
           },
           {
             label: "Clearance Progress",
-            value: progressPct + "%",
+            value: clearanceProgressValue,
             gradient:
               progressPct === 100
                 ? "linear-gradient(135deg, #059669, #10b981)"
@@ -162,6 +192,9 @@ const UserAssetManagement = () => {
               completedCount={completedCount}
               progressPct={progressPct}
               clearanceStatus={clearanceStatus}
+              loading={isLoadingClearance}
+              error={clearanceError}
+              hasRecord={Boolean(clearance)}
             />
           )}
 
