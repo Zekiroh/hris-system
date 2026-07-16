@@ -6,14 +6,18 @@ type AdminClearanceTabProps = {
     clearances: ClearanceDto[];
     isLoadingClearances: boolean;
     clearanceError: string;
+    updatingDepartmentApprovalId: number | null;
     onOpenNewClearance: () => void;
+    onUpdateDepartmentApproval: (id: number, approved: boolean) => void;
 };
 
 const AdminClearanceTab = ({
     clearances,
     isLoadingClearances,
     clearanceError,
+    updatingDepartmentApprovalId,
     onOpenNewClearance,
+    onUpdateDepartmentApproval,
 }: AdminClearanceTabProps) => {
     return (
         <div className="space-y-5">
@@ -36,6 +40,8 @@ const AdminClearanceTab = ({
                     <AdminClearanceRecordCard
                         key={record.id}
                         record={record}
+                        updatingDepartmentApprovalId={updatingDepartmentApprovalId}
+                        onUpdateDepartmentApproval={onUpdateDepartmentApproval}
                     />
                 ))}
                 {!isLoadingClearances && clearances.length === 0 && (

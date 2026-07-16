@@ -59,8 +59,10 @@ const AssetManagement = () => {
     } = useAdminClearanceData();
     const {
         isCreatingClearance,
+        updatingDepartmentApprovalId,
         clearanceWorkflowError,
         handleCreateClearance,
+        handleUpdateDepartmentApproval,
     } = useAdminClearanceWorkflow({ loadClearances });
     const {
         assetForm,
@@ -165,6 +167,17 @@ const AssetManagement = () => {
         }
     };
 
+    const handleDepartmentApproval = async (id: number, approved: boolean) => {
+        try {
+            await handleUpdateDepartmentApproval(id, {
+                approved,
+                remarks: null,
+            });
+        } catch {
+            return;
+        }
+    };
+
     const currentStats = activeTab === 'clearance' ? clearanceStatCards : statCards;
     const combinedClearanceError =
         clearanceWorkflowError || clearanceError;
@@ -223,7 +236,9 @@ const AssetManagement = () => {
                             clearances={clearances}
                             isLoadingClearances={isLoadingClearances}
                             clearanceError={combinedClearanceError}
+                            updatingDepartmentApprovalId={updatingDepartmentApprovalId}
                             onOpenNewClearance={() => setShowNewClearance(true)}
+                            onUpdateDepartmentApproval={handleDepartmentApproval}
                         />
                     )}
 

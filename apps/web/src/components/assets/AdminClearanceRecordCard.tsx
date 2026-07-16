@@ -4,6 +4,8 @@ import type { ClearanceDto } from '../../lib/clearance';
 
 type AdminClearanceRecordCardProps = {
     record: ClearanceDto;
+    updatingDepartmentApprovalId: number | null;
+    onUpdateDepartmentApproval: (id: number, approved: boolean) => void;
 };
 
 const formatStatusLabel = (status: string) =>
@@ -30,7 +32,15 @@ const clearanceRequirements = (record: ClearanceDto) => [
     },
 ];
 
-const AdminClearanceRecordCard = ({ record }: AdminClearanceRecordCardProps) => {
+const AdminClearanceRecordCard = ({
+    record,
+    updatingDepartmentApprovalId,
+    onUpdateDepartmentApproval,
+}: AdminClearanceRecordCardProps) => {
+    const isUpdatingDepartmentApproval = updatingDepartmentApprovalId === record.id;
+    const isDepartmentApprovalDisabled =
+        isUpdatingDepartmentApproval || record.status === 'Completed';
+
     return (
         <div className="pro-card !shadow-none border border-gray-100 !p-5 hover:border-emerald-200 transition-colors">
             <div className="flex items-start justify-between mb-3">
@@ -59,6 +69,18 @@ const AdminClearanceRecordCard = ({ record }: AdminClearanceRecordCardProps) => 
                         <span className={item.done ? 'text-gray-700' : 'text-gray-400'}>
                             {item.label}: {item.done ? item.doneLabel : item.pendingLabel}
                         </span>
+                        {item.label === 'Department Approval' && (
+                            <button
+                                type="button"
+                                className="btn btn-secondary !py-1 !px-2 !text-xs"
+                                disabled={isDepartmentApprovalDisabled}
+                                onClick={() => onUpdateDepartmentApproval(record.id, !record.departmentApproved)}
+                            >
+                                {isUpdatingDepartmentApproval
+                                    ? 'Updating...'
+                                    : record.departmentApproved ? 'Revoke' : 'Approve'}
+                            </button>
+                        )}
                     </div>
                 ))}
             </div>
