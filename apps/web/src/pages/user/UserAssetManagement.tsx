@@ -6,11 +6,6 @@ import {
   Bell,
 } from "lucide-react";
 import {
-  createReturnRequest,
-  getMyReturnRequests,
-} from "../../lib/assets";
-import type { AssetAssignmentDto } from "../../lib/assets";
-import {
   getPublishedAnnouncements,
   markAnnouncementAsRead,
 } from "../../lib/announcement";
@@ -31,6 +26,7 @@ import UserClearanceTab from "../../components/assets/tabs/UserClearanceTab";
 import UserEvaluationTab from "../../components/assets/tabs/UserEvaluationTab";
 import ReportAssetIssueModal from "../../components/assets/modals/ReportAssetIssueModal";
 import RequestAssetReturnModal from "../../components/assets/modals/RequestAssetReturnModal";
+import { useAssetReturnRequestWorkflow } from "../../components/assets/hooks/useAssetReturnRequestWorkflow";
 import { useUserAssetData } from "../../components/assets/hooks/useUserAssetData";
 
 const UserAssetManagement = () => {
@@ -43,14 +39,23 @@ const UserAssetManagement = () => {
     myReturnRequests,
     loadingAssets,
     assetError,
-    setMyReturnRequests,
+    insertReturnRequest,
+    replaceReturnRequests,
   } = useUserAssetData();
-  const [returnOpen, setReturnOpen] = useState(false);
-  const [selectedReturnAsset, setSelectedReturnAsset] =
-    useState<AssetAssignmentDto | null>(null);
-  const [returnReason, setReturnReason] = useState("");
-  const [returnSubmitting, setReturnSubmitting] = useState(false);
-  const [returnError, setReturnError] = useState("");
+  const {
+    returnOpen,
+    selectedReturnAsset,
+    returnReason,
+    setReturnReason,
+    returnSubmitting,
+    returnError,
+    openReturnModal,
+    closeReturnModal,
+    handleSubmitReturnRequest,
+  } = useAssetReturnRequestWorkflow({
+    insertReturnRequest,
+    replaceReturnRequests,
+  });
   const [announcements, setAnnouncements] = useState<AnnouncementDto[]>([]);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
   const [announcementError, setAnnouncementError] = useState("");
@@ -87,62 +92,6 @@ const UserAssetManagement = () => {
   const clearanceStatus = progressPct === 100 ? "Completed" : "In Progress";
 
   const evaluations = userEvaluations;
-
-  const openReturnModal = (asset: AssetAssignmentDto) => {
-    setSelectedReturnAsset(asset);
-    setReturnReason("");
-    setReturnError("");
-    setReturnOpen(true);
-  };
-
-  const closeReturnModal = () => {
-    if (returnSubmitting) return;
-
-    setReturnOpen(false);
-    setSelectedReturnAsset(null);
-    setReturnReason("");
-    setReturnError("");
-  };
-
-  const handleSubmitReturnRequest = async () => {
-    if (!selectedReturnAsset) return;
-
-    const reason = returnReason.trim();
-
-    if (!reason) {
-      setReturnError("Return reason is required.");
-      return;
-    }
-
-    setReturnSubmitting(true);
-    setReturnError("");
-
-    try {
-      const createdRequest = await createReturnRequest(selectedReturnAsset.id, {
-        reason,
-      });
-
-      setMyReturnRequests((prev) => [createdRequest, ...prev]);
-      setReturnOpen(false);
-      setSelectedReturnAsset(null);
-      setReturnReason("");
-
-      try {
-        const requests = await getMyReturnRequests();
-        setMyReturnRequests(requests);
-      } catch {
-        // Best-effort refresh only. The request was already created successfully.
-      }
-    } catch (error) {
-      setReturnError(
-        error instanceof Error
-          ? error.message
-          : "Unable to submit return request."
-      );
-    } finally {
-      setReturnSubmitting(false);
-    }
-  };
 
   const handleMarkAnnouncementAsRead = async (announcement: AnnouncementDto) => {
     if (announcement.isRead) return;

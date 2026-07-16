@@ -58,6 +58,5 @@ export const useUserAssetData = () => {
         loadAssetData,
         insertReturnRequest,
         replaceReturnRequests,
-        setMyReturnRequests,
     };
 };
