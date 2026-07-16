@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Package, Laptop, Wrench, AlertTriangle } from 'lucide-react';
+import { Package, Laptop, Wrench, AlertTriangle, Clock, CheckCircle, Calendar } from 'lucide-react';
 import AssetStatCard from '../../components/assets/AssetStatCard';
 import AddAnnouncementModal from '../../components/assets/modals/AddAnnouncementModal';
 import AddAssetModal from '../../components/assets/modals/AddAssetModal';
@@ -12,23 +12,19 @@ import AdminEvaluationTab from '../../components/assets/tabs/AdminEvaluationTab'
 import AdminInventoryTab from '../../components/assets/tabs/AdminInventoryTab';
 import {
     adminAssetTabs,
-    clearanceDepartments,
-    clearanceEmployees,
-    clearanceStats,
     evaluations,
     initialClearanceForm,
-    initialClearanceRecords,
 } from '../../components/assets/assetManagementConfig';
 import {
     getEmployeeName,
 } from '../../components/assets/assetManagementHelpers';
 import type {
     AdminAssetTab,
-    ClearanceChecklist,
-    ClearanceRecord,
 } from '../../components/assets/assetManagementTypes';
 import { useAdminAnnouncementWorkflow } from '../../components/assets/hooks/useAdminAnnouncementWorkflow';
 import { useAdminAssetData } from '../../components/assets/hooks/useAdminAssetData';
+import { useAdminClearanceData } from '../../components/assets/hooks/useAdminClearanceData';
+import { useAdminClearanceWorkflow } from '../../components/assets/hooks/useAdminClearanceWorkflow';
 import { useAssetAssignmentWorkflow } from '../../components/assets/hooks/useAssetAssignmentWorkflow';
 import { useAssetCreationWorkflow } from '../../components/assets/hooks/useAssetCreationWorkflow';
 import { useReturnReviewWorkflow } from '../../components/assets/hooks/useReturnReviewWorkflow';
@@ -55,6 +51,17 @@ const AssetManagement = () => {
         loadReturnRequests,
         loadAnnouncements,
     } = useAdminAssetData();
+    const {
+        clearances,
+        isLoadingClearances,
+        clearanceError,
+        loadClearances,
+    } = useAdminClearanceData();
+    const {
+        isCreatingClearance,
+        clearanceWorkflowError,
+        handleCreateClearance,
+    } = useAdminClearanceWorkflow({ loadClearances });
     const {
         assetForm,
         setAssetForm,
@@ -106,37 +113,61 @@ const AssetManagement = () => {
         { label: 'Needs Replacement', value: assets.filter(asset => asset.status === 'Needs Replacement').length, icon: AlertTriangle, gradient: 'linear-gradient(135deg, #dc2626, #ef4444)' },
     ];
 
-    const [clearanceRecords, setClearanceRecords] = useState<ClearanceRecord[]>(initialClearanceRecords);
+    const isCreatedThisMonth = (createdAtUtc: string) => {
+        const createdAt = new Date(createdAtUtc);
+        if (Number.isNaN(createdAt.getTime())) return false;
 
-    const toggleChecklistItem = (recordId: string, item: keyof ClearanceChecklist) => {
-        setClearanceRecords(prev => prev.map(r => {
-            if (r.id !== recordId) return r;
-            const updatedChecklist = { ...r.checklist, [item]: !r.checklist[item] };
-            const allChecked = Object.values(updatedChecklist).every(v => v);
-            return { ...r, checklist: updatedChecklist, status: allChecked ? 'Completed' : 'In Progress' };
-        }));
+        const now = new Date();
+        return createdAt.getFullYear() === now.getFullYear()
+            && createdAt.getMonth() === now.getMonth();
     };
 
-    const handleAddClearance = () => {
-        if (!clearanceForm.employee || !clearanceForm.lastDay || !clearanceForm.department) {
+    const clearanceStatCards = [
+        {
+            label: 'In Progress',
+            value: clearances.filter(clearance => clearance.status === 'Pending' || clearance.status === 'InProgress').length,
+            icon: Clock,
+            gradient: 'linear-gradient(135deg, #d97706, #f59e0b)',
+        },
+        {
+            label: 'Completed',
+            value: clearances.filter(clearance => clearance.status === 'Completed').length,
+            icon: CheckCircle,
+            gradient: 'linear-gradient(135deg, #059669, #10b981)',
+        },
+        {
+            label: 'This Month',
+            value: clearances.filter(clearance => isCreatedThisMonth(clearance.createdAtUtc)).length,
+            icon: Calendar,
+            gradient: 'linear-gradient(135deg, #2563eb, #3b82f6)',
+        },
+    ];
+
+    const handleAddClearance = async () => {
+        if (!clearanceForm.employeeId || !clearanceForm.lastWorkingDay) {
             alert('Please fill in all required fields.');
             return;
         }
-        const newRecord: ClearanceRecord = {
-            id: `CLR-${String(clearanceRecords.length + 1).padStart(3, '0')}`,
-            employee: clearanceForm.employee,
-            empId: `EMP-${String(Math.floor(Math.random() * 900) + 100)}`,
-            department: clearanceForm.department,
-            lastDay: clearanceForm.lastDay,
-            status: 'In Progress',
-            checklist: { laptop: false, idCard: false, keys: false, documents: false, deptClearance: false },
-        };
-        setClearanceRecords(prev => [newRecord, ...prev]);
-        setClearanceForm(initialClearanceForm);
-        setShowNewClearance(false);
+
+        try {
+            const createdClearance = await handleCreateClearance({
+                employeeId: clearanceForm.employeeId,
+                lastWorkingDay: clearanceForm.lastWorkingDay,
+                remarks: clearanceForm.remarks.trim() || null,
+            });
+
+            if (!createdClearance) return;
+
+            setClearanceForm(initialClearanceForm);
+            setShowNewClearance(false);
+        } catch {
+            return;
+        }
     };
 
-    const currentStats = activeTab === 'clearance' ? clearanceStats : statCards;
+    const currentStats = activeTab === 'clearance' ? clearanceStatCards : statCards;
+    const combinedClearanceError =
+        clearanceWorkflowError || clearanceError;
 
     return (
         <div className="space-y-6">
@@ -189,9 +220,10 @@ const AssetManagement = () => {
 
                     {activeTab === 'clearance' && (
                         <AdminClearanceTab
-                            clearanceRecords={clearanceRecords}
+                            clearances={clearances}
+                            isLoadingClearances={isLoadingClearances}
+                            clearanceError={combinedClearanceError}
                             onOpenNewClearance={() => setShowNewClearance(true)}
-                            onToggleChecklistItem={toggleChecklistItem}
                         />
                     )}
 
@@ -268,8 +300,8 @@ const AssetManagement = () => {
             {showNewClearance && (
                 <NewClearanceModal
                     clearanceForm={clearanceForm}
-                    employees={clearanceEmployees}
-                    departments={clearanceDepartments}
+                    employees={activeEmployees}
+                    isCreatingClearance={isCreatingClearance}
                     onClose={() => setShowNewClearance(false)}
                     onSave={handleAddClearance}
                     onFormChange={(field, value) =>

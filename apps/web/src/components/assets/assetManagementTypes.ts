@@ -6,33 +6,12 @@ export type AdminAssetTab = {
     icon: LucideIcon;
 };
 
-export type ClearanceStatus = 'In Progress' | 'Completed';
-
 export type ReturnReviewAction = 'approve' | 'reject';
 
-export type ClearanceChecklist = {
-    laptop: boolean;
-    idCard: boolean;
-    keys: boolean;
-    documents: boolean;
-    deptClearance: boolean;
-};
-
-export type ClearanceRecord = {
-    id: string;
-    employee: string;
-    empId: string;
-    department: string;
-    lastDay: string;
-    status: ClearanceStatus;
-    checklist: ClearanceChecklist;
-};
-
 export type ClearanceFormState = {
-    employee: string;
-    department: string;
-    lastDay: string;
-    notes: string;
+    employeeId: string;
+    lastWorkingDay: string;
+    remarks: string;
 };
 
 export type AssetFormState = {

@@ -1,45 +1,65 @@
 import { CheckCircle, XCircle } from 'lucide-react';
-import {
-    clearanceChecklistLabels,
-    clearanceStatusBadge,
-} from './assetManagementConfig';
-import type { ClearanceChecklist, ClearanceRecord } from './assetManagementTypes';
+import { clearanceStatusBadge } from './assetManagementConfig';
+import type { ClearanceDto } from '../../lib/clearance';
 
 type AdminClearanceRecordCardProps = {
-    record: ClearanceRecord;
-    onToggleChecklistItem: (recordId: string, item: keyof ClearanceChecklist) => void;
+    record: ClearanceDto;
 };
 
-const AdminClearanceRecordCard = ({ record, onToggleChecklistItem }: AdminClearanceRecordCardProps) => {
+const formatStatusLabel = (status: string) =>
+    status === 'InProgress' ? 'In Progress' : status;
+
+const clearanceRequirements = (record: ClearanceDto) => [
+    {
+        label: 'Asset Requirement',
+        done: record.assetRequirementCompleted,
+        doneLabel: 'Completed',
+        pendingLabel: 'Pending',
+    },
+    {
+        label: 'Department Approval',
+        done: record.departmentApproved,
+        doneLabel: 'Approved',
+        pendingLabel: 'Pending',
+    },
+    {
+        label: 'HR Approval',
+        done: record.hrApproved,
+        doneLabel: 'Approved',
+        pendingLabel: 'Pending',
+    },
+];
+
+const AdminClearanceRecordCard = ({ record }: AdminClearanceRecordCardProps) => {
     return (
         <div className="pro-card !shadow-none border border-gray-100 !p-5 hover:border-emerald-200 transition-colors">
             <div className="flex items-start justify-between mb-3">
                 <div>
-                    <h4 className="text-sm font-bold text-gray-800">{record.employee}</h4>
+                    <h4 className="text-sm font-bold text-gray-800">{record.employeeName}</h4>
                     <p className="text-xs text-gray-400 mt-0.5">
-                        {record.empId} • {record.department} • Last Day: {record.lastDay}
+                        {record.employeeNumber} • {record.department} • Last Day: {record.lastWorkingDay}
                     </p>
                 </div>
-                <span className={`badge ${clearanceStatusBadge[record.status]}`}>
-                    <span className="badge-dot" />{record.status}
+                <span className={`badge ${clearanceStatusBadge[record.status] ?? 'badge-neutral'}`}>
+                    <span className="badge-dot" />{formatStatusLabel(record.status)}
                 </span>
             </div>
-            <p className="text-xs font-bold text-gray-600 mb-3 uppercase tracking-wide">Clearance Checklist</p>
+            <p className="text-xs font-bold text-gray-600 mb-3 uppercase tracking-wide">Clearance Requirements</p>
             <div className="flex flex-wrap gap-x-8 gap-y-2">
-                {clearanceChecklistLabels.map(item => (
-                    <button
-                        key={item.key}
-                        onClick={() => onToggleChecklistItem(record.id, item.key)}
-                        className="flex items-center gap-1.5 text-xs font-medium transition-colors hover:opacity-70"
-                        title={`Click to toggle ${item.label}`}
+                {clearanceRequirements(record).map(item => (
+                    <div
+                        key={item.label}
+                        className="flex items-center gap-1.5 text-xs font-medium transition-colors"
                     >
-                        {record.checklist[item.key] ? (
+                        {item.done ? (
                             <CheckCircle className="w-4 h-4 text-emerald-500" />
                         ) : (
                             <XCircle className="w-4 h-4 text-red-400" />
                         )}
-                        <span className={record.checklist[item.key] ? 'text-gray-700' : 'text-gray-400'}>{item.label}</span>
-                    </button>
+                        <span className={item.done ? 'text-gray-700' : 'text-gray-400'}>
+                            {item.label}: {item.done ? item.doneLabel : item.pendingLabel}
+                        </span>
+                    </div>
                 ))}
             </div>
         </div>

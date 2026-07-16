@@ -1,4 +1,4 @@
-import { Laptop, ClipboardCheck, Star, Megaphone, Clock, CheckCircle, Calendar } from 'lucide-react';
+import { Laptop, ClipboardCheck, Star, Megaphone } from 'lucide-react';
 import type {
     AdminAssetTab,
     AdminEvaluationRecord,
@@ -7,8 +7,6 @@ import type {
     AnnouncementFormState,
     ChecklistItem,
     ClearanceFormState,
-    ClearanceRecord,
-    ClearanceChecklist,
     EvaluationRecord,
     UserAssetTab,
 } from './assetManagementTypes';
@@ -38,10 +36,9 @@ export const initialAnnouncementForm: AnnouncementFormState = {
 };
 
 export const initialClearanceForm: ClearanceFormState = {
-    employee: '',
-    department: '',
-    lastDay: '',
-    notes: '',
+    employeeId: '',
+    lastWorkingDay: '',
+    remarks: '',
 };
 
 export const adminAssetTabs: AdminAssetTab[] = [
@@ -68,6 +65,8 @@ export const assetStatusBadge: Record<string, string> = {
 };
 
 export const clearanceStatusBadge: Record<string, string> = {
+    Pending: 'badge-warning',
+    InProgress: 'badge-warning',
     'In Progress': 'badge-warning',
     Completed: 'badge-success',
 };
@@ -94,12 +93,6 @@ export const priorityBadge: Record<string, string> = {
     Important: 'badge-warning',
     Urgent: 'badge-danger',
 };
-
-export const clearanceStats = [
-    { label: 'In Progress', value: 3, icon: Clock, gradient: 'linear-gradient(135deg, #d97706, #f59e0b)' },
-    { label: 'Completed', value: 15, icon: CheckCircle, gradient: 'linear-gradient(135deg, #059669, #10b981)' },
-    { label: 'This Month', value: 5, icon: Calendar, gradient: 'linear-gradient(135deg, #2563eb, #3b82f6)' },
-];
 
 export const evaluations: AdminEvaluationRecord[] = [
     { employee: 'Dela Cruz, Juan', period: 'Q4 2025', reviewer: 'Admin Manager', score: '4.5/5.0', rating: 'Excellent', status: 'Excellent' },
@@ -138,42 +131,6 @@ export const userEvaluations: EvaluationRecord[] = [
             'Met expectations across most KPIs. Showed improvement in communication and collaborative tasks.',
         date: '2025-07-12',
     },
-];
-
-export const initialClearanceRecords: ClearanceRecord[] = [
-    {
-        id: 'CLR-001',
-        employee: 'Roberto Gomez',
-        empId: 'EMP-025',
-        department: 'Sales',
-        lastDay: '2026-03-15',
-        status: 'In Progress',
-        checklist: { laptop: true, idCard: true, keys: false, documents: true, deptClearance: false },
-    },
-    {
-        id: 'CLR-002',
-        employee: 'Ana Reyes',
-        empId: 'EMP-018',
-        department: 'Marketing',
-        lastDay: '2026-02-20',
-        status: 'Completed',
-        checklist: { laptop: true, idCard: true, keys: true, documents: true, deptClearance: true },
-    },
-];
-
-export const clearanceEmployees = [
-    'Dela Cruz, Juan', 'Santos, Maria', 'Reyes, Jose', 'Garcia, Ana', 'Fernandez, Rosa',
-    'Roberto Gomez', 'Ana Reyes', 'Carlos Mendoza', 'Lisa Tan',
-];
-
-export const clearanceDepartments = ['Administration', 'Sales', 'Marketing', 'IT', 'Finance', 'HR'];
-
-export const clearanceChecklistLabels: { key: keyof ClearanceChecklist; label: string }[] = [
-    { key: 'laptop', label: 'Laptop' },
-    { key: 'idCard', label: 'ID Card' },
-    { key: 'keys', label: 'Keys' },
-    { key: 'documents', label: 'Documents' },
-    { key: 'deptClearance', label: 'Dept. Clearance' },
 ];
 
 export const userClearanceChecklist: ChecklistItem[] = [

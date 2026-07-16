@@ -1,17 +1,19 @@
 import { Plus } from 'lucide-react';
 import AdminClearanceRecordCard from '../AdminClearanceRecordCard';
-import type { ClearanceChecklist, ClearanceRecord } from '../assetManagementTypes';
+import type { ClearanceDto } from '../../../lib/clearance';
 
 type AdminClearanceTabProps = {
-    clearanceRecords: ClearanceRecord[];
+    clearances: ClearanceDto[];
+    isLoadingClearances: boolean;
+    clearanceError: string;
     onOpenNewClearance: () => void;
-    onToggleChecklistItem: (recordId: string, item: keyof ClearanceChecklist) => void;
 };
 
 const AdminClearanceTab = ({
-    clearanceRecords,
+    clearances,
+    isLoadingClearances,
+    clearanceError,
     onOpenNewClearance,
-    onToggleChecklistItem,
 }: AdminClearanceTabProps) => {
     return (
         <div className="space-y-5">
@@ -20,15 +22,23 @@ const AdminClearanceTab = ({
                 <button onClick={onOpenNewClearance} className="btn btn-primary"><Plus className="w-4 h-4" /> New Clearance</button>
             </div>
 
+            {clearanceError && (
+                <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+                    {clearanceError}
+                </div>
+            )}
+
             <div className="space-y-4">
-                {clearanceRecords.map(record => (
+                {isLoadingClearances && (
+                    <div className="text-center py-8 text-gray-400 text-sm italic">Loading clearance records...</div>
+                )}
+                {!isLoadingClearances && clearances.map(record => (
                     <AdminClearanceRecordCard
                         key={record.id}
                         record={record}
-                        onToggleChecklistItem={onToggleChecklistItem}
                     />
                 ))}
-                {clearanceRecords.length === 0 && (
+                {!isLoadingClearances && clearances.length === 0 && (
                     <div className="text-center py-8 text-gray-400 text-sm italic">No clearance records yet.</div>
                 )}
             </div>
