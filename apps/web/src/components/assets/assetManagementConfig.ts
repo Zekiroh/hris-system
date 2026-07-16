@@ -5,7 +5,6 @@ import type {
     AssetFormState,
     AssignAssetFormState,
     AnnouncementFormState,
-    ChecklistItem,
     ClearanceFormState,
     EvaluationRecord,
     UserAssetTab,
@@ -129,17 +128,5 @@ export const userEvaluations: EvaluationRecord[] = [
         remarks:
             'Met expectations across most KPIs. Showed improvement in communication and collaborative tasks.',
         date: '2025-07-12',
-    },
-];
-
-export const userClearanceChecklist: ChecklistItem[] = [
-    { key: 'laptop', label: 'Laptop Returned', done: true },
-    { key: 'idCard', label: 'ID Card Returned', done: true },
-    { key: 'keys', label: 'Keys Returned', done: false },
-    { key: 'documents', label: 'Documents Submitted', done: true },
-    {
-        key: 'deptClearance',
-        label: 'Department Clearance Approved',
-        done: false,
     },
 ];
