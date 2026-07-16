@@ -1,15 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Laptop,
   ClipboardCheck,
   Star,
   Bell,
 } from "lucide-react";
-import {
-  getPublishedAnnouncements,
-  markAnnouncementAsRead,
-} from "../../lib/announcement";
-import type { AnnouncementDto } from "../../lib/announcement";
 import {
   userAssetTabs,
   userClearanceChecklist,
@@ -28,6 +23,7 @@ import ReportAssetIssueModal from "../../components/assets/modals/ReportAssetIss
 import RequestAssetReturnModal from "../../components/assets/modals/RequestAssetReturnModal";
 import { useAssetReturnRequestWorkflow } from "../../components/assets/hooks/useAssetReturnRequestWorkflow";
 import { useUserAssetData } from "../../components/assets/hooks/useUserAssetData";
+import { useUserAnnouncementWorkflow } from "../../components/assets/hooks/useUserAnnouncementWorkflow";
 
 const UserAssetManagement = () => {
   const [activeTab, setActiveTab] = useState<UserAssetTab["id"]>("assets");
@@ -56,34 +52,13 @@ const UserAssetManagement = () => {
     insertReturnRequest,
     replaceReturnRequests,
   });
-  const [announcements, setAnnouncements] = useState<AnnouncementDto[]>([]);
-  const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
-  const [announcementError, setAnnouncementError] = useState("");
-  const [readingAnnouncementId, setReadingAnnouncementId] = useState<
-    string | null
-  >(null);
-
-  useEffect(() => {
-    const loadAnnouncements = async () => {
-      setLoadingAnnouncements(true);
-      setAnnouncementError("");
-
-      try {
-        const data = await getPublishedAnnouncements();
-        setAnnouncements(data);
-      } catch (error) {
-        setAnnouncementError(
-          error instanceof Error
-            ? error.message
-            : "Unable to load company announcements."
-        );
-      } finally {
-        setLoadingAnnouncements(false);
-      }
-    };
-
-    void loadAnnouncements();
-  }, []);
+  const {
+    announcements,
+    loadingAnnouncements,
+    announcementError,
+    readingAnnouncementId,
+    handleMarkAnnouncementAsRead,
+  } = useUserAnnouncementWorkflow();
 
   const [checklist] = useState<ChecklistItem[]>(userClearanceChecklist);
 
@@ -92,30 +67,6 @@ const UserAssetManagement = () => {
   const clearanceStatus = progressPct === 100 ? "Completed" : "In Progress";
 
   const evaluations = userEvaluations;
-
-  const handleMarkAnnouncementAsRead = async (announcement: AnnouncementDto) => {
-    if (announcement.isRead) return;
-
-    setReadingAnnouncementId(announcement.id);
-
-    try {
-      const updatedAnnouncement = await markAnnouncementAsRead(announcement.id);
-
-      setAnnouncements((current) =>
-        current.map((item) =>
-          item.id === updatedAnnouncement.id ? updatedAnnouncement : item
-        )
-      );
-    } catch (error) {
-      setAnnouncementError(
-        error instanceof Error
-          ? error.message
-          : "Unable to mark announcement as read."
-      );
-    } finally {
-      setReadingAnnouncementId(null);
-    }
-  };
 
   return (
     <div className="space-y-6">
