@@ -23,7 +23,7 @@ const AdminAnnouncementCard = ({ announcement: a, publishingAnnouncementId, onPu
             </div>
             <p className="text-sm text-gray-600 mb-2">{a.content}</p>
             <div className="flex items-center justify-between gap-3">
-                <p className="text-xs text-gray-400">{formatAnnouncementDate(a.publishedAtUtc ?? a.createdAtUtc)} â€¢ {a.createdByUserName ?? 'System'}</p>
+                <p className="text-xs text-gray-400">{formatAnnouncementDate(a.publishedAtUtc ?? a.createdAtUtc)} • {a.createdByUserName ?? 'System'}</p>
                 {a.status !== 'Published' && (
                     <button
                         type="button"

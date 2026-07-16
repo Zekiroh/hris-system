@@ -17,7 +17,7 @@ const AdminClearanceRecordCard = ({ record, onToggleChecklistItem }: AdminCleara
                 <div>
                     <h4 className="text-sm font-bold text-gray-800">{record.employee}</h4>
                     <p className="text-xs text-gray-400 mt-0.5">
-                        {record.empId} â€¢ {record.department} â€¢ Last Day: {record.lastDay}
+                        {record.empId} • {record.department} • Last Day: {record.lastDay}
                     </p>
                 </div>
                 <span className={`badge ${clearanceStatusBadge[record.status]}`}>
