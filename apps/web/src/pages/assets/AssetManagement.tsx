@@ -60,9 +60,11 @@ const AssetManagement = () => {
     const {
         isCreatingClearance,
         updatingDepartmentApprovalId,
+        updatingHrApprovalId,
         clearanceWorkflowError,
         handleCreateClearance,
         handleUpdateDepartmentApproval,
+        handleUpdateHrApproval,
     } = useAdminClearanceWorkflow({ loadClearances });
     const {
         assetForm,
@@ -178,6 +180,17 @@ const AssetManagement = () => {
         }
     };
 
+    const handleHrApproval = async (id: number, approved: boolean) => {
+        try {
+            await handleUpdateHrApproval(id, {
+                approved,
+                remarks: null,
+            });
+        } catch {
+            return;
+        }
+    };
+
     const currentStats = activeTab === 'clearance' ? clearanceStatCards : statCards;
     const combinedClearanceError =
         clearanceWorkflowError || clearanceError;
@@ -237,8 +250,10 @@ const AssetManagement = () => {
                             isLoadingClearances={isLoadingClearances}
                             clearanceError={combinedClearanceError}
                             updatingDepartmentApprovalId={updatingDepartmentApprovalId}
+                            updatingHrApprovalId={updatingHrApprovalId}
                             onOpenNewClearance={() => setShowNewClearance(true)}
                             onUpdateDepartmentApproval={handleDepartmentApproval}
+                            onUpdateHrApproval={handleHrApproval}
                         />
                     )}
 

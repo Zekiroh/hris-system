@@ -5,7 +5,9 @@ import type { ClearanceDto } from '../../lib/clearance';
 type AdminClearanceRecordCardProps = {
     record: ClearanceDto;
     updatingDepartmentApprovalId: number | null;
+    updatingHrApprovalId: number | null;
     onUpdateDepartmentApproval: (id: number, approved: boolean) => void;
+    onUpdateHrApproval: (id: number, approved: boolean) => void;
 };
 
 const formatStatusLabel = (status: string) =>
@@ -35,11 +37,16 @@ const clearanceRequirements = (record: ClearanceDto) => [
 const AdminClearanceRecordCard = ({
     record,
     updatingDepartmentApprovalId,
+    updatingHrApprovalId,
     onUpdateDepartmentApproval,
+    onUpdateHrApproval,
 }: AdminClearanceRecordCardProps) => {
     const isUpdatingDepartmentApproval = updatingDepartmentApprovalId === record.id;
     const isDepartmentApprovalDisabled =
         isUpdatingDepartmentApproval || record.status === 'Completed';
+    const isUpdatingHrApproval = updatingHrApprovalId === record.id;
+    const isHrApprovalDisabled =
+        isUpdatingHrApproval || record.status === 'Completed';
 
     return (
         <div className="pro-card !shadow-none border border-gray-100 !p-5 hover:border-emerald-200 transition-colors">
@@ -79,6 +86,18 @@ const AdminClearanceRecordCard = ({
                                 {isUpdatingDepartmentApproval
                                     ? 'Updating...'
                                     : record.departmentApproved ? 'Revoke' : 'Approve'}
+                            </button>
+                        )}
+                        {item.label === 'HR Approval' && (
+                            <button
+                                type="button"
+                                className="btn btn-secondary !py-1 !px-2 !text-xs"
+                                disabled={isHrApprovalDisabled}
+                                onClick={() => onUpdateHrApproval(record.id, !record.hrApproved)}
+                            >
+                                {isUpdatingHrApproval
+                                    ? 'Updating...'
+                                    : record.hrApproved ? 'Revoke' : 'Approve'}
                             </button>
                         )}
                     </div>
