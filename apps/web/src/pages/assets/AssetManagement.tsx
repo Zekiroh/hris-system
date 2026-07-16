@@ -4,6 +4,7 @@ import AssetStatCard from '../../components/assets/AssetStatCard';
 import AddAnnouncementModal from '../../components/assets/modals/AddAnnouncementModal';
 import AddAssetModal from '../../components/assets/modals/AddAssetModal';
 import AssignAssetModal from '../../components/assets/modals/AssignAssetModal';
+import ClearanceActivityModal from '../../components/assets/modals/ClearanceActivityModal';
 import NewClearanceModal from '../../components/assets/modals/NewClearanceModal';
 import ReturnReviewModal from '../../components/assets/modals/ReturnReviewModal';
 import AdminAnnouncementsTab from '../../components/assets/tabs/AdminAnnouncementsTab';
@@ -23,6 +24,7 @@ import type {
 } from '../../components/assets/assetManagementTypes';
 import { useAdminAnnouncementWorkflow } from '../../components/assets/hooks/useAdminAnnouncementWorkflow';
 import { useAdminAssetData } from '../../components/assets/hooks/useAdminAssetData';
+import { useAdminClearanceActivity } from '../../components/assets/hooks/useAdminClearanceActivity';
 import { useAdminClearanceData } from '../../components/assets/hooks/useAdminClearanceData';
 import { useAdminClearanceWorkflow } from '../../components/assets/hooks/useAdminClearanceWorkflow';
 import { useAssetAssignmentWorkflow } from '../../components/assets/hooks/useAssetAssignmentWorkflow';
@@ -68,6 +70,15 @@ const AssetManagement = () => {
         handleUpdateHrApproval,
         handleCompleteClearance,
     } = useAdminClearanceWorkflow({ loadClearances });
+    const {
+        selectedClearanceId,
+        selectedClearanceEmployeeName,
+        activities,
+        isLoadingActivities,
+        activityError,
+        openActivityHistory,
+        closeActivityHistory,
+    } = useAdminClearanceActivity();
     const {
         assetForm,
         setAssetForm,
@@ -203,6 +214,13 @@ const AssetManagement = () => {
         }
     };
 
+    const handleOpenClearanceActivity = (
+        id: number,
+        employeeName: string
+    ) => {
+        void openActivityHistory(id, employeeName);
+    };
+
     const currentStats = activeTab === 'clearance' ? clearanceStatCards : statCards;
     const combinedClearanceError =
         clearanceWorkflowError || clearanceError;
@@ -268,6 +286,7 @@ const AssetManagement = () => {
                             onUpdateDepartmentApproval={handleDepartmentApproval}
                             onUpdateHrApproval={handleHrApproval}
                             onCompleteClearance={handleClearanceCompletion}
+                            onOpenActivityHistory={handleOpenClearanceActivity}
                         />
                     )}
 
@@ -351,6 +370,16 @@ const AssetManagement = () => {
                     onFormChange={(field, value) =>
                         setClearanceForm(current => ({ ...current, [field]: value }))
                     }
+                />
+            )}
+
+            {selectedClearanceId !== null && (
+                <ClearanceActivityModal
+                    employeeName={selectedClearanceEmployeeName}
+                    activities={activities}
+                    isLoadingActivities={isLoadingActivities}
+                    activityError={activityError}
+                    onClose={closeActivityHistory}
                 />
             )}
         </div>

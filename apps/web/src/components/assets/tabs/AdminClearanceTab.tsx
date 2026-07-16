@@ -13,6 +13,7 @@ type AdminClearanceTabProps = {
     onUpdateDepartmentApproval: (id: number, approved: boolean) => void;
     onUpdateHrApproval: (id: number, approved: boolean) => void;
     onCompleteClearance: (id: number) => void;
+    onOpenActivityHistory: (id: number, employeeName: string) => void;
 };
 
 const AdminClearanceTab = ({
@@ -26,6 +27,7 @@ const AdminClearanceTab = ({
     onUpdateDepartmentApproval,
     onUpdateHrApproval,
     onCompleteClearance,
+    onOpenActivityHistory,
 }: AdminClearanceTabProps) => {
     return (
         <div className="space-y-5">
@@ -54,6 +56,7 @@ const AdminClearanceTab = ({
                         onUpdateDepartmentApproval={onUpdateDepartmentApproval}
                         onUpdateHrApproval={onUpdateHrApproval}
                         onCompleteClearance={onCompleteClearance}
+                        onOpenActivityHistory={onOpenActivityHistory}
                     />
                 ))}
                 {!isLoadingClearances && clearances.length === 0 && (

@@ -10,6 +10,7 @@ type AdminClearanceRecordCardProps = {
     onUpdateDepartmentApproval: (id: number, approved: boolean) => void;
     onUpdateHrApproval: (id: number, approved: boolean) => void;
     onCompleteClearance: (id: number) => void;
+    onOpenActivityHistory: (id: number, employeeName: string) => void;
 };
 
 const formatStatusLabel = (status: string) =>
@@ -44,6 +45,7 @@ const AdminClearanceRecordCard = ({
     onUpdateDepartmentApproval,
     onUpdateHrApproval,
     onCompleteClearance,
+    onOpenActivityHistory,
 }: AdminClearanceRecordCardProps) => {
     const isUpdatingDepartmentApproval = updatingDepartmentApprovalId === record.id;
     const isDepartmentApprovalDisabled =
@@ -113,7 +115,14 @@ const AdminClearanceRecordCard = ({
                     </div>
                 ))}
             </div>
-            <div className="flex justify-end mt-4">
+            <div className="flex justify-end gap-2 mt-4">
+                <button
+                    type="button"
+                    className="btn btn-secondary !py-1 !px-3 !text-xs"
+                    onClick={() => onOpenActivityHistory(record.id, record.employeeName)}
+                >
+                    View History
+                </button>
                 <button
                     type="button"
                     className="btn btn-primary !py-1 !px-3 !text-xs"
