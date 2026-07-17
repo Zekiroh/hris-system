@@ -224,6 +224,30 @@ public class DailyReportsService : IDailyReportsService
         return reports.Select(MapToDto).ToList();
     }
 
+    public async Task<List<DailyReportDto>> GetMineAsync(ClaimsPrincipal user, GetDailyReportsQuery query)
+    {
+        var employee = await GetCurrentEmployeeAsync(user);
+        var page = Math.Max(1, query.Page);
+        var pageSize = Math.Clamp(query.PageSize, 1, MaxPageSize);
+
+        var q = _db.DailyReports
+            .Include(r => r.Employee)
+            .Include(r => r.Tasks)
+            .Where(r => r.EmployeeId == employee.Id)
+            .AsQueryable();
+
+        if (query.Date.HasValue)
+            q = q.Where(r => r.ReportDate == query.Date);
+
+        var reports = await q
+            .OrderByDescending(r => r.ReportDate)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return reports.Select(MapToDto).ToList();
+    }
+
     private static DailyReportDto MapToDto(DailyReport report) => new()
     {
         Id                   = report.Id,

@@ -37,6 +37,13 @@ public class DailyReportsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMine([FromQuery] GetDailyReportsQuery query)
+    {
+        var result = await _service.GetMineAsync(User, query);
+        return Ok(result);
+    }
+
     [HttpGet("{id}")]
     [PermissionAuthorize("ATTENDANCE", "View")]
     public async Task<IActionResult> GetById(int id)
