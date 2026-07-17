@@ -1,5 +1,5 @@
 // apps/web/src/pages/DailyReport/DailyAccomplishmentReport.tsx
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   Clock, CheckCircle, AlertTriangle, Lock,
   Send, Eye, FileText, FolderOpen,
@@ -10,7 +10,6 @@ import { getTodayMyAttendanceLog } from "../../lib/attendance";
 import {
   ConfirmSubmitModal,
   // SuccessModal,
-  DeleteConfirmModal,
   DARViewModal,
 } from "../../components/DAR/user/modaluser";
 import {
@@ -18,6 +17,13 @@ import {
   Section4Summary, Section5Checklist, Section6TomorrowPlan, Section8Acknowledgment,
 } from "../../components/DAR/user/userDARsections";
 import SubmissionsTable from "../../components/DAR/user/SubmissionsTable";
+import { useDailyReportData } from "../../components/DAR/hooks/useDailyReportData";
+import { useDailyReportWorkflow } from "../../components/DAR/hooks/useDailyReportWorkflow";
+import {
+  type CreateDailyReportRequest,
+  type DailyReportDto,
+  type UpdateDailyReportRequest,
+} from "../../lib/dailyReports";
 
 // Types
 type WorkArrangement = "On-site" | "Remote" | "Hybrid";
@@ -51,105 +57,8 @@ function createEmptyTask(id: number): TaskRow {
   return { id, carryOver: "", priority: "", taskType: "", ticketRef: "", description: "", module: "", status: "", percentDone: "", estHrs: "", actualHrs: "", output: "", commitLink: "", remarks: "", _expanded: false };
 }
 
-// TODO: remove once GET /api/dar/submissions is wired up — temporary hardcoded history for UI testing
-const mockSubmissions: DarSubmission[] = [
-  {
-    date: "2025-06-30",
-    project: "SIMPLEVIA HRIS",
-    tasks: 5,
-    checklist: 6,
-    status: "Approved",
-    submittedAt: "5:45 PM",
-    workArr: "On-site",
-    devName: "Charleston James S. Cabanatan",
-    sprint: "Sprint 12",
-    team: "Frontend Team",
-    submittedTo: "Marivic R. Songalia-Magyaya",
-    timeIn: "09:00",
-    timeOut: "17:00",
-    breakMins: 60,
-    gross: "8h 0m",
-    net: "7h 0m",
-    keyAccomp: "Completed DAR admin review flow and stat card refactor.",
-    blockers: "None",
-    risks: "None",
-    planTmr: "Start on shared constants file migration.",
-    checklistItems: Array(6).fill(true),
-    checklistDone: Array(6).fill(true),
-    taskDetails: [],
-    rating: 5,
-    performanceScore: 95,
-    taskCompletion: "Exceeds Expectations",
-    supervisorComment: "Excellent work today. All tasks completed on time and communication was clear throughout.",
-    supervisorName: "Marivic R. Songalia-Magyaya",
-    reviewedDate: "7/1/2025",
-    supervisorSignature: "",
-    followUpRequired: false,
-    managerActionItems: "",
-  },
-  {
-    date: "2025-06-27",
-    project: "SIMPLEVIA HRIS",
-    tasks: 4,
-    checklist: 5,
-    status: "Revision Requested",
-    submittedAt: "6:10 PM",
-    workArr: "Work From Home",
-    devName: "Charleston James S. Cabanatan",
-    sprint: "Sprint 11",
-    team: "Frontend Team",
-    submittedTo: "Marivic R. Songalia-Magyaya",
-    timeIn: "09:00",
-    timeOut: "18:00",
-    breakMins: 60,
-    gross: "9h 0m",
-    net: "8h 0m",
-    keyAccomp: "Worked on ticket references and task list updates.",
-    blockers: "Waiting for backend endpoint",
-    risks: "Possible delay on integration",
-    planTmr: "Fix ticket reference formatting per supervisor feedback.",
-    revisionReason: "Please update the ticket references in your task list — some are missing the SIM- prefix.",
-    checklistItems: [true, true, true, true, true, false],
-    checklistDone: [true, true, true, true, true, false],
-    taskDetails: [],
-  },
-  {
-    date: "2025-06-25",
-    project: "SIMPLEVIA HRIS",
-    tasks: 5,
-    checklist: 6,
-    status: "Approved",
-    submittedAt: "5:30 PM",
-    workArr: "On-site",
-    devName: "Charleston James S. Cabanatan",
-    sprint: "Sprint 11",
-    team: "Frontend Team",
-    submittedTo: "Marivic R. Songalia-Magyaya",
-    timeIn: "09:00",
-    timeOut: "17:30",
-    breakMins: 60,
-    gross: "8h 30m",
-    net: "7h 30m",
-    keyAccomp: "Built SignaturePad component and wired up employee acknowledgment section.",
-    blockers: "None",
-    risks: "None",
-    planTmr: "Start on admin-side ReviewPanel.",
-    checklistItems: Array(6).fill(true),
-    checklistDone: Array(6).fill(true),
-    taskDetails: [],
-    rating: 4,
-    performanceScore: 85,
-    taskCompletion: "Fully Completed",
-    supervisorComment: "Good progress on the SignaturePad component. Keep it up.",
-    supervisorName: "Marivic R. Songalia-Magyaya",
-    reviewedDate: "6/26/2025",
-    supervisorSignature: "",
-    followUpRequired: true,
-    managerActionItems: "Schedule 1-on-1 to discuss timeline for admin-side ReviewPanel work.",
-  },
-];
-
 interface DarSubmission {
+  id: number;
   date: string;
   project: string;
   tasks: number;
@@ -173,7 +82,7 @@ interface DarSubmission {
   revisionReason?: string;
   checklistItems?: boolean[];
   checklistDone?: boolean[];
-  taskDetails?: any[];
+  taskDetails?: unknown[];
   rating?: number;
   performanceScore?: number;
   taskCompletion?: string;
@@ -183,7 +92,7 @@ interface DarSubmission {
   supervisorSignature?: string;
   followUpRequired?: boolean;
   managerActionItems?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 function calcHours(timeIn: string, timeOut: string, breakMins: number) {
@@ -219,6 +128,107 @@ function to24Hour(time: string): string {
   if (period === "PM" && hours !== 12) hours += 12;
   if (period === "AM" && hours === 12) hours = 0;
   return `${hours.toString().padStart(2, "0")}:${mins}`;
+}
+
+function formatSubmissionTime(value: string | null) {
+  if (!value) return "";
+  const timePart = value.includes("T") ? value.split("T")[1] : value;
+  const normalized = to24Hour(timePart);
+  if (!normalized) return value;
+
+  const [hoursValue, minutes] = normalized.split(":").map(Number);
+  const period = hoursValue >= 12 ? "PM" : "AM";
+  const displayHours = hoursValue % 12 || 12;
+  return `${displayHours}:${String(minutes).padStart(2, "0")} ${period}`;
+}
+
+function parseRating(value: string | null) {
+  if (!value) return undefined;
+  const rating = Number.parseFloat(value);
+  return Number.isFinite(rating) ? rating : undefined;
+}
+
+function hasReview(dto: DailyReportDto) {
+  return Boolean(
+    dto.reviewedBy ||
+    dto.dateReviewed ||
+    dto.reviewDate ||
+    dto.supervisorNotes ||
+    dto.performanceRating
+  );
+}
+
+function mapDailyReportToSubmission(dto: DailyReportDto): DarSubmission {
+  const checklistItems = [
+    dto.codeCommitted,
+    dto.ticketsUpdated,
+    dto.pullRequestCreated,
+    dto.documentationUpdated,
+    dto.testsPassing,
+    dto.reportSubmittedOnTime,
+  ];
+  const { gross, net } = calcHours(dto.timeIn || "", dto.timeOut || "", dto.breakDurationMinutes);
+  const rating = parseRating(dto.performanceRating);
+
+  return {
+    id: dto.id,
+    date: dto.reportDate,
+    project: dto.project,
+    tasks: dto.tasks.length,
+    checklist: dto.checklistCompletedCount,
+    status: hasReview(dto) ? "Reviewed" : "Pending Review",
+    submittedAt: formatSubmissionTime(dto.submissionTime),
+    workArr: dto.workArrangement,
+    devName: dto.employeeName,
+    sprint: dto.sprintIteration || "",
+    team: dto.teamUnit || "",
+    submittedTo: "",
+    timeIn: dto.timeIn || "",
+    timeOut: dto.timeOut || "",
+    breakMins: dto.breakDurationMinutes,
+    gross,
+    net,
+    standup: dto.attendedStandup ? "Yes" : "No",
+    reachable: dto.reachableViaComms ? "Yes" : "No",
+    avgResponse: dto.avgResponseTime || "",
+    connIssues: dto.connectivityIssues || "",
+    collabLog: dto.collaborationLog || "",
+    taskDetails: dto.tasks.map(task => ({
+      id: task.id,
+      carryOver: task.isCarryOver ? "Yes" : "No",
+      priority: task.priority,
+      taskType: task.taskType,
+      ticketRef: task.ticketRefNo || "",
+      description: task.description,
+      module: task.module || "",
+      status: task.status,
+      percentDone: String(task.percentDone),
+      estHrs: String(task.estimatedHours),
+      actualHrs: String(task.actualHours),
+      output: task.outputDeliverable || "",
+      commitLink: task.commitPrLink || "",
+      remarks: task.blockedByRemarks || "",
+      _expanded: false,
+    })),
+    keyAccomp: dto.keyAccomplishments || "",
+    blockers: dto.blockersIssues || "",
+    risks: dto.risksEarlyWarnings || "",
+    planTmr: dto.planForTomorrow || "",
+    escalation: dto.supportEscalationNeeded || "",
+    checklistItems,
+    checklistDone: checklistItems,
+    tmrArr: dto.workArrangementTomorrow || "",
+    tmrTimeIn: dto.expectedTimeIn || "",
+    leaveNotice: dto.leaveAbsenceNotice || "",
+    preparedBy: dto.employeeName,
+    dateSubmitted: dto.reportDate,
+    supervisorComment: dto.supervisorNotes || "",
+    supervisorName: dto.reviewedBy || "",
+    reviewedDate: dto.dateReviewed || dto.reviewDate || "",
+    followUpRequired: dto.followUpRequired,
+    managerActionItems: dto.managerActionItems || "",
+    ...(rating === undefined ? {} : { rating }),
+  };
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -261,6 +271,9 @@ function SectionCard({ title, amber, children = 0, action, defaultOpen = true }:
 export default function DailyAccomplishmentReport() {
   const today = new Date().toISOString().split("T")[0];
   const { user } = useAuth();
+  const { reports, error: reportsError, refresh } = useDailyReportData({ page: 1, pageSize: 100 });
+  const { isSubmitting, isUpdating, submitReport, updateReport } = useDailyReportWorkflow();
+  const lastReportsErrorRef = useRef<string | null>(null);
 
   // ── State ──
 
@@ -306,10 +319,8 @@ export default function DailyAccomplishmentReport() {
   const [showPreview, setShowPreview] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [, setSuccessSnapshot] = useState({ date: "", submitTime: "", taskCount: 0, checkCount: 0 });
-  const [selectedSub, setSelectedSub] = React.useState<any>(null);
-  const [deleteIdx, setDeleteIdx] = React.useState<number | null>(null);
+  const [selectedSub, setSelectedSub] = React.useState<DarSubmission | null>(null);
   const [subSearch, setSubSearch] = React.useState("");
-  const [submissions, setSubmissions] = React.useState<DarSubmission[]>(mockSubmissions);
   const [subFilter, setSubFilter] = React.useState("All Status");
   const [subPage, setSubPage] = React.useState(1);
   
@@ -319,20 +330,22 @@ export default function DailyAccomplishmentReport() {
   const [, setRevisingDate] = useState<string | null>(null);
   const [revisingReason, setRevisingReason] = useState<string>("");
 
-  // ─── Fetch submissions from backend ───────────────────────────────────
-  const fetchSubmissions = useCallback(async () => {
-    // TODO: replace with GET /api/dar/submissions
-    // try {
-    //   const res = await fetch("/api/dar/submissions", { headers: { Authorization: `Bearer ${token}` } });
-    //   const data = await res.json();
-    //   setSubmissions(data);
-    // } catch { /* silently ignore */ }
-  }, []);
+  const submissions = useMemo(
+    () => reports.map(mapDailyReportToSubmission),
+    [reports]
+  );
+  const hasSubmittedForDate = submissions.some(s => s.date === date);
+  const isSavingReport = isSubmitting || isUpdating;
 
   useEffect(() => {
-    fetchSubmissions();
-  }, [fetchSubmissions]);
-
+    if (!reportsError) {
+      lastReportsErrorRef.current = null;
+      return;
+    }
+    if (lastReportsErrorRef.current === reportsError) return;
+    lastReportsErrorRef.current = reportsError;
+    toast.error(reportsError);
+  }, [reportsError]);
   // ─── Auto-fetch today's attendance from backend ────────────────────────
   useEffect(() => {
     let cancelled = false;
@@ -417,18 +430,20 @@ export default function DailyAccomplishmentReport() {
 
   const getFieldSuggestions = (field: string, val: string): string[] => {
     if (val.length < 1) return [];
-    // TODO: replace with GET /api/dar/suggestions?field=:field&q=:val
-    // For now, derive from already-fetched submissions in state
     try {
       return Array.from(new Set(
-        submissions.map((s: any) => s[field]).filter((v: string) => v && v.toLowerCase().includes(val.toLowerCase()))
-      )) as string[];
+        submissions
+          .map(s => s[field])
+          .filter((v): v is string => typeof v === "string" && v.toLowerCase().includes(val.toLowerCase()))
+      ));
     } catch { return []; }
   };
 
   
 
   const handleSubmit = async () => {
+    if (isSavingReport) return;
+
     const now = new Date();
     let h = now.getHours();
     const m = now.getMinutes();
@@ -436,122 +451,132 @@ export default function DailyAccomplishmentReport() {
     h = h % 12 || 12;
     const timeStr = `${h}:${String(m).padStart(2, "0")} ${ampm}`;
     setSubmitTime(timeStr);
-    // Also auto-fill the subTime input (HH:MM format)
     setSubTime(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
-    // TODO: uncomment when backend is ready
-    // try {
-    //   const response = await fetch("/api/daily-report", {
-    //     method: "POST",
-    //     headers: { "Content-Type": "application/json" },
-    //     body: JSON.stringify({ devName, date, workArr, project, sprint, team, submittedTo, timeIn, timeOut, breakMins, tasks, checklist }),
-    //   });
-    //   if (!response.ok) {
-    //     throw new Error("Failed to submit DAR");
-    //   }
-    // } catch {
-    //   toast.error("Unable to submit DAR. Please try again.");
-    //   setShowConfirm(false);
-    //   return;
-    // }
-    const sub = {
-      date,
-      project,
-      tasks: tasks.length,
-      checklist: checklist.filter(Boolean).length,
-      status: "Pending Review",
-      submittedAt: timeStr,
-      workArr,
-      devName,
-      sprint,
-      team,
-      submittedTo,
-      timeIn,
-      timeOut,
-      breakMins,
-      gross,
-      net,
-      standup,
-      reachable,
-      avgResponse,
-      connIssues,
-      collabLog,
-      taskDetails: tasks,
-      devHrs,
-      meetingHrs,
-      idleHrs,
-      keyAccomp,
-      blockers,
-      risks,
-      planTmr,
-      escalation,
-      checklistItems: checklist,
-      checklistDone: checklist,
-      leaveNotice,
-      preparedBy,
-      preparedSig,
-      dateSubmitted,
+
+    const filledTasks = tasks.filter(t => t.description || t.ticketRef || t.status);
+    const trimOrNull = (value: string) => {
+      const trimmed = value.trim();
+      return trimmed ? trimmed : null;
     };
-    // TODO: replace with POST /api/dar/submissions
-    // await fetch("/api/dar/submissions", { method: "POST", headers: { ... }, body: JSON.stringify(sub) });
 
-    // TODO: once backend is ready, remove setSubmissions below and uncomment this line (await fetchSubmissions sa ibaba lng nito)
-    // await fetchSubmissions(); // re-fetch after submit
-    setSubmissions(prev =>
-      isRevising
-        ? prev.map(s => s.date === sub.date && s.devName === sub.devName ? sub : s)
-        : [sub, ...prev]
-    ); 
-    setIsRevising(false);
-    setRevisingDate(null);
-    setRevisingReason("");
-    setShowConfirm(false);
-    setSuccessSnapshot({
-      date,
-      submitTime: timeStr,
-      taskCount: tasks.length,
-      checkCount: checklist.filter(Boolean).length,
-    });
-    toast.success(`DAR submitted successfully`);
+    const createRequest: CreateDailyReportRequest = {
+      reportDate: date,
+      workArrangement: workArr,
+      project,
+      sprintIteration: trimOrNull(sprint),
+      teamUnit: trimOrNull(team),
+      submittedToUserId: null,
+      timeIn: timeIn || null,
+      timeOut: timeOut || null,
+      breakDurationMinutes: breakMins,
+      attendedStandup: standup === "Yes",
+      reachableViaComms: reachable === "Yes",
+      avgResponseTime: trimOrNull(avgResponse),
+      connectivityIssues: trimOrNull(connIssues),
+      collaborationLog: trimOrNull(collabLog),
+      tasks: filledTasks.map((task, index) => ({
+        taskNumber: index + 1,
+        isCarryOver: task.carryOver === "Yes",
+        priority: task.priority,
+        taskType: task.taskType,
+        ticketRefNo: trimOrNull(task.ticketRef),
+        description: task.description,
+        module: trimOrNull(task.module),
+        status: task.status,
+        percentDone: Number.parseFloat(task.percentDone) || 0,
+        estimatedHours: Number.parseFloat(task.estHrs) || 0,
+        actualHours: Number.parseFloat(task.actualHrs) || 0,
+        outputDeliverable: trimOrNull(task.output),
+        commitPrLink: trimOrNull(task.commitLink),
+        blockedByRemarks: trimOrNull(task.remarks),
+      })),
+    };
 
-    // Reset all fields — delay para makita muna ng SuccessModal ang values
-    setTimeout(() => {
-    setDevName(user?.fullName || "");
-    setDate(today);
-    setWorkArr("On-site");
-    setProject("");
-    setSprint("");
-    setTeam("");
-    setSubmittedTo("");
-    setTimeIn("08:00");
-    setTimeOut("17:00");
-    setBreakMins(60);
-    setSubTime("");
-    setStandup("Yes");
-    setReachable("Yes");
-    setAvgResponse("");
-    setConnIssues("");
-    setCollabLog("");
-    nextIdRef.current = 2;
-    setTasks([createEmptyTask(1)]);
-    setDevHrs("");
-    setMeetingHrs("");
-    setIdleHrs("");
-    setKeyAccomp("");
-    setBlockers("");
-    setRisks("");
-    setPlanTmr("");
-    setEscalation("");
-    setChecklist(Array(6).fill(false));
-    setTmrArr("On-site");
-    setTmrTimeIn("08:00");
-    setLeaveNotice("");
-    setPreparedBy("");
-    setPreparedSig("");
-    setDateSubmitted(today);
-    }, 300);
+    const updateRequest: UpdateDailyReportRequest = {
+      keyAccomplishments: keyAccomp,
+      blockersIssues: blockers,
+      risksEarlyWarnings: risks,
+      planForTomorrow: planTmr,
+      supportEscalationNeeded: trimOrNull(escalation),
+      codeCommitted: checklist[0],
+      ticketsUpdated: checklist[1],
+      pullRequestCreated: checklist[2],
+      documentationUpdated: checklist[3],
+      testsPassing: checklist[4],
+      reportSubmittedOnTime: checklist[5],
+      workArrangementTomorrow: tmrArr,
+      expectedTimeIn: tmrTimeIn || null,
+      leaveAbsenceNotice: trimOrNull(leaveNotice),
+    };
+
+    let createdReportId: number | null = null;
+
+    try {
+      const createdReport = await submitReport(createRequest);
+      createdReportId = createdReport.id;
+      await updateReport(createdReportId, updateRequest);
+      await refresh();
+      setIsRevising(false);
+      setRevisingDate(null);
+      setRevisingReason("");
+      setShowConfirm(false);
+      setSuccessSnapshot({
+        date,
+        submitTime: timeStr,
+        taskCount: filledTasks.length,
+        checkCount: checklist.filter(Boolean).length,
+      });
+      toast.success(`DAR submitted successfully`);
+
+      // Reset all fields — delay para makita muna ng SuccessModal ang values
+      setTimeout(() => {
+      setDevName(user?.fullName || "");
+      setDate(today);
+      setWorkArr("On-site");
+      setProject("");
+      setSprint("");
+      setTeam("");
+      setSubmittedTo("");
+      setTimeIn("08:00");
+      setTimeOut("17:00");
+      setBreakMins(60);
+      setSubTime("");
+      setStandup("Yes");
+      setReachable("Yes");
+      setAvgResponse("");
+      setConnIssues("");
+      setCollabLog("");
+      nextIdRef.current = 2;
+      setTasks([createEmptyTask(1)]);
+      setDevHrs("");
+      setMeetingHrs("");
+      setIdleHrs("");
+      setKeyAccomp("");
+      setBlockers("");
+      setRisks("");
+      setPlanTmr("");
+      setEscalation("");
+      setChecklist(Array(6).fill(false));
+      setTmrArr("On-site");
+      setTmrTimeIn("08:00");
+      setLeaveNotice("");
+      setPreparedBy(user?.fullName || "");
+      setPreparedSig("");
+      setDateSubmitted(today);
+      }, 300);
+    } catch (error) {
+      setShowConfirm(false);
+      if (createdReportId !== null) {
+        await refresh();
+        toast.error("The DAR was created, but some report details could not be saved. Please refresh and contact an administrator if the issue continues.");
+        return;
+      }
+      toast.error(error instanceof Error ? error.message : "Unable to submit DAR. Please try again.");
+    }
   };
-
   const handleTrySubmit = () => {
+    if (isSavingReport) return;
+
     const errs: string[] = [];
 
     // ── Section 1: Developer Info ──
@@ -605,65 +630,16 @@ export default function DailyAccomplishmentReport() {
       return;
     }
 
-    // TODO: backend should enforce one-submission-per-day; keep client-side check as UX guard only
-    const alreadySubmitted = submissions.some(s => s.date === date && s.devName === devName);
-    if (alreadySubmitted && !isRevising) {
+    if (hasSubmittedForDate && !isRevising) {
       toast.error("You have already submitted a DAR for today. Only one submission per day is allowed.");
       return;
     }
     setShowConfirm(true);
   };
 
-  const handleRevise = async (sub: any) => {
-    setIsRevising(true);
-    setRevisingDate(sub.date);
-    setRevisingReason(sub.revisionReason || "");
-    setDevName(sub.devName || "");
-    setDate(sub.date || today);
-    setWorkArr(sub.workArr || "On-site");
-    setProject(sub.project || "");
-    setSprint(sub.sprint || "");
-    setTeam(sub.team || "");
-    setSubmittedTo(sub.submittedTo || "");
-    setTimeIn(sub.timeIn || "");
-    setTimeOut(sub.timeOut || "");
-    setBreakMins(sub.breakMins || 60);
-    setStandup(sub.standup || "Yes");
-    setReachable(sub.reachable || "Yes");
-    setAvgResponse(sub.avgResponse || "");
-    setConnIssues(sub.connIssues || "");
-    setCollabLog(sub.collabLog || "");
-    setDevHrs(sub.devHrs || "");
-    setMeetingHrs(sub.meetingHrs || "");
-    setIdleHrs(sub.idleHrs || "");
-    setKeyAccomp(sub.keyAccomp || "");
-    setBlockers(sub.blockers || "");
-    setRisks(sub.risks || "");
-    setPlanTmr(sub.planTmr || "");
-    setEscalation(sub.escalation || "");
-    setChecklist(sub.checklistDone || Array(6).fill(false));
-    setTmrArr(sub.tmrArr || "On-site");
-    setTmrTimeIn(sub.tmrTimeIn || "08:00");
-    setLeaveNotice(sub.leaveNotice || "");
-    setPreparedBy(sub.preparedBy || "");
-    setPreparedSig(sub.preparedSig || "");
-    setDateSubmitted(today);
-    if (sub.taskDetails && sub.taskDetails.length > 0) {
-      const restored = sub.taskDetails.map((t: any, i: number) => ({ ...t, id: i + 1, _expanded: false }));
-      nextIdRef.current = restored.length + 1;
-      setTasks(restored);
-    } else {
-      nextIdRef.current = 2;
-      setTasks([createEmptyTask(1)]);
-    }
-    // Remove the original submission so re-submit is allowed
-    // TODO: replace with PATCH /api/dar/submissions/:id/revise or DELETE + re-submit flow
-    // await fetch(`/api/dar/submissions/${sub.id}/revise`, { method: "PATCH", ... });
-    await fetchSubmissions();
-    setActiveTab("dar");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
+  const handleRevise = useCallback(() => {
+    toast.error("Revision updates are not available for submitted reports yet.");
+  }, []);
   return (
     <div className="space-y-6">
 
@@ -840,7 +816,7 @@ export default function DailyAccomplishmentReport() {
       {activeTab === "dar" && (
         <div className="pro-card !p-0 overflow-hidden border-t-4 border-t-emerald-600">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-6 py-5">
-            {submissions.some(s => s.date === date && s.devName === devName) && !isRevising ? (
+            {hasSubmittedForDate && !isRevising ? (
               <p className="text-xs text-amber-600 flex items-center gap-1.5 font-medium">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 You have already submitted a DAR for today. No further submissions are allowed.
@@ -857,7 +833,7 @@ export default function DailyAccomplishmentReport() {
                 type="button"
                 className="btn btn-secondary"
                 onClick={() => setShowPreview(true)}
-                disabled={submissions.some(s => s.date === date && s.devName === devName) && !isRevising}
+                disabled={(hasSubmittedForDate && !isRevising) || isSavingReport}
               >
                 <Eye className="w-5 h-5" /> Preview
               </button>
@@ -865,8 +841,8 @@ export default function DailyAccomplishmentReport() {
                 type="button"
                 className="btn btn-primary"
                 onClick={handleTrySubmit}
-                disabled={submissions.some(s => s.date === date && s.devName === devName) && !isRevising}
-                style={submissions.some(s => s.date === date && s.devName === devName) && !isRevising ? { cursor: "not-allowed", opacity: 0.5 } : {}}
+                disabled={(hasSubmittedForDate && !isRevising) || isSavingReport}
+                style={(hasSubmittedForDate && !isRevising) || isSavingReport ? { cursor: "not-allowed", opacity: 0.5 } : {}}
               >
                 <Send className="w-5 h-5" /> Submit Report
               </button>
@@ -889,17 +865,6 @@ export default function DailyAccomplishmentReport() {
         taskCount={successSnapshot.taskCount}
         checkCount={successSnapshot.checkCount}
       /> */}
-      <DeleteConfirmModal
-        open={deleteIdx !== null}
-        onClose={() => setDeleteIdx(null)}
-        onConfirm={async () => {
-          if (deleteIdx === null) return;
-          // TODO: replace with DELETE /api/dar/submissions/:id
-          // await fetch(`/api/dar/submissions/${submissions[deleteIdx].id}`, { method: "DELETE", ... });
-          setSubmissions(prev => prev.filter((_, i) => i !== deleteIdx));
-          setDeleteIdx(null);
-        }}
-      />
       {/* View Modal — for submitted reports */}
       <DARViewModal
         open={!!selectedSub}
