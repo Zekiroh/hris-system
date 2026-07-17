@@ -7,6 +7,4 @@ public class SupervisorRemarksRequest
     public bool? FollowUpRequired { get; set; }
     public DateOnly? ReviewDate { get; set; }
     public string? ManagerActionItems { get; set; }
-    public string? ReviewedBy { get; set; }
-    public DateOnly? DateReviewed { get; set; }
 }

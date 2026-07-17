@@ -19,7 +19,7 @@ public class DailyReportsController : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateDailyReportRequest request)
     {
         var result = await _service.CreateAsync(User, request);
-        return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+        return StatusCode(StatusCodes.Status201Created, result);
     }
 
     [HttpPatch("{id}")]
@@ -33,7 +33,7 @@ public class DailyReportsController : ControllerBase
     [PermissionAuthorize("ATTENDANCE", "Update")]
     public async Task<IActionResult> AddSupervisorRemarks(int id, [FromBody] SupervisorRemarksRequest request)
     {
-        var result = await _service.AddSupervisorRemarksAsync(id, request);
+        var result = await _service.AddSupervisorRemarksAsync(id, User, request);
         return Ok(result);
     }
 

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HRIS.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260712212707_AddDailyReportSections4to8")]
-    partial class AddDailyReportSections4to8
+    [Migration("20260717024910_AddDailyAccomplishmentReports")]
+    partial class AddDailyAccomplishmentReports
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -90,6 +90,287 @@ namespace HRIS.Api.Migrations
                     b.HasIndex("Module", "CreatedAt");
 
                     b.ToTable("activity_logs", (string)null);
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.Announcement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("varchar(4000)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("CreatedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime?>("PublishedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("Priority");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("Status", "PublishedAtUtc");
+
+                    b.ToTable("Announcements");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.AnnouncementRead", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("AnnouncementId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("ReadAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("AnnouncementId", "EmployeeId")
+                        .IsUnique();
+
+                    b.ToTable("AnnouncementReads");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.Asset", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AssetCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("AssetName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("Brand")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<DateOnly?>("PurchaseDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("SerialNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssetCode")
+                        .IsUnique();
+
+                    b.ToTable("Assets");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.AssetAssignment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AssetId")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("AssignedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly>("AssignedDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedByUserId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("AssetId", "IsActive");
+
+                    b.ToTable("AssetAssignments");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.AssetReturn", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AssetAssignmentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Condition")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("ReceivedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<DateOnly>("ReturnedDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssetAssignmentId")
+                        .IsUnique();
+
+                    b.HasIndex("ReceivedByUserId");
+
+                    b.ToTable("AssetReturns");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.AssetReturnRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AssetAssignmentId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<DateOnly>("RequestedDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ReviewRemarks")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<DateTime?>("ReviewedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("ReviewedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssetAssignmentId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("ReviewedByUserId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("AssetReturnRequests");
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.AttendanceLog", b =>
@@ -260,11 +541,8 @@ namespace HRIS.Api.Migrations
                     b.Property<DateTime>("SubmissionTime")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<long?>("SubmittedToId")
+                    b.Property<long?>("SubmittedToUserId")
                         .HasColumnType("bigint");
-
-                    b.Property<int?>("SubmittedToUserId")
-                        .HasColumnType("int");
 
                     b.Property<string>("SupervisorNotes")
                         .HasMaxLength(2000)
@@ -301,7 +579,7 @@ namespace HRIS.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SubmittedToId");
+                    b.HasIndex("SubmittedToUserId");
 
                     b.HasIndex("EmployeeId", "ReportDate")
                         .IsUnique();
@@ -379,7 +657,8 @@ namespace HRIS.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DailyReportId");
+                    b.HasIndex("DailyReportId", "TaskNumber")
+                        .IsUnique();
 
                     b.ToTable("daily_report_tasks", (string)null);
                 });
@@ -515,6 +794,130 @@ namespace HRIS.Api.Migrations
                     b.ToTable("Employees");
                 });
 
+            modelBuilder.Entity("HRIS.Api.Models.EmployeeClearance", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("DepartmentApproved")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<bool>("HrApproved")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateOnly>("LastWorkingDay")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("EmployeeClearances");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.EmployeeClearanceActivity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<long?>("ActorUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("EmployeeClearanceId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("EmployeeClearanceId");
+
+                    b.ToTable("EmployeeClearanceActivities");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.EmployeeCompensation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("BaseAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CompensationType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId", "IsActive");
+
+                    b.ToTable("EmployeeCompensations");
+                });
+
             modelBuilder.Entity("HRIS.Api.Models.EmployeeDocument", b =>
                 {
                     b.Property<Guid>("Id")
@@ -602,6 +1005,171 @@ namespace HRIS.Api.Migrations
                     b.HasIndex("EmployeeId", "IsActive");
 
                     b.ToTable("employee_shift_assignments", (string)null);
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.LeaveBalance", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("LeaveType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<decimal>("RemainingCredits")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("decimal(6,2)");
+
+                    b.Property<decimal>("TotalCredits")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("decimal(6,2)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("UsedCredits")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("decimal(6,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("EmployeeId", "LeaveType")
+                        .IsUnique();
+
+                    b.ToTable("LeaveBalances");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.LeaveBalanceTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("CreatedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("Days")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("decimal(6,2)");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int?>("LeaveBalanceId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("LeaveType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("TransactionType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("LeaveBalanceId");
+
+                    b.HasIndex("LeaveType");
+
+                    b.HasIndex("TransactionType");
+
+                    b.ToTable("LeaveBalanceTransactions");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.LeaveRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("DaysRequested")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("decimal(6,2)");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("LeaveType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("ReviewRemarks")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<DateTime?>("ReviewedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("ReviewedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("LeaveType");
+
+                    b.HasIndex("ReviewedByUserId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("EmployeeId", "StartDate", "EndDate");
+
+                    b.ToTable("LeaveRequests");
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.OvertimeRequest", b =>
@@ -697,6 +1265,216 @@ namespace HRIS.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("overtime_request_items", (string)null);
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.PagIbigContributionRule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("EmployeeRate")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<decimal>("EmployerRate")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<decimal>("MaximumContribution")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("MinimumContribution")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EffectiveFrom", "IsActive");
+
+                    b.ToTable("PagIbigContributionRules", t =>
+                        {
+                            t.HasCheckConstraint("CK_PagIbigContributionRule_AmountRange", "`EmployeeRate` >= 0 AND `EmployerRate` >= 0 AND `MinimumContribution` >= 0 AND `MaximumContribution` >= `MinimumContribution`");
+
+                            t.HasCheckConstraint("CK_PagIbigContributionRule_EffectiveRange", "`EffectiveTo` IS NULL OR `EffectiveTo` >= `EffectiveFrom`");
+                        });
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.PayrollPeriod", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("ProcessedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("ReleasedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StartDate", "EndDate")
+                        .IsUnique();
+
+                    b.ToTable("PayrollPeriods");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.PayrollRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<decimal>("GrossPay")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("NetPay")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("PayrollPeriodId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<decimal>("TotalDeductions")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("PayrollPeriodId", "EmployeeId")
+                        .IsUnique();
+
+                    b.ToTable("PayrollRecords");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.PayrollRecordItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<int>("PayrollRecordId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PayrollRecordId");
+
+                    b.ToTable("PayrollRecordItems");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.PerformanceEvaluation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Rating")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<string>("ReviewPeriod")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<long?>("ReviewerUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("Score")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("ReviewPeriod");
+
+                    b.HasIndex("ReviewerUserId");
+
+                    b.HasIndex("EmployeeId", "ReviewPeriod")
+                        .IsUnique();
+
+                    b.ToTable("PerformanceEvaluations", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_PerformanceEvaluations_ScoreRange", "`Score` >= 0 AND `Score` <= 5");
+                        });
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.Permission", b =>
@@ -828,6 +1606,55 @@ namespace HRIS.Api.Migrations
                             CreatedAt = new DateTime(2026, 2, 23, 0, 0, 0, 0, DateTimeKind.Utc),
                             Module = "ATTENDANCE",
                             RoleId = 3
+                        });
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.PhilHealthContributionRule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("ContributionRate")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("EmployeeSharePercent")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<decimal>("EmployerSharePercent")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<decimal>("MaximumContribution")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("MinimumContribution")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EffectiveFrom", "IsActive");
+
+                    b.ToTable("PhilHealthContributionRules", t =>
+                        {
+                            t.HasCheckConstraint("CK_PhilHealthContributionRule_AmountRange", "`ContributionRate` >= 0 AND `MinimumContribution` >= 0 AND `MaximumContribution` >= `MinimumContribution` AND `EmployeeSharePercent` >= 0 AND `EmployeeSharePercent` <= 1 AND `EmployerSharePercent` >= 0 AND `EmployerSharePercent` <= 1");
+
+                            t.HasCheckConstraint("CK_PhilHealthContributionRule_EffectiveRange", "`EffectiveTo` IS NULL OR `EffectiveTo` >= `EffectiveFrom`");
                         });
                 });
 
@@ -1055,6 +1882,51 @@ namespace HRIS.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("HRIS.Api.Models.SssContributionBracket", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("EmployeeShare")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("EmployerShare")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<decimal>("SalaryFrom")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("SalaryTo")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EffectiveFrom", "IsActive");
+
+                    b.ToTable("SssContributionBrackets", t =>
+                        {
+                            t.HasCheckConstraint("CK_SssContributionBracket_AmountRange", "`SalaryFrom` >= 0 AND `EmployeeShare` >= 0 AND `EmployerShare` >= 0 AND (`SalaryTo` IS NULL OR `SalaryTo` >= `SalaryFrom`)");
+
+                            t.HasCheckConstraint("CK_SssContributionBracket_EffectiveRange", "`EffectiveTo` IS NULL OR `EffectiveTo` >= `EffectiveFrom`");
+                        });
+                });
+
             modelBuilder.Entity("HRIS.Api.Models.User", b =>
                 {
                     b.Property<long>("Id")
@@ -1161,6 +2033,154 @@ namespace HRIS.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("HRIS.Api.Models.WithholdingTaxBracket", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("BaseTax")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("CompensationFrom")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("CompensationTo")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("ExcessOver")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<decimal>("TaxRate")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EffectiveFrom", "IsActive");
+
+                    b.ToTable("WithholdingTaxBrackets", t =>
+                        {
+                            t.HasCheckConstraint("CK_WithholdingTaxBracket_AmountRange", "`CompensationFrom` >= 0 AND (`CompensationTo` IS NULL OR `CompensationTo` >= `CompensationFrom`) AND `BaseTax` >= 0 AND `ExcessOver` >= 0 AND `TaxRate` >= 0");
+
+                            t.HasCheckConstraint("CK_WithholdingTaxBracket_EffectiveRange", "`EffectiveTo` IS NULL OR `EffectiveTo` >= `EffectiveFrom`");
+                        });
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.Announcement", b =>
+                {
+                    b.HasOne("HRIS.Api.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedByUser");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.AnnouncementRead", b =>
+                {
+                    b.HasOne("HRIS.Api.Models.Announcement", "Announcement")
+                        .WithMany()
+                        .HasForeignKey("AnnouncementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HRIS.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Announcement");
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.AssetAssignment", b =>
+                {
+                    b.HasOne("HRIS.Api.Models.Asset", "Asset")
+                        .WithMany("Assignments")
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HRIS.Api.Models.User", "AssignedByUser")
+                        .WithMany()
+                        .HasForeignKey("AssignedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("HRIS.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Asset");
+
+                    b.Navigation("AssignedByUser");
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.AssetReturn", b =>
+                {
+                    b.HasOne("HRIS.Api.Models.AssetAssignment", "AssetAssignment")
+                        .WithMany("Returns")
+                        .HasForeignKey("AssetAssignmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HRIS.Api.Models.User", "ReceivedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReceivedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("AssetAssignment");
+
+                    b.Navigation("ReceivedByUser");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.AssetReturnRequest", b =>
+                {
+                    b.HasOne("HRIS.Api.Models.AssetAssignment", "AssetAssignment")
+                        .WithMany()
+                        .HasForeignKey("AssetAssignmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HRIS.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HRIS.Api.Models.User", "ReviewedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("AssetAssignment");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("ReviewedByUser");
+                });
+
             modelBuilder.Entity("HRIS.Api.Models.AttendanceLog", b =>
                 {
                     b.HasOne("HRIS.Api.Models.Employee", "Employee")
@@ -1182,7 +2202,8 @@ namespace HRIS.Api.Migrations
 
                     b.HasOne("HRIS.Api.Models.User", "SubmittedTo")
                         .WithMany()
-                        .HasForeignKey("SubmittedToId");
+                        .HasForeignKey("SubmittedToUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Employee");
 
@@ -1208,6 +2229,46 @@ namespace HRIS.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.EmployeeClearance", b =>
+                {
+                    b.HasOne("HRIS.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.EmployeeClearanceActivity", b =>
+                {
+                    b.HasOne("HRIS.Api.Models.User", "ActorUser")
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("HRIS.Api.Models.EmployeeClearance", "EmployeeClearance")
+                        .WithMany("Activities")
+                        .HasForeignKey("EmployeeClearanceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ActorUser");
+
+                    b.Navigation("EmployeeClearance");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.EmployeeCompensation", b =>
+                {
+                    b.HasOne("HRIS.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.EmployeeDocument", b =>
@@ -1238,6 +2299,60 @@ namespace HRIS.Api.Migrations
                     b.Navigation("Employee");
 
                     b.Navigation("Shift");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.LeaveBalance", b =>
+                {
+                    b.HasOne("HRIS.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.LeaveBalanceTransaction", b =>
+                {
+                    b.HasOne("HRIS.Api.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HRIS.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HRIS.Api.Models.LeaveBalance", "LeaveBalance")
+                        .WithMany("Transactions")
+                        .HasForeignKey("LeaveBalanceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("LeaveBalance");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.LeaveRequest", b =>
+                {
+                    b.HasOne("HRIS.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HRIS.Api.Models.User", "ReviewedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("ReviewedByUser");
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.OvertimeRequest", b =>
@@ -1276,6 +2391,54 @@ namespace HRIS.Api.Migrations
                     b.Navigation("OvertimeRequest");
                 });
 
+            modelBuilder.Entity("HRIS.Api.Models.PayrollRecord", b =>
+                {
+                    b.HasOne("HRIS.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HRIS.Api.Models.PayrollPeriod", "PayrollPeriod")
+                        .WithMany("PayrollRecords")
+                        .HasForeignKey("PayrollPeriodId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("PayrollPeriod");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.PayrollRecordItem", b =>
+                {
+                    b.HasOne("HRIS.Api.Models.PayrollRecord", "PayrollRecord")
+                        .WithMany("Items")
+                        .HasForeignKey("PayrollRecordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PayrollRecord");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.PerformanceEvaluation", b =>
+                {
+                    b.HasOne("HRIS.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HRIS.Api.Models.User", "ReviewerUser")
+                        .WithMany()
+                        .HasForeignKey("ReviewerUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("ReviewerUser");
+                });
+
             modelBuilder.Entity("HRIS.Api.Models.Permission", b =>
                 {
                     b.HasOne("HRIS.Api.Models.Role", "Role")
@@ -1309,6 +2472,16 @@ namespace HRIS.Api.Migrations
                     b.Navigation("Role");
                 });
 
+            modelBuilder.Entity("HRIS.Api.Models.Asset", b =>
+                {
+                    b.Navigation("Assignments");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.AssetAssignment", b =>
+                {
+                    b.Navigation("Returns");
+                });
+
             modelBuilder.Entity("HRIS.Api.Models.DailyReport", b =>
                 {
                     b.Navigation("Tasks");
@@ -1319,7 +2492,27 @@ namespace HRIS.Api.Migrations
                     b.Navigation("Documents");
                 });
 
+            modelBuilder.Entity("HRIS.Api.Models.EmployeeClearance", b =>
+                {
+                    b.Navigation("Activities");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.LeaveBalance", b =>
+                {
+                    b.Navigation("Transactions");
+                });
+
             modelBuilder.Entity("HRIS.Api.Models.OvertimeRequest", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.PayrollPeriod", b =>
+                {
+                    b.Navigation("PayrollRecords");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.PayrollRecord", b =>
                 {
                     b.Navigation("Items");
                 });

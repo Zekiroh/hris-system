@@ -11,7 +11,7 @@ public class DailyReportDto
     public string Project { get; set; } = string.Empty;
     public string? SprintIteration { get; set; }
     public string? TeamUnit { get; set; }
-    public int? SubmittedToUserId { get; set; }
+    public long? SubmittedToUserId { get; set; }
     public TimeOnly? TimeIn { get; set; }
     public TimeOnly? TimeOut { get; set; }
     public int BreakDurationMinutes { get; set; }

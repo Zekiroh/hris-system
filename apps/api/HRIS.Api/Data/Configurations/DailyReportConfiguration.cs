@@ -35,6 +35,11 @@ public class DailyReportConfiguration : IEntityTypeConfiguration<DailyReport>
                .HasForeignKey(x => x.EmployeeId)
                .OnDelete(DeleteBehavior.Restrict);
 
+        builder.HasOne(x => x.SubmittedTo)
+               .WithMany()
+               .HasForeignKey(x => x.SubmittedToUserId)
+               .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasMany(x => x.Tasks)
                .WithOne(x => x.DailyReport)
                .HasForeignKey(x => x.DailyReportId)

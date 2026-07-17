@@ -7,9 +7,10 @@ public class CreateDailyReportRequest
     public string Project { get; set; } = string.Empty;
     public string? SprintIteration { get; set; }
     public string? TeamUnit { get; set; }
-    public int? SubmittedToUserId { get; set; }
+    public long? SubmittedToUserId { get; set; }
     public TimeOnly? TimeIn { get; set; }
     public TimeOnly? TimeOut { get; set; }
+    [System.ComponentModel.DataAnnotations.Range(0, 1440)]
     public int BreakDurationMinutes { get; set; } = 60;
     public bool AttendedStandup { get; set; }
     public bool ReachableViaComms { get; set; }

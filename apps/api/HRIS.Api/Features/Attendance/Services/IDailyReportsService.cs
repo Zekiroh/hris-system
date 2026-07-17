@@ -11,5 +11,5 @@ public interface IDailyReportsService
     Task<List<DailyReportDto>> GetAllAsync(GetDailyReportsQuery query);
     Task<List<DailyReportDto>> GetMineAsync(ClaimsPrincipal user, GetDailyReportsQuery query);
     Task<DailyReportDto> UpdateAsync(int id, ClaimsPrincipal user, UpdateDailyReportRequest request);
-    Task<DailyReportDto> AddSupervisorRemarksAsync(int id, SupervisorRemarksRequest request);
+    Task<DailyReportDto> AddSupervisorRemarksAsync(int id, ClaimsPrincipal user, SupervisorRemarksRequest request);
 }

@@ -538,11 +538,8 @@ namespace HRIS.Api.Migrations
                     b.Property<DateTime>("SubmissionTime")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<long?>("SubmittedToId")
+                    b.Property<long?>("SubmittedToUserId")
                         .HasColumnType("bigint");
-
-                    b.Property<int?>("SubmittedToUserId")
-                        .HasColumnType("int");
 
                     b.Property<string>("SupervisorNotes")
                         .HasMaxLength(2000)
@@ -579,7 +576,7 @@ namespace HRIS.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("SubmittedToId");
+                    b.HasIndex("SubmittedToUserId");
 
                     b.HasIndex("EmployeeId", "ReportDate")
                         .IsUnique();
@@ -657,7 +654,8 @@ namespace HRIS.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DailyReportId");
+                    b.HasIndex("DailyReportId", "TaskNumber")
+                        .IsUnique();
 
                     b.ToTable("daily_report_tasks", (string)null);
                 });
@@ -2201,7 +2199,8 @@ namespace HRIS.Api.Migrations
 
                     b.HasOne("HRIS.Api.Models.User", "SubmittedTo")
                         .WithMany()
-                        .HasForeignKey("SubmittedToId");
+                        .HasForeignKey("SubmittedToUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Employee");
 

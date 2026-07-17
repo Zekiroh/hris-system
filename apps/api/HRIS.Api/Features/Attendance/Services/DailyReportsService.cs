@@ -5,6 +5,7 @@ using HRIS.Api.Features.Common.Exceptions;
 using HRIS.Api.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
 
 namespace HRIS.Api.Features.Attendance.Services;
 
@@ -14,6 +15,29 @@ public class DailyReportsService : IDailyReportsService
     private const int MaxPageSize = 100;
 
     public DailyReportsService(AppDbContext db) => _db = db;
+
+    private static string GetUserDisplayName(ClaimsPrincipal user)
+    {
+        var displayName =
+            user.FindFirstValue(ClaimTypes.Name) ??
+            user.FindFirstValue("name") ??
+            user.FindFirstValue("fullName") ??
+            user.FindFirstValue(ClaimTypes.Email) ??
+            user.FindFirstValue("email") ??
+            user.FindFirstValue(ClaimTypes.NameIdentifier) ??
+            user.FindFirstValue("sub");
+
+        if (string.IsNullOrWhiteSpace(displayName))
+            throw new ApiException("Invalid user.", StatusCodes.Status401Unauthorized);
+
+        return displayName;
+    }
+
+    private static bool IsDuplicateDailyReportException(DbUpdateException ex)
+    {
+        return ex.InnerException is MySqlException { Number: 1062 } mysqlException &&
+               mysqlException.Message.Contains("IX_daily_reports_EmployeeId_ReportDate", StringComparison.Ordinal);
+    }
 
     private async Task<Employee> GetCurrentEmployeeAsync(ClaimsPrincipal user)
     {
@@ -91,7 +115,14 @@ public class DailyReportsService : IDailyReportsService
         };
 
         _db.DailyReports.Add(report);
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (IsDuplicateDailyReportException(ex))
+        {
+            throw new ApiException("A report for this date already exists.", StatusCodes.Status409Conflict);
+        }
 
         return await GetByIdAsync(report.Id) ?? throw new InvalidOperationException();
     }
@@ -148,7 +179,7 @@ public class DailyReportsService : IDailyReportsService
         return await GetByIdAsync(id) ?? throw new InvalidOperationException();
     }
 
-    public async Task<DailyReportDto> AddSupervisorRemarksAsync(int id, SupervisorRemarksRequest request)
+    public async Task<DailyReportDto> AddSupervisorRemarksAsync(int id, ClaimsPrincipal user, SupervisorRemarksRequest request)
     {
         var report = await _db.DailyReports
             .FirstOrDefaultAsync(r => r.Id == id);
@@ -169,10 +200,8 @@ public class DailyReportsService : IDailyReportsService
             report.ManagerActionItems = request.ManagerActionItems;
 
         // Section 8
-        if (request.ReviewedBy != null)
-            report.ReviewedBy = request.ReviewedBy;
-        if (request.DateReviewed.HasValue)
-            report.DateReviewed = request.DateReviewed.Value;
+        report.ReviewedBy = GetUserDisplayName(user);
+        report.DateReviewed = DateOnly.FromDateTime(DateTime.UtcNow);
 
         await _db.SaveChangesAsync();
 
@@ -217,6 +246,7 @@ public class DailyReportsService : IDailyReportsService
 
         var reports = await q
             .OrderByDescending(r => r.ReportDate)
+            .ThenByDescending(r => r.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
@@ -241,6 +271,7 @@ public class DailyReportsService : IDailyReportsService
 
         var reports = await q
             .OrderByDescending(r => r.ReportDate)
+            .ThenByDescending(r => r.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
@@ -293,7 +324,7 @@ public class DailyReportsService : IDailyReportsService
         ManagerActionItems = report.ManagerActionItems,
         ReviewedBy  = report.ReviewedBy,
         DateReviewed = report.DateReviewed,
-        Tasks = report.Tasks.Select(t => new DailyReportTaskDto
+        Tasks = report.Tasks.OrderBy(t => t.TaskNumber).Select(t => new DailyReportTaskDto
         {
             Id                = t.Id,
             TaskNumber        = t.TaskNumber,

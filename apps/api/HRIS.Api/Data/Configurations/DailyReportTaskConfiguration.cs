@@ -21,5 +21,6 @@ public class DailyReportTaskConfiguration : IEntityTypeConfiguration<DailyReport
         builder.Property(x => x.OutputDeliverable).HasMaxLength(500);
         builder.Property(x => x.CommitPrLink).HasMaxLength(500);
         builder.Property(x => x.BlockedByRemarks).HasMaxLength(500);
+        builder.HasIndex(x => new { x.DailyReportId, x.TaskNumber }).IsUnique();
     }
 }

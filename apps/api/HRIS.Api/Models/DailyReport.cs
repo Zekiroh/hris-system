@@ -13,7 +13,7 @@ public class DailyReport
     public string Project { get; set; } = string.Empty;
     public string? SprintIteration { get; set; }
     public string? TeamUnit { get; set; }
-    public int? SubmittedToUserId { get; set; }
+    public long? SubmittedToUserId { get; set; }
     public User? SubmittedTo { get; set; }
     public TimeOnly? TimeIn { get; set; }
     public TimeOnly? TimeOut { get; set; }
