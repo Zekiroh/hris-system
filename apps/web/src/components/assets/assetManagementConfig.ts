@@ -1,12 +1,10 @@
 import { Laptop, ClipboardCheck, Star, Megaphone } from 'lucide-react';
 import type {
     AdminAssetTab,
-    AdminEvaluationRecord,
     AssetFormState,
     AssignAssetFormState,
     AnnouncementFormState,
     ClearanceFormState,
-    EvaluationRecord,
     UserAssetTab,
 } from './assetManagementTypes';
 
@@ -91,42 +89,3 @@ export const priorityBadge: Record<string, string> = {
     Important: 'badge-warning',
     Urgent: 'badge-danger',
 };
-
-export const evaluations: AdminEvaluationRecord[] = [
-    { employee: 'Dela Cruz, Juan', period: 'Q4 2025', reviewer: 'Admin Manager', score: '4.5/5.0', rating: 'Excellent', status: 'Excellent' },
-    { employee: 'Santos, Maria', period: 'Q4 2025', reviewer: 'Admin Manager', score: '4.0/5.0', rating: 'Good', status: 'Good' },
-    { employee: 'Reyes, Jose', period: 'Q4 2025', reviewer: 'Admin Manager', score: '3.2/5.0', rating: 'Needs Improvement', status: 'Needs Improvement' },
-];
-
-export const userEvaluations: EvaluationRecord[] = [
-    {
-        period: 'Q4 2025',
-        reviewer: 'Admin Manager',
-        score: 4.5,
-        maxScore: 5.0,
-        rating: 'Excellent',
-        remarks:
-            'Dosan consistently delivers high-quality work and demonstrates excellent teamwork. Proactive in problem-solving and a reliable asset to the department.',
-        date: '2026-01-10',
-    },
-    {
-        period: 'Q3 2025',
-        reviewer: 'Admin Manager',
-        score: 4.2,
-        maxScore: 5.0,
-        rating: 'Good',
-        remarks:
-            'Strong performance this quarter with consistent output. Minor areas for improvement in documentation practices.',
-        date: '2025-10-08',
-    },
-    {
-        period: 'Q2 2025',
-        reviewer: 'Admin Manager',
-        score: 3.9,
-        maxScore: 5.0,
-        rating: 'Good',
-        remarks:
-            'Met expectations across most KPIs. Showed improvement in communication and collaborative tasks.',
-        date: '2025-07-12',
-    },
-];

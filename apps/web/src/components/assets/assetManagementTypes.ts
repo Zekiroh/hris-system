@@ -38,20 +38,6 @@ export type AnnouncementFormState = {
     content: string;
 };
 
-type AdminEvaluationRating =
-    | "Excellent"
-    | "Good"
-    | "Needs Improvement";
-
-export type AdminEvaluationRecord = {
-    employee: string;
-    period: string;
-    reviewer: string;
-    score: string;
-    rating: AdminEvaluationRating;
-    status: AdminEvaluationRating;
-};
-
 export type UserAssetTab = {
     id: 'assets' | 'clearance' | 'evaluation' | 'announcements';
     label: string;
