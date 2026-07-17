@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Package, Laptop, Wrench, AlertTriangle, Clock, CheckCircle, Calendar } from 'lucide-react';
 import AssetStatCard from '../../components/assets/AssetStatCard';
 import AddAnnouncementModal from '../../components/assets/modals/AddAnnouncementModal';
@@ -13,7 +13,6 @@ import AdminEvaluationTab from '../../components/assets/tabs/AdminEvaluationTab'
 import AdminInventoryTab from '../../components/assets/tabs/AdminInventoryTab';
 import {
     adminAssetTabs,
-    evaluations,
     initialClearanceForm,
 } from '../../components/assets/assetManagementConfig';
 import {
@@ -27,6 +26,7 @@ import { useAdminAssetData } from '../../components/assets/hooks/useAdminAssetDa
 import { useAdminClearanceActivity } from '../../components/assets/hooks/useAdminClearanceActivity';
 import { useAdminClearanceData } from '../../components/assets/hooks/useAdminClearanceData';
 import { useAdminClearanceWorkflow } from '../../components/assets/hooks/useAdminClearanceWorkflow';
+import { useAdminPerformanceData } from '../../components/assets/hooks/useAdminPerformanceData';
 import { useAssetAssignmentWorkflow } from '../../components/assets/hooks/useAssetAssignmentWorkflow';
 import { useAssetCreationWorkflow } from '../../components/assets/hooks/useAssetCreationWorkflow';
 import { useReturnReviewWorkflow } from '../../components/assets/hooks/useReturnReviewWorkflow';
@@ -70,6 +70,11 @@ const AssetManagement = () => {
         handleUpdateHrApproval,
         handleCompleteClearance,
     } = useAdminClearanceWorkflow({ loadClearances });
+    const {
+        evaluations,
+        isLoadingEvaluations,
+        evaluationError,
+    } = useAdminPerformanceData();
     const {
         selectedClearanceId,
         selectedClearanceEmployeeName,
@@ -122,6 +127,20 @@ const AssetManagement = () => {
     });
 
     const [clearanceForm, setClearanceForm] = useState(initialClearanceForm);
+
+    const sortedEvaluations = useMemo(() => {
+        const getCreatedAtTime = (createdAtUtc: string) => {
+            const time = new Date(createdAtUtc).getTime();
+            return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time;
+        };
+
+        return [...evaluations].sort((left, right) => {
+            const timeDifference = getCreatedAtTime(right.createdAtUtc) - getCreatedAtTime(left.createdAtUtc);
+            if (timeDifference !== 0) return timeDifference;
+
+            return left.id.localeCompare(right.id);
+        });
+    }, [evaluations]);
 
     const statCards = [
         { label: 'Total Assets', value: assets.length, icon: Package, gradient: 'linear-gradient(135deg, #059669, #10b981)' },
@@ -291,7 +310,11 @@ const AssetManagement = () => {
                     )}
 
                     {activeTab === 'evaluation' && (
-                        <AdminEvaluationTab evaluations={evaluations} />
+                        <AdminEvaluationTab
+                            evaluations={sortedEvaluations}
+                            isLoadingEvaluations={isLoadingEvaluations}
+                            evaluationError={evaluationError}
+                        />
                     )}
 
                     {activeTab === 'announcements' && (
