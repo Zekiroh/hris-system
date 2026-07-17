@@ -12,259 +12,195 @@ import {
 } from "../../components/DAR/admin/modaladmin";
 import type { SubmittedReport, ReportStatus } from "../../components/DAR/admin/modaladmin";
 import ReviewTable from "../../components/DAR/admin/reviewTable";
-import { useAuth } from "../../context/AuthContext"; // i-adjust ang path base sa aktwal na lokasyon ng AuthContext.tsx
+import { useAuth } from "../../context/AuthContext";
+import { useAdminDailyReportData } from "../../components/DAR/hooks/useAdminDailyReportData";
+import { useAdminDailyReportWorkflow } from "../../components/DAR/hooks/useAdminDailyReportWorkflow";
+import type { DailyReportDto, SupervisorRemarksRequest } from "../../lib/dailyReports";
 
-const mockReports: SubmittedReport[] = [
-  // ─── Pending Review (4) ───────────────────────────────────────────────
-  {
-    id: "DAR-2025-001",
-    referenceNo: "DAR-2025-001",
-    employeeName: "Charleston James S. Cabanatan",
-    department: "Frontend Team",
-    project: "SIMPLEVIA HRIS",
-    date: "2025-07-01",
-    submittedAt: "5:00 PM",
-    workArrangement: "On-site",
-    totalActualHours: 8.5,
-    totalEstHours: 8,
-    tasksCompleted: 4,
-    tasksTotal: 5,
-    checklistDone: 5,
-    status: "Pending Review",
-    assignedSupervisor: "Marivic R. Songalia-Magyaya",
+const REVIEWED_STATUS = "Reviewed" as ReportStatus;
+
+function isReviewedReport(dto: DailyReportDto) {
+  return Boolean(
+    dto.reviewedBy ||
+    dto.dateReviewed ||
+    dto.reviewDate ||
+    dto.supervisorNotes ||
+    dto.performanceRating
+  );
+}
+
+function parseRating(value: string | null): SubmittedReport["rating"] {
+  if (!value?.trim()) return undefined;
+  const parsed = Number(value);
+
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 5
+    ? parsed as SubmittedReport["rating"]
+    : undefined;
+}
+
+function formatDateTimeForUi(value: string | null) {
+  if (!value) return "";
+  const timeOnlyMatch = value.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  const parsed = timeOnlyMatch
+    ? new Date(`1970-01-01T${value}`)
+    : new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) return value;
+
+  return parsed.toLocaleTimeString("en-PH", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function formatHours(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "";
+
+  return `${Number(value.toFixed(2))}h`;
+}
+
+function calculateGrossHours(timeIn: string | null, timeOut: string | null) {
+  if (!timeIn || !timeOut) return 0;
+  const start = new Date(`1970-01-01T${timeIn}`);
+  const end = new Date(`1970-01-01T${timeOut}`);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+
+  const diff = end.getTime() - start.getTime();
+  return diff > 0 ? diff / 3_600_000 : 0;
+}
+
+function normalizeTaskStatus(status: string) {
+  const normalized = status.trim().toLowerCase();
+
+  if (normalized === "in progress" || normalized === "in-progress") return "ip";
+  if (normalized === "to do" || normalized === "todo") return "todo";
+  if (normalized === "blocked") return "blocked";
+  if (normalized === "done") return "done";
+
+  return normalized;
+}
+
+function mapDailyReportToSubmittedReport(dto: DailyReportDto): SubmittedReport {
+  const tasks = dto.tasks ?? [];
+  const totalActualHours = tasks.reduce((sum, task) => sum + (task.actualHours || 0), 0);
+  const totalEstHours = tasks.reduce((sum, task) => sum + (task.estimatedHours || 0), 0);
+  const tasksCompleted = tasks.filter(task => task.status.trim().toLowerCase() === "done").length;
+  const checklistDone = dto.checklistCompletedCount || 0;
+  const checklistItems = [
+    dto.codeCommitted,
+    dto.ticketsUpdated,
+    dto.pullRequestCreated,
+    dto.documentationUpdated,
+    dto.testsPassing,
+    dto.reportSubmittedOnTime,
+  ];
+  const grossHours = calculateGrossHours(dto.timeIn, dto.timeOut);
+  const netHours = Math.max(0, grossHours - ((dto.breakDurationMinutes || 0) / 60));
+
+  return {
+    id: String(dto.id),
+    referenceNo: `DAR-${dto.id}`,
+    employeeName: dto.employeeName,
+    department: dto.teamUnit || "",
+    project: dto.project,
+    date: dto.reportDate,
+    submittedAt: formatDateTimeForUi(dto.submissionTime),
+    workArrangement: dto.workArrangement,
+    totalActualHours,
+    totalEstHours,
+    tasksCompleted,
+    tasksTotal: tasks.length,
+    checklistDone,
+    status: isReviewedReport(dto) ? REVIEWED_STATUS : "Pending Review",
+    assignedSupervisor: "",
+    rating: parseRating(dto.performanceRating),
+    supervisorName: dto.reviewedBy || "",
+    supervisorComment: dto.supervisorNotes || "",
+    finalRemarks: dto.supervisorNotes || "",
+    followUpRequired: dto.followUpRequired,
+    managerActionItems: dto.managerActionItems || "",
     _raw: {
-      taskDetails: [
-        {
-          id: 1,
-          taskType: "Development",
-          ticketRef: "SIM-142",
-          description: "Implement supervisor dropdown filter across admin DAR tables",
-          module: "DAR - Admin",
-          status: "done",
-          percentDone: 100,
-          estHrs: 3,
-          actualHrs: 3.5,
-          output: "PR #218 merged",
-        },
-        {
-          id: 2,
-          taskType: "Bug Fix",
-          ticketRef: "SIM-145",
-          description: "Fix mock data bug causing empty pending table",
-          module: "DAR - Admin",
-          status: "done",
-          percentDone: 100,
-          estHrs: 1,
-          actualHrs: 1,
-          output: "loadReports() now returns mockReports",
-        },
-        {
-          id: 3,
-          taskType: "Development",
-          ticketRef: "SIM-149",
-          description: "Refactor stat cards to match employee-side UI pattern",
-          module: "DAR - Admin",
-          status: "done",
-          percentDone: 100,
-          estHrs: 2,
-          actualHrs: 2,
-          output: "Updated statCards + card markup",
-        },
-        {
-          id: 4,
-          taskType: "Enhancement",
-          ticketRef: "SIM-151",
-          description: "Add Print/Export and Proceed to Review actions to ViewDarModal",
-          module: "DAR - Admin",
-          status: "done",
-          percentDone: 100,
-          estHrs: 1.5,
-          actualHrs: 1.5,
-          output: "jsPDF single-report export wired up",
-        },
-        {
-          id: 5,
-          taskType: "Development",
-          ticketRef: "SIM-153",
-          description: "Move shared DAR constants to neutral shared file",
-          module: "DAR - Shared",
-          status: "ip",
-          percentDone: 60,
-          estHrs: 2,
-          actualHrs: 0.5,
-          output: "In progress — pending file split",
-        },
-      ],
-      submittedTo: "Marivic R. Songalia-Magyaya",
-      timeIn: "9:00 AM",
-      timeOut: "5:00 PM",
-      gross: "8h",
-      net: "8h",
-      keyAccomp: "Completed supervisor dropdown filter, fixed mock data bug, revised stat card UI to match employee-side design.",
-      planTmr: "Continue moving shared constants (SUPERVISOR_OPTIONS, checklistItems) to a neutral constants file.",
+      backendId: dto.id,
+      employeeId: dto.employeeId,
+      date: dto.reportDate,
+      devName: dto.employeeName,
+      workArr: dto.workArrangement,
+      project: dto.project,
+      sprint: dto.sprintIteration || "",
+      team: dto.teamUnit || "",
+      submittedTo: dto.submittedToUserId ? String(dto.submittedToUserId) : "",
+      timeIn: dto.timeIn || "",
+      timeOut: dto.timeOut || "",
+      gross: formatHours(grossHours),
+      net: formatHours(netHours),
+      standup: dto.attendedStandup ? "Yes" : "No",
+      reachable: dto.reachableViaComms ? "Yes" : "No",
+      avgResponse: dto.avgResponseTime || "",
+      connIssues: dto.connectivityIssues || "",
+      collabLog: dto.collaborationLog || "",
+      taskDetails: tasks.map(task => ({
+        id: task.id,
+        carryOver: task.isCarryOver ? "Yes" : "No",
+        priority: task.priority,
+        taskType: task.taskType,
+        ticketRef: task.ticketRefNo || "",
+        description: task.description,
+        module: task.module || "",
+        status: normalizeTaskStatus(task.status),
+        percentDone: String(task.percentDone),
+        estHrs: String(task.estimatedHours),
+        actualHrs: String(task.actualHours),
+        output: task.outputDeliverable || "",
+        commitLink: task.commitPrLink || "",
+        remarks: task.blockedByRemarks || "",
+      })),
+      keyAccomp: dto.keyAccomplishments || "",
+      blockers: dto.blockersIssues || "",
+      risks: dto.risksEarlyWarnings || "",
+      planTmr: dto.planForTomorrow || "",
+      escalation: dto.supportEscalationNeeded || "",
+      checklistItems,
+      checklistDone: checklistItems,
+      checklist: checklistDone,
+      codeCommitted: dto.codeCommitted,
+      ticketsUpdated: dto.ticketsUpdated,
+      pullRequestCreated: dto.pullRequestCreated,
+      documentationUpdated: dto.documentationUpdated,
+      testsPassing: dto.testsPassing,
+      reportSubmittedOnTime: dto.reportSubmittedOnTime,
+      tmrArr: dto.workArrangementTomorrow || "",
+      tmrTimeIn: dto.expectedTimeIn || "",
+      leaveNotice: dto.leaveAbsenceNotice || "",
+      supervisorNotes: dto.supervisorNotes || "",
+      performanceRating: dto.performanceRating || "",
+      followUpRequired: dto.followUpRequired,
+      reviewDate: dto.reviewDate || "",
+      managerActionItems: dto.managerActionItems || "",
+      reviewedBy: dto.reviewedBy || "",
+      dateReviewed: dto.dateReviewed || "",
+      submittedAt: formatDateTimeForUi(dto.submissionTime),
+      dateSubmitted: dto.submissionTime,
     },
-  },
-  {
-    id: "DAR-2025-002",
-    referenceNo: "DAR-2025-002",
-    employeeName: "Maria Santos",
-    department: "Frontend Team",
-    project: "SIMPLEVIA HRIS",
-    date: "2025-07-01",
-    submittedAt: "6:00 PM",
-    workArrangement: "Work From Home",
-    totalActualHours: 7,
-    totalEstHours: 8,
-    tasksCompleted: 3,
-    tasksTotal: 4,
-    checklistDone: 4,
-    status: "Pending Review",
-    assignedSupervisor: "Angela Reyes",
-  },
-  {
-    id: "DAR-2025-003",
-    referenceNo: "DAR-2025-003",
-    employeeName: "Carlo Reyes",
-    department: "QA Team",
-    project: "SIMPLEVIA HRIS",
-    date: "2025-07-01",
-    submittedAt: "5:30 PM",
-    workArrangement: "Hybrid",
-    totalActualHours: 9,
-    totalEstHours: 8,
-    tasksCompleted: 6,
-    tasksTotal: 6,
-    checklistDone: 6,
-    status: "Pending Review",
-    assignedSupervisor: "Roberto Cruz",
-  },
-  {
-    id: "DAR-2025-004",
-    referenceNo: "DAR-2025-004",
-    employeeName: "Ana Lim",
-    department: "Backend Team",
-    project: "SIMPLEVIA HRIS",
-    date: "2025-07-01",
-    submittedAt: "5:55 PM",
-    workArrangement: "On-site",
-    totalActualHours: 7.5,
-    totalEstHours: 8,
-    tasksCompleted: 3,
-    tasksTotal: 5,
-    checklistDone: 3,
-    status: "Pending Review",
-    assignedSupervisor: "Michael Tan",
-  },
+  };
+}
 
-  // ─── Reviewed (4) ────────────────────────────────────────────────────
-  {
-    id: "DAR-2025-005",
-    referenceNo: "DAR-2025-005",
-    employeeName: "Jose Ramos",
-    department: "Frontend Team",
-    project: "SIMPLEVIA HRIS",
-    date: "2025-06-30",
-    submittedAt: "5:45 PM",
-    workArrangement: "On-site",
-    totalActualHours: 8,
-    totalEstHours: 8,
-    tasksCompleted: 5,
-    tasksTotal: 5,
-    checklistDone: 6,
-    status: "Approved",
-    rating: 5,
-    performanceScore: 95,
-    supervisorName: "Roberto Cruz",
-    supervisorComment: "Excellent work today. All tasks completed on time.",
-    taskCompletion: "Exceeds Expectations",
-    taskVerification: "Verified",
-    attendanceVerified: true,
-    acknowledgedByEmployee: true,
-    acknowledgedByAdmin: true,
-  },
-  {
-    id: "DAR-2025-006",
-    referenceNo: "DAR-2025-006",
-    employeeName: "Lea Gonzales",
-    department: "QA Team",
-    project: "SIMPLEVIA HRIS",
-    date: "2025-06-30",
-    submittedAt: "6:10 PM",
-    workArrangement: "Work From Home",
-    totalActualHours: 7.5,
-    totalEstHours: 8,
-    tasksCompleted: 4,
-    tasksTotal: 5,
-    checklistDone: 5,
-    status: "Revision Requested",
-    rating: 3,
-    performanceScore: 65,
-    supervisorName: "Roberto Cruz",
-    supervisorComment: "Please update the ticket references in your task list.",
-    taskCompletion: "Meets Expectations",
-    taskVerification: "Partially Verified",
-    attendanceVerified: true,
-    acknowledgedByEmployee: true,
-    acknowledgedByAdmin: true,
-  },
-  {
-    id: "DAR-2025-007",
-    referenceNo: "DAR-2025-007",
-    employeeName: "Mark Villanueva",
-    department: "Backend Team",
-    project: "SIMPLEVIA HRIS",
-    date: "2025-06-29",
-    submittedAt: "5:30 PM",
-    workArrangement: "On-site",
-    totalActualHours: 8,
-    totalEstHours: 8,
-    tasksCompleted: 5,
-    tasksTotal: 5,
-    checklistDone: 6,
-    status: "Approved",
-    rating: 4,
-    performanceScore: 85,
-    supervisorName: "Roberto Cruz",
-    supervisorComment: "Good work. Keep it up.",
-    taskCompletion: "Exceeds Expectations",
-    taskVerification: "Verified",
-    attendanceVerified: true,
-    acknowledgedByEmployee: true,
-    acknowledgedByAdmin: true,
-  },
-  {
-    id: "DAR-2025-008",
-    referenceNo: "DAR-2025-008",
-    employeeName: "Nina Torres",
-    department: "Frontend Team",
-    project: "SIMPLEVIA HRIS",
-    date: "2025-06-29",
-    submittedAt: "6:05 PM",
-    workArrangement: "Hybrid",
-    totalActualHours: 6,
-    totalEstHours: 8,
-    tasksCompleted: 2,
-    tasksTotal: 5,
-    checklistDone: 2,
-    status: "Rejected",
-    rating: 1,
-    performanceScore: 30,
-    supervisorName: "Roberto Cruz",
-    supervisorComment: "Report is incomplete. Tasks and checklist not fully accomplished.",
-    taskCompletion: "Needs Improvement",
-    taskVerification: "Not Verified",
-    attendanceVerified: false,
-    acknowledgedByEmployee: true,
-    acknowledgedByAdmin: true,
-  },
-];
+function trimmedOrNull(value: string | undefined) {
+  const trimmed = value?.trim();
 
-// TODO: replace with GET /api/dar/submissions (admin — all employees)
-// const loadReports = async () => { ... }
-// Returns mock data for now; wire up on API integration day
-const loadReports = (): SubmittedReport[] => mockReports;
+  return trimmed ? trimmed : null;
+}
 
-// â”€â”€ Export helpers (Excel + PDF) â”€â”€
+function toIsoDateOrNull(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  return parsed.toISOString().slice(0, 10);
+}
+
+// Export helpers (Excel + PDF)
 function buildExportData(rows: SubmittedReport[], mode: string) {
   const isHistory = mode === "history";
   const headers = isHistory
@@ -300,7 +236,7 @@ function generatePDF(rows: SubmittedReport[], mode: string) {
   doc.setFontSize(14);
   doc.text("Daily Accomplishment Report", 14, 15);
   doc.setFontSize(10);
-  doc.text((data.isHistory ? "Review History" : "Pending Submissions") + " â€” " + data.body.length + " record(s)", 14, 21);
+  doc.text((data.isHistory ? "Review History" : "Pending Submissions") + " - " + data.body.length + " record(s)", 14, 21);
   doc.setFontSize(8);
   doc.text("Generated: " + new Date().toLocaleString(), 14, 26);
   autoTable(doc, {
@@ -318,11 +254,20 @@ function generatePDF(rows: SubmittedReport[], mode: string) {
 const AdminDailyAccomplishmentReport = () => {
   const { user } = useAuth();
   const currentAdminName = user?.fullName || "";
+  const {
+    reports: backendReports,
+    error: dataError,
+    refresh,
+  } = useAdminDailyReportData({ page: 1, pageSize: 100 });
+  const {
+    isSavingReview,
+    error: workflowError,
+    saveSupervisorRemarks,
+  } = useAdminDailyReportWorkflow();
+  const lastDataErrorRef = React.useRef<string | null>(null);
 
-  const [reports, setReports] = useState<SubmittedReport[]>(loadReports);
   const [selectedReport, setSelectedReport] = useState<SubmittedReport | null>(null);
   const [search, setSearch]                 = useState("");
-  const [filterStatus, setFilterStatus]     = useState("All");
   const [filterDept, setFilterDept]         = useState("All");
   const [filterSupervisor, setFilterSupervisor] = useState("All");
   const [historySupervisor, setHistorySupervisor] = useState("All");
@@ -338,22 +283,37 @@ const AdminDailyAccomplishmentReport = () => {
   const [viewDarReport, setViewDarReport]   = useState<SubmittedReport | null>(null);
 
   React.useEffect(() => {
-    // TODO: replace with real-time polling or WebSocket/SignalR
-    // when employee submits a DAR, admin table should refresh via fetchReports()
-  }, []);
+    if (!dataError) {
+      lastDataErrorRef.current = null;
+      return;
+    }
+
+    if (lastDataErrorRef.current !== dataError) {
+      toast.error(dataError);
+      lastDataErrorRef.current = dataError;
+    }
+  }, [dataError]);
 
   const PAGE_SIZE = 10;
+
+  const reports = React.useMemo(
+    () => backendReports.map(mapDailyReportToSubmittedReport),
+    [backendReports]
+  );
 
   const openExport = (rows: SubmittedReport[], mode: "pending" | "history") => {
     setExportRows(rows); setExportMode(mode); setExportFormat("excel"); setExportOpen(true);
   };
 
   const pending  = reports.filter(r => r.status === "Pending Review").length;
-  const approved = reports.filter(r => r.status === "Approved").length;
-  const revision = reports.filter(r => r.status === "Revision Requested").length;
+  const reviewed = reports.filter(r => r.status === REVIEWED_STATUS).length;
+  const revision = 0;
   const total    = reports.length;
 
-  const departments = ["All", ...DEPARTMENT_OPTIONS];
+  const departments = React.useMemo(() => {
+    const values = reports.map(r => r.department).filter(Boolean);
+    return ["All", ...Array.from(new Set([...values, ...DEPARTMENT_OPTIONS]))];
+  }, [reports]);
 
   const handleSearch      = (v: string) => { setSearch(v);       setCurrentPage(1); };
   const handleFilterDept  = (v: string) => { setFilterDept(v);   setCurrentPage(1); };
@@ -393,16 +353,41 @@ const AdminDailyAccomplishmentReport = () => {
   const currentTabPage     = activeMainTab === "pending" ? currentPage       : historyPage;
   const setCurrentTabPage  = activeMainTab === "pending" ? setCurrentPage    : setHistoryPage;
 
-  const handleSaveReview = (updated: Partial<SubmittedReport>) => {
-    if (!selectedReport) return;
-    setReports(prev => prev.map(r => r.id === selectedReport.id ? { ...r, ...updated } : r));
+  const handleSaveReview = async (updated: Partial<SubmittedReport>) => {
+    if (!selectedReport || isSavingReview) return;
+
+    const reportId = Number(selectedReport.id);
+    if (!Number.isSafeInteger(reportId)) {
+      toast.error("Unable to save supervisor remarks.");
+      return;
+    }
+
+    const request: SupervisorRemarksRequest = {
+      supervisorNotes: trimmedOrNull(updated.supervisorComment) ?? trimmedOrNull(updated.finalRemarks),
+      performanceRating: updated.rating ? String(updated.rating) : null,
+      followUpRequired: typeof updated.followUpRequired === "boolean" ? updated.followUpRequired : null,
+      reviewDate: toIsoDateOrNull(selectedReport._raw?.reviewDate) ?? new Date().toISOString().slice(0, 10),
+      managerActionItems: trimmedOrNull(updated.managerActionItems),
+    };
+
+    try {
+      await saveSupervisorRemarks(reportId, request);
+      await refresh();
+      setSelectedReport(null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : workflowError || "Unable to save supervisor remarks."
+      );
+    }
   };
 
   const statCards = [
     { label: "Total Submitted", value: total,    sub: "All submissions",       icon: ClipboardList, gradient: "linear-gradient(135deg, #0f766e 0%, #0d9488 100%)" },
     { label: "Pending Review",  value: pending,  sub: "Awaiting action",       icon: Clock,         gradient: "linear-gradient(135deg, #d97706 0%, #f59e0b 100%)" },
-    { label: "Approved",        value: approved, sub: "Finalized reports",     icon: CheckCircle,   gradient: "linear-gradient(135deg, #059669 0%, #10b981 100%)" },
-    { label: "Revision Needed", value: revision, sub: "Needs employee update", icon: RefreshCw,     gradient: "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)" },
+    { label: "Approved",        value: reviewed, sub: "Reviewed reports",      icon: CheckCircle,   gradient: "linear-gradient(135deg, #059669 0%, #10b981 100%)" },
+    { label: "Revision Needed", value: revision, sub: "Not supported",         icon: RefreshCw,     gradient: "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)" },
   ];
 
   return (
@@ -531,11 +516,8 @@ const AdminDailyAccomplishmentReport = () => {
             setViewDarReport(null);
           }}
           onRequestRevision={(reason) => {
-            setReports(prev => prev.map(r =>
-              r.id === viewDarReport.id
-                ? { ...r, status: "Revision Requested" as ReportStatus, revisionReason: reason }
-                : r
-            ));
+            void reason;
+            toast.error("Revision requests are not supported by the current DAR backend.");
             setViewDarReport(null);
           }}
         />
