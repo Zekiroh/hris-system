@@ -12,7 +12,6 @@ import {
   LogOut,
   Newspaper,
   BarChart3,
-  Building2,
   X,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -127,7 +126,6 @@ const Sidebar = ({
     { icon: BarChart3, label: "My Performance", path: "/dashboard/my-performance" },
     { icon: DollarSign, label: "Payroll", path: "/dashboard/my-payslips" },
     { icon: Newspaper, label: "Company News", path: "/dashboard/company-news" },
-    { icon: Building2, label: "Company Directory", path: "/dashboard/company-directory" },
     { icon: Settings, label: "Settings", path: "/dashboard/settings" },
   ];
 

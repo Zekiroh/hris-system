@@ -36,7 +36,6 @@ const routeLabels: Record<string, string> = {
   "/dashboard/company-news": "Company News",
   "/dashboard/my-payslips": "My Pay Slips",
   "/dashboard/my-performance": "My Performance",
-  "/dashboard/company-directory": "Company Directory",
   "/dashboard/my-assets": "My Assets",
   "/dashboard/daily-accomplishment": "Daily Accomplishment",
   "/dashboard/daily-accomplishment-reports": "Daily Accomplishment Reports",

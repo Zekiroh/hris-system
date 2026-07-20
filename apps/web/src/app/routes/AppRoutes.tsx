@@ -34,7 +34,6 @@ import UserAttendance from "../../pages/attendance/user/UserAttendance";
 
 // User Pages
 import MyPaySlips from "../../pages/user/MyPaySlips";
-import CompanyDirectory from "../../pages/user/CompanyDirectory";
 import MyPerformance from "../../pages/user/MyPerformance";
 import CompanyNews from "../../pages/user/CompanyNews";
 import UserAssetManagement from "../../pages/user/UserAssetManagement";
@@ -182,7 +181,6 @@ export default function AppRoutes() {
           {/* User Pages */}
           <Route path="my-payslips" element={<MyPaySlips />} />
           <Route path="my-assets" element={<UserAssetManagement />} />
-          <Route path="company-directory" element={<CompanyDirectory />} />
           <Route path="my-performance" element={<MyPerformance />} />
           <Route path="company-news" element={<CompanyNews />} />
         </Route>
