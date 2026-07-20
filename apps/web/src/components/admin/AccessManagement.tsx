@@ -37,7 +37,6 @@ const MODULE_ALIASES: Record<string, string[]> = {
   'My Pay Slips': ['PAYSLIPS'],
   'My Performance': ['PERFORMANCE'],
   'Company Directory': ['DIRECTORY'],
-  'Help & Support': ['SUPPORT', 'HELP'],
 };
 
 const FLAG_BY_PERMISSION_LABEL = {
@@ -62,7 +61,6 @@ const modules = [
   { name: 'My Pay Slips', permissions: ['View'] },
   { name: 'My Performance', permissions: ['View'] },
   { name: 'Company Directory', permissions: ['View'] },
-  { name: 'Help & Support', permissions: ['View', 'Create'] },
 ];
 
 const buildInitialPermissionState = (roleList: string[]) => {

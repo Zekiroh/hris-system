@@ -37,7 +37,6 @@ import MyPaySlips from "../../pages/user/MyPaySlips";
 import CompanyDirectory from "../../pages/user/CompanyDirectory";
 import MyPerformance from "../../pages/user/MyPerformance";
 import CompanyNews from "../../pages/user/CompanyNews";
-import HelpSupport from "../../pages/user/HelpSupport";
 import UserAssetManagement from "../../pages/user/UserAssetManagement";
 
 // Asset Management
@@ -186,7 +185,6 @@ export default function AppRoutes() {
           <Route path="company-directory" element={<CompanyDirectory />} />
           <Route path="my-performance" element={<MyPerformance />} />
           <Route path="company-news" element={<CompanyNews />} />
-          <Route path="help-support" element={<HelpSupport />} />
         </Route>
       </Route>
 
