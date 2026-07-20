@@ -23,7 +23,7 @@ import DailyAccomplishmentReport from "../../pages/DailyReport/DailyAccomplishme
 import LeaveManagement from "../../pages/leave/LeaveManagement";
 
 // Payroll
-import Payroll from "../../pages/payroll/Payroll";
+import Payroll from "../../features/payroll/Payroll";
 
 // Government Compliance
 import GovernmentCompliance from "../../pages/compliance/GovernmentCompliance";
