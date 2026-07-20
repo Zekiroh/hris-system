@@ -10,7 +10,6 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  Newspaper,
   BarChart3,
   X,
 } from "lucide-react";
@@ -125,7 +124,6 @@ const Sidebar = ({
 
     { icon: BarChart3, label: "My Performance", path: "/dashboard/my-performance" },
     { icon: DollarSign, label: "Payroll", path: "/dashboard/my-payslips" },
-    { icon: Newspaper, label: "Company News", path: "/dashboard/company-news" },
     { icon: Settings, label: "Settings", path: "/dashboard/settings" },
   ];
 
