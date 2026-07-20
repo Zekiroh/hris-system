@@ -1,4 +1,3 @@
-import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Login from "../../pages/Login";
@@ -6,6 +5,7 @@ import ForgotPassword from "../../pages/ForgotPassword";
 import Layout from "../../components/layout/Layout";
 import RequireAuth from "./guards/RequireAuth";
 import GuestOnly from "./guards/GuestOnly";
+import AdminOnly from "./guards/AdminOnly";
 import Dashboard from "../../pages/Dashboard";
 
 // Personal Records
@@ -48,21 +48,6 @@ import HRISSystem from "../../pages/HRISSystem";
 // Admin Settings
 import AdminSettings from "../../pages/admin/AdminSettings";
 import UserSettings from "../../pages/user/UserSettings";
-
-/**
- * Blocks non-admin roles from accessing admin-only routes.
- */
-function AdminOnly({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
-  const role = user?.role;
-  const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
-
-  if (!isAdmin) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return <>{children}</>;
-}
 
 function SettingsPage() {
   const { user } = useAuth();
