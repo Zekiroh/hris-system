@@ -3,8 +3,8 @@ import { Pencil, X, Check, Upload, ShieldCheck, Lock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
-import { DropdownMenu, PROVINCE_OPTIONS } from '../../components/personal-records/EmployeeFormFields';
-import { LOCATION_OPTIONS } from '../../components/personal-records/locationOptions';
+import { DropdownMenu } from '../../shared/components/forms/DropdownMenu';
+import { LOCATION_OPTIONS, PROVINCE_OPTIONS } from '../../shared/data/locationOptions';
 import { useAvatarUrl } from '../../hooks/useAvatarUrl';
 import { readAvatarFileAsDataUrl, setStoredAvatarUrl } from '../../lib/avatar';
 

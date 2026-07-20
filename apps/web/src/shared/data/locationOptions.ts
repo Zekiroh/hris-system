@@ -65,3 +65,10 @@ export const LOCATION_OPTIONS = {
 } as const;
 
 export type ProvinceOption = keyof typeof LOCATION_OPTIONS;
+
+export const PROVINCE_OPTIONS = Object.keys(LOCATION_OPTIONS).map(
+  (province) => ({
+    label: province,
+    value: province,
+  })
+);

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ComponentType, type ReactNode } from 'react';
 import { Check, Lock, Pencil, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { DropdownMenu, PROVINCE_OPTIONS } from '../../personal-records/EmployeeFormFields';
-import { LOCATION_OPTIONS } from '../../personal-records/locationOptions';
+import { DropdownMenu } from '../../../shared/components/forms/DropdownMenu';
+import { LOCATION_OPTIONS, PROVINCE_OPTIONS } from '../../../shared/data/locationOptions';
 import { useAvatarUrl } from '../../../hooks/useAvatarUrl';
 import { readAvatarFileAsDataUrl, setStoredAvatarUrl } from '../../../lib/avatar';
 import { apiRequest } from '../../../lib/api';
