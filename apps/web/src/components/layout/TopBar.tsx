@@ -35,8 +35,8 @@ const routeLabels: Record<string, string> = {
   "/dashboard/my-payslips": "My Pay Slips",
   "/dashboard/my-performance": "My Performance",
   "/dashboard/my-assets": "My Assets",
-  "/dashboard/daily-accomplishment": "Daily Accomplishment",
-  "/dashboard/daily-accomplishment-reports": "Daily Accomplishment Reports",
+  "/dashboard/daily-accomplishment": "Daily Accomplishment Reports",
+  "/dashboard/my-daily-accomplishment": "Daily Accomplishment",
 };
 
 const TopBar = ({ onMenuClick }: TopBarProps) => {
@@ -170,9 +170,9 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
           // Route to correct page based on type
           let path: string;
           if (parsed.type === "dar_submit") {
-            path = "/dashboard/daily-accomplishment-reports";
-          } else if (parsed.type === "dar_review") {
             path = "/dashboard/daily-accomplishment";
+          } else if (parsed.type === "dar_review") {
+            path = "/dashboard/my-daily-accomplishment";
           } else {
             path = currentIsAdmin
               ? "/dashboard/attendance"

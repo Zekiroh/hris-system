@@ -7,6 +7,7 @@ import {
   Shield,
   Package,
   Settings,
+  ClipboardCheck,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -106,29 +107,33 @@ const Sidebar = ({
 
   const mainNav: NavItem[] = [{ icon: Home, label: "Dashboard", path: "/dashboard" }];
 
-  const hrNav: NavItem[] = [
+  const workforceNav: NavItem[] = [
     { icon: Users, label: "Employee Management", path: "/dashboard/personal-records" },
-    { icon: Clock, label: "Attendance Log", path: "/dashboard/attendance" },
+    { icon: Clock, label: "Attendance", path: "/dashboard/attendance" },
     { icon: FileText, label: "Leave Management", path: "/dashboard/leave" },
-    { icon: FileText, label: "Daily Accomplishment", path: "/dashboard/daily-accomplishment" },
+    { icon: FileText, label: "Daily Accomplishment Reports", path: "/dashboard/daily-accomplishment" },
+  ];
+
+  const compensationNav: NavItem[] = [
     { icon: DollarSign, label: "Payroll", path: "/dashboard/payroll" },
     { icon: Shield, label: "Government Compliance", path: "/dashboard/compliance" },
   ];
 
-  const userNav: NavItem[] = [
-    { icon: Clock, label: "Attendance Log", path: "/dashboard/my-attendance" },
-    { icon: FileText, label: "Leave Management", path: "/dashboard/leave" },
-    { icon: FileText, label: "Daily Accomplishment", path: "/dashboard/my-daily-accomplishment" },
-
-    { icon: Package, label: "My Assets", path: "/dashboard/my-assets" },
-
-    { icon: BarChart3, label: "My Performance", path: "/dashboard/my-performance" },
-    { icon: DollarSign, label: "Payroll", path: "/dashboard/my-payslips" },
-    { icon: Settings, label: "Settings", path: "/dashboard/settings" },
+  const operationsNav: NavItem[] = [
+    { icon: Package, label: "Asset Management", path: "/dashboard/assets" },
+    { icon: ClipboardCheck, label: "Clearance Management", path: "/dashboard/clearance" },
   ];
 
-  const moduleNav: NavItem[] = [
-    { icon: Package, label: "Asset Management", path: "/dashboard/assets" },
+  const myWorkNav: NavItem[] = [
+    { icon: Clock, label: "My Attendance", path: "/dashboard/my-attendance" },
+    { icon: FileText, label: "My Leave", path: "/dashboard/leave" },
+    { icon: FileText, label: "Daily Accomplishment", path: "/dashboard/my-daily-accomplishment" },
+  ];
+
+  const myEmploymentNav: NavItem[] = [
+    { icon: DollarSign, label: "My Payslips", path: "/dashboard/my-payslips" },
+    { icon: Package, label: "My Assets", path: "/dashboard/my-assets" },
+    { icon: BarChart3, label: "My Performance", path: "/dashboard/my-performance" },
   ];
 
   const systemNav: NavItem[] = [
@@ -192,14 +197,20 @@ const Sidebar = ({
           {isAdmin ? (
             <>
               <NavSection
-                title="Human Resources"
-                items={hrNav}
+                title="Workforce"
+                items={workforceNav}
                 collapsed={collapsed}
                 onItemClick={onClose}
               />
               <NavSection
-                title="Modules"
-                items={moduleNav}
+                title="Compensation & Compliance"
+                items={compensationNav}
+                collapsed={collapsed}
+                onItemClick={onClose}
+              />
+              <NavSection
+                title="Operations"
+                items={operationsNav}
                 collapsed={collapsed}
                 onItemClick={onClose}
               />
@@ -211,12 +222,26 @@ const Sidebar = ({
               />
             </>
           ) : (
-            <NavSection
-              title="My Pages"
-              items={userNav}
-              collapsed={collapsed}
-              onItemClick={onClose}
-            />
+            <>
+              <NavSection
+                title="My Work"
+                items={myWorkNav}
+                collapsed={collapsed}
+                onItemClick={onClose}
+              />
+              <NavSection
+                title="My Employment"
+                items={myEmploymentNav}
+                collapsed={collapsed}
+                onItemClick={onClose}
+              />
+              <NavSection
+                title="Account"
+                items={systemNav}
+                collapsed={collapsed}
+                onItemClick={onClose}
+              />
+            </>
           )}
         </nav>
 
