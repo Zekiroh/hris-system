@@ -9,11 +9,11 @@ type AuthUser = {
 };
 
 export default function RequireAuth({ allow }: { allow?: Role[] }) {
-  const { user, token } = useAuth();
+  const { isLoggedIn, user } = useAuth();
   const location = useLocation();
 
   // Not logged in -> force login
-  if (!token || !user) {
+  if (!isLoggedIn) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 

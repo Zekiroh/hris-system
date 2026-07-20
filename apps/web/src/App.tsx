@@ -1,9 +1,11 @@
 import React from "react";
-import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import Layout from "./components/layout/Layout";
+import RequireAuth from "./components/RequireAuth";
+import GuestOnly from "./components/GuestOnly";
 import Dashboard from "./pages/Dashboard";
 
 // Personal Records
@@ -55,35 +57,6 @@ import UserSettings from "./pages/user/UserSettings";
 import "./App.css";
 
 /**
- * Blocks unauthenticated users from accessing protected routes.
- * Redirects to /login and preserves the intended destination in state.
- */
-function RequireAuth() {
-  const { isLoggedIn } = useAuth();
-  const location = useLocation();
-
-  if (!isLoggedIn) {
-    return <Navigate to="/login" replace state={{ from: location }} />;
-  }
-
-  return <Outlet />;
-}
-
-/**
- * Blocks authenticated users from visiting guest-only routes.
- * If already logged in, send them to /dashboard.
- */
-function GuestOnly({ children }: { children: React.ReactNode }) {
-  const { isLoggedIn } = useAuth();
-
-  if (isLoggedIn) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return <>{children}</>;
-}
-
-/**
  * Blocks non-admin roles from accessing admin-only routes.
  */
 function AdminOnly({ children }: { children: React.ReactNode }) {
@@ -110,22 +83,10 @@ export default function App() {
   return (
     <Routes>
       {/* Guest routes */}
-      <Route
-        path="/login"
-        element={
-          <GuestOnly>
-            <Login />
-          </GuestOnly>
-        }
-      />
-      <Route
-        path="/forgot-password"
-        element={
-          <GuestOnly>
-            <ForgotPassword />
-          </GuestOnly>
-        }
-      />
+      <Route element={<GuestOnly />}>
+        <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+      </Route>
 
       {/* Protected routes */}
       <Route element={<RequireAuth />}>
