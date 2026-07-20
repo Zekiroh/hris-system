@@ -4,8 +4,8 @@ import { useAuth } from "../../context/AuthContext";
 import Login from "../../pages/Login";
 import ForgotPassword from "../../pages/ForgotPassword";
 import Layout from "../../components/layout/Layout";
-import RequireAuth from "../../components/RequireAuth";
-import GuestOnly from "../../components/GuestOnly";
+import RequireAuth from "./guards/RequireAuth";
+import GuestOnly from "./guards/GuestOnly";
 import Dashboard from "../../pages/Dashboard";
 
 // Personal Records
