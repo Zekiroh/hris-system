@@ -26,7 +26,7 @@ import LeaveManagement from "../../pages/leave/LeaveManagement";
 import Payroll from "../../features/payroll/Payroll";
 
 // Government Compliance
-import GovernmentCompliance from "../../pages/compliance/GovernmentCompliance";
+import GovernmentCompliance from "../../features/compliance/GovernmentCompliance";
 
 import UserAttendance from "../../pages/attendance/user/UserAttendance";
 
