@@ -107,30 +107,21 @@ const Sidebar = ({
 
   const mainNav: NavItem[] = [{ icon: Home, label: "Dashboard", path: "/dashboard" }];
 
-  const workforceNav: NavItem[] = [
+  const hrManagementNav: NavItem[] = [
     { icon: Users, label: "Employee Management", path: "/dashboard/personal-records" },
     { icon: Clock, label: "Attendance", path: "/dashboard/attendance" },
     { icon: FileText, label: "Leave Management", path: "/dashboard/leave" },
     { icon: FileText, label: "Daily Accomplishment Reports", path: "/dashboard/daily-accomplishment" },
-  ];
-
-  const compensationNav: NavItem[] = [
     { icon: DollarSign, label: "Payroll", path: "/dashboard/payroll" },
     { icon: Shield, label: "Government Compliance", path: "/dashboard/compliance" },
-  ];
-
-  const operationsNav: NavItem[] = [
     { icon: Package, label: "Asset Management", path: "/dashboard/assets" },
     { icon: ClipboardCheck, label: "Clearance Management", path: "/dashboard/clearance" },
   ];
 
-  const myWorkNav: NavItem[] = [
+  const selfServiceNav: NavItem[] = [
     { icon: Clock, label: "My Attendance", path: "/dashboard/my-attendance" },
     { icon: FileText, label: "My Leave", path: "/dashboard/leave" },
     { icon: FileText, label: "Daily Accomplishment", path: "/dashboard/my-daily-accomplishment" },
-  ];
-
-  const myEmploymentNav: NavItem[] = [
     { icon: DollarSign, label: "My Payslips", path: "/dashboard/my-payslips" },
     { icon: Package, label: "My Assets", path: "/dashboard/my-assets" },
     { icon: BarChart3, label: "My Performance", path: "/dashboard/my-performance" },
@@ -197,20 +188,8 @@ const Sidebar = ({
           {isAdmin ? (
             <>
               <NavSection
-                title="Workforce"
-                items={workforceNav}
-                collapsed={collapsed}
-                onItemClick={onClose}
-              />
-              <NavSection
-                title="Compensation & Compliance"
-                items={compensationNav}
-                collapsed={collapsed}
-                onItemClick={onClose}
-              />
-              <NavSection
-                title="Operations"
-                items={operationsNav}
+                title="HR Management"
+                items={hrManagementNav}
                 collapsed={collapsed}
                 onItemClick={onClose}
               />
@@ -224,14 +203,8 @@ const Sidebar = ({
           ) : (
             <>
               <NavSection
-                title="My Work"
-                items={myWorkNav}
-                collapsed={collapsed}
-                onItemClick={onClose}
-              />
-              <NavSection
-                title="My Employment"
-                items={myEmploymentNav}
+                title="Self Service"
+                items={selfServiceNav}
                 collapsed={collapsed}
                 onItemClick={onClose}
               />
