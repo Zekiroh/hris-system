@@ -27,7 +27,6 @@ const routeLabels: Record<string, string> = {
   "/dashboard/leave": "Leave Management",
   "/dashboard/payroll": "Payroll",
   "/dashboard/compliance": "Government Compliance",
-  "/dashboard/self-service": "Employee Self-Service",
   "/dashboard/assets": "Asset Management",
   "/dashboard/clearance": "Clearance",
   "/dashboard/hris": "HRIS System",

@@ -28,8 +28,6 @@ import Payroll from "../../pages/payroll/Payroll";
 // Government Compliance
 import GovernmentCompliance from "../../pages/compliance/GovernmentCompliance";
 
-// Employee Self-Service
-import EmployeeSelfService from "../../pages/self-service/EmployeeSelfService";
 import UserAttendance from "../../pages/attendance/user/UserAttendance";
 
 // User Pages
@@ -176,7 +174,6 @@ export default function AppRoutes() {
           <Route path="leave" element={<LeaveManagement />} />
           <Route path="my-attendance" element={<UserAttendance />} />
           <Route path="my-daily-accomplishment" element={<DailyAccomplishmentReport />} />
-          <Route path="self-service" element={<EmployeeSelfService />} />
 
           {/* User Pages */}
           <Route path="my-payslips" element={<MyPaySlips />} />

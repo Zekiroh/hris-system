@@ -1,6 +1,6 @@
 import { FC, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Clock, FileText, DollarSign, Shield, UserCircle, Package, Settings, ArrowRight } from 'lucide-react';
+import { LayoutDashboard, Users, Clock, FileText, DollarSign, Shield, Package, Settings, ArrowRight } from 'lucide-react';
 
 const HRISSystem: FC = () => {
     const navigate = useNavigate();
@@ -21,7 +21,6 @@ const HRISSystem: FC = () => {
         { icon: FileText, label: 'Leave Management', path: '/dashboard/leave', gradient: 'linear-gradient(135deg, #059669, #34d399)' },
         { icon: DollarSign, label: 'Payroll', path: '/dashboard/payroll', gradient: 'linear-gradient(135deg, #7c3aed, #a78bfa)' },
         { icon: Shield, label: 'Government Compliance', path: '/dashboard/compliance', gradient: 'linear-gradient(135deg, #dc2626, #ef4444)' },
-        { icon: UserCircle, label: 'Employee Self-Service', path: '/dashboard/self-service', gradient: 'linear-gradient(135deg, #0891b2, #22d3ee)' },
         { icon: Package, label: 'Asset Management', path: '/dashboard/assets', gradient: 'linear-gradient(135deg, #78350f, #a16207)' },
         { icon: Settings, label: 'Administration Setting', path: '/dashboard/settings', gradient: 'linear-gradient(135deg, #475569, #64748b)' },
     ];
