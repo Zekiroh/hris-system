@@ -9,7 +9,7 @@ import AdminOnly from "./guards/AdminOnly";
 import Dashboard from "../../pages/Dashboard";
 
 // Personal Records
-import EmployeeList from "../../features/employees/EmployeeList";
+import EmployeeManagement from "../../features/employees/EmployeeManagement";
 import EmployeeProfile from "../../features/employees/EmployeeProfile";
 
 // Attendance
@@ -76,7 +76,7 @@ export default function AppRoutes() {
             path="personal-records"
             element={
               <AdminOnly>
-                <EmployeeList />
+                <EmployeeManagement />
               </AdminOnly>
             }
           />

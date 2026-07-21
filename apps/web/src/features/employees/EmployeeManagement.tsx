@@ -87,7 +87,7 @@ function normalizeEmailKey(value: string | null | undefined): string {
   return value?.trim().toLowerCase() ?? "";
 }
 
-const EmployeeList = () => {
+const EmployeeManagement = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -1022,4 +1022,4 @@ const EmployeeList = () => {
   );
 };
 
-export default EmployeeList;
+export default EmployeeManagement;
