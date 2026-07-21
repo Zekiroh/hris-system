@@ -2,12 +2,12 @@ import { useState } from 'react';
 import {
     User, Lock, Activity, FileText
 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import ProfileTab from '../../components/user/settings/ProfileTab';
-import SecurityTab from '../../components/user/settings/SecurityTab';
-import DocumentsTab from '../../components/user/settings/DocumentsTab';
-import ActivityLogTab from '../../components/user/settings/ActivityLogTab';
-import ConfirmModal from '../../components/user/settings/ConfirmModal';
+import { useAuth } from '../../../context/AuthContext';
+import ProfileTab from '../../../components/user/settings/ProfileTab';
+import SecurityTab from '../../../components/user/settings/SecurityTab';
+import DocumentsTab from '../../../components/user/settings/DocumentsTab';
+import ActivityLogTab from '../../../components/user/settings/ActivityLogTab';
+import ConfirmModal from '../../../components/user/settings/ConfirmModal';
 
 
 

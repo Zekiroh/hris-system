@@ -1,5 +1,4 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
 import Login from "../../pages/Login";
 import ForgotPassword from "../../pages/ForgotPassword";
 import Layout from "../../components/layout/Layout";
@@ -43,17 +42,8 @@ import ClearanceForm from "../../pages/clearance/ClearanceForm";
 // HRIS System
 import HRISSystem from "../../pages/HRISSystem";
 
-// Admin Settings
-import AdminSettings from "../../pages/admin/AdminSettings";
-import UserSettings from "../../pages/user/UserSettings";
-
-function SettingsPage() {
-  const { user } = useAuth();
-  const role = user?.role;
-  const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
-
-  return isAdmin ? <AdminSettings /> : <UserSettings />;
-}
+// Settings
+import Settings from "../../features/settings/Settings";
 
 export default function AppRoutes() {
   return (
@@ -142,7 +132,7 @@ export default function AppRoutes() {
               </AdminOnly>
             }
           />
-          <Route path="settings" element={<SettingsPage />} />
+          <Route path="settings" element={<Settings />} />
 
           {/* Shared routes */}
           <Route path="leave" element={<LeaveManagement />} />
