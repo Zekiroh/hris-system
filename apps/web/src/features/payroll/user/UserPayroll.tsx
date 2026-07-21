@@ -11,8 +11,8 @@ import {
     ArrowUpRight, ArrowDownRight, Shield, Receipt
 
 } from 'lucide-react';
-import { getCurrentEmployee } from '../../lib/employees';
-import { getEmployeePayslips, type PayrollRecordDto } from '../../lib/payroll';
+import { getCurrentEmployee } from '../../../lib/employees';
+import { getEmployeePayslips, type PayrollRecordDto } from '../../../lib/payroll';
 
 
 
@@ -639,7 +639,7 @@ const TrendTooltip = () => (
 
 // ══════════════════════════════════════════════════════════════════════════
 
-const MyPaySlips = () => {
+const UserPayroll = () => {
 
     const [selectedPayslip, setSelectedPayslip] = useState<PayslipDetail | null>(null);
 
@@ -1535,4 +1535,4 @@ const MyPaySlips = () => {
 
 
 
-export default MyPaySlips;
+export default UserPayroll;

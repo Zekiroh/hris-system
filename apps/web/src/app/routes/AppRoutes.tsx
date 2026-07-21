@@ -30,7 +30,6 @@ import GovernmentCompliance from "../../features/compliance/GovernmentCompliance
 import UserAttendance from "../../features/attendance/user/UserAttendance";
 
 // User Pages
-import MyPaySlips from "../../pages/user/MyPaySlips";
 import MyPerformance from "../../pages/user/MyPerformance";
 import UserAssetManagement from "../../pages/user/UserAssetManagement";
 
@@ -99,7 +98,7 @@ export default function AppRoutes() {
             path="payroll"
             element={
               <AdminOnly>
-                <Payroll />
+                <Payroll mode="admin" />
               </AdminOnly>
             }
           />
@@ -151,7 +150,7 @@ export default function AppRoutes() {
           <Route path="my-daily-accomplishment" element={<DailyAccomplishmentReport />} />
 
           {/* User Pages */}
-          <Route path="my-payslips" element={<MyPaySlips />} />
+          <Route path="my-payslips" element={<Payroll mode="user" />} />
           <Route path="my-assets" element={<UserAssetManagement />} />
           <Route path="my-performance" element={<MyPerformance />} />
         </Route>
