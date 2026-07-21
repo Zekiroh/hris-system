@@ -19,7 +19,7 @@ import AdminDailyAccomplishmentReport from "../../pages/DAR/AdminDailyAccomplish
 import DailyAccomplishmentReport from "../../pages/DailyReport/DailyAccomplishmentReport";
 
 // Leave Management
-import LeaveManagement from "../../pages/leave/LeaveManagement";
+import LeaveManagement from "../../features/leave/LeaveManagement";
 
 // Payroll
 import Payroll from "../../features/payroll/Payroll";

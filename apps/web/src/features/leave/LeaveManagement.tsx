@@ -1,6 +1,6 @@
 import { useAuth } from "../../context/AuthContext";
-import AdminLeaveManagement from "../../components/leave/admin/AdminLeaveManagement";
-import UserLeaveManagement from "../../components/leave/user/UserLeaveManagement";
+import AdminLeaveManagement from "./admin/AdminLeaveManagement";
+import UserLeaveManagement from "./user/UserLeaveManagement";
 
 export default function LeaveManagement() {
   const { user } = useAuth();
