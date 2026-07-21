@@ -20,9 +20,9 @@ import type {
   WithholdingTaxBracketDto,
 } from "../../lib/governmentCompliance";
 import { ConfigurationTab } from "./components/ConfigurationTab";
-import { ConfigurationModal } from "./components/ConfigurationModal";
-import { ReportModal } from "./components/ReportModal";
-import { AlphalistModal } from "./components/AlphalistModal";
+import { ConfigurationModal } from "./components/modals/ConfigurationModal";
+import { ReportModal } from "./components/modals/ReportModal";
+import { AlphalistModal } from "./components/modals/AlphalistModal";
 import { SssTab } from "./components/SssTab";
 import { PhilHealthTab } from "./components/PhilHealthTab";
 import { PagIbigTab } from "./components/PagIbigTab";

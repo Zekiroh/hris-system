@@ -3,8 +3,8 @@ import { X } from "lucide-react";
 import {
   configurationFormFields,
   sectionLabels,
-} from "../config/configuration";
-import type { ConfigurationModalState } from "../config/types";
+} from "../../config/configuration";
+import type { ConfigurationModalState } from "../../config/types";
 
 type ConfigurationModalProps = {
   configurationModal: NonNullable<ConfigurationModalState>;
