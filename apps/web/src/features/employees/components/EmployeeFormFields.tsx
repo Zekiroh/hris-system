@@ -5,16 +5,16 @@ import {
   useState,
 } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
-import type { EmployeeStatus } from "../../lib/employees";
-import type { EmploymentType } from "../../lib/employees";
+import type { EmployeeStatus } from "../../../lib/employees";
+import type { EmploymentType } from "../../../lib/employees";
 import {
   DropdownMenu,
   type SelectOption,
-} from "../../shared/components/forms/DropdownMenu";
+} from "../../../shared/components/forms/DropdownMenu";
 import {
   LOCATION_OPTIONS,
   PROVINCE_OPTIONS,
-} from "../../shared/data/locationOptions";
+} from "../../../shared/data/locationOptions";
 
 export type UserOption = {
   id: string;

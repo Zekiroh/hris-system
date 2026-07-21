@@ -26,16 +26,16 @@ import {
   type UserOption,
   type FieldErrors,
   type FormFieldName,
-} from "../../components/personal-records/EmployeeFormFields";
+} from "./components/EmployeeFormFields";
 import {
   EmployeeTable,
   type EmployeeRow,
-} from "../../components/personal-records/EmployeeTable";
-import { EmployeeToolbar } from "../../components/personal-records/EmployeeToolbar";
-import { EmployeeStats } from "../../components/personal-records/EmployeeStats";
-import { EmployeeViewPanel } from "../../components/personal-records/EmployeeViewPanel";
-import { EmployeeAddModal } from "../../components/personal-records/EmployeeAddModal";
-import { EmployeeEditModal } from "../../components/personal-records/EmployeeEditModal";
+} from "./components/EmployeeTable";
+import { EmployeeToolbar } from "./components/EmployeeToolbar";
+import { EmployeeStats } from "./components/EmployeeStats";
+import { EmployeeViewPanel } from "./components/EmployeeViewPanel";
+import { EmployeeAddModal } from "./components/EmployeeAddModal";
+import { EmployeeEditModal } from "./components/EmployeeEditModal";
 import {
   type Employee,
   type Paged,
@@ -44,7 +44,7 @@ import {
   mapDtoToEmployee,
   mapDtoToFormData,
   unwrapData,
-} from "../../components/personal-records/employeeList.utils";
+} from "./components/employeeList.utils";
 
 type EmployeeSummary = {
   total: number;

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Eye, Edit } from "lucide-react";
-import type { EmployeeStatus } from "../../lib/employees";
-import { useAvatarUrl } from "../../hooks/useAvatarUrl";
+import type { EmployeeStatus } from "../../../lib/employees";
+import { useAvatarUrl } from "../../../hooks/useAvatarUrl";
 
 export type EmployeeRow = {
   id: string;

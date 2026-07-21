@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom';
 import { Eye, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { EmployeeDocumentDto, EmployeeDocumentType } from '../../../lib/employees';
-import { useMyDocuments } from '../../../pages/personal-records/hooks/useMyDocuments';
-import { EmployeeDocumentsPanel, DocumentTypeDropdown } from '../../personal-records/EmployeeDocumentsPanel';
+import { useMyDocuments } from '../../../features/employees/hooks/useMyDocuments';
+import { EmployeeDocumentsPanel, DocumentTypeDropdown } from '../../../features/employees/components/EmployeeDocumentsPanel';
 
 type ConfirmModalComponent = (props: {
     title:    string;

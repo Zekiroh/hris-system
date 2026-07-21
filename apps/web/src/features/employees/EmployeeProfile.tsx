@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { ArrowLeft, User, BookOpen, FileText, Scale, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { PersonalC1 } from '../../components/personal-records/PersonalC1';
-import { VoluntaryC2 } from '../../components/personal-records/VoluntaryC2';
-import { OtherC3 } from '../../components/personal-records/OtherC3';
-import { LegalC4 } from '../../components/personal-records/LegalC4';
+import { PersonalC1 } from './components/PersonalC1';
+import { VoluntaryC2 } from './components/VoluntaryC2';
+import { OtherC3 } from './components/OtherC3';
+import { LegalC4 } from './components/LegalC4';
 
 const EmployeeProfile = () => {
     const navigate = useNavigate();

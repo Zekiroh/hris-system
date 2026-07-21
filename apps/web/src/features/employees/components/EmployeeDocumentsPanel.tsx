@@ -12,8 +12,8 @@ import {
 import type {
   EmployeeDocumentDto,
   EmployeeDocumentType,
-} from "../../lib/employees";
-import { EMPLOYEE_DOCUMENT_TYPES } from "../../lib/employees";
+} from "../../../lib/employees";
+import { EMPLOYEE_DOCUMENT_TYPES } from "../../../lib/employees";
 
 type Props = {
   employeeId: string | null;

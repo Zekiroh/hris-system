@@ -9,8 +9,8 @@ import AdminOnly from "./guards/AdminOnly";
 import Dashboard from "../../pages/Dashboard";
 
 // Personal Records
-import EmployeeList from "../../pages/personal-records/EmployeeList";
-import EmployeeProfile from "../../pages/personal-records/EmployeeProfile";
+import EmployeeList from "../../features/employees/EmployeeList";
+import EmployeeProfile from "../../features/employees/EmployeeProfile";
 
 // Attendance
 import AdminAttendance from "../../pages/attendance/admin/AdminAttendance";

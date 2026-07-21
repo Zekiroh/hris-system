@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { FileText, X } from "lucide-react";
 import { toast } from "sonner";
-import type { EmployeeStatus } from "../../lib/employees";
+import type { EmployeeStatus } from "../../../lib/employees";
 import { EMPLOYEE_TABS, type EmployeeTabKey } from "./employeeTabs";
-import { useEmployeeDocuments } from "../../pages/personal-records/hooks/useEmployeeDocuments";
+import { useEmployeeDocuments } from "../hooks/useEmployeeDocuments";
 import { EmployeeDocumentsPanel } from "./EmployeeDocumentsPanel";
-import type { EmployeeDocumentDto } from "../../lib/employees";
+import type { EmployeeDocumentDto } from "../../../lib/employees";
 import { formatEmploymentTypeLabel } from "./employeeList.utils";
-import { useAvatarUrl } from "../../hooks/useAvatarUrl";
+import { useAvatarUrl } from "../../../hooks/useAvatarUrl";
 
 type EmploymentType =
   | "Regular"

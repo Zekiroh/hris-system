@@ -13,7 +13,7 @@ import {
 } from "./EmployeeFormFields";
 import { EmployeeDocumentsPanel } from "./EmployeeDocumentsPanel";
 import { EMPLOYEE_TABS, type EmployeeTabKey } from "./employeeTabs";
-import { useEmployeeDocuments } from "../../pages/personal-records/hooks/useEmployeeDocuments";
+import { useEmployeeDocuments } from "../hooks/useEmployeeDocuments";
 
 type Props = {
   open: boolean;

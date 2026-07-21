@@ -1,7 +1,7 @@
 import { Search, Filter, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import type { EmployeeSortBy } from "../../lib/employees";
+import type { EmployeeSortBy } from "../../../lib/employees";
 
 type FilterOption = {
   label: string;

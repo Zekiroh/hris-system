@@ -2,9 +2,9 @@ import type {
   EmployeeDto,
   EmployeeStatus,
   EmploymentType,
-} from "../../lib/employees";
+} from "../../../lib/employees";
 import type { FormData } from "./EmployeeFormFields";
-import { formatPersonName } from "../../lib/nameFormatter";
+import { formatPersonName } from "../../../lib/nameFormatter";
 
 export interface Employee {
   id: string;
