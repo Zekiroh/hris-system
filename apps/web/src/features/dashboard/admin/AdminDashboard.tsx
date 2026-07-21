@@ -7,8 +7,6 @@ import {
   UserPlus,
   Clock,
   FileText,
-  DollarSign,
-  ArrowUpRight,
   CalendarDays,
   LogIn,
   LogOut,
@@ -24,7 +22,7 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
-import { Bar, Doughnut, getElementAtEvent } from "react-chartjs-2";
+import { getElementAtEvent } from "react-chartjs-2";
 import { useAuth } from "../../../context/AuthContext";
 import {
   getActivityLogs,
@@ -59,6 +57,11 @@ import {
   formatTimePart,
   prettifyDetails,
 } from "../../../lib/activityLog.utils";
+import AdminAttendanceSummary from "./attendance-summary/AdminAttendanceSummary";
+import AdminPayrollSummary from "./payroll-summary/AdminPayrollSummary";
+import AdminRecentActivities from "./recent-activity/AdminRecentActivities";
+import AdminEmploymentTypeOverview from "./workforce-overview/AdminEmploymentTypeOverview";
+import AdminWorkforceSummaryCards from "./workforce-overview/AdminWorkforceSummaryCards";
 
 ChartJS.register(
   CategoryScale,
@@ -894,246 +897,39 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {statCards.map((card, i) => (
-          <div
-            key={card.title}
-            className="stat-card animate-fade-in-up cursor-pointer group"
-            style={{
-              background: card.gradient,
-              animationDelay: `${i * 0.1}s`,
-              opacity: 0,
-            }}
-          >
-            <div className="flex items-start justify-between relative z-10">
-              <div>
-                <p className="stat-label">{card.title}</p>
-                <p className="stat-value mt-1">{card.value}</p>
-                <div className="flex items-center gap-1 mt-2">
-                  <ArrowUpRight className="w-3 h-3" />
-                  <span className="text-xs font-semibold opacity-90">
-                    {card.change}
-                  </span>
-                </div>
-              </div>
-              <div className="stat-icon">
-                <card.icon className="w-5 h-5" />
-              </div>
-            </div>
-          </div>
-        ))}
+      <AdminWorkforceSummaryCards statCards={statCards} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <AdminAttendanceSummary
+          attendanceChartData={attendanceData}
+          attendanceChartOptions={attendanceOptions}
+        />
+
+        <AdminEmploymentTypeOverview
+          chartRef={employmentChartRef}
+          chartData={employmentData}
+          chartOptions={employmentOptions}
+          employmentSummary={safeEmploymentSummary}
+          onChartClick={handleEmploymentChartClick}
+          onEmploymentTypeNavigate={navigateToEmploymentType}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div
-          className="lg:col-span-2 pro-card p-6 animate-fade-in-up"
-          style={{ animationDelay: "0.4s", opacity: 0 }}
-        >
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h3 className="text-base font-bold text-gray-800">
-                Attendance Summary
-              </h3>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Monthly attendance overview for 2026
-              </p>
-            </div>
-          </div>
-          <div style={{ height: 320 }}>
-            <Bar data={attendanceData} options={attendanceOptions} />
-          </div>
-        </div>
+        <AdminRecentActivities
+          recentLogs={safeRecentLogs}
+          userNameByEmail={userNameByEmail}
+          getRecentActivityVisual={getRecentActivityVisual}
+          prettifyDetails={prettifyDetails}
+          formatActionLabel={formatActionLabel}
+          formatRecentTimestamp={formatRecentTimestamp}
+        />
 
-        <div
-          className="pro-card p-6 animate-fade-in-up"
-          style={{ animationDelay: "0.5s", opacity: 0 }}
-        >
-          <div className="mb-4">
-            <h3 className="text-base font-bold text-gray-800">
-              Employment Type
-            </h3>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Distribution by type
-            </p>
-          </div>
-
-          <div
-            style={{ height: 260 }}
-            className="relative cursor-pointer"
-            title="Click chart segment to filter employees"
-          >
-            <Doughnut
-              ref={employmentChartRef}
-              data={employmentData}
-              options={employmentOptions}
-              onClick={handleEmploymentChartClick}
-            />
-
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-800">3</div>
-                <div className="text-xs font-medium text-gray-400">Types</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 space-y-2">
-            {[
-              {
-                label: "Regular",
-                value: safeEmploymentSummary.regular,
-                color: "#059669",
-                query: "Regular",
-              },
-              {
-                label: "Probationary",
-                value: safeEmploymentSummary.probationary,
-                color: "#f59e0b",
-                query: "Probationary",
-              },
-              {
-                label: "Project-based",
-                value: safeEmploymentSummary.contract,
-                color: "#3b82f6",
-                query: "Project-based",
-              },
-            ].map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                onClick={() => navigateToEmploymentType(item.query)}
-                className="flex w-full items-center justify-between rounded-md px-1 py-1 text-left text-xs transition hover:bg-gray-50"
-                title={`Show ${item.label} employees`}
-              >
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-2.5 h-2.5 rounded-full"
-                    style={{ background: item.color }}
-                  />
-                  <span className="text-gray-500">{item.label}</span>
-                </div>
-                <span className="font-semibold text-gray-700">
-                  {item.value}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        <div
-          className="lg:col-span-2 pro-card p-6 animate-fade-in-up"
-          style={{ animationDelay: "0.6s", opacity: 0 }}
-        >
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h3 className="text-base font-bold text-gray-800">
-                Recent Activities
-              </h3>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Latest events in the system
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            {safeRecentLogs.map((log, i) => {
-              const visual = getRecentActivityVisual(log.action);
-              const Icon = visual.icon;
-              const timestamp = log.createdAt || "";
-              const description = prettifyDetails(log, userNameByEmail);
-              const fallbackLabel = formatActionLabel(
-                log.action || "SYSTEM_ACTIVITY"
-              );
-
-              return (
-                <div
-                  key={log.id ?? `recent-log-${i}`}
-                  className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50/80 transition-colors group cursor-pointer"
-                >
-                  <div
-                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110"
-                    style={{ backgroundColor: visual.background }}
-                  >
-                    <Icon className="w-4 h-4" style={{ color: visual.color }} />
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-700 font-medium">
-                      {description && description !== "—"
-                        ? description
-                        : fallbackLabel}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {formatRecentTimestamp(timestamp)}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div
-          className="pro-card p-6 animate-fade-in-up"
-          style={{ animationDelay: "0.7s", opacity: 0 }}
-        >
-          <div className="mb-5">
-            <h3 className="text-base font-bold text-gray-800">
-              Financial Summary
-            </h3>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {payrollPeriodLabel}
-            </p>
-          </div>
-          <div className="mb-5 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-100">
-            <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="w-4 h-4 text-emerald-600" />
-              <span className="text-xs text-gray-500 font-medium">
-                Total Payroll
-              </span>
-            </div>
-            <p className="text-2xl font-bold text-gray-900">
-              {formatCurrency(payrollFinancials.grossPay)}
-            </p>
-          </div>
-          <div className="space-y-4">
-            {financialBreakdown.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
-                No payroll records available for the latest payroll month.
-              </div>
-            ) : (
-              financialBreakdown.map((item) => (
-                <div key={item.label}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs text-gray-500 font-medium">
-                      {item.label}
-                    </span>
-                    <span
-                      className={`text-xs font-bold ${
-                        item.amount.startsWith("-")
-                          ? "text-red-500"
-                          : "text-gray-700"
-                      }`}
-                    >
-                      {item.amount}
-                    </span>
-                  </div>
-                  <div className="progress-bar">
-                    <div
-                      className="progress-bar-fill"
-                      style={{
-                        width: `${item.percent}%`,
-                        background: item.color,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+        <AdminPayrollSummary
+          payrollPeriodLabel={payrollPeriodLabel}
+          grossPayrollDisplayValue={formatCurrency(payrollFinancials.grossPay)}
+          financialBreakdown={financialBreakdown}
+        />
       </div>
     </div>
   );
