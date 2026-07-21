@@ -7,7 +7,7 @@ import {
   type UserOption,
   type FieldErrors,
   type FormFieldName,
-} from "./EmployeeFormFields";
+} from "../forms/EmployeeFormFields";
 
 type Props = {
   open: boolean;

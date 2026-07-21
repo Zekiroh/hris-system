@@ -3,7 +3,7 @@ import type {
   EmployeeStatus,
   EmploymentType,
 } from "../../../lib/employees";
-import type { FormData } from "./EmployeeFormFields";
+import type { FormData } from "./forms/EmployeeFormFields";
 import { formatPersonName } from "../../../lib/nameFormatter";
 
 export interface Employee {

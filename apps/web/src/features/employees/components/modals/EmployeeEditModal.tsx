@@ -10,10 +10,10 @@ import {
   type EmployeeFormSection,
   type FieldErrors,
   type FormFieldName,
-} from "./EmployeeFormFields";
-import { EmployeeDocumentsPanel } from "./EmployeeDocumentsPanel";
-import { EMPLOYEE_TABS, type EmployeeTabKey } from "./employeeTabs";
-import { useEmployeeDocuments } from "../hooks/useEmployeeDocuments";
+} from "../forms/EmployeeFormFields";
+import { EmployeeDocumentsPanel } from "../EmployeeDocumentsPanel";
+import { EMPLOYEE_TABS, type EmployeeTabKey } from "../employeeTabs";
+import { useEmployeeDocuments } from "../../hooks/useEmployeeDocuments";
 
 type Props = {
   open: boolean;

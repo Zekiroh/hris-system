@@ -26,16 +26,16 @@ import {
   type UserOption,
   type FieldErrors,
   type FormFieldName,
-} from "./components/EmployeeFormFields";
+} from "./components/forms/EmployeeFormFields";
 import {
   EmployeeTable,
   type EmployeeRow,
-} from "./components/EmployeeTable";
-import { EmployeeToolbar } from "./components/EmployeeToolbar";
-import { EmployeeStats } from "./components/EmployeeStats";
+} from "./components/list/EmployeeTable";
+import { EmployeeToolbar } from "./components/list/EmployeeToolbar";
+import { EmployeeStats } from "./components/list/EmployeeStats";
 import { EmployeeViewPanel } from "./components/EmployeeViewPanel";
-import { EmployeeAddModal } from "./components/EmployeeAddModal";
-import { EmployeeEditModal } from "./components/EmployeeEditModal";
+import { EmployeeAddModal } from "./components/modals/EmployeeAddModal";
+import { EmployeeEditModal } from "./components/modals/EmployeeEditModal";
 import {
   type Employee,
   type Paged,
