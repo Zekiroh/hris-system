@@ -24,14 +24,14 @@ import AttendanceTabs from "../components/AttendanceTabs";
 import useLiveTracker from "../../../hooks/useLiveTracker";
 import type { AttendanceTab, StatusBadgeMap } from "../../../types/attendance";
 
-import EditAttendanceModal from "./EditAttendanceModal";
-import ViewAttendanceModal from "./ViewAttendanceModal";
-import UserDtrTab from "./UserDtrTab";
-import UserOtTab from "./UserOtTab";
-import OvertimeRequestModal from "./OvertimeRequestModal";
-import UserAttendanceSummaryCards from "./UserAttendanceSummaryCards";
-import TimeRecordModal from "./TimeRecordModal";
-import UserShiftScheduleCard from "./UserShiftScheduleCard";
+import EditAttendanceModal from "./daily-time-record/EditAttendanceModal";
+import ViewAttendanceModal from "./daily-time-record/ViewAttendanceModal";
+import UserDtrTab from "./daily-time-record/UserDtrTab";
+import UserOtTab from "./overtime/UserOtTab";
+import OvertimeRequestModal from "./overtime/OvertimeRequestModal";
+import UserAttendanceSummaryCards from "./components/UserAttendanceSummaryCards";
+import TimeRecordModal from "./daily-time-record/TimeRecordModal";
+import UserShiftScheduleCard from "./shift-schedule/UserShiftScheduleCard";
 
 const DEBUG_SIMULATED_NOW: string | null = null;
 

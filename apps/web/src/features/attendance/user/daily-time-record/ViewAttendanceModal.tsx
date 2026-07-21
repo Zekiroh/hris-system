@@ -10,7 +10,7 @@ import {
     X,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import type { StatusBadgeMap } from '../../../types/attendance';
+import type { StatusBadgeMap } from '../../../../types/attendance';
 
 type UserAttendanceRecord = {
     id: number;

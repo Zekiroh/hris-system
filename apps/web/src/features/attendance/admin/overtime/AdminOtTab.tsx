@@ -5,7 +5,7 @@ import {
   ClipboardList,
   XCircle,
 } from 'lucide-react';
-import type { AdminOvertimeRequestRow, StatusBadgeMap } from '../../../types/attendance';
+import type { AdminOvertimeRequestRow, StatusBadgeMap } from '../../../../types/attendance';
 import AdminOtTable from './AdminOtTable.tsx';
 
 type Props = {

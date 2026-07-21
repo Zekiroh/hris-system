@@ -11,7 +11,7 @@ import {
 import type {
   AdminOvertimeRequestRow,
   StatusBadgeMap,
-} from '../../../types/attendance';
+} from '../../../../types/attendance';
 
 type ExpandedAdminOvertimeRow = AdminOvertimeRequestRow & {
   displayDate: string;

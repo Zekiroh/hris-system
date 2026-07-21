@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import type { Shift, ShiftDay } from '../../../lib/attendance';
+import type { Shift, ShiftDay } from '../../../../lib/attendance';
 
 type Props = {
     open: boolean;

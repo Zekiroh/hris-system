@@ -4,7 +4,7 @@ import type {
   AdminDtrRecord,
   DtrFilters,
   StatusBadgeMap,
-} from "../../../types/attendance";
+} from "../../../../types/attendance";
 import AdminDtrTable from "./AdminDtrTable";
 
 type FilterOption<T extends string> = {

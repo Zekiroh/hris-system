@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
-import { apiRequest } from "../../../lib/api";
+import { apiRequest } from "../../../../lib/api";
 import {
   assignShift,
   createShift,
@@ -22,11 +22,11 @@ import {
   toApiTimeString,
   type Shift,
   type ShiftDay,
-} from "../../../lib/attendance";
+} from "../../../../lib/attendance";
 import type {
   AdminShiftRecord,
   StatusBadgeMap,
-} from "../../../types/attendance";
+} from "../../../../types/attendance";
 import EditShiftModal from "./EditShiftModal";
 import AddShiftModal from "./AddShiftModal";
 import ShiftTable from "./ShiftTable";

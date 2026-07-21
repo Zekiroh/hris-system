@@ -7,7 +7,7 @@ import {
     UserMinus,
     UserPlus,
 } from 'lucide-react';
-import type { EmployeeShiftAssignmentDto } from '../../../lib/attendance';
+import type { EmployeeShiftAssignmentDto } from '../../../../lib/attendance';
 
 export type ShiftAssignmentTableRow = EmployeeShiftAssignmentDto & {
     shiftName: string;

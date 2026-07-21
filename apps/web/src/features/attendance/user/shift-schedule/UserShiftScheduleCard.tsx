@@ -2,7 +2,7 @@ import { useState } from "react";
 import { CalendarDays, Clock, Coffee, Eye, TimerReset } from "lucide-react";
 
 import UserShiftViewModal from "./UserShiftViewModal";
-import { type Shift, formatAttendanceTime } from "../../../lib/attendance";
+import { type Shift, formatAttendanceTime } from "../../../../lib/attendance";
 
 type Props = {
   shiftName?: string | null;

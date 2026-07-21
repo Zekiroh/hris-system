@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import type { ShiftDay } from '../../../lib/attendance';
+import type { ShiftDay } from '../../../../lib/attendance';
 
 type ShiftDayField = 'isWorkingDay' | 'startTime' | 'breakStartTime' | 'breakEndTime' | 'endTime';
 type ShiftDayValue = boolean | string | null;

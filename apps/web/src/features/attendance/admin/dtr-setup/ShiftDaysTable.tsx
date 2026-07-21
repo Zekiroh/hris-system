@@ -1,4 +1,4 @@
-import type { Shift, ShiftDay } from '../../../lib/attendance';
+import type { Shift, ShiftDay } from '../../../../lib/attendance';
 
 type Props = {
     selectedShift: Shift | null;
