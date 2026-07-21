@@ -20,18 +20,18 @@ import {
   updateAttendanceRemarks,
 } from "../../../lib/attendance";
 
-import AttendanceTabs from "../../../components/attendance/AttendanceTabs";
+import AttendanceTabs from "../components/AttendanceTabs";
 import useLiveTracker from "../../../hooks/useLiveTracker";
 import type { AttendanceTab, StatusBadgeMap } from "../../../types/attendance";
 
-import EditAttendanceModal from "../../../components/attendance/user/EditAttendanceModal";
-import ViewAttendanceModal from "../../../components/attendance/user/ViewAttendanceModal";
-import UserDtrTab from "../../../components/attendance/user/UserDtrTab";
-import UserOtTab from "../../../components/attendance/user/UserOtTab";
-import OvertimeRequestModal from "../../../components/attendance/user/OvertimeRequestModal";
-import UserAttendanceSummaryCards from "../../../components/attendance/user/UserAttendanceSummaryCards";
-import TimeRecordModal from "../../../components/attendance/user/TimeRecordModal";
-import UserShiftScheduleCard from "../../../components/attendance/user/UserShiftScheduleCard";
+import EditAttendanceModal from "./EditAttendanceModal";
+import ViewAttendanceModal from "./ViewAttendanceModal";
+import UserDtrTab from "./UserDtrTab";
+import UserOtTab from "./UserOtTab";
+import OvertimeRequestModal from "./OvertimeRequestModal";
+import UserAttendanceSummaryCards from "./UserAttendanceSummaryCards";
+import TimeRecordModal from "./TimeRecordModal";
+import UserShiftScheduleCard from "./UserShiftScheduleCard";
 
 const DEBUG_SIMULATED_NOW: string | null = null;
 

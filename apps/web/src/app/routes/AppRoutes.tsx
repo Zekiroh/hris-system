@@ -13,7 +13,7 @@ import EmployeeList from "../../features/employees/EmployeeList";
 import EmployeeProfile from "../../features/employees/EmployeeProfile";
 
 // Attendance
-import AdminAttendance from "../../pages/attendance/admin/AdminAttendance";
+import AdminAttendance from "../../features/attendance/admin/AdminAttendance";
 
 // DAR
 import AdminDailyAccomplishmentReport from "../../pages/DAR/AdminDailyAccomplishmentReport";
@@ -28,7 +28,7 @@ import Payroll from "../../features/payroll/Payroll";
 // Government Compliance
 import GovernmentCompliance from "../../features/compliance/GovernmentCompliance";
 
-import UserAttendance from "../../pages/attendance/user/UserAttendance";
+import UserAttendance from "../../features/attendance/user/UserAttendance";
 
 // User Pages
 import MyPaySlips from "../../pages/user/MyPaySlips";

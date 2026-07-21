@@ -25,19 +25,19 @@ import {
     type AttendanceSummaryDto,
     type OvertimeRequestDto,
 } from '../../../lib/attendance';
-import AttendanceTabs from '../../../components/attendance/AttendanceTabs';
-import AdminAttendanceSummaryCards from '../../../components/attendance/admin/AdminAttendanceSummaryCards';
-import AdminDtrTab from '../../../components/attendance/admin/AdminDtrTab';
-import AdminOtTab from '../../../components/attendance/admin/AdminOtTab';
-import AdminSetupTab from '../../../components/attendance/admin/AdminSetupTab';
+import AttendanceTabs from '../components/AttendanceTabs';
+import AdminAttendanceSummaryCards from './AdminAttendanceSummaryCards';
+import AdminDtrTab from './AdminDtrTab';
+import AdminOtTab from './AdminOtTab';
+import AdminSetupTab from './AdminSetupTab';
 import AssignOvertimeModal, {
     type AssignOvertimeEmployeeOption,
     type AssignOvertimeAttendanceOption,
-} from '../../../components/attendance/admin/AssignOvertimeModal';
+} from './AssignOvertimeModal';
 import { getEmployees } from '../../../lib/employees';
 import { getAdminLeaveRequests, type LeaveRequestDto } from '../../../lib/leave';
 import { apiRequest } from '../../../lib/api';
-import ViewAttendanceModal from '../../../components/attendance/admin/ViewAttendanceModal';
+import ViewAttendanceModal from './ViewAttendanceModal';
 import type {
     AdminAttendanceTab,
     AdminDtrRecord,

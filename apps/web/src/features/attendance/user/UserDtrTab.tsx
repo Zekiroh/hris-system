@@ -1,6 +1,6 @@
 import { Clock, Info, Play, Square } from "lucide-react";
 import type { StatusBadgeMap } from "../../../types/attendance";
-import UserDtrTable, { type AttendanceRow } from "../../../components/attendance/user/UserDtrTable";
+import UserDtrTable, { type AttendanceRow } from "./UserDtrTable";
 
 interface UserDtrTabProps {
   frozenTimeOut: Date | null;
