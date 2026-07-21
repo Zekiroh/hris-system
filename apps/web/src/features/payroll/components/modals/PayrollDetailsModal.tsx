@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import type { PayrollRecordRow } from '../config/types';
+import type { PayrollRecordRow } from '../../config/types';
 
 type PayrollDetailsModalProps = {
     open: boolean;

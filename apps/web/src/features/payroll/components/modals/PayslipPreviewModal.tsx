@@ -1,6 +1,6 @@
 import { Download } from 'lucide-react';
-import type { PayrollPeriodDto, PayrollRecordDto, PayrollRecordItemDto } from '../../../lib/payroll';
-import { formatCurrency, formatDate, formatPeriod } from '../config/helpers';
+import type { PayrollPeriodDto, PayrollRecordDto, PayrollRecordItemDto } from '../../../../lib/payroll';
+import { formatCurrency, formatDate, formatPeriod } from '../../config/helpers';
 
 type PayslipPreviewModalProps = {
     open: boolean;

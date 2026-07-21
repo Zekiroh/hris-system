@@ -1,9 +1,9 @@
 import { X } from 'lucide-react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { EmployeeDto } from '../../../lib/employees';
-import type { EmployeeCompensationDto } from '../../../lib/payroll';
-import { getEmployeeDisplayName } from '../config/helpers';
-import type { CompensationFormState } from '../config/types';
+import type { EmployeeDto } from '../../../../lib/employees';
+import type { EmployeeCompensationDto } from '../../../../lib/payroll';
+import { getEmployeeDisplayName } from '../../config/helpers';
+import type { CompensationFormState } from '../../config/types';
 
 type CompensationModalProps = {
     open: boolean;
