@@ -10,7 +10,6 @@ import Dashboard from "../../pages/Dashboard";
 
 // Personal Records
 import EmployeeManagement from "../../features/employees/EmployeeManagement";
-import EmployeeProfile from "../../features/employees/EmployeeProfile";
 
 // Attendance
 import AdminAttendance from "../../features/attendance/admin/AdminAttendance";
@@ -77,14 +76,6 @@ export default function AppRoutes() {
             element={
               <AdminOnly>
                 <EmployeeManagement />
-              </AdminOnly>
-            }
-          />
-          <Route
-            path="employee/:id"
-            element={
-              <AdminOnly>
-                <EmployeeProfile />
               </AdminOnly>
             }
           />
