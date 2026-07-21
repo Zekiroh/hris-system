@@ -1,48 +1,54 @@
-import { CalendarDays } from "lucide-react";
-import type { LeaveHistoryEntry } from "../../../context/LeaveContext";
-import type { StatusBadgeMap } from "./LeaveTableTypes";
-import { formatLeaveDate, getAvatarInitial, getLeaveTypeColor, getLeaveTypeIcon } from "./LeaveTableUtils";
+import { CalendarDays, Edit, Trash2 } from "lucide-react";
+import type { LeaveRequest } from "../../../../context/LeaveContext";
+import type { StatusBadgeMap } from "../LeaveTableTypes";
+import { formatLeaveDate, getAvatarInitial, getLeaveTypeColor, getLeaveTypeIcon } from "../LeaveTableUtils";
 
-interface LeaveHistoryTableProps {
-  history: LeaveHistoryEntry[];
+interface LeaveRequestTableProps {
+  requests: LeaveRequest[];
   statusBadge: StatusBadgeMap;
   page: number;
   totalPages: number;
   onPrev: () => void;
   onNext: () => void;
+  onReview: (request: LeaveRequest) => void;
+  onDelete: (id: number) => void;
 }
 
 const DEFAULT_PAGE_SIZE = 10;
 
-const createPlaceholderRow = (id: number): LeaveHistoryEntry => ({
+const createPlaceholderRow = (id: number): LeaveRequest => ({
   id,
-  dateApplied: "--",
   employee: "",
+  department: "",
   leaveType: "",
-  duration: "--",
-  status: "Approved",
-  approver: "",
+  startDate: "--",
+  endDate: "--",
+  days: 0,
+  reason: "",
+  status: "Pending",
 });
 
-const LeaveHistoryTable = ({
-  history,
+const LeaveRequestTable = ({
+  requests,
   statusBadge,
   page,
   totalPages,
   onPrev,
   onNext,
-}: LeaveHistoryTableProps) => {
+  onReview,
+  onDelete,
+}: LeaveRequestTableProps) => {
   const safePage = Math.max(1, page || 1);
   const safeTotalPages = Math.max(1, totalPages || 1);
   const canPrev = safePage > 1;
   const canNext = safePage < safeTotalPages;
-  const hasRecords = history.length > 0;
+  const hasRecords = requests.length > 0;
 
   const dataRows = hasRecords
     ? [
-        ...history,
+        ...requests,
         ...Array.from(
-          { length: Math.max(0, DEFAULT_PAGE_SIZE - history.length) },
+          { length: Math.max(0, DEFAULT_PAGE_SIZE - requests.length) },
           (_, i) => createPlaceholderRow(-(i + 1))
         ),
       ]
@@ -59,10 +65,11 @@ const LeaveHistoryTable = ({
               {[
                 "Employee",
                 "Leave Type",
-                "Date Applied",
-                "Duration",
+                "Start Date",
+                "End Date",
+                "Days",
                 "Status",
-                "Approver",
+                "Actions",
               ].map((h) => (
                 <th key={h}>{h}</th>
               ))}
@@ -71,8 +78,8 @@ const LeaveHistoryTable = ({
           <tbody>
             {!hasRecords && (
               <tr>
-                <td colSpan={6} className="text-center py-6 text-gray-400 italic">
-                  No finalized leave records found.
+                <td colSpan={7} className="text-center py-6 text-gray-500 italic">
+                  No leave requests found.
                 </td>
               </tr>
             )}
@@ -129,11 +136,21 @@ const LeaveHistoryTable = ({
                             isPlaceholder ? "text-gray-300" : "text-slate-400"
                           }`}
                         />
-                        <span>{formatLeaveDate(r.dateApplied)}</span>
+                        <span>{formatLeaveDate(r.startDate)}</span>
                       </div>
                     </td>
                     <td className={isPlaceholder ? "text-gray-300" : undefined}>
-                      {r.duration}
+                      <div className="flex items-center gap-2">
+                        <CalendarDays
+                          className={`h-4 w-4 shrink-0 ${
+                            isPlaceholder ? "text-gray-300" : "text-slate-400"
+                          }`}
+                        />
+                        <span>{formatLeaveDate(r.endDate)}</span>
+                      </div>
+                    </td>
+                    <td className={isPlaceholder ? "text-gray-300" : "!font-semibold"}>
+                      {isPlaceholder ? "--" : r.days}
                     </td>
                     <td>
                       {isPlaceholder ? (
@@ -145,8 +162,38 @@ const LeaveHistoryTable = ({
                         </span>
                       )}
                     </td>
-                    <td className={isPlaceholder ? "text-gray-300" : undefined}>
-                      {isPlaceholder ? "--" : r.approver}
+                    <td>
+                      {isPlaceholder ? (
+                        <span className="text-gray-300">--</span>
+                      ) : (
+                        <div className="flex gap-1">
+                          {r.status === "Pending" ? (
+                            <button
+                              onClick={() => onReview(r)}
+                              className="btn-ghost btn-icon text-blue-500 hover:bg-blue-50"
+                              title="Review Request"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <button
+                              disabled
+                              className="btn-ghost btn-icon text-gray-300 cursor-not-allowed"
+                              title="Already reviewed"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => onDelete(r.id)}
+                            className="btn-ghost btn-icon text-rose-500 hover:bg-rose-50"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -174,4 +221,4 @@ const LeaveHistoryTable = ({
   );
 };
 
-export default LeaveHistoryTable;
+export default LeaveRequestTable;

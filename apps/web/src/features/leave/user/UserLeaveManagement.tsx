@@ -4,9 +4,9 @@ import { useAuth } from "../../../context/AuthContext";
 import { useLeave } from "../../../context/LeaveContext";
 import ApplyLeaveModal, {
   type ApplyLeaveFormState,
-} from "./ApplyLeaveModal";
-import LeaveRequestTable from "./LeaveRequestTable";
-import LeaveHistoryTable from "./LeaveHistoryTable";
+} from "./leave-requests/ApplyLeaveModal";
+import LeaveRequestTable from "./leave-requests/LeaveRequestTable";
+import LeaveHistoryTable from "./leave-history/LeaveHistoryTable";
 import type { StatusBadgeMap } from "./LeaveTableTypes";
 
 const PAGE_SIZE = 10;

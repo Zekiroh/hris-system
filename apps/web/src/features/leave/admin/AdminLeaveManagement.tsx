@@ -3,11 +3,11 @@ import { Clock, CheckCircle, XCircle, AlertTriangle, Calendar, Search } from "lu
 import { useAuth } from "../../../context/AuthContext";
 import { useLeave, type LeaveRequest } from "../../../context/LeaveContext";
 import type { AdminTab, BalanceHistoryRow, StatusBadgeMap } from "./LeaveTableTypes";
-import LeaveRequestTable from "./LeaveRequestTable";
-import LeaveHistoryTab from "./LeaveHistoryTab";
-import LeaveBalanceList from "./LeaveBalanceList";
-import ReviewRequestModal from "./ReviewRequestModal";
-import BalanceHistoryModal from "./BalanceHistoryModal";
+import LeaveRequestTable from "./leave-requests/LeaveRequestTable";
+import LeaveHistoryTab from "./leave-history/LeaveHistoryTab";
+import LeaveBalanceList from "./leave-balance/LeaveBalanceList";
+import ReviewRequestModal from "./leave-requests/ReviewRequestModal";
+import BalanceHistoryModal from "./leave-balance/BalanceHistoryModal";
 
 const PAGE_SIZE = 10;
 

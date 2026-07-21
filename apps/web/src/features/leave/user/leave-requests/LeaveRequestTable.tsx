@@ -1,8 +1,8 @@
-import { CalendarDays, CheckCircle } from "lucide-react";
-import type { LeaveRequestRow, StatusBadgeMap } from "./LeaveTableTypes";
-import { formatLeaveDate, getLeaveTypeColor, getLeaveTypeIcon } from "./LeaveTableUtils";
+import { CalendarDays, Info } from "lucide-react";
+import type { LeaveRequestRow, StatusBadgeMap } from "../LeaveTableTypes";
+import { formatLeaveDate, getLeaveTypeColor, getLeaveTypeIcon } from "../LeaveTableUtils";
 
-interface LeaveHistoryTableProps {
+interface LeaveRequestTableProps {
   requests: LeaveRequestRow[];
   statusBadge: StatusBadgeMap;
   page: number;
@@ -22,17 +22,17 @@ const createPlaceholderRow = (id: number): LeaveRequestRow => ({
   endDate: "--",
   days: 0,
   reason: "",
-  status: "Approved",
+  status: "Pending",
 });
 
-const LeaveHistoryTable = ({
+const LeaveRequestTable = ({
   requests,
   statusBadge,
   page,
   totalPages,
   onPrev,
   onNext,
-}: LeaveHistoryTableProps) => {
+}: LeaveRequestTableProps) => {
   const safePage = Math.max(1, page || 1);
   const safeTotalPages = Math.max(1, totalPages || 1);
   const canPrev = safePage > 1;
@@ -53,11 +53,12 @@ const LeaveHistoryTable = ({
 
   return (
     <div>
-      <div className="flex items-start gap-2.5 mb-4 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-        <CheckCircle className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
-        <p className="text-xs text-emerald-600">
-          Your leave history showing only finalized (approved or rejected)
-          requests.
+      <div className="flex items-start gap-2.5 mb-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
+        <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+        <p className="text-xs text-blue-600">
+          Only your own leave requests are shown here. Other
+          employees&apos; leave information is not visible for privacy
+          reasons.
         </p>
       </div>
 
@@ -65,18 +66,23 @@ const LeaveHistoryTable = ({
         <table className="pro-table w-full">
           <thead>
             <tr>
-              {["Leave Type", "Start Date", "End Date", "Days", "Status"].map(
-                (h) => (
-                  <th key={h}>{h}</th>
-                )
-              )}
+              {[
+                "Leave Type",
+                "Start Date",
+                "End Date",
+                "Days",
+                "Reason",
+                "Status",
+              ].map((h) => (
+                <th key={h}>{h}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {!hasRecords && (
               <tr>
-                <td colSpan={5} className="text-center py-6 text-gray-400 italic">
-                  No leave history yet.
+                <td colSpan={6} className="text-center py-6 text-gray-400 italic">
+                  No leave requests yet.
                 </td>
               </tr>
             )}
@@ -127,14 +133,31 @@ const LeaveHistoryTable = ({
                     <td className={isPlaceholder ? "text-gray-300" : "font-semibold"}>
                       {isPlaceholder ? "--" : r.days}
                     </td>
+                    <td
+                      className={
+                        isPlaceholder
+                          ? "text-gray-300"
+                          : "text-gray-500 text-xs max-w-[150px] truncate"
+                      }
+                      title={isPlaceholder ? undefined : r.reason}
+                    >
+                      {isPlaceholder ? "--" : r.reason || "-"}
+                    </td>
                     <td>
                       {isPlaceholder ? (
                         <span className="text-gray-300">--</span>
                       ) : (
-                        <span className={`badge ${statusBadge[r.status]}`}>
-                          <span className="badge-dot" />
-                          {r.status}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`badge ${statusBadge[r.status]}`}>
+                            <span className="badge-dot" />
+                            {r.status}
+                          </span>
+                          {r.status === "Pending" && (
+                            <span className="text-[10px] text-amber-600 font-medium whitespace-nowrap">
+                              Awaiting Approval
+                            </span>
+                          )}
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -163,4 +186,4 @@ const LeaveHistoryTable = ({
   );
 };
 
-export default LeaveHistoryTable;
+export default LeaveRequestTable;

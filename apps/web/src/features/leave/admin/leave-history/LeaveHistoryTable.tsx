@@ -1,9 +1,10 @@
-import { CalendarDays, Info } from "lucide-react";
-import type { LeaveRequestRow, StatusBadgeMap } from "./LeaveTableTypes";
-import { formatLeaveDate, getLeaveTypeColor, getLeaveTypeIcon } from "./LeaveTableUtils";
+import { CalendarDays } from "lucide-react";
+import type { LeaveHistoryEntry } from "../../../../context/LeaveContext";
+import type { StatusBadgeMap } from "../LeaveTableTypes";
+import { formatLeaveDate, getAvatarInitial, getLeaveTypeColor, getLeaveTypeIcon } from "../LeaveTableUtils";
 
-interface LeaveRequestTableProps {
-  requests: LeaveRequestRow[];
+interface LeaveHistoryTableProps {
+  history: LeaveHistoryEntry[];
   statusBadge: StatusBadgeMap;
   page: number;
   totalPages: number;
@@ -13,37 +14,35 @@ interface LeaveRequestTableProps {
 
 const DEFAULT_PAGE_SIZE = 10;
 
-const createPlaceholderRow = (id: number): LeaveRequestRow => ({
+const createPlaceholderRow = (id: number): LeaveHistoryEntry => ({
   id,
+  dateApplied: "--",
   employee: "",
-  department: "",
   leaveType: "",
-  startDate: "--",
-  endDate: "--",
-  days: 0,
-  reason: "",
-  status: "Pending",
+  duration: "--",
+  status: "Approved",
+  approver: "",
 });
 
-const LeaveRequestTable = ({
-  requests,
+const LeaveHistoryTable = ({
+  history,
   statusBadge,
   page,
   totalPages,
   onPrev,
   onNext,
-}: LeaveRequestTableProps) => {
+}: LeaveHistoryTableProps) => {
   const safePage = Math.max(1, page || 1);
   const safeTotalPages = Math.max(1, totalPages || 1);
   const canPrev = safePage > 1;
   const canNext = safePage < safeTotalPages;
-  const hasRecords = requests.length > 0;
+  const hasRecords = history.length > 0;
 
   const dataRows = hasRecords
     ? [
-        ...requests,
+        ...history,
         ...Array.from(
-          { length: Math.max(0, DEFAULT_PAGE_SIZE - requests.length) },
+          { length: Math.max(0, DEFAULT_PAGE_SIZE - history.length) },
           (_, i) => createPlaceholderRow(-(i + 1))
         ),
       ]
@@ -53,26 +52,17 @@ const LeaveRequestTable = ({
 
   return (
     <div>
-      <div className="flex items-start gap-2.5 mb-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
-        <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-        <p className="text-xs text-blue-600">
-          Only your own leave requests are shown here. Other
-          employees&apos; leave information is not visible for privacy
-          reasons.
-        </p>
-      </div>
-
       <div className="overflow-x-auto rounded-xl border border-gray-100">
-        <table className="pro-table w-full">
+        <table className="pro-table">
           <thead>
             <tr>
               {[
+                "Employee",
                 "Leave Type",
-                "Start Date",
-                "End Date",
-                "Days",
-                "Reason",
+                "Date Applied",
+                "Duration",
                 "Status",
+                "Approver",
               ].map((h) => (
                 <th key={h}>{h}</th>
               ))}
@@ -82,7 +72,7 @@ const LeaveRequestTable = ({
             {!hasRecords && (
               <tr>
                 <td colSpan={6} className="text-center py-6 text-gray-400 italic">
-                  No leave requests yet.
+                  No finalized leave records found.
                 </td>
               </tr>
             )}
@@ -93,7 +83,29 @@ const LeaveRequestTable = ({
 
                 return (
                   <tr key={isPlaceholder ? `placeholder-${r.id}` : r.id}>
-                    <td className={isPlaceholder ? "text-gray-300" : "!font-medium"}>
+                    <td className={isPlaceholder ? "text-gray-300" : undefined}>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={
+                            isPlaceholder
+                              ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs font-bold text-gray-300"
+                              : "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-xs font-bold text-white"
+                          }
+                        >
+                          {isPlaceholder ? "--" : getAvatarInitial(r.employee)}
+                        </div>
+                        <span
+                          className={
+                            isPlaceholder
+                              ? "font-medium text-gray-300"
+                              : "!font-medium !text-gray-800"
+                          }
+                        >
+                          {isPlaceholder ? "--" : r.employee}
+                        </span>
+                      </div>
+                    </td>
+                    <td className={isPlaceholder ? "text-gray-300" : undefined}>
                       {isPlaceholder ? (
                         "--"
                       ) : (
@@ -117,48 +129,24 @@ const LeaveRequestTable = ({
                             isPlaceholder ? "text-gray-300" : "text-slate-400"
                           }`}
                         />
-                        <span>{formatLeaveDate(r.startDate)}</span>
+                        <span>{formatLeaveDate(r.dateApplied)}</span>
                       </div>
                     </td>
                     <td className={isPlaceholder ? "text-gray-300" : undefined}>
-                      <div className="flex items-center gap-2">
-                        <CalendarDays
-                          className={`h-4 w-4 shrink-0 ${
-                            isPlaceholder ? "text-gray-300" : "text-slate-400"
-                          }`}
-                        />
-                        <span>{formatLeaveDate(r.endDate)}</span>
-                      </div>
-                    </td>
-                    <td className={isPlaceholder ? "text-gray-300" : "font-semibold"}>
-                      {isPlaceholder ? "--" : r.days}
-                    </td>
-                    <td
-                      className={
-                        isPlaceholder
-                          ? "text-gray-300"
-                          : "text-gray-500 text-xs max-w-[150px] truncate"
-                      }
-                      title={isPlaceholder ? undefined : r.reason}
-                    >
-                      {isPlaceholder ? "--" : r.reason || "-"}
+                      {r.duration}
                     </td>
                     <td>
                       {isPlaceholder ? (
                         <span className="text-gray-300">--</span>
                       ) : (
-                        <div className="flex items-center gap-1.5">
-                          <span className={`badge ${statusBadge[r.status]}`}>
-                            <span className="badge-dot" />
-                            {r.status}
-                          </span>
-                          {r.status === "Pending" && (
-                            <span className="text-[10px] text-amber-600 font-medium whitespace-nowrap">
-                              Awaiting Approval
-                            </span>
-                          )}
-                        </div>
+                        <span className={`badge ${statusBadge[r.status]}`}>
+                          <span className="badge-dot" />
+                          {r.status}
+                        </span>
                       )}
+                    </td>
+                    <td className={isPlaceholder ? "text-gray-300" : undefined}>
+                      {isPlaceholder ? "--" : r.approver}
                     </td>
                   </tr>
                 );
@@ -186,4 +174,4 @@ const LeaveRequestTable = ({
   );
 };
 
-export default LeaveRequestTable;
+export default LeaveHistoryTable;

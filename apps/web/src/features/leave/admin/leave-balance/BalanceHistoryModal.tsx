@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { CalendarDays, X } from "lucide-react";
-import type { BalanceHistoryRow } from "./LeaveTableTypes";
-import { formatLeaveDate } from "./LeaveTableUtils";
+import type { BalanceHistoryRow } from "../LeaveTableTypes";
+import { formatLeaveDate } from "../LeaveTableUtils";
 
 interface BalanceHistoryModalProps {
   show: boolean;
