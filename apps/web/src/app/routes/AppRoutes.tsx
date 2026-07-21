@@ -6,7 +6,7 @@ import Layout from "../../components/layout/Layout";
 import RequireAuth from "./guards/RequireAuth";
 import GuestOnly from "./guards/GuestOnly";
 import AdminOnly from "./guards/AdminOnly";
-import Dashboard from "../../pages/Dashboard";
+import Dashboard from "../../features/dashboard/Dashboard";
 
 // Personal Records
 import EmployeeManagement from "../../features/employees/EmployeeManagement";

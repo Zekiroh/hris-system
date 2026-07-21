@@ -1,6 +1,6 @@
 import AdminDashboard from "./admin/AdminDashboard";
 import UserDashboard from "./user/UserDashboard";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 
 const isAdminRole = (role: unknown) => {
   if (typeof role !== "string") return false;

@@ -17,7 +17,7 @@ import {
   Timer,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../../context/AuthContext";
 import {
   getMyAttendanceLogs,
   getMyCurrentShift,
@@ -26,7 +26,7 @@ import {
   type AttendanceLogDto,
   type OvertimeRequestDto,
   type Shift,
-} from "../../lib/attendance";
+} from "../../../lib/attendance";
 
 type MyOvertimeDashboardRow = {
   id: string;

@@ -25,40 +25,40 @@ import {
   Legend,
 } from "chart.js";
 import { Bar, Doughnut, getElementAtEvent } from "react-chartjs-2";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../../context/AuthContext";
 import {
   getActivityLogs,
   type ActivityLogItemDto,
-} from "../../lib/activityLogs";
-import { getAdminUsers, type AdminUserDto } from "../../lib/adminUsers";
+} from "../../../lib/activityLogs";
+import { getAdminUsers, type AdminUserDto } from "../../../lib/adminUsers";
 import {
   getAttendanceTrends,
   type MonthlyAttendanceTrendDto,
-} from "../../lib/dashboard";
+} from "../../../lib/dashboard";
 import {
   getEmployees,
   type EmployeeSummaryDto,
   type PagedEmployeesResponse,
   type EmploymentTypeSummary,
-} from "../../lib/employees";
-import { subscribeEmployeeStatsChanged } from "../../lib/events/employeeEvents";
+} from "../../../lib/employees";
+import { subscribeEmployeeStatsChanged } from "../../../lib/events/employeeEvents";
 import {
   getAdminLeaveRequests,
   type LeaveRequestDto,
-} from "../../lib/leave";
+} from "../../../lib/leave";
 import {
   getPayrollPeriods,
   getPayrollRecords,
   type PayrollPeriodDto,
   type PayrollRecordDto,
-} from "../../lib/payroll";
+} from "../../../lib/payroll";
 import {
   buildUserNameByEmail,
   formatActionLabel,
   formatDatePart,
   formatTimePart,
   prettifyDetails,
-} from "../../lib/activityLog.utils";
+} from "../../../lib/activityLog.utils";
 
 ChartJS.register(
   CategoryScale,
