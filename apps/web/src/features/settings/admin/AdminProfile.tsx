@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Pencil, X, Check, Upload, ShieldCheck, Lock } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { Check, ShieldCheck, Lock } from 'lucide-react';
+import { useAuth } from '../../../context/AuthContext';
 import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
-import { DropdownMenu } from '../../shared/components/forms/DropdownMenu';
-import { LOCATION_OPTIONS, PROVINCE_OPTIONS } from '../../shared/data/locationOptions';
-import { useAvatarUrl } from '../../hooks/useAvatarUrl';
-import { readAvatarFileAsDataUrl, setStoredAvatarUrl } from '../../lib/avatar';
+import { LOCATION_OPTIONS } from '../../../shared/data/locationOptions';
+import { useAvatarUrl } from '../../../hooks/useAvatarUrl';
+import { readAvatarFileAsDataUrl, setStoredAvatarUrl } from '../../../lib/avatar';
+import ProfileActions from '../profile/ProfileActions';
+import ProfileAvatar from '../profile/ProfileAvatar';
+import ProfileLocationFields from '../profile/ProfileLocationFields';
 
 
 // ─── Confirm Modal ────────────────────────────────────────────────────────────
@@ -114,6 +116,15 @@ const AdminProfile = () => {
     const handleProvinceSelect = (value: string) => {
         setForm(prev => ({ ...prev, province: value, city: '' }));
         setOpenDropdown(null);
+    };
+
+    const handleCitySelect = (value: string) => {
+        setForm(prev => ({ ...prev, city: value }));
+        setOpenDropdown(null);
+    };
+
+    const handleToggleDropdown = (dropdown: Exclude<AdminDropdownKey, null>) => {
+        setOpenDropdown(prev => prev === dropdown ? null : dropdown);
     };
 
     // ── Load profile from AuthContext (backend endpoint pending) ──
@@ -224,47 +235,27 @@ const AdminProfile = () => {
 
             {/* ── Avatar row ── */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <input
-                    ref={avatarInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleAvatarChange}
-                />
 
                 {/* Top row on mobile: avatar + edit button */}
                 <div className="flex items-start justify-between sm:items-center gap-4">
-                    <button
-                        type="button"
-                        onClick={() => avatarInputRef.current?.click()}
-                        title="Change profile photo"
-                        className="relative w-24 h-24 rounded-2xl shrink-0 group overflow-hidden border border-gray-100"
-                    >
-                        {avatarUrl ? (
-                            <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover rounded-2xl" />
-                        ) : (
-                            <div className="w-full h-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-lg font-bold rounded-2xl">
-                                {initials}
-                            </div>
-                        )}
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Upload className="w-4 h-4 text-white" />
-                        </div>
-                    </button>
+                    <ProfileAvatar
+                        inputRef={avatarInputRef}
+                        avatarUrl={avatarUrl}
+                        initials={initials}
+                        onChange={handleAvatarChange}
+                        onSelectFile={() => avatarInputRef.current?.click()}
+                    />
 
                     {/* Edit button — mobile only */}
-                    <div className="flex items-center gap-2 sm:hidden">
-                        {!isEditing ? (
-                            <button onClick={handleEdit} className="btn btn-secondary flex items-center gap-2" type="button">
-                                <Pencil className="w-4 h-4" /> Edit
-                            </button>
-                        ) : (
-                            <>
-                                <button onClick={handleCancel} className="btn btn-secondary" type="button"><X className="w-4 h-4" /></button>
-                                <button onClick={handleSave}   className="btn btn-primary"   type="button"><Check className="w-4 h-4" /></button>
-                            </>
-                        )}
-                    </div>
+                    <ProfileActions
+                        isEditing={isEditing}
+                        onEdit={handleEdit}
+                        onCancel={handleCancel}
+                        onSave={handleSave}
+                        className="flex items-center gap-2 sm:hidden"
+                        cancelClassName="btn btn-secondary"
+                        saveClassName="btn btn-primary"
+                    />
                 </div>
 
                 {/* Name + role info */}
@@ -279,18 +270,15 @@ const AdminProfile = () => {
                 </div>
 
                 {/* Edit button — desktop only */}
-                <div className="hidden sm:flex items-center gap-2 shrink-0">
-                    {!isEditing ? (
-                        <button onClick={handleEdit} className="btn btn-secondary flex items-center gap-2" type="button">
-                            <Pencil className="w-4 h-4" /> Edit
-                        </button>
-                    ) : (
-                        <>
-                            <button onClick={handleCancel} className="btn btn-secondary" type="button"><X className="w-4 h-4" /></button>
-                            <button onClick={handleSave}   className="btn btn-primary"   type="button"><Check className="w-4 h-4" /></button>
-                        </>
-                    )}
-                </div>
+                <ProfileActions
+                    isEditing={isEditing}
+                    onEdit={handleEdit}
+                    onCancel={handleCancel}
+                    onSave={handleSave}
+                    className="hidden sm:flex items-center gap-2 shrink-0"
+                    cancelClassName="btn btn-secondary"
+                    saveClassName="btn btn-primary"
+                />
             </div>
 
             {/* ── Personal Information ── */}
@@ -316,66 +304,19 @@ const AdminProfile = () => {
                             placeholder="+63 912 345 6789"
                         />
                     </div>
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Address line 1</label>
-                        <input
-                            name="addressLine1"
-                            value={form.addressLine1}
-                            onChange={handleChange}
-                            readOnly={!isEditing}
-                            className={inputClass}
-                            placeholder="House No., Street"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Address line 2</label>
-                        <input
-                            name="addressLine2"
-                            value={form.addressLine2}
-                            onChange={handleChange}
-                            readOnly={!isEditing}
-                            className={inputClass}
-                            placeholder="Barangay, Subdivision (optional)"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Province</label>
-                        <DropdownMenu
-                            value={form.province}
-                            options={PROVINCE_OPTIONS}
-                            placeholder="Select province"
-                            disabled={!isEditing}
-                            onSelect={handleProvinceSelect}
-                            open={openDropdown === 'province'}
-                            onToggle={() => setOpenDropdown(prev => prev === 'province' ? null : 'province')}
-                            onClose={() => setOpenDropdown(null)}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Zip code</label>
-                        <input
-                            name="zipCode"
-                            value={form.zipCode}
-                            onChange={handleChange}
-                            readOnly={!isEditing}
-                            className={inputClass}
-                            placeholder="1000"
-                            maxLength={4}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">City / Municipality</label>
-                        <DropdownMenu
-                            value={form.city}
-                            options={cityOptions}
-                            placeholder={form.province ? 'Select city' : 'Select province first'}
-                            disabled={!isEditing}
-                            onSelect={value => { setForm(prev => ({ ...prev, city: value })); setOpenDropdown(null); }}
-                            open={openDropdown === 'city'}
-                            onToggle={() => setOpenDropdown(prev => prev === 'city' ? null : 'city')}
-                            onClose={() => setOpenDropdown(null)}
-                        />
-                    </div>
+                    <ProfileLocationFields
+                        values={form}
+                        isEditing={isEditing}
+                        inputClassName={inputClass}
+                        cityOptions={cityOptions}
+                        openDropdown={openDropdown}
+                        fieldOrder={['addressLine1', 'addressLine2', 'province', 'zipCode', 'city']}
+                        onInputChange={handleChange}
+                        onProvinceSelect={handleProvinceSelect}
+                        onCitySelect={handleCitySelect}
+                        onToggleDropdown={handleToggleDropdown}
+                        onCloseDropdown={() => setOpenDropdown(null)}
+                    />
                 </div>
             </div>
 

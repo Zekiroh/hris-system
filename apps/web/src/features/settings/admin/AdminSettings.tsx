@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Users, Shield, Activity, Check, ShieldCheck, User } from 'lucide-react';
-import AdminProfile from '../../../components/admin/AdminProfile';
+import AdminProfile from './AdminProfile';
 import { useAuth } from '../../../context/AuthContext';
 import UserManagement from '../../../components/admin/UserManagement';
 import AccessManagement from '../../../components/admin/AccessManagement';
