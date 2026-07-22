@@ -3,7 +3,7 @@ import {
     getDailyReports,
     type DailyReportDto,
     type GetDailyReportsQuery,
-} from "../../../lib/dailyReports";
+} from "../../../../lib/dailyReports";
 
 export const useAdminDailyReportData = (query?: GetDailyReportsQuery) => {
     const [reports, setReports] = useState<DailyReportDto[]>([]);

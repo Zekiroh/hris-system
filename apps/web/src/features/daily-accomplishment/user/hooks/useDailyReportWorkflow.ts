@@ -5,7 +5,7 @@ import {
     type DailyReportDto,
     type CreateDailyReportRequest,
     type UpdateDailyReportRequest,
-} from "../../../lib/dailyReports";
+} from "../../../../lib/dailyReports";
 
 export const useDailyReportWorkflow = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);

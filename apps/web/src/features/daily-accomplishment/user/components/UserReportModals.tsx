@@ -1,4 +1,3 @@
-// src/components/DAR/user/modaluser.tsx
 import React from "react";
 import { createPortal } from "react-dom";
 import {
@@ -6,7 +5,7 @@ import {
   Star, CheckSquare,
 } from "lucide-react";
 
-// ─── Types (copied from DailyAccomplishmentReport) ───────────────────────────
+// ─── Types ───────────────────────────
 
 type TaskStatus = "" | "done" | "ip" | "blocked" | "todo";
 type Priority = "" | "High" | "Medium" | "Low";

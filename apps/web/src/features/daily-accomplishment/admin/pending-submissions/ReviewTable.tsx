@@ -1,10 +1,9 @@
-// src/components/DAR/admin/reviewTable.tsx
 import React from "react";
 import {
   Clock, CheckCircle, Star, Eye, Download, Search, FileText,
 } from "lucide-react";
-import { StatusBadge, ArrangementBadge, StarRow } from "./modaladmin";
-import type { SubmittedReport } from "./modaladmin";
+import { StatusBadge, ArrangementBadge, StarRow } from "../components/AdminReportModals";
+import type { SubmittedReport } from "../components/AdminReportModals";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

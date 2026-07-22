@@ -1,4 +1,3 @@
-// src/components/DAR/user/SubmissionsTable.tsx
 import React from "react";
 import { Eye, FileText} from "lucide-react";
 

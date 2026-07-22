@@ -3,7 +3,7 @@ import {
     getMyDailyReports,
     type DailyReportDto,
     type GetDailyReportsQuery,
-} from "../../../lib/dailyReports";
+} from "../../../../lib/dailyReports";
 
 type DailyReportQuery = Omit<GetDailyReportsQuery, "employeeId">;
 

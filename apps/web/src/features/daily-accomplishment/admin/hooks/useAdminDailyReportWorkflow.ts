@@ -3,7 +3,7 @@ import {
     updateDailyReportSupervisorRemarks,
     type DailyReportDto,
     type SupervisorRemarksRequest,
-} from "../../../lib/dailyReports";
+} from "../../../../lib/dailyReports";
 
 export const useAdminDailyReportWorkflow = () => {
     const [isSavingReview, setIsSavingReview] = useState(false);

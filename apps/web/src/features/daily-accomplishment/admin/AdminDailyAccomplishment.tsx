@@ -9,13 +9,13 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
   ViewDarModal, ReviewPanel, SUPERVISOR_OPTIONS, DEPARTMENT_OPTIONS
-} from "../../components/DAR/admin/modaladmin";
-import type { SubmittedReport, ReportStatus } from "../../components/DAR/admin/modaladmin";
-import ReviewTable from "../../components/DAR/admin/reviewTable";
-import { useAuth } from "../../context/AuthContext";
-import { useAdminDailyReportData } from "../../components/DAR/hooks/useAdminDailyReportData";
-import { useAdminDailyReportWorkflow } from "../../components/DAR/hooks/useAdminDailyReportWorkflow";
-import type { DailyReportDto, SupervisorRemarksRequest } from "../../lib/dailyReports";
+} from "./components/AdminReportModals";
+import type { SubmittedReport, ReportStatus } from "./components/AdminReportModals";
+import ReviewTable from "./pending-submissions/ReviewTable";
+import { useAuth } from "../../../context/AuthContext";
+import { useAdminDailyReportData } from "./hooks/useAdminDailyReportData";
+import { useAdminDailyReportWorkflow } from "./hooks/useAdminDailyReportWorkflow";
+import type { DailyReportDto, SupervisorRemarksRequest } from "../../../lib/dailyReports";
 
 const REVIEWED_STATUS = "Reviewed" as ReportStatus;
 
@@ -251,7 +251,7 @@ function generatePDF(rows: SubmittedReport[], mode: string) {
   doc.save("DAR_" + (data.isHistory ? "History" : "Pending") + "_" + today + ".pdf");
 }
 
-const AdminDailyAccomplishmentReport = () => {
+const AdminDailyAccomplishment = () => {
   const { user } = useAuth();
   const currentAdminName = user?.fullName || "";
   const {
@@ -526,4 +526,4 @@ const AdminDailyAccomplishmentReport = () => {
   );
 };
 
-export default AdminDailyAccomplishmentReport;
+export default AdminDailyAccomplishment;

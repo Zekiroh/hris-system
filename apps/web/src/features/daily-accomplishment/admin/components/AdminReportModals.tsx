@@ -1,4 +1,3 @@
-// src/components/DAR/admin/modaladmin.tsx
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
@@ -9,10 +8,10 @@ import {
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { DARViewModal } from "../user/modaluser";
-import { TaskTableReadOnly } from "../user/modaluser";
-import type { TaskRow } from "../user/modaluser";
-import { SignaturePad } from "../user/userDARsections";
+import { DARViewModal } from "../../user/components/UserReportModals";
+import { TaskTableReadOnly } from "../../user/components/UserReportModals";
+import type { TaskRow } from "../../user/components/UserReportModals";
+import { SignaturePad } from "../../user/daily-report/UserDailyReportSections";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

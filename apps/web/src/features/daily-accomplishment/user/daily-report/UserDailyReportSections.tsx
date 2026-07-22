@@ -1,4 +1,3 @@
-// src/components/DAR/user/userDARsections.tsx
 import React from "react";
 import { Plus, X, Percent, Clock, PackageCheck, GitCommit, AlertTriangle } from "lucide-react";
 

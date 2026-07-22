@@ -1,29 +1,28 @@
-// apps/web/src/pages/DailyReport/DailyAccomplishmentReport.tsx
 import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   Clock, CheckCircle, AlertTriangle, Lock,
   Send, Eye, FileText, FolderOpen,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useAuth } from "../../context/AuthContext";
-import { getTodayMyAttendanceLog } from "../../lib/attendance";
+import { useAuth } from "../../../context/AuthContext";
+import { getTodayMyAttendanceLog } from "../../../lib/attendance";
 import {
   ConfirmSubmitModal,
   // SuccessModal,
   DARViewModal,
-} from "../../components/DAR/user/modaluser";
+} from "./components/UserReportModals";
 import {
   Section1DeveloperInfo, TasksTable, Section2Availability,
   Section4Summary, Section5Checklist, Section6TomorrowPlan, Section8Acknowledgment,
-} from "../../components/DAR/user/userDARsections";
-import SubmissionsTable from "../../components/DAR/user/SubmissionsTable";
-import { useDailyReportData } from "../../components/DAR/hooks/useDailyReportData";
-import { useDailyReportWorkflow } from "../../components/DAR/hooks/useDailyReportWorkflow";
+} from "./daily-report/UserDailyReportSections";
+import SubmissionsTable from "./report-history/SubmissionsTable";
+import { useDailyReportData } from "./hooks/useDailyReportData";
+import { useDailyReportWorkflow } from "./hooks/useDailyReportWorkflow";
 import {
   type CreateDailyReportRequest,
   type DailyReportDto,
   type UpdateDailyReportRequest,
-} from "../../lib/dailyReports";
+} from "../../../lib/dailyReports";
 
 // Types
 type WorkArrangement = "On-site" | "Remote" | "Hybrid";
@@ -268,7 +267,7 @@ function SectionCard({ title, amber, children = 0, action, defaultOpen = true }:
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function DailyAccomplishmentReport() {
+export default function UserDailyAccomplishment() {
   const today = new Date().toISOString().split("T")[0];
   const { user } = useAuth();
   const { reports, error: reportsError, refresh } = useDailyReportData({ page: 1, pageSize: 100 });
