@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Eye, EyeOff, X, KeyRound } from 'lucide-react';
-import type { PasswordResetState } from '../userManagement.shared';
+import type { PasswordResetState } from '../../../../components/admin/userManagement.shared';
 
 type Props = {
   isOpen: boolean;

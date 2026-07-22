@@ -8,7 +8,7 @@ import {
     getBadgeClassName,
     getUserLabel,
     prettifyDetails,
-} from '../../lib/activityLog.utils';
+} from '../../../../lib/activityLog.utils';
 import { useActivityLogs } from './hooks/useActivityLogs';
 
 const ActivityLog = () => {

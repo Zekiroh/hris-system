@@ -12,8 +12,8 @@ import {
   updateAdminUser,
   updateAdminUserStatus,
   resetAdminUserPassword,
-} from '../../../lib/adminUsers';
-import { useAuth } from '../../../context/AuthContext';
+} from '../../../../lib/adminUsers';
+import { useAuth } from '../../../../context/AuthContext';
 import {
   DEFAULT_FORM,
   DEFAULT_PAGE_SIZE,
@@ -28,7 +28,7 @@ import {
   type UserRow,
   type UserNameFormat,
   type UserSortOrder,
-} from '../userManagement.shared';
+} from '../../../../components/admin/userManagement.shared';
 
 export const useUserManagement = () => {
   const { user: authUser } = useAuth();

@@ -7,13 +7,13 @@ import {
     formatTimePart,
     prettifyDetails,
     getUserLabel,
-} from '../../../lib/activityLog.utils';
+} from '../../../../../lib/activityLog.utils';
 import {
     exportActivityLogs,
     getActivityLogs,
     type ActivityLogItemDto,
-} from '../../../lib/activityLogs';
-import { getAdminUsers, type AdminUserDto } from '../../../lib/adminUsers';
+} from '../../../../../lib/activityLogs';
+import { getAdminUsers, type AdminUserDto } from '../../../../../lib/adminUsers';
 
 const PAGE_SIZE = 10;
 const TODAY_FILTER_BATCH_SIZE = 100;
