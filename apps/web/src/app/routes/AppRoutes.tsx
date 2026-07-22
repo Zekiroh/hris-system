@@ -26,13 +26,10 @@ import Payroll from "../../features/payroll/Payroll";
 import GovernmentCompliance from "../../features/compliance/GovernmentCompliance";
 
 import UserAttendance from "../../features/attendance/user/UserAttendance";
+import AssetManagement from "../../features/asset-management/AssetManagement";
 
 // User Pages
 import MyPerformance from "../../pages/user/MyPerformance";
-import UserAssetManagement from "../../pages/user/UserAssetManagement";
-
-// Asset Management
-import AssetManagement from "../../pages/assets/AssetManagement";
 
 // Clearance
 import ClearanceList from "../../pages/clearance/ClearanceList";
@@ -95,7 +92,7 @@ export default function AppRoutes() {
             path="assets"
             element={
               <AdminOnly>
-                <AssetManagement />
+                <AssetManagement mode="admin" />
               </AdminOnly>
             }
           />
@@ -140,7 +137,7 @@ export default function AppRoutes() {
 
           {/* User Pages */}
           <Route path="my-payslips" element={<Payroll mode="user" />} />
-          <Route path="my-assets" element={<UserAssetManagement />} />
+          <Route path="my-assets" element={<AssetManagement mode="user" />} />
           <Route path="my-performance" element={<MyPerformance />} />
         </Route>
       </Route>

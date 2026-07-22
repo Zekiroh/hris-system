@@ -1,0 +1,412 @@
+import { useMemo, useState } from 'react';
+import { Package, Laptop, Wrench, AlertTriangle, Clock, CheckCircle, Calendar } from 'lucide-react';
+import AssetStatCard from '../components/AssetStatCard';
+import AddAnnouncementModal from './announcement-management/AddAnnouncementModal';
+import AddAssetModal from './laptop-monitoring/AddAssetModal';
+import AssignAssetModal from './laptop-monitoring/AssignAssetModal';
+import ClearanceActivityModal from './clearance-management/ClearanceActivityModal';
+import NewClearanceModal from './clearance-management/NewClearanceModal';
+import ReturnReviewModal from './laptop-monitoring/ReturnReviewModal';
+import AdminAnnouncementsTab from './announcement-management/AdminAnnouncementsTab';
+import AdminClearanceTab from './clearance-management/AdminClearanceTab';
+import AdminEvaluationTab from './performance-management/AdminEvaluationTab';
+import AdminInventoryTab from './laptop-monitoring/AdminInventoryTab';
+import {
+    adminAssetTabs,
+    initialClearanceForm,
+} from '../assetManagementConfig';
+import {
+    getEmployeeName,
+} from '../assetManagementHelpers';
+import type {
+    AdminAssetTab,
+} from '../assetManagementTypes';
+import { useAdminAnnouncementWorkflow } from './announcement-management/useAdminAnnouncementWorkflow';
+import { useAdminAssetData } from './useAdminAssetData';
+import { useAdminClearanceActivity } from './clearance-management/useAdminClearanceActivity';
+import { useAdminClearanceData } from './clearance-management/useAdminClearanceData';
+import { useAdminClearanceWorkflow } from './clearance-management/useAdminClearanceWorkflow';
+import { useAdminPerformanceData } from './performance-management/useAdminPerformanceData';
+import { useAssetAssignmentWorkflow } from './laptop-monitoring/useAssetAssignmentWorkflow';
+import { useAssetCreationWorkflow } from './laptop-monitoring/useAssetCreationWorkflow';
+import { useReturnReviewWorkflow } from './laptop-monitoring/useReturnReviewWorkflow';
+
+const AdminAssetManagement = () => {
+    const [activeTab, setActiveTab] = useState<AdminAssetTab['id']>('inventory');
+    const [showAddAsset, setShowAddAsset] = useState(false);
+    const [showAddAnnouncement, setShowAddAnnouncement] = useState(false);
+    const [showNewClearance, setShowNewClearance] = useState(false);
+    const {
+        assets,
+        returnRequests,
+        activeEmployees,
+        announcements,
+        isLoadingAssets,
+        isLoadingReturnRequests,
+        isLoadingEmployees,
+        isLoadingAnnouncements,
+        assetError,
+        returnRequestError,
+        employeeError,
+        announcementError,
+        loadAssets,
+        loadReturnRequests,
+        loadAnnouncements,
+    } = useAdminAssetData();
+    const {
+        clearances,
+        isLoadingClearances,
+        clearanceError,
+        loadClearances,
+    } = useAdminClearanceData();
+    const {
+        isCreatingClearance,
+        updatingDepartmentApprovalId,
+        updatingHrApprovalId,
+        completingClearanceId,
+        clearanceWorkflowError,
+        handleCreateClearance,
+        handleUpdateDepartmentApproval,
+        handleUpdateHrApproval,
+        handleCompleteClearance,
+    } = useAdminClearanceWorkflow({ loadClearances });
+    const {
+        evaluations,
+        isLoadingEvaluations,
+        evaluationError,
+    } = useAdminPerformanceData();
+    const {
+        selectedClearanceId,
+        selectedClearanceEmployeeName,
+        activities,
+        isLoadingActivities,
+        activityError,
+        openActivityHistory,
+        closeActivityHistory,
+    } = useAdminClearanceActivity();
+    const {
+        assetForm,
+        setAssetForm,
+        isSavingAsset,
+        handleAddAsset,
+    } = useAssetCreationWorkflow({
+        loadAssets,
+        closeAddAssetModal: () => setShowAddAsset(false),
+    });
+    const {
+        showAssignAsset,
+        selectedAsset,
+        assignForm,
+        setAssignForm,
+        isAssigningAsset,
+        openAssignAssetModal,
+        closeAssignAssetModal,
+        handleAssignAsset,
+    } = useAssetAssignmentWorkflow({ loadAssets });
+    const {
+        selectedReturnRequest,
+        returnReviewAction,
+        returnReviewRemarks,
+        setReturnReviewRemarks,
+        isReviewingReturnRequest,
+        openReturnReviewModal,
+        closeReturnReviewModal,
+        handleReviewReturnRequest,
+    } = useReturnReviewWorkflow({ loadReturnRequests });
+    const {
+        announcementForm,
+        setAnnouncementForm,
+        isSavingAnnouncement,
+        publishingAnnouncementId,
+        closeAnnouncementWorkflowModal,
+        handleSaveAnnouncement,
+        handlePublishAnnouncement,
+    } = useAdminAnnouncementWorkflow({
+        loadAnnouncements,
+        closeAnnouncementModal: () => setShowAddAnnouncement(false),
+    });
+
+    const [clearanceForm, setClearanceForm] = useState(initialClearanceForm);
+
+    const sortedEvaluations = useMemo(() => {
+        const getCreatedAtTime = (createdAtUtc: string) => {
+            const time = new Date(createdAtUtc).getTime();
+            return Number.isNaN(time) ? Number.NEGATIVE_INFINITY : time;
+        };
+
+        return [...evaluations].sort((left, right) => {
+            const timeDifference = getCreatedAtTime(right.createdAtUtc) - getCreatedAtTime(left.createdAtUtc);
+            if (timeDifference !== 0) return timeDifference;
+
+            return left.id.localeCompare(right.id);
+        });
+    }, [evaluations]);
+
+    const statCards = [
+        { label: 'Total Assets', value: assets.length, icon: Package, gradient: 'linear-gradient(135deg, #059669, #10b981)' },
+        { label: 'In Use', value: assets.filter(asset => asset.status === 'In Use').length, icon: Laptop, gradient: 'linear-gradient(135deg, #2563eb, #3b82f6)' },
+        { label: 'Under Maintenance', value: assets.filter(asset => asset.status === 'Maintenance' || asset.status === 'Under Maintenance').length, icon: Wrench, gradient: 'linear-gradient(135deg, #d97706, #f59e0b)' },
+        { label: 'Needs Replacement', value: assets.filter(asset => asset.status === 'Needs Replacement').length, icon: AlertTriangle, gradient: 'linear-gradient(135deg, #dc2626, #ef4444)' },
+    ];
+
+    const isCreatedThisMonth = (createdAtUtc: string) => {
+        const createdAt = new Date(createdAtUtc);
+        if (Number.isNaN(createdAt.getTime())) return false;
+
+        const now = new Date();
+        return createdAt.getFullYear() === now.getFullYear()
+            && createdAt.getMonth() === now.getMonth();
+    };
+
+    const clearanceStatCards = [
+        {
+            label: 'In Progress',
+            value: clearances.filter(clearance => clearance.status === 'Pending' || clearance.status === 'InProgress').length,
+            icon: Clock,
+            gradient: 'linear-gradient(135deg, #d97706, #f59e0b)',
+        },
+        {
+            label: 'Completed',
+            value: clearances.filter(clearance => clearance.status === 'Completed').length,
+            icon: CheckCircle,
+            gradient: 'linear-gradient(135deg, #059669, #10b981)',
+        },
+        {
+            label: 'This Month',
+            value: clearances.filter(clearance => isCreatedThisMonth(clearance.createdAtUtc)).length,
+            icon: Calendar,
+            gradient: 'linear-gradient(135deg, #2563eb, #3b82f6)',
+        },
+    ];
+
+    const handleAddClearance = async () => {
+        if (!clearanceForm.employeeId || !clearanceForm.lastWorkingDay) {
+            alert('Please fill in all required fields.');
+            return;
+        }
+
+        try {
+            const createdClearance = await handleCreateClearance({
+                employeeId: clearanceForm.employeeId,
+                lastWorkingDay: clearanceForm.lastWorkingDay,
+                remarks: clearanceForm.remarks.trim() || null,
+            });
+
+            if (!createdClearance) return;
+
+            setClearanceForm(initialClearanceForm);
+            setShowNewClearance(false);
+        } catch {
+            return;
+        }
+    };
+
+    const handleDepartmentApproval = async (id: number, approved: boolean) => {
+        try {
+            await handleUpdateDepartmentApproval(id, {
+                approved,
+                remarks: null,
+            });
+        } catch {
+            return;
+        }
+    };
+
+    const handleHrApproval = async (id: number, approved: boolean) => {
+        try {
+            await handleUpdateHrApproval(id, {
+                approved,
+                remarks: null,
+            });
+        } catch {
+            return;
+        }
+    };
+
+    const handleClearanceCompletion = async (id: number) => {
+        try {
+            await handleCompleteClearance(id, {
+                remarks: null,
+            });
+        } catch {
+            return;
+        }
+    };
+
+    const handleOpenClearanceActivity = (
+        id: number,
+        employeeName: string
+    ) => {
+        void openActivityHistory(id, employeeName);
+    };
+
+    const currentStats = activeTab === 'clearance' ? clearanceStatCards : statCards;
+    const combinedClearanceError =
+        clearanceWorkflowError || clearanceError;
+
+    return (
+        <div className="space-y-6">
+            <div className="page-header animate-fade-in-up">
+                <h1>Asset Management</h1>
+                <p>Track company assets, performance evaluations, announcements, and employee exits</p>
+            </div>
+
+            <div className={`grid gap-4 ${activeTab === 'clearance' ? 'grid-cols-3' : 'grid-cols-2 lg:grid-cols-4'}`}>
+                {currentStats.map((card, i) => (
+                    <AssetStatCard
+                        key={card.label}
+                        label={card.label}
+                        value={card.value}
+                        gradient={card.gradient}
+                        icon={card.icon}
+                        index={i}
+                    />
+                ))}
+            </div>
+
+            <div className="pro-card animate-fade-in-up" style={{ animationDelay: '0.4s', opacity: 0 }}>
+                <div className="px-6 pt-4">
+                    <div className="pro-tabs">
+                        {adminAssetTabs.map(tab => (
+                            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                                className={`pro-tab flex items-center gap-2 ${activeTab === tab.id ? 'active' : ''}`}>
+                                <tab.icon className="w-4 h-4" />
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                <div className="p-6">
+                    {activeTab === 'inventory' && (
+                        <AdminInventoryTab
+                            assets={assets}
+                            returnRequests={returnRequests}
+                            isLoadingAssets={isLoadingAssets}
+                            isLoadingReturnRequests={isLoadingReturnRequests}
+                            assetError={assetError}
+                            employeeError={employeeError}
+                            returnRequestError={returnRequestError}
+                            onAddAsset={() => setShowAddAsset(true)}
+                            onAssignAsset={openAssignAssetModal}
+                            onRefreshReturnRequests={() => void loadReturnRequests()}
+                            onReviewReturnRequest={openReturnReviewModal}
+                        />
+                    )}
+
+                    {activeTab === 'clearance' && (
+                        <AdminClearanceTab
+                            clearances={clearances}
+                            isLoadingClearances={isLoadingClearances}
+                            clearanceError={combinedClearanceError}
+                            updatingDepartmentApprovalId={updatingDepartmentApprovalId}
+                            updatingHrApprovalId={updatingHrApprovalId}
+                            completingClearanceId={completingClearanceId}
+                            onOpenNewClearance={() => setShowNewClearance(true)}
+                            onUpdateDepartmentApproval={handleDepartmentApproval}
+                            onUpdateHrApproval={handleHrApproval}
+                            onCompleteClearance={handleClearanceCompletion}
+                            onOpenActivityHistory={handleOpenClearanceActivity}
+                        />
+                    )}
+
+                    {activeTab === 'evaluation' && (
+                        <AdminEvaluationTab
+                            evaluations={sortedEvaluations}
+                            isLoadingEvaluations={isLoadingEvaluations}
+                            evaluationError={evaluationError}
+                        />
+                    )}
+
+                    {activeTab === 'announcements' && (
+                        <AdminAnnouncementsTab
+                            announcements={announcements}
+                            isLoadingAnnouncements={isLoadingAnnouncements}
+                            announcementError={announcementError}
+                            publishingAnnouncementId={publishingAnnouncementId}
+                            onNewAnnouncement={() => setShowAddAnnouncement(true)}
+                            onPublishAnnouncement={handlePublishAnnouncement}
+                        />
+                    )}
+                </div>
+            </div>
+
+            {showAddAsset && (
+                <AddAssetModal
+                    assetForm={assetForm}
+                    isSavingAsset={isSavingAsset}
+                    onClose={() => setShowAddAsset(false)}
+                    onSubmit={handleAddAsset}
+                    onFormChange={(field, value) =>
+                        setAssetForm(current => ({ ...current, [field]: value }))
+                    }
+                />
+            )}
+
+            {showAssignAsset && selectedAsset && (
+                <AssignAssetModal
+                    selectedAsset={selectedAsset}
+                    assignForm={assignForm}
+                    activeEmployees={activeEmployees}
+                    isLoadingEmployees={isLoadingEmployees}
+                    isAssigningAsset={isAssigningAsset}
+                    onClose={closeAssignAssetModal}
+                    onSubmit={handleAssignAsset}
+                    onFormChange={(field, value) =>
+                        setAssignForm(current => ({ ...current, [field]: value }))
+                    }
+                    getEmployeeName={getEmployeeName}
+                />
+            )}
+
+            {selectedReturnRequest && (
+                <ReturnReviewModal
+                    selectedReturnRequest={selectedReturnRequest}
+                    returnReviewAction={returnReviewAction}
+                    returnReviewRemarks={returnReviewRemarks}
+                    isReviewingReturnRequest={isReviewingReturnRequest}
+                    onClose={closeReturnReviewModal}
+                    onConfirm={handleReviewReturnRequest}
+                    onRemarksChange={setReturnReviewRemarks}
+                />
+            )}
+
+            {showAddAnnouncement && (
+                <AddAnnouncementModal
+                    announcementForm={announcementForm}
+                    isSavingAnnouncement={isSavingAnnouncement}
+                    onClose={closeAnnouncementWorkflowModal}
+                    onSaveDraft={() => handleSaveAnnouncement(false)}
+                    onPublish={() => handleSaveAnnouncement(true)}
+                    onFormChange={(field, value) =>
+                        setAnnouncementForm(current => ({ ...current, [field]: value }))
+                    }
+                />
+            )}
+
+            {showNewClearance && (
+                <NewClearanceModal
+                    clearanceForm={clearanceForm}
+                    employees={activeEmployees}
+                    isCreatingClearance={isCreatingClearance}
+                    onClose={() => setShowNewClearance(false)}
+                    onSave={handleAddClearance}
+                    onFormChange={(field, value) =>
+                        setClearanceForm(current => ({ ...current, [field]: value }))
+                    }
+                />
+            )}
+
+            {selectedClearanceId !== null && (
+                <ClearanceActivityModal
+                    employeeName={selectedClearanceEmployeeName}
+                    activities={activities}
+                    isLoadingActivities={isLoadingActivities}
+                    activityError={activityError}
+                    onClose={closeActivityHistory}
+                />
+            )}
+        </div>
+    );
+};
+
+export default AdminAssetManagement;
