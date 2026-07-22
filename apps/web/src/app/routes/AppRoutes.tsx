@@ -14,8 +14,7 @@ import EmployeeManagement from "../../features/employees/EmployeeManagement";
 import AdminAttendance from "../../features/attendance/admin/AdminAttendance";
 
 // DAR
-import AdminDailyAccomplishmentReport from "../../pages/DAR/AdminDailyAccomplishmentReport";
-import DailyAccomplishmentReport from "../../pages/DailyReport/DailyAccomplishmentReport";
+import DailyAccomplishment from "../../features/daily-accomplishment/DailyAccomplishment";
 
 // Leave Management
 import LeaveManagement from "../../features/leave/LeaveManagement";
@@ -80,7 +79,7 @@ export default function AppRoutes() {
             path="daily-accomplishment"
             element={
               <AdminOnly>
-                <AdminDailyAccomplishmentReport />
+                <DailyAccomplishment mode="admin" />
               </AdminOnly>
             }
           />
@@ -137,7 +136,7 @@ export default function AppRoutes() {
           {/* Shared routes */}
           <Route path="leave" element={<LeaveManagement />} />
           <Route path="my-attendance" element={<UserAttendance />} />
-          <Route path="my-daily-accomplishment" element={<DailyAccomplishmentReport />} />
+          <Route path="my-daily-accomplishment" element={<DailyAccomplishment mode="user" />} />
 
           {/* User Pages */}
           <Route path="my-payslips" element={<Payroll mode="user" />} />
