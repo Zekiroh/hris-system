@@ -1,7 +1,7 @@
 import type { ComponentProps, MouseEvent, RefObject } from "react";
 import type { Chart as ChartJS } from "chart.js";
 import { Doughnut } from "react-chartjs-2";
-import type { EmploymentTypeSummary } from "../../../../lib/employees";
+import type { EmploymentTypeSummary } from "../../../../services/api/employees/employees";
 
 type AdminEmploymentTypeOverviewProps = {
   chartRef: RefObject<ChartJS<"doughnut", number[], string> | null>;

@@ -12,8 +12,8 @@ import {
 import type {
   EmployeeDocumentDto,
   EmployeeDocumentType,
-} from "../../../lib/employees";
-import { EMPLOYEE_DOCUMENT_TYPES } from "../../../lib/employees";
+} from "../../../services/api/employees/employees";
+import { EMPLOYEE_DOCUMENT_TYPES } from "../../../services/api/employees/employees";
 
 type Props = {
   employeeId: string | null;
@@ -461,7 +461,7 @@ function getDocumentMeta(doc: EmployeeDocumentDto): string {
   const friendlyType = getFriendlyFileType(doc.contentType, doc.fileName);
   const formattedSize = formatFileSize(doc.fileSizeBytes);
 
-  return formattedSize ? `${friendlyType} â€¢ ${formattedSize}` : friendlyType;
+  return formattedSize ? `${friendlyType} • ${formattedSize}` : friendlyType;
 }
 
 export function EmployeeDocumentsPanel({

@@ -1,5 +1,5 @@
 import { XCircle } from "lucide-react";
-import type { AssetAssignmentDto } from "../../../../lib/assets";
+import type { AssetAssignmentDto } from "../../../../services/api/asset-management/assets";
 
 type RequestAssetReturnModalProps = {
   selectedReturnAsset: AssetAssignmentDto;
@@ -50,7 +50,7 @@ const RequestAssetReturnModal = ({
                 {selectedReturnAsset.assetName}
               </p>
               <p className="text-xs text-gray-400 mt-0.5">
-                {selectedReturnAsset.category} â€¢{" "}
+                {selectedReturnAsset.category} •{" "}
                 {selectedReturnAsset.assetCode}
               </p>
             </div>

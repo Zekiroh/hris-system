@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../context/AuthContext";
-import { getTodayMyAttendanceLog } from "../../../lib/attendance";
+import { getTodayMyAttendanceLog } from "../../../services/api/attendance/attendance";
 import {
   ConfirmSubmitModal,
   // SuccessModal,
@@ -22,7 +22,7 @@ import {
   type CreateDailyReportRequest,
   type DailyReportDto,
   type UpdateDailyReportRequest,
-} from "../../../lib/dailyReports";
+} from "../../../services/api/daily-accomplishment/dailyReports";
 
 // Types
 type WorkArrangement = "On-site" | "Remote" | "Hybrid";
@@ -230,7 +230,7 @@ function mapDailyReportToSubmission(dto: DailyReportDto): DarSubmission {
   };
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// --- Sub-components -----------------------------------------------------------
 
 function SectionCard({ title, amber, children = 0, action, defaultOpen = true }: { 
   title: string; amber?: boolean; children: React.ReactNode; delay?: number; action?: React.ReactNode; defaultOpen?: boolean;
@@ -256,7 +256,7 @@ function SectionCard({ title, amber, children = 0, action, defaultOpen = true }:
             </div>
             <div className="flex items-center gap-2">
               {action && <div onClick={e => e.stopPropagation()}>{action}</div>}
-              <span className="text-gray-400 text-xs" style={{ display: "inline-block", transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▼</span>
+              <span className="text-gray-400 text-xs" style={{ display: "inline-block", transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>?</span>
             </div>
           </button>
           {open && <div className="px-5 py-5 bg-white border-t border-gray-100">{children}</div>}
@@ -265,7 +265,7 @@ function SectionCard({ title, amber, children = 0, action, defaultOpen = true }:
     );
   }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// --- Main Component -----------------------------------------------------------
 
 export default function UserDailyAccomplishment() {
   const today = new Date().toISOString().split("T")[0];
@@ -274,7 +274,7 @@ export default function UserDailyAccomplishment() {
   const { isSubmitting, isUpdating, submitReport, updateReport } = useDailyReportWorkflow();
   const lastReportsErrorRef = useRef<string | null>(null);
 
-  // ── State ──
+  // -- State --
 
   const [devName, setDevName] = useState(user?.fullName || "");
   const [date, setDate] = useState(today);
@@ -345,7 +345,7 @@ export default function UserDailyAccomplishment() {
     lastReportsErrorRef.current = reportsError;
     toast.error(reportsError);
   }, [reportsError]);
-  // ─── Auto-fetch today's attendance from backend ────────────────────────
+  // --- Auto-fetch today's attendance from backend ------------------------
   useEffect(() => {
     let cancelled = false;
 
@@ -354,13 +354,13 @@ export default function UserDailyAccomplishment() {
         const log = await getTodayMyAttendanceLog();
         if (cancelled || !log) return;
 
-        // Time In — from actual attendance record
+        // Time In � from actual attendance record
         if (log.timeIn) {
           const converted = to24Hour(log.timeIn);
           if (converted) setTimeIn(converted);
         }
 
-        // Time Out — use shiftEndTime as default
+        // Time Out � use shiftEndTime as default
         // If OT is Approved, add overtimeMinutes on top of shiftEndTime
         if (log.shiftEndTime) {
           const shiftEnd = to24Hour(log.shiftEndTime);
@@ -377,7 +377,7 @@ export default function UserDailyAccomplishment() {
           }
         }
 
-        // Break Duration — compute from breakStartTime and breakEndTime
+        // Break Duration � compute from breakStartTime and breakEndTime
         if (log.breakStartTime && log.breakEndTime) {
           const bStart = to24Hour(log.breakStartTime);
           const bEnd   = to24Hour(log.breakEndTime);
@@ -390,7 +390,7 @@ export default function UserDailyAccomplishment() {
         }
 
       } catch {
-        // Silently ignore — fields remain at their defaults
+        // Silently ignore � fields remain at their defaults
       }
     }
 
@@ -398,7 +398,7 @@ export default function UserDailyAccomplishment() {
     return () => { cancelled = true; };
   }, []);
 
-  // ── Computed ──
+  // -- Computed --
 
   const { gross, net } = calcHours(timeIn, timeOut, breakMins);
 
@@ -527,7 +527,7 @@ export default function UserDailyAccomplishment() {
       });
       toast.success(`DAR submitted successfully`);
 
-      // Reset all fields — delay para makita muna ng SuccessModal ang values
+      // Reset all fields � delay para makita muna ng SuccessModal ang values
       setTimeout(() => {
       setDevName(user?.fullName || "");
       setDate(today);
@@ -578,14 +578,14 @@ export default function UserDailyAccomplishment() {
 
     const errs: string[] = [];
 
-    // ── Section 1: Developer Info ──
+    // -- Section 1: Developer Info --
     if (!project.trim())      errs.push("Section 1: Project / System is required.");
     if (!team.trim())         errs.push("Section 1: Team / Unit is required.");
     if (!sprint.trim())       errs.push("Section 1: Sprint / Iteration is required.");
     if (!submittedTo.trim())  errs.push("Section 1: Submitted To is required.");
     if (!timeOut)             errs.push("Section 1: Time Out is required.");
 
-    // ── Section 3: Tasks & Activities ──
+    // -- Section 3: Tasks & Activities --
     const filledTasks = tasks.filter(t => t.description || t.ticketRef || t.status);
     if (filledTasks.length === 0) {
       errs.push("Tasks & Activities: At least one task is required.");
@@ -607,21 +607,21 @@ export default function UserDailyAccomplishment() {
       });
     }
 
-    // ── Section 4: End-of-Day Summary ──
+    // -- Section 4: End-of-Day Summary --
     if (!keyAccomp.trim())  errs.push("End-of-Day Summary: Key Accomplishments is required.");
     if (!blockers.trim())   errs.push("End-of-Day Summary: Blockers / Issues is required.");
     if (!risks.trim())      errs.push("End-of-Day Summary: Risks / Early Warnings is required.");
     if (!planTmr.trim())    errs.push("End-of-Day Summary: Plan for Tomorrow is required.");
 
-    // ── Section 2: Availability & Connectivity ──
+    // -- Section 2: Availability & Connectivity --
     if (!avgResponse.trim())  errs.push("Availability: Avg Response Time is required.");
     if (!connIssues.trim())   errs.push("Availability: Connectivity / Environment Issues is required.");
     if (!collabLog.trim())    errs.push("Availability: Collaboration Log is required.");
 
-    // ── Section 6: Tomorrow's Plan ──
+    // -- Section 6: Tomorrow's Plan --
     if (!tmrTimeIn)  errs.push("Tomorrow's Plan: Expected Time In is required.");
 
-    // ── Section 8: Acknowledgment ──
+    // -- Section 8: Acknowledgment --
     if (!preparedSig)  errs.push("Acknowledgment: Signature is required or upload your signature.");
 
     if (errs.length > 0) {
@@ -645,7 +645,7 @@ export default function UserDailyAccomplishment() {
       {/* Page Header */}
       <div className="page-header animate-fade-in-up">
         <h1>Daily Accomplishment Report</h1>
-        <p>Software Development — Individual Submission. Submit before end of work day.</p>
+        <p>Software Development � Individual Submission. Submit before end of work day.</p>
       </div>
 
       {/* Stat Cards */}
@@ -671,7 +671,7 @@ export default function UserDailyAccomplishment() {
         ))}
       </div>
 
-      {/* ── Single Card Wrapper ── */}
+      {/* -- Single Card Wrapper -- */}
       <div className="pro-card !p-0 overflow-hidden animate-fade-in-up">
 
         {/* Tab Bar */}
@@ -811,7 +811,7 @@ export default function UserDailyAccomplishment() {
 
       </div> {/* end single pro-card wrapper */}
 
-      {/* Submit Bar — now outside the bond paper container */}
+      {/* Submit Bar � now outside the bond paper container */}
       {activeTab === "dar" && (
         <div className="pro-card !p-0 overflow-hidden border-t-4 border-t-emerald-600">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-6 py-5">
@@ -850,7 +850,7 @@ export default function UserDailyAccomplishment() {
         </div>
       )}
 
-    {/* ─── Modals ─── */}
+    {/* --- Modals --- */}
       <ConfirmSubmitModal
         open={showConfirm}
         onClose={() => setShowConfirm(false)}
@@ -864,7 +864,7 @@ export default function UserDailyAccomplishment() {
         taskCount={successSnapshot.taskCount}
         checkCount={successSnapshot.checkCount}
       /> */}
-      {/* View Modal — for submitted reports */}
+      {/* View Modal � for submitted reports */}
       <DARViewModal
         open={!!selectedSub}
         onClose={() => setSelectedSub(null)}
@@ -873,7 +873,7 @@ export default function UserDailyAccomplishment() {
         onRevise={handleRevise}
       />
 
-      {/* Preview Modal — before submitting */}
+      {/* Preview Modal � before submitting */}
       <DARViewModal
         open={showPreview}
         onClose={() => setShowPreview(false)}

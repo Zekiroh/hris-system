@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "../../pages/Login";
 import ForgotPassword from "../../pages/ForgotPassword";
-import Layout from "../../components/layout/Layout";
+import Layout from "../../layouts/dashboard/Layout";
 import RequireAuth from "./guards/RequireAuth";
 import GuestOnly from "./guards/GuestOnly";
 import AdminOnly from "./guards/AdminOnly";

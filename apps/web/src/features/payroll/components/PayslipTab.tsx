@@ -1,5 +1,5 @@
 import { Download, Eye } from 'lucide-react';
-import type { PayrollRecordDto } from '../../../lib/payroll';
+import type { PayrollRecordDto } from '../../../services/api/payroll/payroll';
 import { getInitials } from '../config/helpers';
 
 export type PayslipListItem = {
@@ -47,7 +47,7 @@ const PayslipTab = ({
                     <div className="flex items-center gap-4">
                         <div className="text-right">
                             <p className="font-bold">{emp.netPay}</p>
-                            <span className={`badge ${statusBadge[emp.status] || 'badge-success'}`}>● {emp.status}</span>
+                            <span className={`badge ${statusBadge[emp.status] || 'badge-success'}`}>? {emp.status}</span>
                         </div>
                         <button onClick={() => onPreview(emp.record)} className="btn-ghost btn-icon text-blue-500 hover:bg-blue-50"><Eye className="w-4 h-4" /></button>
                         <button className="btn-ghost btn-icon text-slate-500"><Download className="w-4 h-4" /></button>

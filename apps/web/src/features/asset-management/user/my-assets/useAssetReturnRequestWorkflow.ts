@@ -2,11 +2,11 @@ import { useState } from 'react';
 import {
     createReturnRequest,
     getMyReturnRequests,
-} from '../../../../lib/assets';
+} from '../../../../services/api/asset-management/assets';
 import type {
     AssetAssignmentDto,
     AssetReturnRequestDto,
-} from '../../../../lib/assets';
+} from '../../../../services/api/asset-management/assets';
 
 type UseAssetReturnRequestWorkflowInput = {
     insertReturnRequest: (request: AssetReturnRequestDto) => void;

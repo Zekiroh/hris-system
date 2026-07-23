@@ -1,5 +1,5 @@
 import { BookOpen, CheckCircle } from "lucide-react";
-import type { AnnouncementDto } from "../../../../lib/announcement";
+import type { AnnouncementDto } from "../../../../services/api/announcements/announcement";
 import { priorityBadge } from "../../assetManagementConfig";
 import { formatAnnouncementDate } from "../../assetManagementHelpers";
 
@@ -46,7 +46,7 @@ const UserAnnouncementCard = ({
           {formatAnnouncementDate(
             announcement.publishedAtUtc ?? announcement.createdAtUtc
           )}{" "}
-          â€¢ {announcement.createdByUserName ?? "System"}
+          • {announcement.createdByUserName ?? "System"}
         </p>
         {announcement.isRead ? (
           <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">

@@ -1,6 +1,6 @@
-import type { AssetAssignmentDto, AssetReturnRequestDto } from '../../lib/assets';
-import type { EmployeeDto, PagedEmployeesResponse } from '../../lib/employees';
-import { getEmployees } from '../../lib/employees';
+import type { AssetAssignmentDto, AssetReturnRequestDto } from '../../services/api/asset-management/assets';
+import type { EmployeeDto, PagedEmployeesResponse } from '../../services/api/employees/employees';
+import { getEmployees } from '../../services/api/employees/employees';
 
 export const unwrapEmployeesResponse = (
     response: Awaited<ReturnType<typeof getEmployees>>

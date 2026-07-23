@@ -1,5 +1,5 @@
 import { UserPlus } from 'lucide-react';
-import type { AssetDto } from '../../../../lib/assets';
+import type { AssetDto } from '../../../../services/api/asset-management/assets';
 import { assetStatusBadge } from '../../assetManagementConfig';
 
 type AdminAssetInventoryTableProps = {

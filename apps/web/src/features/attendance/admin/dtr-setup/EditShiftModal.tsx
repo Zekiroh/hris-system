@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Shift, ShiftDay } from '../../../../lib/attendance';
+import type { Shift, ShiftDay } from '../../../../services/api/attendance/attendance';
 
 type ShiftDayField = 'isWorkingDay' | 'startTime' | 'breakStartTime' | 'breakEndTime' | 'endTime';
 type ShiftDayValue = boolean | string | null;

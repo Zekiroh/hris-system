@@ -1,5 +1,5 @@
-import { apiRequest } from "./api";
-import { emitEmployeeStatsChanged } from "./events/employeeEvents";
+import { apiRequest } from "../client";
+import { emitEmployeeStatsChanged } from "../../../lib/events/employeeEvents";
 
 export type EmployeeStatus = "Active" | "Inactive";
 export type EmploymentType = "Regular" | "Probationary" | "Project-based";

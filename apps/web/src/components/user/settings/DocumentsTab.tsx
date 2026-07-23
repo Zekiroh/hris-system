@@ -2,7 +2,7 @@ import { useState, type ReactElement, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Eye, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
-import type { EmployeeDocumentDto, EmployeeDocumentType } from '../../../lib/employees';
+import type { EmployeeDocumentDto, EmployeeDocumentType } from '../../../services/api/employees/employees';
 import { useMyDocuments } from '../../../features/employees/hooks/useMyDocuments';
 import { EmployeeDocumentsPanel, DocumentTypeDropdown } from '../../../features/employees/components/EmployeeDocumentsPanel';
 
@@ -239,7 +239,7 @@ const DocumentsTab = ({ onSaved, ConfirmModal }: DocumentsTabProps) => {
                                     <div className="min-w-0">
                                         <p className="text-xs font-semibold text-gray-700 truncate">{pendingFile.name}</p>
                                         <p className="text-[11px] text-gray-400 mt-0.5">
-                                            {pendingFile.type || 'Unknown type'} â€¢ {formatPendingFileSize(pendingFile.size)}{selectedDocumentType ? ` â€¢ ${selectedDocumentType}` : ''}
+                                            {pendingFile.type || 'Unknown type'} • {formatPendingFileSize(pendingFile.size)}{selectedDocumentType ? ` • ${selectedDocumentType}` : ''}
                                         </p>
                                     </div>
                                     <button
@@ -292,7 +292,7 @@ const DocumentsTab = ({ onSaved, ConfirmModal }: DocumentsTabProps) => {
                             <p className="text-xs text-gray-400 mt-0.5">
                                 {drawerPreview
                                     ? (drawerPreview.contentType || 'Unknown type')
-                                    : `${pendingFile?.type || 'Unknown type'} â€¢ ${formatPendingFileSize(pendingFile?.size ?? 0)}${selectedDocumentType ? ` â€¢ ${selectedDocumentType}` : ''}`}
+                                    : `${pendingFile?.type || 'Unknown type'} • ${formatPendingFileSize(pendingFile?.size ?? 0)}${selectedDocumentType ? ` • ${selectedDocumentType}` : ''}`}
                             </p>
                         </div>
 

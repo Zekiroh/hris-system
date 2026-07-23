@@ -4,7 +4,7 @@ import {
     TrendingDown,
     Percent,
 } from 'lucide-react';
-import type { EmployeeCompensationDto, PayrollRecordDto } from '../../../lib/payroll';
+import type { EmployeeCompensationDto, PayrollRecordDto } from '../../../services/api/payroll/payroll';
 import { govDeductions, statusBadge, tabs } from '../config/constants';
 import { formatCurrency } from '../config/helpers';
 import type { PayrollRecordRow, Tab } from '../config/types';

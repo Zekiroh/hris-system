@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
@@ -15,7 +15,7 @@ import ReviewTable from "./pending-submissions/ReviewTable";
 import { useAuth } from "../../../context/AuthContext";
 import { useAdminDailyReportData } from "./hooks/useAdminDailyReportData";
 import { useAdminDailyReportWorkflow } from "./hooks/useAdminDailyReportWorkflow";
-import type { DailyReportDto, SupervisorRemarksRequest } from "../../../lib/dailyReports";
+import type { DailyReportDto, SupervisorRemarksRequest } from "../../../services/api/daily-accomplishment/dailyReports";
 
 const REVIEWED_STATUS = "Reviewed" as ReportStatus;
 
@@ -461,7 +461,7 @@ const AdminDailyAccomplishment = () => {
             </div>
             <div>
               <p className="pro-label" style={{ marginBottom: 6 }}>
-                {exportMode === "history" ? "Review History" : "Pending Submissions"} · {exportRows.length} record(s)
+                {exportMode === "history" ? "Review History" : "Pending Submissions"} � {exportRows.length} record(s)
               </p>
             </div>
             <div>

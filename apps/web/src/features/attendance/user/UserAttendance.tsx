@@ -18,7 +18,7 @@ import {
   toApiDateString,
   toApiTimeString,
   updateAttendanceRemarks,
-} from "../../../lib/attendance";
+} from "../../../services/api/attendance/attendance";
 
 import AttendanceTabs from "../components/AttendanceTabs";
 import useLiveTracker from "../../../hooks/useLiveTracker";
@@ -158,7 +158,7 @@ const normalizeOvertimeStatus = (
 };
 
 const normalizeDateKey = (value?: string | null) => {
-  if (!value || value === "-" || value === "--" || value === "â€”") return "";
+  if (!value || value === "-" || value === "--" || value === "—") return "";
 
   if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
     return value.slice(0, 10);
@@ -197,7 +197,7 @@ const isActualAttendanceTime = (value?: string | null) => {
     normalized !== "" &&
     normalized !== "-" &&
     normalized !== "--" &&
-    normalized !== "â€”" &&
+    normalized !== "—" &&
     normalized !== "--:-- --"
   );
 };
@@ -255,7 +255,7 @@ const expandOvertimeRequestRows = (
 ): MyOvertimeRow[] => {
   const dates = getOvertimeRequestDateRange(request);
   const duration = formatOvertimeDuration(request);
-  const reason = request.reason || "â€”";
+  const reason = request.reason || "—";
   const status = request.status || "Pending";
 
   if (dates.length === 0) {
@@ -634,7 +634,7 @@ const UserAttendance = () => {
 
         return {
           id: log.id,
-          date: log.date || "â€”",
+          date: log.date || "—",
           timeIn: formatAttendanceTime(log.timeIn),
           timeOut: formatAttendanceTime(log.timeOut),
           status,

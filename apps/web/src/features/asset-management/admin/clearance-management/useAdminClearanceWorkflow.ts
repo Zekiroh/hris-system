@@ -4,13 +4,13 @@ import {
     createClearance,
     updateDepartmentApproval,
     updateHrApproval,
-} from '../../../../lib/clearance';
+} from '../../../../services/api/clearance/clearance';
 import type {
     CompleteClearanceRequest,
     CreateClearanceRequest,
     UpdateDepartmentApprovalRequest,
     UpdateHrApprovalRequest,
-} from '../../../../lib/clearance';
+} from '../../../../services/api/clearance/clearance';
 
 type UseAdminClearanceWorkflowInput = {
     loadClearances: () => Promise<void>;

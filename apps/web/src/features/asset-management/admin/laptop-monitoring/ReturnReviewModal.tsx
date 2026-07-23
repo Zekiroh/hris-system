@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import type { AssetReturnRequestDto } from '../../../../lib/assets';
+import type { AssetReturnRequestDto } from '../../../../services/api/asset-management/assets';
 import type { ReturnReviewAction } from '../../assetManagementTypes';
 
 type ReturnReviewModalProps = {
@@ -38,7 +38,7 @@ const ReturnReviewModal = ({
                 <div className="pro-modal-body space-y-4">
                     <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
                         <p className="text-sm font-bold text-gray-800">{selectedReturnRequest.assetName}</p>
-                        <p className="text-xs text-gray-500 mt-1">{selectedReturnRequest.assetCode} â€¢ {selectedReturnRequest.requestedByEmployeeName}</p>
+                        <p className="text-xs text-gray-500 mt-1">{selectedReturnRequest.assetCode} • {selectedReturnRequest.requestedByEmployeeName}</p>
                         <p className="text-xs text-gray-400 mt-2">{selectedReturnRequest.reason}</p>
                     </div>
 

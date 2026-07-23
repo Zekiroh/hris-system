@@ -2,7 +2,7 @@ import type {
   EmployeeDto,
   EmployeeStatus,
   EmploymentType,
-} from "../../../lib/employees";
+} from "../../../services/api/employees/employees";
 import type { FormData } from "./forms/EmployeeFormFields";
 import { formatPersonName } from "../../../lib/nameFormatter";
 
@@ -87,7 +87,7 @@ export function formatEmploymentTypeLabel(
 ): string {
   const normalized = safeTrim(value).toLowerCase();
 
-  if (!normalized) return "â€”";
+  if (!normalized) return "—";
   if (normalized === "project-based" || normalized === "contract") {
     return "Project-based";
   }

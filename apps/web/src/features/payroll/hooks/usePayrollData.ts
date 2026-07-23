@@ -5,7 +5,7 @@ import {
     processPayroll,
     type PayrollPeriodDto,
     type PayrollRecordDto,
-} from '../../../lib/payroll';
+} from '../../../services/api/payroll/payroll';
 import { formatCurrency, formatPeriod } from '../config/helpers';
 import type { PayrollRecordRow } from '../config/types';
 

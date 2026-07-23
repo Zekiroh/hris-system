@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import type {
   EmployeeDocumentDto,
   EmployeeDocumentType,
-} from "../../../lib/employees";
+} from "../../../services/api/employees/employees";
 import {
   getEmployeeDocuments,
   uploadEmployeeDocument,
   downloadEmployeeDocument,
   deleteEmployeeDocument,
-} from "../../../lib/employeeDocuments";
+} from "../../../services/api/employees/employeeDocuments";
 import { normalizeDocumentError } from "../../../lib/employeeErrorHelpers";
 import { validateDocumentFile } from "../../../lib/documentValidation";
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Search } from 'lucide-react';
 import { getBadgeClassName, formatActionLabel, formatDatePart, formatTimePart, formatDateFilterPart } from '../../../lib/activityLog.utils';
-import { getUserActivityLogs, type ActivityLogItemDto } from '../../../lib/activityLogs';
+import { getUserActivityLogs, type ActivityLogItemDto } from '../../../services/api/activity-logs/activityLogs';
 
 const ActivityLogTab = ({ refreshKey }: { refreshKey: number }) => {
     const [searchTerm,          setSearchTerm]          = useState('');
@@ -145,7 +145,7 @@ const ActivityLogTab = ({ refreshKey }: { refreshKey: number }) => {
                                         </span>
                                     </td>
                                     <td className="text-gray-500">
-                                        {log.summary ?? 'â€”'}
+                                        {log.summary ?? '—'}
                                     </td>
                                 </tr>
                             ))

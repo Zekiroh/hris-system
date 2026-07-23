@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { approveReturnRequest, rejectReturnRequest } from '../../../../lib/assets';
-import type { AssetReturnRequestDto } from '../../../../lib/assets';
+import { approveReturnRequest, rejectReturnRequest } from '../../../../services/api/asset-management/assets';
+import type { AssetReturnRequestDto } from '../../../../services/api/asset-management/assets';
 import type { ReturnReviewAction } from '../../assetManagementTypes';
 
 type UseReturnReviewWorkflowInput = {

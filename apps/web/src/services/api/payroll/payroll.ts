@@ -1,4 +1,4 @@
-import { apiRequest } from "./api";
+import { apiRequest } from "../client";
 
 export type PayrollPeriodDto = {
   id: number;

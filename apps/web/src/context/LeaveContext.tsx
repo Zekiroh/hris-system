@@ -22,7 +22,7 @@ import {
     type LeaveBalanceTransactionDto,
     type LeaveRequestDto,
     type LeaveType,
-} from "../lib/leave";
+} from "../services/api/leave/leave";
 
 export type LeaveStatus = "Pending" | "Approved" | "Rejected" | "Cancelled";
 

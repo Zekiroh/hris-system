@@ -23,7 +23,7 @@ import {
   type AttendanceLogDto,
   type OvertimeRequestDto,
   type Shift,
-} from "../../../lib/attendance";
+} from "../../../services/api/attendance/attendance";
 import UserAttendanceSummary from "./attendance-summary/UserAttendanceSummary";
 import UserQuickActions from "./quick-actions/UserQuickActions";
 import UserRecentAttendance from "./recent-attendance/UserRecentAttendance";
@@ -123,7 +123,7 @@ const parseTimeValue = (value?: string | null) => {
 };
 
 const formatDateValue = (value?: string | null) => {
-  if (!value?.trim()) return "â€”";
+  if (!value?.trim()) return "—";
 
   const parsed = new Date(`${value}T00:00:00`);
   if (Number.isNaN(parsed.getTime())) return value;
@@ -232,7 +232,7 @@ const getStatusBadgeClass = (status: string) => {
 };
 
 const normalizeDateKey = (value?: string | null) => {
-  if (!value || value === "-" || value === "--" || value === "â€”") return "";
+  if (!value || value === "-" || value === "--" || value === "—") return "";
 
   if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
     return value.slice(0, 10);

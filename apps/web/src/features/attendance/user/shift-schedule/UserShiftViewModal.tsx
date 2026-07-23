@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import type { Shift, ShiftDay } from '../../../../lib/attendance';
+import type { Shift, ShiftDay } from '../../../../services/api/attendance/attendance';
 
 type Props = {
     open: boolean;
@@ -59,7 +59,7 @@ const UserShiftViewModal = ({ open, onClose, shift }: Props) => {
                     <div>
                         <h3 className="text-lg font-bold text-slate-900">{shift.name}</h3>
                         <p className="mt-1 text-sm font-medium text-slate-500">
-                            {getWorkingDaysLabel(sortedDays)} â€¢ {start} - {end}
+                            {getWorkingDaysLabel(sortedDays)} • {start} - {end}
                         </p>
                     </div>
 

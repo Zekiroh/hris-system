@@ -12,13 +12,13 @@ import {
   updatePhilHealthRule,
   updateSssBracket,
   updateWithholdingTaxBracket,
-} from "../../lib/governmentCompliance";
+} from "../../services/api/government-compliance/governmentCompliance";
 import type {
   PagIbigContributionRuleDto,
   PhilHealthContributionRuleDto,
   SssContributionBracketDto,
   WithholdingTaxBracketDto,
-} from "../../lib/governmentCompliance";
+} from "../../services/api/government-compliance/governmentCompliance";
 import { ConfigurationTab } from "./components/ConfigurationTab";
 import { ConfigurationModal } from "./components/modals/ConfigurationModal";
 import { ReportModal } from "./components/modals/ReportModal";

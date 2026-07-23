@@ -11,12 +11,12 @@ import {
     ArrowUpRight, ArrowDownRight, Shield, Receipt
 
 } from 'lucide-react';
-import { getCurrentEmployee } from '../../../lib/employees';
-import { getEmployeePayslips, type PayrollRecordDto } from '../../../lib/payroll';
+import { getCurrentEmployee } from '../../../services/api/employees/employees';
+import { getEmployeePayslips, type PayrollRecordDto } from '../../../services/api/payroll/payroll';
 
 
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// -- Types ------------------------------------------------------------------
 
 interface PayslipDetail {
 
@@ -58,43 +58,43 @@ interface PayslipDetail {
 
 
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// -- Helpers ----------------------------------------------------------------
 
-const parsePeso = (val: string) => parseFloat(val.replace(/[₱,-]/g, '')) || 0;
+const parsePeso = (val: string) => parseFloat(val.replace(/[?,-]/g, '')) || 0;
 
 const formatPeso = (val: number) =>
 
-    '₱' + val.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    '?' + val.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 
 
-// ── Backend Mapping ─────────────────────────────────────────────────────────
+// -- Backend Mapping ---------------------------------------------------------
 const emptyPayslip: PayslipDetail = {
     period: 'No payroll records yet',
-    releaseDate: '—',
-    grossPay: '₱0.00',
-    deductions: '₱0.00',
-    netPay: '₱0.00',
-    employee: '—',
-    empId: '—',
-    department: '—',
-    position: '—',
+    releaseDate: '�',
+    grossPay: '?0.00',
+    deductions: '?0.00',
+    netPay: '?0.00',
+    employee: '�',
+    empId: '�',
+    department: '�',
+    position: '�',
     status: 'Pending',
     earnings: [],
     deductionItems: [],
-    totalGross: '₱0.00',
-    totalDeductions: '₱0.00',
-    netTakeHome: '₱0.00',
+    totalGross: '?0.00',
+    totalDeductions: '?0.00',
+    netTakeHome: '?0.00',
     lateAbsentDays: 0,
     overtimeHours: 0,
 };
 
 
 const formatDisplayDate = (value?: string | null) => {
-    if (!value) return '—';
+    if (!value) return '�';
 
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '—';
+    if (Number.isNaN(date.getTime())) return '�';
 
     return date.toLocaleDateString('en-US', {
         month: 'short',
@@ -156,8 +156,8 @@ const mapPayrollRecordToPayslip = (
         netPay: formatPeso(record.netPay),
         employee: record.employeeName,
         empId: record.employeeNumber,
-        department: employeeFallback.department || '—',
-        position: employeeFallback.position || '—',
+        department: employeeFallback.department || '�',
+        position: employeeFallback.position || '�',
         status,
         earnings: earnings.length > 0 ? earnings : [{ label: 'Gross Pay', amount: formatPeso(record.grossPay) }],
         deductionItems: deductionItems.length > 0 ? deductionItems : [{ label: 'Total Deductions', amount: formatPeso(record.totalDeductions) }],
@@ -203,7 +203,7 @@ const handlePrint = (slip: PayslipDetail) => {
 
     if (!w) return;
 
-    w.document.write(`<html><head><title>Payslip – ${slip.period}</title>
+    w.document.write(`<html><head><title>Payslip � ${slip.period}</title>
 
     <style>
 
@@ -283,7 +283,7 @@ const handlePrint = (slip: PayslipDetail) => {
 
 
 
-// ── Mini Bar Chart ─────────────────────────────────────────────────────────
+// -- Mini Bar Chart ---------------------------------------------------------
 
 const MiniBarChart = ({ data }: { data: PayslipDetail[] }) => {
 
@@ -363,7 +363,7 @@ const MiniBarChart = ({ data }: { data: PayslipDetail[] }) => {
 
                             <p className="text-[9px] text-gray-400 text-center leading-tight whitespace-nowrap overflow-hidden" style={{ maxWidth: '100%' }}>
 
-                                {periodShort.split('–')[0].trim()}
+                                {periodShort.split('�')[0].trim()}
 
                             </p>
 
@@ -383,7 +383,7 @@ const MiniBarChart = ({ data }: { data: PayslipDetail[] }) => {
 
 
 
-// ── YTD Progress ───────────────────────────────────────────────────────────
+// -- YTD Progress -----------------------------------------------------------
 
 const YTDProgress = ({ data }: { data: PayslipDetail[] }) => {
 
@@ -499,7 +499,7 @@ const YTDProgress = ({ data }: { data: PayslipDetail[] }) => {
 
 
 
-// ── Net Pay Trend ──────────────────────────────────────────────────────────
+// -- Net Pay Trend ----------------------------------------------------------
 
 const TrendLine = ({ data }: { data: PayslipDetail[] }) => {
 
@@ -611,7 +611,7 @@ const TrendLine = ({ data }: { data: PayslipDetail[] }) => {
 
                     <span key={i} className="text-[9px] text-gray-400 text-center flex-1">
 
-                        {d.period.split('–')[0].replace('Jan ', 'J').replace('Dec ', 'D').replace('Nov ', 'N').trim()}
+                        {d.period.split('�')[0].replace('Jan ', 'J').replace('Dec ', 'D').replace('Nov ', 'N').trim()}
 
                     </span>
 
@@ -627,7 +627,7 @@ const TrendLine = ({ data }: { data: PayslipDetail[] }) => {
 
 
 
-// ── Tooltip ────────────────────────────────────────────────────────────────
+// -- Tooltip ----------------------------------------------------------------
 
 const TrendTooltip = () => (
 
@@ -637,7 +637,7 @@ const TrendTooltip = () => (
 
 
 
-// ══════════════════════════════════════════════════════════════════════════
+// --------------------------------------------------------------------------
 
 const UserPayroll = () => {
 
@@ -1321,7 +1321,7 @@ const UserPayroll = () => {
 
                                             {!(slip.overtimeHours) && !(slip.lateAbsentDays) && (
 
-                                                <span className="text-[10px] text-gray-300">—</span>
+                                                <span className="text-[10px] text-gray-300">�</span>
 
                                             )}
 

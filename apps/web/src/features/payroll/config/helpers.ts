@@ -1,5 +1,5 @@
-import type { PayrollPeriodDto } from '../../../lib/payroll';
-import type { EmployeeDto } from '../../../lib/employees';
+import type { PayrollPeriodDto } from '../../../services/api/payroll/payroll';
+import type { EmployeeDto } from '../../../services/api/employees/employees';
 import type { EmployeesResponse } from './types';
 
 export const formatCurrency = (value: number) =>
@@ -10,7 +10,7 @@ export const formatCurrency = (value: number) =>
     }).format(Number.isFinite(value) ? value : 0);
 
 export const formatDate = (value?: string | null) => {
-    if (!value) return '—';
+    if (!value) return '?';
 
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return value.slice(0, 10);

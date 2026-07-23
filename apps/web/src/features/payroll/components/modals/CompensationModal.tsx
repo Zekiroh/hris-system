@@ -1,7 +1,7 @@
 import { X } from 'lucide-react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { EmployeeDto } from '../../../../lib/employees';
-import type { EmployeeCompensationDto } from '../../../../lib/payroll';
+import type { EmployeeDto } from '../../../../services/api/employees/employees';
+import type { EmployeeCompensationDto } from '../../../../services/api/payroll/payroll';
 import { getEmployeeDisplayName } from '../../config/helpers';
 import type { CompensationFormState } from '../../config/types';
 
@@ -50,7 +50,7 @@ const CompensationModal = ({
                                 <option value="">Select employee</option>
                                 {employees.map((employee) => (
                                     <option key={employee.id} value={employee.id}>
-                                        {employee.employeeNumber} â€” {getEmployeeDisplayName(employee)}
+                                        {employee.employeeNumber} — {getEmployeeDisplayName(employee)}
                                     </option>
                                 ))}
                             </select>

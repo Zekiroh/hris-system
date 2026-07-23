@@ -1,7 +1,7 @@
 import type { FormEvent } from 'react';
 import { X } from 'lucide-react';
-import type { AssetDto } from '../../../../lib/assets';
-import type { EmployeeDto } from '../../../../lib/employees';
+import type { AssetDto } from '../../../../services/api/asset-management/assets';
+import type { EmployeeDto } from '../../../../services/api/employees/employees';
 import type { AssignAssetFormState } from '../../assetManagementTypes';
 
 type AssignAssetModalProps = {
@@ -42,7 +42,7 @@ const AssignAssetModal = ({
                 <div className="pro-modal-body space-y-5">
                     <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
                         <p className="text-sm font-bold text-gray-800">{selectedAsset.assetName}</p>
-                        <p className="text-xs text-gray-500 mt-1">{selectedAsset.assetCode} â€¢ {selectedAsset.category}</p>
+                        <p className="text-xs text-gray-500 mt-1">{selectedAsset.assetCode} • {selectedAsset.category}</p>
                     </div>
 
                     <div>

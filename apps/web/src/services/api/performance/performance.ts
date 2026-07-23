@@ -1,4 +1,4 @@
-import { apiRequest } from "./api";
+import { apiRequest } from "../client";
 
 const PERFORMANCE_EVALUATIONS_BASE_PATH = "/api/performance-evaluations";
 

@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { FileText, X } from "lucide-react";
 import { toast } from "sonner";
-import type { EmployeeStatus } from "../../../lib/employees";
+import type { EmployeeStatus } from "../../../services/api/employees/employees";
 import { EMPLOYEE_TABS, type EmployeeTabKey } from "./employeeTabs";
 import { useEmployeeDocuments } from "../hooks/useEmployeeDocuments";
 import { EmployeeDocumentsPanel } from "./EmployeeDocumentsPanel";
-import type { EmployeeDocumentDto } from "../../../lib/employees";
+import type { EmployeeDocumentDto } from "../../../services/api/employees/employees";
 import { formatEmploymentTypeLabel } from "./employeeList.utils";
 import { useAvatarUrl } from "../../../hooks/useAvatarUrl";
 
@@ -56,7 +56,7 @@ function extractDigits(value?: string): string {
 
 function formatSSS(value?: string): string {
   const digits = extractDigits(value).slice(0, 10);
-  if (!digits) return "â€”";
+  if (!digits) return "—";
 
   const parts = [
     digits.slice(0, 2),
@@ -69,7 +69,7 @@ function formatSSS(value?: string): string {
 
 function formatPhilHealth(value?: string): string {
   const digits = extractDigits(value).slice(0, 12);
-  if (!digits) return "â€”";
+  if (!digits) return "—";
 
   const parts = [
     digits.slice(0, 2),
@@ -82,7 +82,7 @@ function formatPhilHealth(value?: string): string {
 
 function formatPagIbig(value?: string): string {
   const digits = extractDigits(value).slice(0, 12);
-  if (!digits) return "â€”";
+  if (!digits) return "—";
 
   const parts = [
     digits.slice(0, 4),
@@ -95,7 +95,7 @@ function formatPagIbig(value?: string): string {
 
 function formatTIN(value?: string): string {
   const digits = extractDigits(value).slice(0, 12);
-  if (!digits) return "â€”";
+  if (!digits) return "—";
 
   const parts = [
     digits.slice(0, 3),
@@ -109,18 +109,18 @@ function formatTIN(value?: string): string {
 
 function maskGovernmentValue(value?: string) {
   const raw = extractDigits(value);
-  if (!raw) return "â€”";
+  if (!raw) return "—";
 
   const visibleChars = 4;
   if (raw.length <= visibleChars) {
-    return "â€¢".repeat(raw.length);
+    return "•".repeat(raw.length);
   }
 
-  return `${"â€¢".repeat(raw.length - visibleChars)}${raw.slice(-visibleChars)}`;
+  return `${"•".repeat(raw.length - visibleChars)}${raw.slice(-visibleChars)}`;
 }
 
 function formatDisplayDate(value?: string): string {
-  if (!value?.trim()) return "â€”";
+  if (!value?.trim()) return "—";
 
   const raw = value.trim();
 
@@ -218,7 +218,7 @@ export function EmployeeViewPanel({
   useEffect(() => {
     setFailedAvatarUrl(null);
   }, [avatarUserId]);
-  const avatarInitial = employee?.name?.charAt(0) || "â€”";
+  const avatarInitial = employee?.name?.charAt(0) || "—";
 
   const {
     documents,
@@ -471,9 +471,9 @@ export function EmployeeViewPanel({
             <div className="space-y-4">
               {[
                 ["Employee ID", employee.employeeId],
-                ["Contact", employee.contact || "â€”"],
-                ["Email", employee.email || "â€”"],
-                ["Address", fullAddress || "â€”"],
+                ["Contact", employee.contact || "—"],
+                ["Email", employee.email || "—"],
+                ["Address", fullAddress || "—"],
               ].map(([label, value]) => (
                 <div
                   key={label}

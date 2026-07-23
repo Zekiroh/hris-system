@@ -1,6 +1,6 @@
 import { Edit3, Plus } from 'lucide-react';
-import type { EmployeeDto } from '../../../lib/employees';
-import type { EmployeeCompensationDto } from '../../../lib/payroll';
+import type { EmployeeDto } from '../../../services/api/employees/employees';
+import type { EmployeeCompensationDto } from '../../../services/api/payroll/payroll';
 import { formatCurrency, formatDate, getEmployeeDisplayName } from '../config/helpers';
 
 type CompensationTabProps = {
@@ -83,12 +83,12 @@ const CompensationTab = ({
                                     <div className="font-semibold text-gray-800">{compensation.employeeName}</div>
                                     <div className="text-xs text-gray-400">{compensation.employeeNumber}</div>
                                 </td>
-                                <td>{compensation.department || '‚Äî'}</td>
-                                <td>{compensation.position || '‚Äî'}</td>
+                                <td>{compensation.department || 'ó'}</td>
+                                <td>{compensation.position || 'ó'}</td>
                                 <td>{compensation.compensationType}</td>
                                 <td className="font-bold">{formatCurrency(compensation.baseAmount)}</td>
                                 <td>{formatDate(compensation.effectiveFrom)}</td>
-                                <td><span className={`badge ${compensation.isActive ? 'badge-success' : 'badge-warning'}`}>‚óè {compensation.isActive ? 'Active' : 'Inactive'}</span></td>
+                                <td><span className={`badge ${compensation.isActive ? 'badge-success' : 'badge-warning'}`}>? {compensation.isActive ? 'Active' : 'Inactive'}</span></td>
                                 <td>
                                     <button onClick={() => onEditCompensation(compensation)} className="btn-ghost btn-icon text-blue-500 hover:bg-blue-50">
                                         <Edit3 className="w-4 h-4" />

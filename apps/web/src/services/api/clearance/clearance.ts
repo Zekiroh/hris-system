@@ -1,4 +1,4 @@
-import { apiRequest } from "./api";
+import { apiRequest } from "../client";
 
 const CLEARANCES_BASE_PATH = "/api/clearances";
 

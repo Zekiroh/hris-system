@@ -1,4 +1,4 @@
-import { apiRequest } from "./api";
+import { apiRequest } from "../client";
 import {
   extractApiError,
   type EmployeeDocumentDto,

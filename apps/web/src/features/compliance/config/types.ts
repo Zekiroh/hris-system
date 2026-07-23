@@ -3,7 +3,7 @@ import type {
   PhilHealthContributionRuleDto,
   SssContributionBracketDto,
   WithholdingTaxBracketDto,
-} from "../../../lib/governmentCompliance";
+} from "../../../services/api/government-compliance/governmentCompliance";
 
 export type Tab =
   | "configuration"

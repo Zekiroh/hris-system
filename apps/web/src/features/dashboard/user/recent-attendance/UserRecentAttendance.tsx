@@ -1,4 +1,4 @@
-import type { AttendanceLogDto } from "../../../../lib/attendance";
+import type { AttendanceLogDto } from "../../../../services/api/attendance/attendance";
 
 type UserRecentAttendanceProps = {
   recentAttendance: AttendanceLogDto[];

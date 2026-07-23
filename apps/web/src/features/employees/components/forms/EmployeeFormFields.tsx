@@ -5,8 +5,8 @@ import {
   useState,
 } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
-import type { EmployeeStatus } from "../../../../lib/employees";
-import type { EmploymentType } from "../../../../lib/employees";
+import type { EmployeeStatus } from "../../../../services/api/employees/employees";
+import type { EmploymentType } from "../../../../services/api/employees/employees";
 import {
   DropdownMenu,
   type SelectOption,
@@ -78,7 +78,7 @@ function FormLabel({
 }
 
 function formatDisplayDate(value?: string): string {
-  if (!value?.trim()) return "â€”";
+  if (!value?.trim()) return "—";
 
   const raw = value.trim();
 
@@ -106,7 +106,7 @@ function formatDisplayDate(value?: string): string {
 
 function ReadOnlyValue({
   value,
-  emptyFallback = "â€”",
+  emptyFallback = "—",
 }: {
   value?: string;
   emptyFallback?: string;
@@ -538,7 +538,7 @@ export const EmployeeFormFields = memo(function EmployeeFormFields({
                 <p className="text-sm font-medium text-gray-600">
                   Full Name:{" "}
                   <span className="font-semibold text-green-600">
-                    {formData.name?.trim() || "â€”"}
+                    {formData.name?.trim() || "—"}
                   </span>
                 </p>
                 <FieldError message={errors.name} />

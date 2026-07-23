@@ -1,4 +1,4 @@
-import type { Shift } from '../../../../lib/attendance';
+import type { Shift } from '../../../../services/api/attendance/attendance';
 
 export type EmployeeOption = {
     id: string;

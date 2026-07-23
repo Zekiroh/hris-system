@@ -27,29 +27,29 @@ import { useAuth } from "../../../context/AuthContext";
 import {
   getActivityLogs,
   type ActivityLogItemDto,
-} from "../../../lib/activityLogs";
-import { getAdminUsers, type AdminUserDto } from "../../../lib/adminUsers";
+} from "../../../services/api/activity-logs/activityLogs";
+import { getAdminUsers, type AdminUserDto } from "../../../services/api/iam/adminUsers";
 import {
   getAttendanceTrends,
   type MonthlyAttendanceTrendDto,
-} from "../../../lib/dashboard";
+} from "../../../services/api/dashboard/dashboard";
 import {
   getEmployees,
   type EmployeeSummaryDto,
   type PagedEmployeesResponse,
   type EmploymentTypeSummary,
-} from "../../../lib/employees";
+} from "../../../services/api/employees/employees";
 import { subscribeEmployeeStatsChanged } from "../../../lib/events/employeeEvents";
 import {
   getAdminLeaveRequests,
   type LeaveRequestDto,
-} from "../../../lib/leave";
+} from "../../../services/api/leave/leave";
 import {
   getPayrollPeriods,
   getPayrollRecords,
   type PayrollPeriodDto,
   type PayrollRecordDto,
-} from "../../../lib/payroll";
+} from "../../../services/api/payroll/payroll";
 import {
   buildUserNameByEmail,
   formatActionLabel,
@@ -863,12 +863,12 @@ const AdminDashboard = () => {
   };
 
   const formatRecentTimestamp = (value?: string) => {
-    if (!value) return "â€”";
+    if (!value) return "—";
 
     const datePart = formatDatePart(value);
     const timePart = formatTimePart(value);
 
-    if (datePart === "â€”" || timePart === "â€”") return "â€”";
+    if (datePart === "—" || timePart === "—") return "—";
 
     return `${datePart} at ${timePart}`;
   };

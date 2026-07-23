@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react';
-import type { AssetDto, AssetReturnRequestDto } from '../../../../lib/assets';
+import type { AssetDto, AssetReturnRequestDto } from '../../../../services/api/asset-management/assets';
 import AdminAssetInventoryTable from './AdminAssetInventoryTable';
 import AdminReturnRequestTable from './AdminReturnRequestTable';
 import type { ReturnReviewAction } from '../../assetManagementTypes';

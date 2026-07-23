@@ -1,7 +1,7 @@
 import { Search, Filter, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import type { EmployeeSortBy } from "../../../../lib/employees";
+import type { EmployeeSortBy } from "../../../../services/api/employees/employees";
 
 type FilterOption = {
   label: string;
@@ -59,7 +59,7 @@ function FilterDropdown({
         <span className={selectedOption ? "text-gray-700" : "text-gray-500"}>
           {selectedOption?.label ?? "All"}
         </span>
-        <span className="ml-3 shrink-0 text-gray-400">▾</span>
+        <span className="ml-3 shrink-0 text-gray-400">?</span>
       </button>
 
       {open && (
@@ -166,7 +166,7 @@ export function EmployeeToolbar({
 
         <div className="flex flex-wrap items-center gap-2">
           
-          {/* 🔥 ACTIVE EMPLOYMENT TYPE (NO UI DRIFT) */}
+          {/* ?? ACTIVE EMPLOYMENT TYPE (NO UI DRIFT) */}
           {employmentType && (
             <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700">
               <span>{employmentType}</span>
@@ -174,7 +174,7 @@ export function EmployeeToolbar({
                 onClick={clearEmploymentType}
                 className="text-emerald-500 hover:text-emerald-700"
               >
-                ✕
+                ?
               </button>
             </div>
           )}

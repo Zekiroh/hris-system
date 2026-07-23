@@ -13,13 +13,13 @@ import {
   type EmployeeStatus,
   type EmployeeSortBy,
   type EmploymentType,
-} from "../../lib/employees";
+} from "../../services/api/employees/employees";
 import { subscribeEmployeeStatsChanged } from "../../lib/events/employeeEvents";
 import { mapEmployeeMutationErrorToUiMessage } from "../../lib/employeeErrorHelpers";
 import { getEmployeeApiErrorMessage } from "./utils/employeeApiError";
-import { getAdminUsers } from "../../lib/adminUsers";
+import { getAdminUsers } from "../../services/api/iam/adminUsers";
 
-import { getUserOptionsForEmployeeDropdown } from "../../lib/users";
+import { getUserOptionsForEmployeeDropdown } from "../../services/api/iam/users";
 
 import {
   type FormData,

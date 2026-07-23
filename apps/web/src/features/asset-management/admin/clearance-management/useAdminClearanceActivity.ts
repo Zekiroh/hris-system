@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { getClearanceActivities } from '../../../../lib/clearance';
-import type { ClearanceActivityDto } from '../../../../lib/clearance';
+import { getClearanceActivities } from '../../../../services/api/clearance/clearance';
+import type { ClearanceActivityDto } from '../../../../services/api/clearance/clearance';
 
 export const useAdminClearanceActivity = () => {
     const [selectedClearanceId, setSelectedClearanceId] = useState<number | null>(null);

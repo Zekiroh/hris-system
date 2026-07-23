@@ -5,7 +5,7 @@ import type {
   PhilHealthContributionRuleDto,
   SssContributionBracketDto,
   WithholdingTaxBracketDto,
-} from "../../../lib/governmentCompliance";
+} from "../../../services/api/government-compliance/governmentCompliance";
 import { sectionLabels } from "../config/configuration";
 import {
   formatCurrency,

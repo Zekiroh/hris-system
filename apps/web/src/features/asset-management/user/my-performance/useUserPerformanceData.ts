@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getMyPerformanceEvaluations } from '../../../../lib/performance';
-import type { PerformanceEvaluationDto } from '../../../../lib/performance';
+import { getMyPerformanceEvaluations } from '../../../../services/api/performance/performance';
+import type { PerformanceEvaluationDto } from '../../../../services/api/performance/performance';
 
 export const useUserPerformanceData = () => {
     const [evaluations, setEvaluations] = useState<PerformanceEvaluationDto[]>([]);

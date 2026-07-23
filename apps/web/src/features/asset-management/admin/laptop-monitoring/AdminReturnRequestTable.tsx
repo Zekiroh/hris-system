@@ -1,5 +1,5 @@
 import { CheckCircle, XCircle } from 'lucide-react';
-import type { AssetReturnRequestDto } from '../../../../lib/assets';
+import type { AssetReturnRequestDto } from '../../../../services/api/asset-management/assets';
 import { returnRequestStatusBadge } from '../../assetManagementConfig';
 import type { ReturnReviewAction } from '../../assetManagementTypes';
 

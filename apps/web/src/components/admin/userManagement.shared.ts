@@ -1,4 +1,4 @@
-import type { AdminUserDto } from '../../lib/adminUsers';
+import type { AdminUserDto } from '../../services/api/iam/adminUsers';
 
 export type BackendUser = AdminUserDto;
 
@@ -82,10 +82,10 @@ export function getRoleLabel(roleId: number) {
 }
 
 export function formatRelativeDate(value: string | null) {
-  if (!value) return 'â€”';
+  if (!value) return '—';
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'â€”';
+  if (Number.isNaN(date.getTime())) return '—';
 
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -120,7 +120,7 @@ export function validateStrongPassword(password: string) {
 }
 
 function hasInvalidNameCharacters(value: string) {
-  return !/^[A-Za-zÃ€-Ã¿' -]+$/.test(value);
+  return !/^[A-Za-zÀ-ÿ' -]+$/.test(value);
 }
 
 function isValidEmail(value: string) {

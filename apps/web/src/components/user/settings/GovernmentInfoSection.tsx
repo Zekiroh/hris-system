@@ -2,19 +2,19 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { AlertCircle, Check, Eye, EyeOff, Lock, Pencil, ShieldAlert, ShieldCheck, X } from 'lucide-react';
-import { createActivityLog } from '../../../lib/activityLogs';
-import { apiRequest } from '../../../lib/api';
+import { createActivityLog } from '../../../services/api/activity-logs/activityLogs';
+import { apiRequest } from '../../../services/api/client';
 import ConfirmModal from './ConfirmModal';
 
-// ─── Masking helpers ──────────────────────────────────────────────────────────
+// --- Masking helpers ----------------------------------------------------------
 
 const maskValue = (value: string): string => {
-    if (!value) return '—';
+    if (!value) return '�';
     const visible = Math.min(2, value.replace(/\D/g, '').length);
     return value.slice(0, visible) + value.slice(visible).replace(/[^-\s]/g, '*');
 };
 
-// ─── Gov ID format helpers ────────────────────────────────────────────────────
+// --- Gov ID format helpers ----------------------------------------------------
 
 type GovFormat = {
     groups:    number[];
@@ -42,7 +42,7 @@ function applyGovFormat(raw: string, format: GovFormat): string {
     return result;
 }
 
-// ─── Auto-hide hook ───────────────────────────────────────────────────────────
+// --- Auto-hide hook -----------------------------------------------------------
 
 const AUTO_HIDE_MS = 10_000;
 
@@ -73,7 +73,7 @@ function useAutoHide(visible: boolean, hide: () => void, isEditing: boolean = fa
     return remaining;
 }
 
-// ─── Password Verification Modal ──────────────────────────────────────────────
+// --- Password Verification Modal ----------------------------------------------
 
 interface VerifyModalProps {
     onVerify: (password: string) => Promise<boolean>;
@@ -150,7 +150,7 @@ const VerifyModal = ({ onVerify, onClose }: VerifyModalProps) => {
     );
 };
 
-// ─── Secure Government Field ──────────────────────────────────────────────────
+// --- Secure Government Field --------------------------------------------------
 
 interface SecureFieldProps {
     label:       string;
@@ -213,14 +213,14 @@ const SecureField = ({
             {visible && remaining !== null && (
                 <p className="mt-1 text-[11px] text-amber-600 flex items-center gap-1">
                     <ShieldAlert className="w-3 h-3 shrink-0" />
-                    Visible for {remaining}s — will hide automatically
+                    Visible for {remaining}s � will hide automatically
                 </p>
             )}
         </div>
     );
 };
 
-// ─── Government Information Section ──────────────────────────────────────────
+// --- Government Information Section ------------------------------------------
 
 type GovInfoFields = {
     sssNumber:        string;

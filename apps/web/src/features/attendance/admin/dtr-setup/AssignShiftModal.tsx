@@ -11,7 +11,7 @@ import {
   User,
   X,
 } from "lucide-react";
-import type { Shift } from "../../../../lib/attendance";
+import type { Shift } from "../../../../services/api/attendance/attendance";
 
 type EmployeeOption = {
   id: string;

@@ -1,5 +1,5 @@
 import { CalendarClock, Edit, Eye, Moon, Plus, Sun, Users } from 'lucide-react';
-import type { Shift } from '../../../../lib/attendance';
+import type { Shift } from '../../../../services/api/attendance/attendance';
 import type { AdminShiftRecord, StatusBadgeMap } from '../../../../types/attendance';
 
 type Props = {

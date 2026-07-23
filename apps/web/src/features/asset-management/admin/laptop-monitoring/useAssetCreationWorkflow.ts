@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { initialAssetForm } from '../../assetManagementConfig';
-import { createAsset } from '../../../../lib/assets';
+import { createAsset } from '../../../../services/api/asset-management/assets';
 
 type UseAssetCreationWorkflowOptions = {
     loadAssets: () => Promise<void>;

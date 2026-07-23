@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react';
-import type { AnnouncementDto } from '../../../../lib/announcement';
+import type { AnnouncementDto } from '../../../../services/api/announcements/announcement';
 import AdminAnnouncementCard from './AdminAnnouncementCard';
 
 type AdminAnnouncementsTabProps = {

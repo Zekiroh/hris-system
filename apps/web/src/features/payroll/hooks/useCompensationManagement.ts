@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getEmployees, type EmployeeDto } from '../../../lib/employees';
+import { getEmployees, type EmployeeDto } from '../../../services/api/employees/employees';
 import {
     createCompensation,
     getCompensations,
@@ -7,7 +7,7 @@ import {
     type CreateEmployeeCompensationRequestDto,
     type EmployeeCompensationDto,
     type UpdateEmployeeCompensationRequestDto,
-} from '../../../lib/payroll';
+} from '../../../services/api/payroll/payroll';
 import { emptyCompensationForm } from '../config/constants';
 import { extractEmployeeItems } from '../config/helpers';
 import type { CompensationFormState } from '../config/types';

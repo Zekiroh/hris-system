@@ -1,5 +1,5 @@
-import type { ActivityLogItemDto } from './activityLogs';
-import type { AdminUserDto } from './adminUsers';
+import type { ActivityLogItemDto } from '../services/api/activity-logs/activityLogs';
+import type { AdminUserDto } from '../services/api/iam/adminUsers';
 
 export function buildUserNameByEmail(users: AdminUserDto[]) {
   const map = new Map<string, string>();
@@ -32,7 +32,7 @@ export function parseAsManilaDate(value: string) {
 
 export function formatDatePart(value: string) {
   const date = parseAsManilaDate(value);
-  if (!date) return 'â€”';
+  if (!date) return '—';
 
   return date.toLocaleDateString('en-US', {
     timeZone: 'Asia/Manila',
@@ -44,7 +44,7 @@ export function formatDatePart(value: string) {
 
 export function formatDateFilterPart(value: string) {
   const date = parseAsManilaDate(value);
-  if (!date) return 'â€”';
+  if (!date) return '—';
 
   return date.toLocaleDateString('en-CA', {
     timeZone: 'Asia/Manila',
@@ -53,7 +53,7 @@ export function formatDateFilterPart(value: string) {
 
 export function formatTimePart(value: string) {
   const date = parseAsManilaDate(value);
-  if (!date) return 'â€”';
+  if (!date) return '—';
 
   return date.toLocaleTimeString('en-PH', {
     timeZone: 'Asia/Manila',
@@ -261,7 +261,7 @@ export function prettifyDetails(
       return log.targetType;
     }
 
-    return 'â€”';
+    return '—';
   }
 
   if (log.action === 'LOGIN') {

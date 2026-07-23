@@ -24,7 +24,7 @@ import {
     type AttendanceLogDto,
     type AttendanceSummaryDto,
     type OvertimeRequestDto,
-} from '../../../lib/attendance';
+} from '../../../services/api/attendance/attendance';
 import AttendanceTabs from '../components/AttendanceTabs';
 import AdminAttendanceSummaryCards from './components/AdminAttendanceSummaryCards';
 import AdminDtrTab from './daily-time-record/AdminDtrTab';
@@ -34,9 +34,9 @@ import AssignOvertimeModal, {
     type AssignOvertimeEmployeeOption,
     type AssignOvertimeAttendanceOption,
 } from './overtime/AssignOvertimeModal';
-import { getEmployees } from '../../../lib/employees';
-import { getAdminLeaveRequests, type LeaveRequestDto } from '../../../lib/leave';
-import { apiRequest } from '../../../lib/api';
+import { getEmployees } from '../../../services/api/employees/employees';
+import { getAdminLeaveRequests, type LeaveRequestDto } from '../../../services/api/leave/leave';
+import { apiRequest } from '../../../services/api/client';
 import ViewAttendanceModal from './daily-time-record/ViewAttendanceModal';
 import type {
     AdminAttendanceTab,
@@ -159,7 +159,7 @@ const normalizeOvertimeStatus = (value?: string | null): 'None' | 'Pending' | 'A
 };
 
 const normalizeDateKey = (value?: string | null) => {
-    if (!value || value === '-' || value === '--' || value === 'â€”') return '';
+    if (!value || value === '-' || value === '--' || value === '—') return '';
 
     if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
         return value.slice(0, 10);
@@ -484,9 +484,9 @@ const AdminAttendance = () => {
             const mapped: AdminOvertimeRequestRow[] = (res.items || []).map((o: OvertimeRequestDto) => ({
                 id: o.id,
                 date: formatOvertimeDateRange(o),
-                employee: o.employeeName || 'â€”',
+                employee: o.employeeName || '—',
                 duration: formatOvertimeDuration(o),
-                reason: o.reason || 'â€”',
+                reason: o.reason || '—',
                 status: (o.status || 'Pending') as AdminOvertimeRequestRow['status'],
             }));
 

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { createInitialAssignForm } from '../../assetManagementConfig';
-import { assignAsset } from '../../../../lib/assets';
-import type { AssetDto } from '../../../../lib/assets';
+import { assignAsset } from '../../../../services/api/asset-management/assets';
+import type { AssetDto } from '../../../../services/api/asset-management/assets';
 
 type UseAssetAssignmentWorkflowOptions = {
     loadAssets: () => Promise<void>;

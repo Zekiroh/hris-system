@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import {
     getPublishedAnnouncements,
     markAnnouncementAsRead,
-} from '../../../../lib/announcement';
-import type { AnnouncementDto } from '../../../../lib/announcement';
+} from '../../../../services/api/announcements/announcement';
+import type { AnnouncementDto } from '../../../../services/api/announcements/announcement';
 
 export const useUserAnnouncementWorkflow = () => {
     const [announcements, setAnnouncements] = useState<AnnouncementDto[]>([]);

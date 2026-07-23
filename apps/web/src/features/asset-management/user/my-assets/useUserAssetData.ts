@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getMyAssets, getMyReturnRequests } from '../../../../lib/assets';
+import { getMyAssets, getMyReturnRequests } from '../../../../services/api/asset-management/assets';
 import type {
     AssetAssignmentDto,
     AssetReturnRequestDto,
-} from '../../../../lib/assets';
+} from '../../../../services/api/asset-management/assets';
 
 export const useUserAssetData = () => {
     const [myAssets, setMyAssets] = useState<AssetAssignmentDto[]>([]);

@@ -3,7 +3,7 @@ import {
     getMyDailyReports,
     type DailyReportDto,
     type GetDailyReportsQuery,
-} from "../../../../lib/dailyReports";
+} from "../../../../services/api/daily-accomplishment/dailyReports";
 
 type DailyReportQuery = Omit<GetDailyReportsQuery, "employeeId">;
 

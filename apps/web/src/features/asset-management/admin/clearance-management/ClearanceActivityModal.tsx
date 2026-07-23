@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import type { ClearanceActivityDto } from '../../../../lib/clearance';
+import type { ClearanceActivityDto } from '../../../../services/api/clearance/clearance';
 import { formatDatePart, formatTimePart } from '../../../../lib/activityLog.utils';
 
 type ClearanceActivityModalProps = {

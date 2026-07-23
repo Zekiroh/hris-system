@@ -1,5 +1,5 @@
 import { Download } from 'lucide-react';
-import type { PayrollPeriodDto, PayrollRecordDto, PayrollRecordItemDto } from '../../../../lib/payroll';
+import type { PayrollPeriodDto, PayrollRecordDto, PayrollRecordItemDto } from '../../../../services/api/payroll/payroll';
 import { formatCurrency, formatDate, formatPeriod } from '../../config/helpers';
 
 type PayslipPreviewModalProps = {
@@ -35,8 +35,8 @@ const PayslipPreviewModal = ({
                         {[
                             ['Employee ID', selectedPayslip.employeeNumber],
                             ['Employee', selectedPayslip.employeeName],
-                            ['Department', 'â€”'],
-                            ['Pay Period', selectedPayrollPeriod ? formatPeriod(selectedPayrollPeriod) : 'â€”'],
+                            ['Department', '—'],
+                            ['Pay Period', selectedPayrollPeriod ? formatPeriod(selectedPayrollPeriod) : '—'],
                             ['Payment Date', formatDate(selectedPayslip.createdAtUtc)],
                         ].map(([label, val]) => (
                             <div key={label}><p className="text-gray-400 text-xs">{label}</p><p className="font-bold text-gray-800">{val}</p></div>

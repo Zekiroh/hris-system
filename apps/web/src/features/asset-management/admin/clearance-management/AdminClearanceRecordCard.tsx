@@ -1,6 +1,6 @@
 import { CheckCircle, XCircle } from 'lucide-react';
 import { clearanceStatusBadge } from '../../assetManagementConfig';
-import type { ClearanceDto } from '../../../../lib/clearance';
+import type { ClearanceDto } from '../../../../services/api/clearance/clearance';
 
 type AdminClearanceRecordCardProps = {
     record: ClearanceDto;
@@ -66,7 +66,7 @@ const AdminClearanceRecordCard = ({
                 <div>
                     <h4 className="text-sm font-bold text-gray-800">{record.employeeName}</h4>
                     <p className="text-xs text-gray-400 mt-0.5">
-                        {record.employeeNumber} â€¢ {record.department} â€¢ Last Day: {record.lastWorkingDay}
+                        {record.employeeNumber} • {record.department} • Last Day: {record.lastWorkingDay}
                     </p>
                 </div>
                 <span className={`badge ${clearanceStatusBadge[record.status] ?? 'badge-neutral'}`}>

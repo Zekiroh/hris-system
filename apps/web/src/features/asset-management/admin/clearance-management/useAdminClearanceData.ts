@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getClearances } from '../../../../lib/clearance';
-import type { ClearanceDto } from '../../../../lib/clearance';
+import { getClearances } from '../../../../services/api/clearance/clearance';
+import type { ClearanceDto } from '../../../../services/api/clearance/clearance';
 
 export const useAdminClearanceData = () => {
     const [clearances, setClearances] = useState<ClearanceDto[]>([]);

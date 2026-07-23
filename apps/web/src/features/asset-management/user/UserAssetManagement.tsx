@@ -25,7 +25,7 @@ import { useUserAssetData } from "./my-assets/useUserAssetData";
 import { useUserAnnouncementWorkflow } from "./announcements/useUserAnnouncementWorkflow";
 import { useUserClearanceData } from "./my-clearance/useUserClearanceData";
 import { useUserPerformanceData } from "./my-performance/useUserPerformanceData";
-import type { PerformanceEvaluationDto } from "../../../lib/performance";
+import type { PerformanceEvaluationDto } from "../../../services/api/performance/performance";
 
 const MAX_EVALUATION_SCORE = 5.0;
 
@@ -124,7 +124,7 @@ const UserAssetManagement = () => {
     Boolean(clearance) && !isLoadingClearance && !clearanceError;
   const clearanceProgressValue = canShowClearanceProgress
     ? progressPct + "%"
-    : "—";
+    : "�";
   const clearanceStatus = clearance?.status ?? "";
 
   const evaluations = useMemo(
@@ -219,7 +219,7 @@ const UserAssetManagement = () => {
         </div>
 
         <div className="p-6">
-          {/* ── MY ASSETS ── */}
+          {/* -- MY ASSETS -- */}
           {activeTab === "assets" && (
             <UserAssetsTab
               myAssets={myAssets}
@@ -231,7 +231,7 @@ const UserAssetManagement = () => {
             />
           )}
 
-          {/* ── MY CLEARANCE ── */}
+          {/* -- MY CLEARANCE -- */}
           {activeTab === "clearance" && (
             <UserClearanceTab
               checklist={checklist}
@@ -244,7 +244,7 @@ const UserAssetManagement = () => {
             />
           )}
 
-          {/* ── MY EVALUATION ── */}
+          {/* -- MY EVALUATION -- */}
           {activeTab === "evaluation" && (
             <UserEvaluationTab
               evaluations={evaluations}
@@ -257,7 +257,7 @@ const UserAssetManagement = () => {
             />
           )}
 
-          {/* ── ANNOUNCEMENTS ── */}
+          {/* -- ANNOUNCEMENTS -- */}
           {activeTab === "announcements" && (
             <UserAnnouncementsTab
               announcements={announcements}

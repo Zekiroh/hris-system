@@ -1,5 +1,5 @@
 import { XCircle } from "lucide-react";
-import type { AssetAssignmentDto } from "../../../../lib/assets";
+import type { AssetAssignmentDto } from "../../../../services/api/asset-management/assets";
 
 type ReportAssetIssueModalProps = {
   myAssets: AssetAssignmentDto[];

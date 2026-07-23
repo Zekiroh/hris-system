@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createAnnouncement, publishAnnouncement } from '../../../../lib/announcement';
+import { createAnnouncement, publishAnnouncement } from '../../../../services/api/announcements/announcement';
 import { initialAnnouncementForm } from '../../assetManagementConfig';
 
 type UseAdminAnnouncementWorkflowInput = {

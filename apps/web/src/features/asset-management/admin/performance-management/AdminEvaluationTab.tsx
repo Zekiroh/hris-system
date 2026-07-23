@@ -1,5 +1,5 @@
 import AdminEvaluationTable from './AdminEvaluationTable';
-import type { PerformanceEvaluationDto } from '../../../../lib/performance';
+import type { PerformanceEvaluationDto } from '../../../../services/api/performance/performance';
 
 type AdminEvaluationTabProps = {
     evaluations: PerformanceEvaluationDto[];

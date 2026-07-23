@@ -4,8 +4,8 @@ import { toast } from 'sonner';
 import { LOCATION_OPTIONS } from '../../../shared/data/locationOptions';
 import { useAvatarUrl } from '../../../hooks/useAvatarUrl';
 import { readAvatarFileAsDataUrl, setStoredAvatarUrl } from '../../../lib/avatar';
-import { apiRequest } from '../../../lib/api';
-import { createActivityLog } from '../../../lib/activityLogs';
+import { apiRequest } from '../../../services/api/client';
+import { createActivityLog } from '../../../services/api/activity-logs/activityLogs';
 import ProfileActions from '../profile/ProfileActions';
 import ProfileAvatar from '../profile/ProfileAvatar';
 import ProfileLocationFields from '../profile/ProfileLocationFields';
@@ -305,9 +305,9 @@ const ProfileTab = ({ user, onSaved, ConfirmModal }: ProfileTabProps) => {
 
                 {/* Name & position - below avatar on mobile */}
                 <div className="flex-1">
-                    <p className="text-[15px] font-semibold text-gray-800">{form.fullName || 'â€”'}</p>
+                    <p className="text-[15px] font-semibold text-gray-800">{form.fullName || '—'}</p>
                     <p className="text-xs text-gray-400">{form.position || 'No position set'}</p>
-                    <p className="text-[12px] text-gray-800 mt-0.5">{user?.username ?? user?.email ?? 'â€”'}</p>
+                    <p className="text-[12px] text-gray-800 mt-0.5">{user?.username ?? user?.email ?? '—'}</p>
                 </div>
 
                 {/* Edit button - only visible on desktop (far right) */}
@@ -353,7 +353,7 @@ const ProfileTab = ({ user, onSaved, ConfirmModal }: ProfileTabProps) => {
                     <div>
                         <label className="block text-xs font-medium text-gray-500 mb-1">Employment status</label>
                         <p className={`py-1.5 font-semibold text-sm ${form.employmentStatus === 'Active' ? 'text-green-500' : 'text-rose-500'}`}>
-                            {form.employmentStatus || 'â€”'}
+                            {form.employmentStatus || '—'}
                         </p>
                     </div>
                     <div>

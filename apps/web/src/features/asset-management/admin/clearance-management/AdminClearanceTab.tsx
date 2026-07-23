@@ -1,6 +1,6 @@
 import { Plus } from 'lucide-react';
 import AdminClearanceRecordCard from './AdminClearanceRecordCard';
-import type { ClearanceDto } from '../../../../lib/clearance';
+import type { ClearanceDto } from '../../../../services/api/clearance/clearance';
 
 type AdminClearanceTabProps = {
     clearances: ClearanceDto[];

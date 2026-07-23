@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import type { EmployeeDto } from '../../../../lib/employees';
+import type { EmployeeDto } from '../../../../services/api/employees/employees';
 import { getEmployeeName } from '../../assetManagementHelpers';
 import type { ClearanceFormState } from '../../assetManagementTypes';
 

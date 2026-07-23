@@ -12,8 +12,8 @@ import {
     exportActivityLogs,
     getActivityLogs,
     type ActivityLogItemDto,
-} from '../../../../../lib/activityLogs';
-import { getAdminUsers, type AdminUserDto } from '../../../../../lib/adminUsers';
+} from '../../../../../services/api/activity-logs/activityLogs';
+import { getAdminUsers, type AdminUserDto } from '../../../../../services/api/iam/adminUsers';
 
 const PAGE_SIZE = 10;
 const TODAY_FILTER_BATCH_SIZE = 100;

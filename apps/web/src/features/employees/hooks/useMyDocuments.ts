@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { apiRequest } from "../../../lib/api";
-import { getAuthToken } from "../../../lib/employeeDocuments";
+import { apiRequest } from "../../../services/api/client";
+import { getAuthToken } from "../../../services/api/employees/employeeDocuments";
 import { normalizeDocumentError } from "../../../lib/employeeErrorHelpers";
 import { validateDocumentFile } from "../../../lib/documentValidation";
 import type {
   EmployeeDocumentDto,
   EmployeeDocumentType,
-} from "../../../lib/employees";
+} from "../../../services/api/employees/employees";
 
 function unwrapData<T>(res: unknown): T {
   if (res && typeof res === "object" && "data" in res) {

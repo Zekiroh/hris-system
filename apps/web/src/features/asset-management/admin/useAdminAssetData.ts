@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getAnnouncements } from '../../../lib/announcement';
-import type { AnnouncementDto } from '../../../lib/announcement';
-import { getAssets, getReturnRequests } from '../../../lib/assets';
-import type { AssetDto, AssetReturnRequestDto } from '../../../lib/assets';
-import { getEmployees } from '../../../lib/employees';
-import type { EmployeeDto } from '../../../lib/employees';
+import { getAnnouncements } from '../../../services/api/announcements/announcement';
+import type { AnnouncementDto } from '../../../services/api/announcements/announcement';
+import { getAssets, getReturnRequests } from '../../../services/api/asset-management/assets';
+import type { AssetDto, AssetReturnRequestDto } from '../../../services/api/asset-management/assets';
+import { getEmployees } from '../../../services/api/employees/employees';
+import type { EmployeeDto } from '../../../services/api/employees/employees';
 import { unwrapEmployeesResponse } from '../assetManagementHelpers';
 
 export const useAdminAssetData = () => {

@@ -12,7 +12,7 @@ import {
   updateAdminUser,
   updateAdminUserStatus,
   resetAdminUserPassword,
-} from '../../../../lib/adminUsers';
+} from '../../../../services/api/iam/adminUsers';
 import { useAuth } from '../../../../context/AuthContext';
 import {
   DEFAULT_FORM,

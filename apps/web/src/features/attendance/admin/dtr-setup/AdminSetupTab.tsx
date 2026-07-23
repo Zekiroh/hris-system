@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
-import { apiRequest } from "../../../../lib/api";
+import { apiRequest } from "../../../../services/api/client";
 import {
   assignShift,
   createShift,
@@ -22,7 +22,7 @@ import {
   toApiTimeString,
   type Shift,
   type ShiftDay,
-} from "../../../../lib/attendance";
+} from "../../../../services/api/attendance/attendance";
 import type {
   AdminShiftRecord,
   StatusBadgeMap,
@@ -580,8 +580,8 @@ const ShiftAssignmentDetailsModal = ({
                 </h4>
                 <p className="mt-1 text-sm font-semibold text-slate-500">
                   {assignment.employeeNumber || "--"}
-                  {assignment.department ? ` â€¢ ${assignment.department}` : ""}
-                  {assignment.position ? ` â€¢ ${assignment.position}` : ""}
+                  {assignment.department ? ` • ${assignment.department}` : ""}
+                  {assignment.position ? ` • ${assignment.position}` : ""}
                 </p>
               </div>
 

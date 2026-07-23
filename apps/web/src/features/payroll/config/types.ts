@@ -1,5 +1,5 @@
-import type { PayrollRecordDto } from '../../../lib/payroll';
-import type { getEmployees } from '../../../lib/employees';
+import type { PayrollRecordDto } from '../../../services/api/payroll/payroll';
+import type { getEmployees } from '../../../services/api/employees/employees';
 
 export type Tab = 'records' | 'compensation' | 'deductions' | '13th' | 'payslip';
 

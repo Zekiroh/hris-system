@@ -7,7 +7,7 @@ import {
   getPermissions,
   updatePermission,
   type PermissionDto,
-} from '../../../lib/permissions';
+} from '../../../services/api/iam/permissions';
 
 type AccessManagementProps = {
   showRoleModal: boolean;

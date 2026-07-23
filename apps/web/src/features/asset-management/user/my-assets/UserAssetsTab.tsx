@@ -1,7 +1,7 @@
 import type {
   AssetAssignmentDto,
   AssetReturnRequestDto,
-} from "../../../../lib/assets";
+} from "../../../../services/api/asset-management/assets";
 import UserAssignedAssetCard from "./UserAssignedAssetCard";
 import { getReturnRequestForAsset } from "../../assetManagementHelpers";
 

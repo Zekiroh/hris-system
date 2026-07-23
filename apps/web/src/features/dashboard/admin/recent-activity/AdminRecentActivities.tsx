@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import type { ActivityLogItemDto } from "../../../../lib/activityLogs";
+import type { ActivityLogItemDto } from "../../../../services/api/activity-logs/activityLogs";
 
 type RecentActivityVisual = {
   icon: LucideIcon;
@@ -66,7 +66,7 @@ const AdminRecentActivities = ({
 
             <div className="flex-1 min-w-0">
               <p className="text-sm text-gray-700 font-medium">
-                {description && description !== "â€”"
+                {description && description !== "—"
                   ? description
                   : fallbackLabel}
               </p>

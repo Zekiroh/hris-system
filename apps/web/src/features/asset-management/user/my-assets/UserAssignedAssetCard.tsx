@@ -2,7 +2,7 @@ import { AlertTriangle, ClipboardCheck, Laptop } from "lucide-react";
 import type {
   AssetAssignmentDto,
   AssetReturnRequestDto,
-} from "../../../../lib/assets";
+} from "../../../../services/api/asset-management/assets";
 import {
   assetStatusBadge,
   returnRequestStatusBadge,
@@ -36,7 +36,7 @@ const UserAssignedAssetCard = ({
               {asset.assetName}
             </h4>
             <p className="text-xs text-gray-400 mt-0.5">
-              {asset.category} â€¢ {asset.assetCode}
+              {asset.category} • {asset.assetCode}
             </p>
           </div>
         </div>

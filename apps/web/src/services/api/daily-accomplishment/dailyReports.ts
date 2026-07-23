@@ -1,4 +1,4 @@
-import { apiRequest } from "./api";
+import { apiRequest } from "../client";
 
 const DAILY_REPORTS_BASE_PATH = "/api/daily-reports";
 

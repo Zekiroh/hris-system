@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Bell, ChevronRight, Check, Trash2, Menu } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { getEmployees } from "../../lib/employees";
+import { getEmployees } from "../../services/api/employees/employees";
 import { subscribeEmployeeStatsChanged } from "../../lib/events/employeeEvents";
 import { useAvatarUrl } from "../../hooks/useAvatarUrl";
 import { useTopBarNotifications } from "./hooks/useTopBarNotifications";
