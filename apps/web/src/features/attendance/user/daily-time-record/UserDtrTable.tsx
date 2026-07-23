@@ -1,5 +1,5 @@
 import { CalendarDays, Clock3, Edit, Eye } from 'lucide-react';
-import type { StatusBadgeMap } from '../../../../types/attendance';
+import type { StatusBadgeMap } from '../../attendanceTypes';
 
 export interface AttendanceRow {
     id: number;

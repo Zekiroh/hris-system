@@ -1,7 +1,7 @@
 import { Shield, MoreVertical, Edit, Ban, CheckCircle, KeyRound } from 'lucide-react';
 import type { MouseEvent } from 'react';
-import type { UserRow } from '../../features/iam/user-management/userManagement.shared';
-import { getStatusBadgeClass, DEFAULT_PAGE_SIZE } from '../../features/iam/user-management/userManagement.shared';
+import type { UserRow } from './userManagement.shared';
+import { getStatusBadgeClass, DEFAULT_PAGE_SIZE } from './userManagement.shared';
 
 type Props = {
   users: UserRow[];

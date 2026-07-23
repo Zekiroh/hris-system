@@ -46,7 +46,7 @@ import type {
     DtrFilters,
     ShiftFormState,
     StatusBadgeMap,
-} from '../../../types/attendance';
+} from '../attendanceTypes';
 
 type ShiftFormModalProps = {
     title: string;

@@ -17,7 +17,7 @@ import { createPortal } from 'react-dom';
 import type {
     AdminDtrRecord,
     StatusBadgeMap,
-} from '../../../../types/attendance';
+} from '../../attendanceTypes';
 
 type Props = {
     isOpen: boolean;

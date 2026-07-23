@@ -1,6 +1,6 @@
 import { CalendarDays, Check, Clock3, Edit, Eye, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { AdminDtrRecord, StatusBadgeMap } from "../../../../types/attendance";
+import type { AdminDtrRecord, StatusBadgeMap } from "../../attendanceTypes";
 
 type Props = {
   records: AdminDtrRecord[];

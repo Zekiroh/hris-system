@@ -4,10 +4,10 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../app/auth/AuthContext';
 import ProfileTab from './ProfileTab';
-import SecurityTab from '../../../components/user/settings/SecurityTab';
-import DocumentsTab from '../../../components/user/settings/DocumentsTab';
-import ActivityLogTab from '../../../components/user/settings/ActivityLogTab';
-import ConfirmModal from '../../../components/user/settings/ConfirmModal';
+import SecurityTab from './SecurityTab';
+import DocumentsTab from './DocumentsTab';
+import ActivityLogTab from './ActivityLogTab';
+import ConfirmModal from './ConfirmModal';
 
 
 

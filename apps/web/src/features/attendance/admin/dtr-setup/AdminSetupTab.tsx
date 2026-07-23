@@ -26,7 +26,7 @@ import {
 import type {
   AdminShiftRecord,
   StatusBadgeMap,
-} from "../../../../types/attendance";
+} from "../../attendanceTypes";
 import EditShiftModal from "./EditShiftModal";
 import AddShiftModal from "./AddShiftModal";
 import ShiftTable from "./ShiftTable";

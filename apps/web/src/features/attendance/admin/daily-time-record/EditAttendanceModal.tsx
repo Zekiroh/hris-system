@@ -1,6 +1,6 @@
 import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import type { AdminDtrRecord } from '../../../../types/attendance';
+import type { AdminDtrRecord } from '../../attendanceTypes';
 
 type Props = {
     isOpen: boolean;

@@ -22,7 +22,7 @@ import {
 
 import AttendanceTabs from "../components/AttendanceTabs";
 import useLiveTracker from "../../../hooks/useLiveTracker";
-import type { AttendanceTab, StatusBadgeMap } from "../../../types/attendance";
+import type { AttendanceTab, StatusBadgeMap } from "../attendanceTypes";
 
 import EditAttendanceModal from "./daily-time-record/EditAttendanceModal";
 import ViewAttendanceModal from "./daily-time-record/ViewAttendanceModal";

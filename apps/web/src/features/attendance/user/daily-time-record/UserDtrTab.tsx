@@ -1,5 +1,5 @@
 import { Clock, Info, Play, Square } from "lucide-react";
-import type { StatusBadgeMap } from "../../../../types/attendance";
+import type { StatusBadgeMap } from "../../attendanceTypes";
 import UserDtrTable, { type AttendanceRow } from "./UserDtrTable";
 
 interface UserDtrTabProps {
