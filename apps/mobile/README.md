@@ -1,50 +1,51 @@
-# Welcome to your Expo app 👋
+# HRIS Mobile Application
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+## Status
 
-## Get started
+The mobile application is planned for a future development phase and is not part of the current web production scope.
 
-1. Install dependencies
+## Purpose
 
-   ```bash
-   npm install
-   ```
+The mobile app will provide the employee self-service experience using the existing HRIS backend APIs.
 
-2. Start the app
+## Planned Employee Self-Service Capabilities
 
-   ```bash
-   npx expo start
-   ```
+- View and manage attendance
+- Apply for leave and view leave balances
+- View payslips
+- View and request updates to personal information
+- View assigned assets and clearance status
+- View performance evaluations
+- Read company announcements
+- Submit daily accomplishment reports
 
-In the output, you'll find options to open the app in a
+## Architecture
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+The mobile application must:
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- Use React Native
+- Reuse the existing backend APIs
+- Keep the backend as the source of truth
+- Preserve the existing User -> Employee relationship
+- Avoid duplicating business rules from the web application
+- Follow the same roles: Super Admin, Admin, and User
 
-## Get a fresh project
+## Backend Ownership
 
-When you're ready, run:
+Employee Self-Service is a capability group rather than a separate backend module.
 
-```bash
-npm run reset-project
-```
+Ownership belongs under:
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+- Employees
+- Attendance
+- LeaveManagement
+- Payroll
+- AssetManagement
+- ClearanceManagement
+- PerformanceManagement
+- AnnouncementManagement
+- DailyAccomplishmentReport
 
-## Learn more
+## Current Priority
 
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+The current project phase focuses on completing and stabilizing the web application. Mobile implementation is deferred until web modules, final integration, and production review are complete.
