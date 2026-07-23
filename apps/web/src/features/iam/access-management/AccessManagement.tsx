@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Navigate } from 'react-router-dom';
 import { X, Plus, Trash2 } from 'lucide-react';
-import { useAuth } from '../../../context/AuthContext';
+import { useAuth } from '../../../app/auth/AuthContext';
 import {
   getPermissions,
   updatePermission,

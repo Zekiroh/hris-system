@@ -1,8 +1,8 @@
 import { createPortal } from 'react-dom';
 import { useEffect, useRef, useState } from 'react';
 import { Eye, EyeOff, X, UserPlus } from 'lucide-react';
-import type { UserFormState } from '../../../../components/admin/userManagement.shared';
-import { USER_SUFFIX_OPTIONS } from '../../../../components/admin/userManagement.shared';
+import type { UserFormState } from '../userManagement.shared';
+import { USER_SUFFIX_OPTIONS } from '../userManagement.shared';
 
 type Props = {
   isOpen: boolean;

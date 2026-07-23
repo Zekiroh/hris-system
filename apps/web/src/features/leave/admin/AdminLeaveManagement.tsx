@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Clock, CheckCircle, XCircle, AlertTriangle, Calendar, Search } from "lucide-react";
-import { useAuth } from "../../../context/AuthContext";
+import { useAuth } from "../../../app/auth/AuthContext";
 import { useLeave, type LeaveRequest } from "../../../context/LeaveContext";
 import type { AdminTab, BalanceHistoryRow, StatusBadgeMap } from "./LeaveTableTypes";
 import LeaveRequestTable from "./leave-requests/LeaveRequestTable";

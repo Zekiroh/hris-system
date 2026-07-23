@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Check, ShieldCheck, Lock } from 'lucide-react';
-import { useAuth } from '../../../context/AuthContext';
+import { useAuth } from '../../../app/auth/AuthContext';
 import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
 import { LOCATION_OPTIONS } from '../../../shared/data/locationOptions';

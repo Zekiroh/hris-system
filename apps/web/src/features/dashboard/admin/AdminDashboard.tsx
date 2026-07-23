@@ -23,7 +23,7 @@ import {
   Legend,
 } from "chart.js";
 import { getElementAtEvent } from "react-chartjs-2";
-import { useAuth } from "../../../context/AuthContext";
+import { useAuth } from "../../../app/auth/AuthContext";
 import {
   getActivityLogs,
   type ActivityLogItemDto,
@@ -863,12 +863,12 @@ const AdminDashboard = () => {
   };
 
   const formatRecentTimestamp = (value?: string) => {
-    if (!value) return "—";
+    if (!value) return "ï¿½";
 
     const datePart = formatDatePart(value);
     const timePart = formatTimePart(value);
 
-    if (datePart === "—" || timePart === "—") return "—";
+    if (datePart === "ï¿½" || timePart === "ï¿½") return "ï¿½";
 
     return `${datePart} at ${timePart}`;
   };

@@ -12,9 +12,9 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-import { useAuth } from '../../../context/AuthContext';
+import { useAuth } from '../../../app/auth/AuthContext';
 import { useUserManagement } from './hooks/useUserManagement';
-import { ROLE_OPTIONS } from '../../../components/admin/userManagement.shared';
+import { ROLE_OPTIONS } from './userManagement.shared';
 import { formatPersonName, getAvatarInitial } from '../../../lib/nameFormatter';
 
 import AddUserModal from './modals/AddUserModal';

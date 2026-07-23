@@ -1,4 +1,4 @@
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../app/auth/AuthContext";
 import AdminSettings from "./admin/AdminSettings";
 import UserSettings from "./user/UserSettings";
 

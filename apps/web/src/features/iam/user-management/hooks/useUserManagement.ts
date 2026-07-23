@@ -13,7 +13,7 @@ import {
   updateAdminUserStatus,
   resetAdminUserPassword,
 } from '../../../../services/api/iam/adminUsers';
-import { useAuth } from '../../../../context/AuthContext';
+import { useAuth } from '../../../../app/auth/AuthContext';
 import {
   DEFAULT_FORM,
   DEFAULT_PAGE_SIZE,
@@ -28,7 +28,7 @@ import {
   type UserRow,
   type UserNameFormat,
   type UserSortOrder,
-} from '../../../../components/admin/userManagement.shared';
+} from '../userManagement.shared';
 
 export const useUserManagement = () => {
   const { user: authUser } = useAuth();

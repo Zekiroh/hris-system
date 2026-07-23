@@ -12,7 +12,7 @@ import {
 } from "./components/AdminReportModals";
 import type { SubmittedReport, ReportStatus } from "./components/AdminReportModals";
 import ReviewTable from "./pending-submissions/ReviewTable";
-import { useAuth } from "../../../context/AuthContext";
+import { useAuth } from "../../../app/auth/AuthContext";
 import { useAdminDailyReportData } from "./hooks/useAdminDailyReportData";
 import { useAdminDailyReportWorkflow } from "./hooks/useAdminDailyReportWorkflow";
 import type { DailyReportDto, SupervisorRemarksRequest } from "../../../services/api/daily-accomplishment/dailyReports";
@@ -461,7 +461,7 @@ const AdminDailyAccomplishment = () => {
             </div>
             <div>
               <p className="pro-label" style={{ marginBottom: 6 }}>
-                {exportMode === "history" ? "Review History" : "Pending Submissions"} · {exportRows.length} record(s)
+                {exportMode === "history" ? "Review History" : "Pending Submissions"} ï¿½ {exportRows.length} record(s)
               </p>
             </div>
             <div>

@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { X, Ban, CheckCircle } from 'lucide-react';
-import type { StatusConfirmState } from '../../../../components/admin/userManagement.shared';
+import type { StatusConfirmState } from '../userManagement.shared';
 
 type Props = {
   isOpen: boolean;

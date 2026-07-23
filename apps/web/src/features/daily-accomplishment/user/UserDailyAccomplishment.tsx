@@ -4,7 +4,7 @@ import {
   Send, Eye, FileText, FolderOpen,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useAuth } from "../../../context/AuthContext";
+import { useAuth } from "../../../app/auth/AuthContext";
 import { getTodayMyAttendanceLog } from "../../../services/api/attendance/attendance";
 import {
   ConfirmSubmitModal,
@@ -354,13 +354,13 @@ export default function UserDailyAccomplishment() {
         const log = await getTodayMyAttendanceLog();
         if (cancelled || !log) return;
 
-        // Time In — from actual attendance record
+        // Time In ï¿½ from actual attendance record
         if (log.timeIn) {
           const converted = to24Hour(log.timeIn);
           if (converted) setTimeIn(converted);
         }
 
-        // Time Out — use shiftEndTime as default
+        // Time Out ï¿½ use shiftEndTime as default
         // If OT is Approved, add overtimeMinutes on top of shiftEndTime
         if (log.shiftEndTime) {
           const shiftEnd = to24Hour(log.shiftEndTime);
@@ -377,7 +377,7 @@ export default function UserDailyAccomplishment() {
           }
         }
 
-        // Break Duration — compute from breakStartTime and breakEndTime
+        // Break Duration ï¿½ compute from breakStartTime and breakEndTime
         if (log.breakStartTime && log.breakEndTime) {
           const bStart = to24Hour(log.breakStartTime);
           const bEnd   = to24Hour(log.breakEndTime);
@@ -390,7 +390,7 @@ export default function UserDailyAccomplishment() {
         }
 
       } catch {
-        // Silently ignore — fields remain at their defaults
+        // Silently ignore ï¿½ fields remain at their defaults
       }
     }
 
@@ -527,7 +527,7 @@ export default function UserDailyAccomplishment() {
       });
       toast.success(`DAR submitted successfully`);
 
-      // Reset all fields — delay para makita muna ng SuccessModal ang values
+      // Reset all fields ï¿½ delay para makita muna ng SuccessModal ang values
       setTimeout(() => {
       setDevName(user?.fullName || "");
       setDate(today);
@@ -645,7 +645,7 @@ export default function UserDailyAccomplishment() {
       {/* Page Header */}
       <div className="page-header animate-fade-in-up">
         <h1>Daily Accomplishment Report</h1>
-        <p>Software Development — Individual Submission. Submit before end of work day.</p>
+        <p>Software Development ï¿½ Individual Submission. Submit before end of work day.</p>
       </div>
 
       {/* Stat Cards */}
@@ -811,7 +811,7 @@ export default function UserDailyAccomplishment() {
 
       </div> {/* end single pro-card wrapper */}
 
-      {/* Submit Bar — now outside the bond paper container */}
+      {/* Submit Bar ï¿½ now outside the bond paper container */}
       {activeTab === "dar" && (
         <div className="pro-card !p-0 overflow-hidden border-t-4 border-t-emerald-600">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-6 py-5">
@@ -864,7 +864,7 @@ export default function UserDailyAccomplishment() {
         taskCount={successSnapshot.taskCount}
         checkCount={successSnapshot.checkCount}
       /> */}
-      {/* View Modal — for submitted reports */}
+      {/* View Modal ï¿½ for submitted reports */}
       <DARViewModal
         open={!!selectedSub}
         onClose={() => setSelectedSub(null)}
@@ -873,7 +873,7 @@ export default function UserDailyAccomplishment() {
         onRevise={handleRevise}
       />
 
-      {/* Preview Modal — before submitting */}
+      {/* Preview Modal ï¿½ before submitting */}
       <DARViewModal
         open={showPreview}
         onClose={() => setShowPreview(false)}

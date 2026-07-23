@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type FC, type FormEvent } from "react";
 import { User, Lock, Eye, EyeOff, ArrowRight, Shield } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import logo from "../assets/logo.svg";
+import { useAuth } from "../../../app/auth/AuthContext";
+import logo from "../../../assets/logo.svg";
 
 const UI_EMAIL = "ui.loginEmail";
 const UI_REMEMBER = "ui.rememberMe";

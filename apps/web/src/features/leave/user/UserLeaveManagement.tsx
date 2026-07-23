@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Calendar, Plus, Clock, CheckCircle } from "lucide-react";
-import { useAuth } from "../../../context/AuthContext";
+import { useAuth } from "../../../app/auth/AuthContext";
 import { useLeave } from "../../../context/LeaveContext";
 import ApplyLeaveModal, {
   type ApplyLeaveFormState,

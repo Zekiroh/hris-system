@@ -14,7 +14,7 @@ import {
   Timer,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../../context/AuthContext";
+import { useAuth } from "../../../app/auth/AuthContext";
 import {
   getMyAttendanceLogs,
   getMyCurrentShift,
@@ -123,7 +123,7 @@ const parseTimeValue = (value?: string | null) => {
 };
 
 const formatDateValue = (value?: string | null) => {
-  if (!value?.trim()) return "—";
+  if (!value?.trim()) return "ï¿½";
 
   const parsed = new Date(`${value}T00:00:00`);
   if (Number.isNaN(parsed.getTime())) return value;
@@ -232,7 +232,7 @@ const getStatusBadgeClass = (status: string) => {
 };
 
 const normalizeDateKey = (value?: string | null) => {
-  if (!value || value === "-" || value === "--" || value === "—") return "";
+  if (!value || value === "-" || value === "--" || value === "ï¿½") return "";
 
   if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
     return value.slice(0, 10);

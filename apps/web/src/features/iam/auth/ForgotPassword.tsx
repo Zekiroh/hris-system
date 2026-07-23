@@ -2,7 +2,7 @@ import { useState, type FC, type FormEvent } from 'react';
 import { Mail, ArrowLeft, ArrowRight, CheckCircle, KeyRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import logo from '../assets/logo.svg';
+import logo from '../../../assets/logo.svg';
 
 const ForgotPassword: FC = () => {
     const [email, setEmail] = useState('');

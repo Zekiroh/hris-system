@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bell, ChevronRight, Check, Trash2, Menu } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../app/auth/AuthContext";
 import { getEmployees } from "../../services/api/employees/employees";
 import { subscribeEmployeeStatsChanged } from "../../lib/events/employeeEvents";
 import { useAvatarUrl } from "../../hooks/useAvatarUrl";

@@ -7,7 +7,7 @@ import {
     useState,
     type ReactNode,
 } from "react";
-import { useAuth } from "./AuthContext";
+import { useAuth } from "../app/auth/AuthContext";
 import {
     approveLeaveRequest,
     cancelLeaveRequest,
