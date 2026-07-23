@@ -1,6 +1,6 @@
 import { X } from 'lucide-react';
 import type { ClearanceActivityDto } from '../../../../services/api/clearance/clearance';
-import { formatDatePart, formatTimePart } from '../../../../lib/activityLog.utils';
+import { formatDatePart, formatTimePart } from '../../../../shared/utils/activityLog';
 
 type ClearanceActivityModalProps = {
     employeeName: string;

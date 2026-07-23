@@ -7,9 +7,9 @@ import {
 
 // ─── Types ───────────────────────────
 
-type TaskStatus = "" | "done" | "ip" | "blocked" | "todo";
-type Priority = "" | "High" | "Medium" | "Low";
-type TaskType = "" | "Development" | "Bug Fix" | "Testing" | "Review" | "Documentation" | "Meeting" | "Research";
+type TaskStatus = string;
+type Priority = string;
+type TaskType = string;
 
 export interface TaskRow {
   id: number;
@@ -27,6 +27,68 @@ export interface TaskRow {
   commitLink: string;
   remarks: string;
   _expanded?: boolean;
+}
+
+export interface DarSubmission {
+  backendId?: number;
+  employeeId?: number | string;
+  date?: string;
+  devName?: string;
+  workArr?: string;
+  project?: string;
+  sprint?: string;
+  team?: string;
+  submittedTo?: string;
+  timeIn?: string;
+  timeOut?: string;
+  gross?: string;
+  net?: string;
+  standup?: string;
+  reachable?: string;
+  avgResponse?: string;
+  connIssues?: string;
+  collabLog?: string;
+  taskDetails?: TaskRow[];
+  checklistItems?: boolean[];
+  checklistDone?: boolean[];
+  checklist?: number;
+  codeCommitted?: boolean;
+  ticketsUpdated?: boolean;
+  pullRequestCreated?: boolean;
+  documentationUpdated?: boolean;
+  testsPassing?: boolean;
+  reportSubmittedOnTime?: boolean;
+  devHrs?: string;
+  meetingHrs?: string;
+  idleHrs?: string;
+  keyAccomp?: string;
+  blockers?: string;
+  risks?: string;
+  planTmr?: string;
+  escalation?: string;
+  tmrArr?: string;
+  tmrTimeIn?: string;
+  leaveNotice?: string;
+  preparedBy?: string;
+  preparedSig?: string;
+  dateSubmitted?: string;
+  submittedAt?: string;
+  status?: string;
+  revisionReason?: string;
+  rating?: number;
+  performanceScore?: number;
+  taskCompletion?: string;
+  followUpRequired?: boolean;
+  managerActionItems?: string;
+  supervisorNotes?: string;
+  performanceRating?: string;
+  reviewedBy?: string;
+  supervisorComment?: string;
+  supervisorName?: string;
+  reviewDate?: string;
+  dateReviewed?: string;
+  reviewedDate?: string;
+  supervisorSignature?: string;
 }
 
 // ─── Shared Constants ─────────────────────────────────────────────────────────
@@ -287,8 +349,8 @@ interface DARViewModalProps {
   onClose: () => void;
   mode: "preview" | "view";
   // view mode
-  submission?: any;
-  onRevise?: (sub: any) => void;
+  submission?: DarSubmission;
+  onRevise?: (sub: DarSubmission) => void;
   // preview mode / shared fields
   onSubmit?: () => void;
   date?: string;
@@ -350,7 +412,7 @@ export function DARViewModal({
   blockers: blockersProp, risks: risksProp, planTmr: planTmrProp,
   escalation: escalationProp, checklist: checklistProp,
   checkCount: checkCountProp, checkPct: checkPctProp,
-  tasksDone: tasksDoneProp, tasksBlocked: tasksBlockedProp,
+  tasksDone: tasksDoneProp,
   totalActual: totalActualProp, tmrArr: tmrArrProp,
   tmrTimeIn: tmrTimeInProp, leaveNotice: leaveNoticeProp,
   preparedBy: preparedByProp, preparedSig: preparedSigProp,
@@ -361,7 +423,7 @@ export function DARViewModal({
 
   // Resolve data — "view" mode pulls from submission object, "preview" from props
   const isView = mode === "view";
-  const s = submission ?? {};
+  const s: DarSubmission = submission ?? {};
 
   const date         = isView ? s.date          : dateProp         ?? "";
   const devName      = isView ? s.devName        : devNameProp      ?? "";
@@ -379,7 +441,7 @@ export function DARViewModal({
   const avgResponse  = isView ? s.avgResponse    : avgResponseProp  ?? "";
   const connIssues   = isView ? s.connIssues     : connIssuesProp   ?? "";
   const collabLog    = isView ? s.collabLog      : collabLogProp    ?? "";
-  const tasks        = isView ? (s.taskDetails   ?? []) : tasksProp ?? [];
+  const tasks: TaskRow[] = isView ? (s.taskDetails   ?? []) : tasksProp ?? [];
   const devHrs       = isView ? s.devHrs         : devHrsProp       ?? "";
   const meetingHrs   = isView ? s.meetingHrs     : meetingHrsProp   ?? "";
   const idleHrs      = isView ? s.idleHrs        : idleHrsProp      ?? "";
@@ -396,9 +458,6 @@ export function DARViewModal({
   const tasksDone    = isView
     ? tasks.filter((t: TaskRow) => t.status === "done").length
     : tasksDoneProp ?? 0;
-  const tasksBlocked = isView
-    ? tasks.filter((t: TaskRow) => t.status === "blocked").length
-    : tasksBlockedProp ?? 0;
   const totalActual  = isView
     ? tasks.reduce((sum: number, t: TaskRow) => sum + (parseFloat(t.actualHrs) || 0), 0)
     : totalActualProp ?? 0;

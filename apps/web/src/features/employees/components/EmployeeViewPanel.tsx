@@ -8,7 +8,7 @@ import { useEmployeeDocuments } from "../hooks/useEmployeeDocuments";
 import { EmployeeDocumentsPanel } from "./EmployeeDocumentsPanel";
 import type { EmployeeDocumentDto } from "../../../services/api/employees/employees";
 import { formatEmploymentTypeLabel } from "./employeeList.utils";
-import { useAvatarUrl } from "../../../hooks/useAvatarUrl";
+import { useAvatarUrl } from "../../../shared/hooks/useAvatarUrl";
 
 type EmploymentType =
   | "Regular"
@@ -577,7 +577,8 @@ export function EmployeeViewPanel({
 
           {activeTab === "documents" && (
             <EmployeeDocumentsPanel
-              employeeId={employeeId}
+
+
               documents={documents}
               documentsLoading={documentsLoading}
               documentsError={documentsError}

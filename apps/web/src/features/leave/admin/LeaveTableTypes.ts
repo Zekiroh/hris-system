@@ -1,4 +1,4 @@
-import type { LeaveStatus } from "../../../context/LeaveContext";
+import type { LeaveStatus } from "../context/LeaveContext.shared";
 
 export type AdminTab = "request" | "balance" | "history";
 

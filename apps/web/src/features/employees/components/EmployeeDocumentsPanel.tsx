@@ -16,7 +16,8 @@ import type {
 import { EMPLOYEE_DOCUMENT_TYPES } from "../../../services/api/employees/employees";
 
 type Props = {
-  employeeId: string | null;
+
+
   documents: EmployeeDocumentDto[];
   documentsLoading: boolean;
   documentsError: string | null;
@@ -465,7 +466,8 @@ function getDocumentMeta(doc: EmployeeDocumentDto): string {
 }
 
 export function EmployeeDocumentsPanel({
-  employeeId,
+
+
   documents,
   documentsLoading,
   documentsError,

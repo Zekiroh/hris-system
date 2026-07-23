@@ -162,10 +162,7 @@ const DocumentsTab = ({ onSaved, ConfirmModal }: DocumentsTabProps) => {
 
     return (
         <div className="space-y-5">
-            
-
             <EmployeeDocumentsPanel
-                employeeId={null}
                 documents={paginatedDocuments}
                 documentsLoading={documentsLoading}
                 documentsError={documentsError}
@@ -239,7 +236,7 @@ const DocumentsTab = ({ onSaved, ConfirmModal }: DocumentsTabProps) => {
                                     <div className="min-w-0">
                                         <p className="text-xs font-semibold text-gray-700 truncate">{pendingFile.name}</p>
                                         <p className="text-[11px] text-gray-400 mt-0.5">
-                                            {pendingFile.type || 'Unknown type'} • {formatPendingFileSize(pendingFile.size)}{selectedDocumentType ? ` • ${selectedDocumentType}` : ''}
+                                            {pendingFile.type || 'Unknown type'} ï¿½ {formatPendingFileSize(pendingFile.size)}{selectedDocumentType ? ` ï¿½ ${selectedDocumentType}` : ''}
                                         </p>
                                     </div>
                                     <button
@@ -292,7 +289,7 @@ const DocumentsTab = ({ onSaved, ConfirmModal }: DocumentsTabProps) => {
                             <p className="text-xs text-gray-400 mt-0.5">
                                 {drawerPreview
                                     ? (drawerPreview.contentType || 'Unknown type')
-                                    : `${pendingFile?.type || 'Unknown type'} • ${formatPendingFileSize(pendingFile?.size ?? 0)}${selectedDocumentType ? ` • ${selectedDocumentType}` : ''}`}
+                                    : `${pendingFile?.type || 'Unknown type'} ï¿½ ${formatPendingFileSize(pendingFile?.size ?? 0)}${selectedDocumentType ? ` ï¿½ ${selectedDocumentType}` : ''}`}
                             </p>
                         </div>
 

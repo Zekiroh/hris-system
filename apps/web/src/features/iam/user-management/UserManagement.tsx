@@ -12,10 +12,10 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-import { useAuth } from '../../../app/auth/AuthContext';
+import { useAuth } from '../../../app/auth/useAuth';
 import { useUserManagement } from './hooks/useUserManagement';
 import { ROLE_OPTIONS } from './userManagement.shared';
-import { formatPersonName, getAvatarInitial } from '../../../lib/nameFormatter';
+import { formatPersonName, getAvatarInitial } from '../../../shared/utils/nameFormatter';
 
 import AddUserModal from './modals/AddUserModal';
 import EditUserModal from './modals/EditUserModal';

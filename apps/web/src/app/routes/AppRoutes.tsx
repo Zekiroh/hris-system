@@ -28,16 +28,6 @@ import GovernmentCompliance from "../../features/compliance/GovernmentCompliance
 import UserAttendance from "../../features/attendance/user/UserAttendance";
 import AssetManagement from "../../features/asset-management/AssetManagement";
 
-// User Pages
-import MyPerformance from "../../pages/user/MyPerformance";
-
-// Clearance
-import ClearanceList from "../../pages/clearance/ClearanceList";
-import ClearanceForm from "../../pages/clearance/ClearanceForm";
-
-// HRIS System
-import HRISSystem from "../../pages/HRISSystem";
-
 // Settings
 import Settings from "../../features/settings/Settings";
 
@@ -97,30 +87,6 @@ export default function AppRoutes() {
             }
           />
           <Route
-            path="clearance"
-            element={
-              <AdminOnly>
-                <ClearanceList />
-              </AdminOnly>
-            }
-          />
-          <Route
-            path="clearance/:id"
-            element={
-              <AdminOnly>
-                <ClearanceForm />
-              </AdminOnly>
-            }
-          />
-          <Route
-            path="hris"
-            element={
-              <AdminOnly>
-                <HRISSystem />
-              </AdminOnly>
-            }
-          />
-          <Route
             path="compliance"
             element={
               <AdminOnly>
@@ -138,7 +104,6 @@ export default function AppRoutes() {
           {/* User Pages */}
           <Route path="my-payslips" element={<Payroll mode="user" />} />
           <Route path="my-assets" element={<AssetManagement mode="user" />} />
-          <Route path="my-performance" element={<MyPerformance />} />
         </Route>
       </Route>
 

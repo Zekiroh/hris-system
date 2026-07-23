@@ -1,13 +1,19 @@
 import {
-    createContext,
     useCallback,
-    useContext,
     useEffect,
     useMemo,
     useState,
     type ReactNode,
 } from "react";
-import { useAuth } from "../app/auth/AuthContext";
+import { useAuth } from "../../../app/auth/useAuth";
+import {
+    LeaveContext,
+    type LeaveBalance,
+    type LeaveHistoryEntry,
+    type LeaveNotification,
+    type LeaveRequest,
+    type LeaveStatus,
+} from "./LeaveContext.shared";
 import {
     approveLeaveRequest,
     cancelLeaveRequest,
@@ -22,67 +28,12 @@ import {
     type LeaveBalanceTransactionDto,
     type LeaveRequestDto,
     type LeaveType,
-} from "../services/api/leave/leave";
-
-export type LeaveStatus = "Pending" | "Approved" | "Rejected" | "Cancelled";
-
-export interface LeaveRequest {
-    id: number;
-    employee: string;
-    department: string;
-    leaveType: string;
-    startDate: string;
-    endDate: string;
-    days: number;
-    status: LeaveStatus;
-    reason: string;
-}
-
-export interface LeaveHistoryEntry {
-    id: number;
-    dateApplied: string;
-    employee: string;
-    leaveType: string;
-    duration: string;
-    status: LeaveStatus;
-    approver: string;
-}
-
-export interface LeaveBalance {
-    name: string;
-    id: string;
-    vacation: { total: number; used: number };
-    sick: { total: number; used: number };
-    emergency: { total: number; used: number };
-}
-
-export interface LeaveNotification {
-    id: number;
-    message: string;
-    type: "success" | "danger" | "info";
-    timestamp: string;
-    read: boolean;
-}
-
-interface LeaveContextType {
-    leaveRequests: LeaveRequest[];
-    leaveHistory: LeaveHistoryEntry[];
-    leaveBalances: LeaveBalance[];
-    notifications: LeaveNotification[];
-    submitLeaveRequest: (request: Omit<LeaveRequest, "id" | "status" | "department">) => void;
-    approveRequest: (id: number) => void;
-    rejectRequest: (id: number) => void;
-    deleteRequest: (id: number) => void;
-    markNotificationRead: (id: number) => void;
-    clearNotifications: () => void;
-}
+} from "../../../services/api/leave/leave";
 
 type EmployeeScopedLeaveBalanceDto = LeaveBalanceDto & {
     employeeId?: string;
     employeeName?: string;
 };
-
-const LeaveContext = createContext<LeaveContextType | undefined>(undefined);
 
 const emptyBalance: LeaveBalance = {
     name: "",
@@ -275,7 +226,7 @@ export const LeaveProvider = ({ children }: { children: ReactNode }) => {
     const notificationUserKey = useMemo(() => {
         if (!user) return "anonymous";
         return `${user.role}:${user.fullName || "user"}`;
-    }, [user?.role, user?.fullName]);
+    }, [user]);
 
     const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
     const [leaveHistory, setLeaveHistory] = useState<LeaveHistoryEntry[]>([]);
@@ -552,10 +503,4 @@ export const LeaveProvider = ({ children }: { children: ReactNode }) => {
             {children}
         </LeaveContext.Provider>
     );
-};
-
-export const useLeave = () => {
-    const ctx = useContext(LeaveContext);
-    if (!ctx) throw new Error("useLeave must be used within LeaveProvider");
-    return ctx;
 };

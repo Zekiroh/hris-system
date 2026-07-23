@@ -7,15 +7,13 @@ import {
   Shield,
   Package,
   Settings,
-  ClipboardCheck,
   ChevronLeft,
   ChevronRight,
   LogOut,
-  BarChart3,
   X,
 } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { useAuth } from "../../app/auth/AuthContext";
+import { useAuth } from "../../app/auth/useAuth";
 import logo from "../../assets/logo.svg";
 
 type NavItem = {
@@ -115,7 +113,6 @@ const Sidebar = ({
     { icon: DollarSign, label: "Payroll", path: "/dashboard/payroll" },
     { icon: Shield, label: "Government Compliance", path: "/dashboard/compliance" },
     { icon: Package, label: "Asset Management", path: "/dashboard/assets" },
-    { icon: ClipboardCheck, label: "Clearance Management", path: "/dashboard/clearance" },
   ];
 
   const selfServiceNav: NavItem[] = [
@@ -124,7 +121,6 @@ const Sidebar = ({
     { icon: FileText, label: "Daily Accomplishment", path: "/dashboard/my-daily-accomplishment" },
     { icon: DollarSign, label: "My Payslips", path: "/dashboard/my-payslips" },
     { icon: Package, label: "My Assets", path: "/dashboard/my-assets" },
-    { icon: BarChart3, label: "My Performance", path: "/dashboard/my-performance" },
   ];
 
   const systemNav: NavItem[] = [

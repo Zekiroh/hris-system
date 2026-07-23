@@ -14,7 +14,7 @@ import {
   Timer,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../../app/auth/AuthContext";
+import { useAuth } from "../../../app/auth/useAuth";
 import {
   getMyAttendanceLogs,
   getMyCurrentShift,

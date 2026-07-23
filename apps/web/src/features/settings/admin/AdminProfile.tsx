@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Check, ShieldCheck, Lock } from 'lucide-react';
-import { useAuth } from '../../../app/auth/AuthContext';
+import { useAuth } from '../../../app/auth/useAuth';
 import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
 import { LOCATION_OPTIONS } from '../../../shared/data/locationOptions';
-import { useAvatarUrl } from '../../../hooks/useAvatarUrl';
-import { readAvatarFileAsDataUrl, setStoredAvatarUrl } from '../../../lib/avatar';
+import { useAvatarUrl } from '../../../shared/hooks/useAvatarUrl';
+import { readAvatarFileAsDataUrl, setStoredAvatarUrl } from '../../../shared/utils/avatar';
 import ProfileActions from '../profile/ProfileActions';
 import ProfileAvatar from '../profile/ProfileAvatar';
 import ProfileLocationFields from '../profile/ProfileLocationFields';
@@ -75,6 +75,12 @@ type AdminProfileForm = {
 
 type AdminDropdownKey = 'province' | 'city' | null;
 
+function getOptionalStringProperty(value: unknown, key: string) {
+    if (typeof value !== 'object' || value === null || !(key in value)) return undefined;
+    const fieldValue = (value as Record<string, unknown>)[key];
+    return typeof fieldValue === 'string' ? fieldValue : undefined;
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const AdminProfile = () => {
@@ -128,10 +134,9 @@ const AdminProfile = () => {
     };
 
     // ── Load profile from AuthContext (backend endpoint pending) ──
-    useEffect(() => {
-        const loaded: AdminProfileForm = {
-            fullName:     (user as any)?.fullName ?? '',
-            email:        (user as any)?.email    ?? '',
+    const loadedProfile = useMemo<AdminProfileForm>(() => ({
+            fullName:     user?.fullName ?? '',
+            email:        user?.email    ?? '',
             phone:        '',
             addressLine1: '',
             addressLine2: '',
@@ -140,14 +145,19 @@ const AdminProfile = () => {
             zipCode:      '',
             jobTitle:     '',
             department:   '',
-            role:         (user as any)?.role     ?? 'ADMIN',
+            role:         user?.role     ?? 'ADMIN',
             accountStatus:   '—',
             hiredDate:    '—',
-        };
-        setForm(loaded);
-        setSnapshot(loaded);
-        setIsLoading(false);
-    }, [user]);
+        }), [user?.email, user?.fullName, user?.role]);
+
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            setForm(loadedProfile);
+            setSnapshot(loadedProfile);
+            setIsLoading(false);
+        }, 0);
+        return () => window.clearTimeout(timer);
+    }, [loadedProfile]);
 
     // ── Avatar change ──
     const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -262,7 +272,7 @@ const AdminProfile = () => {
                 <div className="flex-1">
                     <p className="text-[15px] font-semibold text-gray-800">{form.fullName || '—'}</p>
                     <p className="text-xs text-gray-400">{form.jobTitle || 'No title set'}</p>
-                    <p className="text-[12px] text-gray-800 mt-0.5">{(user as any)?.username ?? form.email ?? '—'}</p>
+                    <p className="text-[12px] text-gray-800 mt-0.5">{getOptionalStringProperty(user, 'username') ?? form.email ?? '—'}</p>
                     <span className="inline-flex items-center gap-1.5 mt-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-700">
                         <ShieldCheck className="w-3 h-3" />
                         {roleLabel(form.role)}

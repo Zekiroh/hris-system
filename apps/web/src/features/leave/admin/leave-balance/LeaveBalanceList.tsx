@@ -1,4 +1,4 @@
-import type { LeaveBalance } from "../../../../context/LeaveContext";
+import type { LeaveBalance } from "../../context/LeaveContext.shared";
 import BalanceCard from "./BalanceCard";
 
 interface LeaveBalanceListProps {

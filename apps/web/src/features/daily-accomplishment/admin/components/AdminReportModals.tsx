@@ -4,87 +4,20 @@ import { toast } from "sonner";
 import {
   X, Star, CheckSquare, Square,
   AlertTriangle, Clock, CheckCircle, ClipboardList, RefreshCw,
-  Printer, History,
+  History,
 } from "lucide-react";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
-import { DARViewModal } from "../../user/components/UserReportModals";
-import { TaskTableReadOnly } from "../../user/components/UserReportModals";
-import type { TaskRow } from "../../user/components/UserReportModals";
+import { DARViewModal, type DarSubmission } from "../../user/components/UserReportModals";
 import { SignaturePad } from "../../user/daily-report/UserDailyReportSections";
+import {
+  RATING_LABELS,
+  statusBadgeClass,
+  type Rating,
+  type ReportStatus,
+  type SubmittedReport,
+} from "./AdminReportModals.shared";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type ReportStatus = "Pending Review" | "Approved" | "Revision Requested" | "Rejected";
-export type Rating = 1 | 2 | 3 | 4 | 5;
-
-export interface SubmittedReport {
-  id: string;
-  employeeName: string;
-  department: string;
-  project: string;
-  date: string;
-  submittedAt: string;
-  workArrangement: string;
-  totalActualHours: number;
-  totalEstHours: number;
-  tasksCompleted: number;
-  tasksTotal: number;
-  checklistDone: number;
-  status: ReportStatus;
-  assignedSupervisor?: string;
-  rating?: Rating;
-  supervisorName?: string;
-  supervisorComment?: string;
-  performanceScore?: number;
-  taskVerification?: string;
-  attendanceVerified?: boolean;
-  taskCompletion?: string;
-  acknowledgedByEmployee?: boolean;
-  acknowledgedByAdmin?: boolean;
-  supervisorSignature?: string; // base64 PNG data URL mula sa SignaturePad
-  finalRemarks?: string;
-  followUpRequired?: boolean;
-  managerActionItems?: string;
-  revisionReason?: string;
-  referenceNo: string;
-  revisionCount?: number;
-  lastRevisedAt?: string;
-  _raw?: Record<string, any>;
-}
-
-// ─── Shared Constants ─────────────────────────────────────────────────────────
-
-export const RATING_LABELS: Record<number, string> = {
-  1: "Needs Improvement", 2: "Below Expectations", 3: "Meets Expectations",
-  4: "Exceeds Expectations", 5: "Outstanding",
-};
-
-export const statusBadgeClass: Record<ReportStatus, string> = {
-  "Pending Review":     "badge badge-warning",
-  "Approved":           "badge badge-success",
-  "Revision Requested": "badge badge-info",
-  "Rejected":           "badge badge-danger",
-};
-
-// TODO: replace with GET /api/supervisors (or /employees?role=Admin) once backend is ready
-// Shared list — used by both employee-side "Submitted To" dropdown and admin-side filter
-export const SUPERVISOR_OPTIONS: string[] = [
-  "Marivic R. Songalia-Magyaya",
-  "Angela Reyes",
-  "Michael Tan",
-  "Roberto Cruz",
-];
-
-// TODO: replace with GET /api/departments once backend is ready
-// Fixed list — independent from whatever departments exist in submitted reports
-export const DEPARTMENT_OPTIONS: string[] = [
-  "Backend Team",
-  "Frontend Team",
-  "QA Team",
-  "Software Development",
-  "Cybersecurity",
-];
 
 // ─── Shared Sub-components ────────────────────────────────────────────────────
 
@@ -148,38 +81,6 @@ function isLateSubmission(submittedAt?: string): boolean {
   return hour >= LATE_CUTOFF_HOUR_24;
 }
 
-function exportSingleReportPDF(report: SubmittedReport) {
-  const doc = new jsPDF({ orientation: "portrait" });
-  doc.setFontSize(14);
-  doc.text("Daily Accomplishment Report", 14, 15);
-  doc.setFontSize(10);
-  doc.text(report.employeeName + " — " + report.referenceNo, 14, 22);
-  doc.setFontSize(8);
-  doc.text("Generated: " + new Date().toLocaleString(), 14, 27);
-  autoTable(doc, {
-    startY: 32,
-    styles: { fontSize: 8, cellPadding: 3 },
-    headStyles: { fillColor: [5, 150, 105], textColor: 255 },
-    body: [
-      ["Department", report.department],
-      ["Project", report.project],
-      ["Date", report.date],
-      ["Submitted At", report.submittedAt],
-      ["Work Arrangement", report.workArrangement],
-      ["Actual Hours", String(report.totalActualHours)],
-      ["Tasks", `${report.tasksCompleted}/${report.tasksTotal}`],
-      ["Checklist", `${report.checklistDone}/6`],
-      ["Status", report.status],
-      ["Assigned Supervisor", report.assignedSupervisor || "—"],
-      ["Supervisor (Reviewer)", report.supervisorName || "—"],
-      ["Rating", report.rating ? `${report.rating}/5` : "—"],
-      ["Performance Score", report.performanceScore ? `${report.performanceScore}/100` : "—"],
-      ["Supervisor Comment", report.supervisorComment || "—"],
-    ],
-  });
-  doc.save(`DAR_${report.referenceNo}_${report.employeeName.replace(/\s+/g, "_")}.pdf`);
-}
-
 // ─── 1. ViewDarModal ──────────────────────────────────────────────────────────
 // Thin wrapper sa paligid ng employee-side DARViewModal (mode="view") — kaya
 // pareho na ang itsura ng admin view sa employee's own report view, may ilang
@@ -192,8 +93,8 @@ interface ViewDarModalProps {
   onRequestRevision?: (reason: string) => void;
 }
 
-function reportToDarSubmission(report: SubmittedReport) {
-  const sub: Record<string, any> = report._raw || {};
+function reportToDarSubmission(report: SubmittedReport): DarSubmission {
+  const sub = report._raw || {};
   const checklistArr: boolean[] = Array.isArray(sub.checklistItems)
     ? sub.checklistItems
     : Array.isArray(sub.checklistDone)
@@ -396,14 +297,14 @@ export function ReviewPanel({ report, onSave, onClose, currentAdminName }: Revie
   const [supervisorName]                    = useState(report.supervisorName || currentAdminName || "");
   const [comment, setComment]               = useState(report.supervisorComment || "");
   const [perfScore, setPerfScore]           = useState(report.performanceScore || 0);
-  const [taskVerif, setTaskVerif]           = useState(report.taskVerification || "Verified");
-  const [attendVerif, setAttendVerif]       = useState(report.attendanceVerified ?? true);
+  const taskVerif                           = report.taskVerification || "Verified";
+  const attendVerif                         = report.attendanceVerified ?? true;
   const [taskCompletion, setTaskCompletion]   = useState(report.taskCompletion || "");
   const [decision, setDecision]             = useState<ReportStatus>(
     report.status || "Pending Review"
   );
   const [signature, setSignature]           = useState(report.supervisorSignature || "");
-  const [finalRemarks, setFinalRemarks]     = useState(report.finalRemarks || "");
+  const finalRemarks                        = report.finalRemarks || "";
   const [followUpRequired, setFollowUpRequired] = useState(report.followUpRequired ?? false);
   const [managerActionItems, setManagerActionItems] = useState(report.managerActionItems || "");
   const [isEditing, setIsEditing]           = useState(report.status === "Pending Review");
@@ -674,14 +575,6 @@ export function ReviewPanel({ report, onSave, onClose, currentAdminName }: Revie
                   </div>
                 )}
               </div>
-
-              {/* Final remarks */}
-              {/* <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20 }}>
-                <label className="pro-label" style={{ display: "block", marginBottom: 8 }}>Final Remarks <span style={{ fontWeight: 400, color: "#9ca3af", textTransform: "none", letterSpacing: 0 }}>(Optional)</span></label>
-                <textarea className="pro-input" rows={3} value={finalRemarks} onChange={e => setFinalRemarks(e.target.value)}
-                  placeholder="Any final remarks or instructions for the employee..."
-                  disabled={!isEditing} style={{ resize: "vertical", opacity: !isEditing ? 0.6 : 1, cursor: !isEditing ? "not-allowed" : "text" }} />
-              </div> */}
 
               {/* Reviewer Info (auto-fetched, same as Section 7) */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 20 }}>

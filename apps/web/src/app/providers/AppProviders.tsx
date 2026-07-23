@@ -3,7 +3,7 @@ import { Toaster } from "sonner";
 
 import App from "../../App";
 import { AuthProvider } from "../../app/auth/AuthContext";
-import { LeaveProvider } from "../../context/LeaveContext";
+import { LeaveProvider } from "../../features/leave/context/LeaveContext";
 
 export function AppProviders() {
   return (

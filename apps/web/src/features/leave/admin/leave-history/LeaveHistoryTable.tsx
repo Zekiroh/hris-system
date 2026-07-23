@@ -1,5 +1,5 @@
 import { CalendarDays } from "lucide-react";
-import type { LeaveHistoryEntry } from "../../../../context/LeaveContext";
+import type { LeaveHistoryEntry } from "../../context/LeaveContext.shared";
 import type { StatusBadgeMap } from "../LeaveTableTypes";
 import { formatLeaveDate, getAvatarInitial, getLeaveTypeColor, getLeaveTypeIcon } from "../LeaveTableUtils";
 

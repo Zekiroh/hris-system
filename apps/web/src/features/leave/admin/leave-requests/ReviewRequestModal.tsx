@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { Ban, CalendarDays, CheckSquare, User, X } from "lucide-react";
-import type { LeaveRequest } from "../../../../context/LeaveContext";
+import type { LeaveRequest } from "../../context/LeaveContext.shared";
 import {
   formatLeaveDate,
   getLeaveTypeColor,

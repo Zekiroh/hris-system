@@ -1,16 +1,26 @@
 import React from "react";
 import { Eye, FileText} from "lucide-react";
 
-interface SubmissionsTableProps {
-  submissions: any[];
+type SubmissionRow = {
+  date: string;
+  project?: string;
+  status: string;
+  workArr?: string;
+  tasks: number;
+  checklist: number;
+  submittedAt: string;
+};
+
+interface SubmissionsTableProps<TSubmission extends SubmissionRow> {
+  submissions: TSubmission[];
   subSearch: string;
   setSubSearch: (v: string) => void;
   subFilter: string;
   setSubFilter: (v: string) => void;
   subPage: number;
   setSubPage: React.Dispatch<React.SetStateAction<number>>;
-  onView: (s: any) => void;
-  onRevise: (s: any) => void;
+  onView: (s: TSubmission) => void;
+  onRevise: (s: TSubmission) => void;
 }
 
 const SUB_PAGE_SIZE = 10;
@@ -30,10 +40,10 @@ const ARR_STYLE: Record<string, string> = {
 
 // Hardcoded sample data removed — submissions now come from backend API
 
-export default function SubmissionsTable({
+export default function SubmissionsTable<TSubmission extends SubmissionRow>({
   submissions, subSearch, setSubSearch, subFilter, setSubFilter,
   subPage, setSubPage, onView, onRevise,
-}: SubmissionsTableProps) {
+}: SubmissionsTableProps<TSubmission>) {
 
   const allSubmissions = submissions;
 

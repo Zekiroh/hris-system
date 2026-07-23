@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useLeave } from "../../../context/LeaveContext";
+import { useLeave } from "../../leave/context/useLeave";
 
 import {
   type AttendanceLogDto,
@@ -21,7 +21,7 @@ import {
 } from "../../../services/api/attendance/attendance";
 
 import AttendanceTabs from "../components/AttendanceTabs";
-import useLiveTracker from "../../../hooks/useLiveTracker";
+import useLiveTracker from "../hooks/useLiveTracker";
 import type { AttendanceTab, StatusBadgeMap } from "../attendanceTypes";
 
 import EditAttendanceModal from "./daily-time-record/EditAttendanceModal";
@@ -158,7 +158,7 @@ const normalizeOvertimeStatus = (
 };
 
 const normalizeDateKey = (value?: string | null) => {
-  if (!value || value === "-" || value === "--" || value === "—") return "";
+  if (!value || value === "-" || value === "--" || value === "ï¿½") return "";
 
   if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
     return value.slice(0, 10);
@@ -197,7 +197,7 @@ const isActualAttendanceTime = (value?: string | null) => {
     normalized !== "" &&
     normalized !== "-" &&
     normalized !== "--" &&
-    normalized !== "—" &&
+    normalized !== "ï¿½" &&
     normalized !== "--:-- --"
   );
 };
@@ -255,7 +255,7 @@ const expandOvertimeRequestRows = (
 ): MyOvertimeRow[] => {
   const dates = getOvertimeRequestDateRange(request);
   const duration = formatOvertimeDuration(request);
-  const reason = request.reason || "—";
+  const reason = request.reason || "ï¿½";
   const status = request.status || "Pending";
 
   if (dates.length === 0) {
@@ -634,7 +634,7 @@ const UserAttendance = () => {
 
         return {
           id: log.id,
-          date: log.date || "—",
+          date: log.date || "ï¿½",
           timeIn: formatAttendanceTime(log.timeIn),
           timeOut: formatAttendanceTime(log.timeOut),
           status,

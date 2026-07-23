@@ -13,7 +13,7 @@ import {
   updateAdminUserStatus,
   resetAdminUserPassword,
 } from '../../../../services/api/iam/adminUsers';
-import { useAuth } from '../../../../app/auth/AuthContext';
+import { useAuth } from '../../../../app/auth/useAuth';
 import {
   DEFAULT_FORM,
   DEFAULT_PAGE_SIZE,

@@ -4,7 +4,7 @@ import {
   getAvatarStorageKey,
   getStoredAvatarUrl,
   type AvatarUpdatedDetail,
-} from "../lib/avatar";
+} from "../utils/avatar";
 
 export function useAvatarUrl(
   userId: string | number | null | undefined

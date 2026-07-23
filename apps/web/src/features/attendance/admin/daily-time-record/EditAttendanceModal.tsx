@@ -10,7 +10,7 @@ type Props = {
     onSave: () => void;
 };
 
-type EditableField = 'date' | 'timeIn' | 'timeOut' | 'status' | 'remarks' | 'isOT';
+type EditableField = 'date' | 'timeIn' | 'timeOut' | 'status' | 'isOT';
 
 const formatDateForInput = (value: string) => {
     if (!value) return '';

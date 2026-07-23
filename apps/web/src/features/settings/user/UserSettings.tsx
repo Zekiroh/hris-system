@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
     User, Lock, Activity, FileText
 } from 'lucide-react';
-import { useAuth } from '../../../app/auth/AuthContext';
+import { useAuth } from '../../../app/auth/useAuth';
 import ProfileTab from './ProfileTab';
 import SecurityTab from './SecurityTab';
 import DocumentsTab from './DocumentsTab';

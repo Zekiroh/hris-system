@@ -14,8 +14,8 @@ import {
   type EmployeeSortBy,
   type EmploymentType,
 } from "../../services/api/employees/employees";
-import { subscribeEmployeeStatsChanged } from "../../lib/events/employeeEvents";
-import { mapEmployeeMutationErrorToUiMessage } from "../../lib/employeeErrorHelpers";
+import { subscribeEmployeeStatsChanged } from "../../services/events/employeeEvents";
+import { mapEmployeeMutationErrorToUiMessage } from "./utils/employeeErrorHelpers";
 import { getEmployeeApiErrorMessage } from "./utils/employeeApiError";
 import { getAdminUsers } from "../../services/api/iam/adminUsers";
 

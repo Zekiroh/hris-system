@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
-import { useAuth } from "../../../app/auth/AuthContext";
+import { useAuth } from "../../../app/auth/useAuth";
 
 /**
  * Blocks non-admin roles from accessing admin-only routes.

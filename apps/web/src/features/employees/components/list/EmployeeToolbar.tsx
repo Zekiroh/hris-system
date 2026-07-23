@@ -166,7 +166,7 @@ export function EmployeeToolbar({
 
         <div className="flex flex-wrap items-center gap-2">
           
-          {/* ?? ACTIVE EMPLOYMENT TYPE (NO UI DRIFT) */}
+          {/* ACTIVE EMPLOYMENT TYPE */}
           {employmentType && (
             <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700">
               <span>{employmentType}</span>

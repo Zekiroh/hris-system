@@ -4,7 +4,7 @@ import type {
   EmploymentType,
 } from "../../../services/api/employees/employees";
 import type { FormData } from "./forms/EmployeeFormFields";
-import { formatPersonName } from "../../../lib/nameFormatter";
+import { formatPersonName } from "../../../shared/utils/nameFormatter";
 
 export interface Employee {
   id: string;

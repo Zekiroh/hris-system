@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { apiRequest } from "../../../services/api/client";
 import { getAuthToken } from "../../../services/api/employees/employeeDocuments";
-import { normalizeDocumentError } from "../../../lib/employeeErrorHelpers";
-import { validateDocumentFile } from "../../../lib/documentValidation";
+import { normalizeDocumentError } from "../utils/employeeErrorHelpers";
+import { validateDocumentFile } from "../utils/documentValidation";
 import type {
   EmployeeDocumentDto,
   EmployeeDocumentType,

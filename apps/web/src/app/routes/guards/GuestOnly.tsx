@@ -1,5 +1,5 @@
 import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "../../../app/auth/AuthContext";
+import { useAuth } from "../../../app/auth/useAuth";
 
 export default function GuestOnly() {
   const { isLoggedIn } = useAuth();

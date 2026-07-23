@@ -1,45 +1,24 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
-
-type BackendRole = "SUPER_ADMIN" | "ADMIN" | "USER";
-
-export type AuthUser = {
-  id: number;
-  email: string;
-  fullName: string;
-  roleId: number;
-  role: BackendRole;
-};
+import {
+  AuthContext,
+  type AuthUser,
+  type LoginRole,
+} from "./AuthContext.shared";
 
 type LoginResponse = AuthUser & { token: string };
-
-type LoginRole = "USER" | "ADMIN";
-
-type AuthContextType = {
-  user: AuthUser | null;
-  token: string | null;
-  isLoggedIn: boolean;
-  loginRole: LoginRole;
-  setLoginRole: (role: LoginRole) => void;
-  login: (email: string, password: string, remember: boolean) => Promise<void>;
-  logout: () => Promise<void>;
-};
 
 type SharedSessionAuthPayload = {
   user: AuthUser;
   token: string;
   ts: number;
 };
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
@@ -350,10 +329,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
 }

@@ -1,5 +1,5 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { useAuth } from "../../../app/auth/AuthContext";
+import { useAuth } from "../../../app/auth/useAuth";
 
 type Role = "SUPER_ADMIN" | "ADMIN" | "USER";
 

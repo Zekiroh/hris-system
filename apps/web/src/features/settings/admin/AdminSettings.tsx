@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Users, Shield, Activity, Check, ShieldCheck, User } from 'lucide-react';
 import AdminProfile from './AdminProfile';
-import { useAuth } from '../../../app/auth/AuthContext';
+import { useAuth } from '../../../app/auth/useAuth';
 import UserManagement from '../../iam/user-management/UserManagement';
 import AccessManagement from '../../iam/access-management/AccessManagement';
 import ActivityLog from './activity-log/ActivityLog';

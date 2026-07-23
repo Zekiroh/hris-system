@@ -173,7 +173,8 @@ export function EmployeeEditModal({
           {activeTab === "documents" && (
             <div className="h-full overflow-y-auto pr-1">
               <EmployeeDocumentsPanel
-                employeeId={employeeId}
+
+
                 documents={documents}
                 documentsLoading={documentsLoading}
                 documentsError={documentsError}

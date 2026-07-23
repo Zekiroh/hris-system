@@ -6,9 +6,9 @@ import { Plus, X, Percent, Clock, PackageCheck, GitCommit, AlertTriangle } from 
 type WorkArrangement = "On-site" | "Remote" | "Hybrid";
 type StandupAttended = "Yes" | "No" | "N/A";
 type Reachable = "Yes" | "Partial" | "No";
-type TaskStatus = "" | "done" | "ip" | "blocked" | "todo";
-type Priority = "" | "High" | "Medium" | "Low";
-type TaskType = "" | "Development" | "Bug Fix" | "Testing" | "Review" | "Documentation" | "Meeting" | "Research";
+type TaskStatus = string;
+type Priority = string;
+type TaskType = string;
 
 export interface TaskRow {
   id: number;
@@ -706,7 +706,7 @@ export function Section4Summary({
 
 // ─── Section 5: End-of-Day Checklist ──────────────────────────────────────────
 
-export const CHECKLIST_ITEMS = [
+const CHECKLIST_ITEMS = [
   "All code committed & pushed to repository",
   "Tickets / task board updated with current status",
   "Pull request(s) created or reviewed",

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bell, ChevronRight, Check, Trash2, Menu } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../../app/auth/AuthContext";
+import { useAuth } from "../../app/auth/useAuth";
 import { getEmployees } from "../../services/api/employees/employees";
-import { subscribeEmployeeStatsChanged } from "../../lib/events/employeeEvents";
-import { useAvatarUrl } from "../../hooks/useAvatarUrl";
+import { subscribeEmployeeStatsChanged } from "../../services/events/employeeEvents";
+import { useAvatarUrl } from "../../shared/hooks/useAvatarUrl";
 import { useTopBarNotifications } from "./hooks/useTopBarNotifications";
 
 type TopBarProps = {
@@ -19,12 +19,9 @@ const routeLabels: Record<string, string> = {
   "/dashboard/payroll": "Payroll",
   "/dashboard/compliance": "Government Compliance",
   "/dashboard/assets": "Asset Management",
-  "/dashboard/clearance": "Clearance",
-  "/dashboard/hris": "HRIS System",
   "/dashboard/settings": "Settings",
   "/dashboard/my-attendance": "Attendance Log",
   "/dashboard/my-payslips": "My Pay Slips",
-  "/dashboard/my-performance": "My Performance",
   "/dashboard/my-assets": "My Assets",
   "/dashboard/daily-accomplishment": "Daily Accomplishment Reports",
   "/dashboard/my-daily-accomplishment": "Daily Accomplishment",
@@ -64,7 +61,7 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
     markAsRead,
     deleteNotification,
     handleNotificationClick,
-  } = useTopBarNotifications({ isAdmin, navigate });
+  } = useTopBarNotifications({ navigate });
 
   const fetchSummary = useCallback(async () => {
     if (!isAdmin || !user || !token) {
@@ -105,8 +102,8 @@ const TopBar = ({ onMenuClick }: TopBarProps) => {
 
   useEffect(() => {
     if (!isAdmin || !user || !token) {
-      setActiveEmployees(0);
-      return;
+      const timer = window.setTimeout(() => setActiveEmployees(0), 0);
+      return () => window.clearTimeout(timer);
     }
 
     let isMounted = true;

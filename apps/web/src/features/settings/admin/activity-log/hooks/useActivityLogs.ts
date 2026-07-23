@@ -7,7 +7,7 @@ import {
     formatTimePart,
     prettifyDetails,
     getUserLabel,
-} from '../../../../../lib/activityLog.utils';
+} from '../../../../../shared/utils/activityLog';
 import {
     exportActivityLogs,
     getActivityLogs,

@@ -9,8 +9,8 @@ import {
   downloadEmployeeDocument,
   deleteEmployeeDocument,
 } from "../../../services/api/employees/employeeDocuments";
-import { normalizeDocumentError } from "../../../lib/employeeErrorHelpers";
-import { validateDocumentFile } from "../../../lib/documentValidation";
+import { normalizeDocumentError } from "../utils/employeeErrorHelpers";
+import { validateDocumentFile } from "../utils/documentValidation";
 
 function unwrapData<T>(res: unknown): T {
   if (res && typeof res === "object" && "data" in res) {

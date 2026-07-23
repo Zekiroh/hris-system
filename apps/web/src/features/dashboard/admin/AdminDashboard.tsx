@@ -23,7 +23,7 @@ import {
   Legend,
 } from "chart.js";
 import { getElementAtEvent } from "react-chartjs-2";
-import { useAuth } from "../../../app/auth/AuthContext";
+import { useAuth } from "../../../app/auth/useAuth";
 import {
   getActivityLogs,
   type ActivityLogItemDto,
@@ -39,7 +39,7 @@ import {
   type PagedEmployeesResponse,
   type EmploymentTypeSummary,
 } from "../../../services/api/employees/employees";
-import { subscribeEmployeeStatsChanged } from "../../../lib/events/employeeEvents";
+import { subscribeEmployeeStatsChanged } from "../../../services/events/employeeEvents";
 import {
   getAdminLeaveRequests,
   type LeaveRequestDto,
@@ -56,7 +56,7 @@ import {
   formatDatePart,
   formatTimePart,
   prettifyDetails,
-} from "../../../lib/activityLog.utils";
+} from "../../../shared/utils/activityLog";
 import AdminAttendanceSummary from "./attendance-summary/AdminAttendanceSummary";
 import AdminPayrollSummary from "./payroll-summary/AdminPayrollSummary";
 import AdminRecentActivities from "./recent-activity/AdminRecentActivities";

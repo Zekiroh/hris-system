@@ -8,11 +8,16 @@ import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
-  ViewDarModal, ReviewPanel, SUPERVISOR_OPTIONS, DEPARTMENT_OPTIONS
+  ViewDarModal, ReviewPanel
 } from "./components/AdminReportModals";
-import type { SubmittedReport, ReportStatus } from "./components/AdminReportModals";
+import {
+  DEPARTMENT_OPTIONS,
+  SUPERVISOR_OPTIONS,
+  type ReportStatus,
+  type SubmittedReport,
+} from "./components/AdminReportModals.shared";
 import ReviewTable from "./pending-submissions/ReviewTable";
-import { useAuth } from "../../../app/auth/AuthContext";
+import { useAuth } from "../../../app/auth/useAuth";
 import { useAdminDailyReportData } from "./hooks/useAdminDailyReportData";
 import { useAdminDailyReportWorkflow } from "./hooks/useAdminDailyReportWorkflow";
 import type { DailyReportDto, SupervisorRemarksRequest } from "../../../services/api/daily-accomplishment/dailyReports";

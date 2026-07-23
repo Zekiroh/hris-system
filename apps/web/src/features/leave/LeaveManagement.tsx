@@ -1,4 +1,4 @@
-import { useAuth } from "../../app/auth/AuthContext";
+import { useAuth } from "../../app/auth/useAuth";
 import AdminLeaveManagement from "./admin/AdminLeaveManagement";
 import UserLeaveManagement from "./user/UserLeaveManagement";
 

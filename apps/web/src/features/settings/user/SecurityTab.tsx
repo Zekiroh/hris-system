@@ -115,17 +115,17 @@ setHiredDate(data.dateHired ? new Date(data.dateHired).toLocaleDateString('en-PH
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-xs font-medium text-gray-500 mb-1">Employee ID</label>
-                        <input value={employeeNumber ?? '—'} readOnly
+                        <input value={employeeNumber ?? 'ï¿½'} readOnly
                             className="w-full px-0 py-1.5 bg-transparent text-green-500 font-semibold text-sm border-0 outline-none cursor-default select-none" />
                     </div>
                     <div>
                         <label className="block text-xs font-medium text-gray-500 mb-1">Hired date</label>
-                        <input value={hiredDate ?? '—'} readOnly
+                        <input value={hiredDate ?? 'ï¿½'} readOnly
                             className="w-full px-0 py-1.5 bg-transparent text-green-500 font-semibold text-sm border-0 outline-none cursor-default select-none" />
                     </div>
                     <div>
                         <label className="block text-xs font-medium text-gray-500 mb-1">Role</label>
-                        <input value={user?.role ?? '—'} readOnly
+                        <input value={user?.role ?? 'ï¿½'} readOnly
                             className="w-full px-0 py-1.5 bg-transparent text-green-500 font-semibold text-sm border-0 outline-none cursor-default select-none" />
                     </div>
                     <div>

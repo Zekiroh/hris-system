@@ -13,7 +13,6 @@ export type NotificationItem = {
 };
 
 type UseTopBarNotificationsOptions = {
-  isAdmin: boolean;
   navigate: NavigateFunction;
 };
 
@@ -57,7 +56,6 @@ const initialNotifications: NotificationItem[] = [
 ];
 
 export const useTopBarNotifications = ({
-  isAdmin: _isAdmin,
   navigate,
 }: UseTopBarNotificationsOptions) => {
   const [showNotifications, setShowNotifications] = useState(false);

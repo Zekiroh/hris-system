@@ -9,7 +9,7 @@ import ConfirmModal from './ConfirmModal';
 // --- Masking helpers ----------------------------------------------------------
 
 const maskValue = (value: string): string => {
-    if (!value) return '—';
+    if (!value) return 'ï¿½';
     const visible = Math.min(2, value.replace(/\D/g, '').length);
     return value.slice(0, visible) + value.slice(visible).replace(/[^-\s]/g, '*');
 };
@@ -213,7 +213,7 @@ const SecureField = ({
             {visible && remaining !== null && (
                 <p className="mt-1 text-[11px] text-amber-600 flex items-center gap-1">
                     <ShieldAlert className="w-3 h-3 shrink-0" />
-                    Visible for {remaining}s — will hide automatically
+                    Visible for {remaining}s ï¿½ will hide automatically
                 </p>
             )}
         </div>

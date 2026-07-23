@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, Filter, Search } from "lucide-react";
-import type { LeaveHistoryEntry } from "../../../../context/LeaveContext";
+import type { LeaveHistoryEntry } from "../../context/LeaveContext.shared";
 import type { HistoryFilters, HistorySortFilter, StatusBadgeMap } from "../LeaveTableTypes";
 import LeaveHistoryTable from "./LeaveHistoryTable";
 

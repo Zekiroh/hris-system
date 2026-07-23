@@ -1,6 +1,6 @@
 import AdminAttendance from "./admin/AdminAttendance";
 import UserAttendance from "./user/UserAttendance";
-import { useAuth } from "../../app/auth/AuthContext";
+import { useAuth } from "../../app/auth/useAuth";
 
 const isAdminRole = (role: unknown) => {
   if (typeof role !== "string") return false;

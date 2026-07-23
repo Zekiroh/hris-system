@@ -4,7 +4,7 @@ import {
   Send, Eye, FileText, FolderOpen,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useAuth } from "../../../app/auth/AuthContext";
+import { useAuth } from "../../../app/auth/useAuth";
 import { getTodayMyAttendanceLog } from "../../../services/api/attendance/attendance";
 import {
   ConfirmSubmitModal,
@@ -28,9 +28,9 @@ import {
 type WorkArrangement = "On-site" | "Remote" | "Hybrid";
 type StandupAttended = "Yes" | "No" | "N/A";
 type Reachable = "Yes" | "Partial" | "No";
-type TaskStatus = "" | "done" | "ip" | "blocked" | "todo";
-type Priority = "" | "High" | "Medium" | "Low";
-type TaskType = "" | "Development" | "Bug Fix" | "Testing" | "Review" | "Documentation" | "Meeting" | "Research";
+type TaskStatus = string;
+type Priority = string;
+type TaskType = string;
 
 interface TaskRow {
   id: number;
@@ -81,7 +81,7 @@ interface DarSubmission {
   revisionReason?: string;
   checklistItems?: boolean[];
   checklistDone?: boolean[];
-  taskDetails?: unknown[];
+  taskDetails?: TaskRow[];
   rating?: number;
   performanceScore?: number;
   taskCompletion?: string;
@@ -869,7 +869,7 @@ export default function UserDailyAccomplishment() {
         open={!!selectedSub}
         onClose={() => setSelectedSub(null)}
         mode="view"
-        submission={selectedSub}
+        submission={selectedSub ?? undefined}
         onRevise={handleRevise}
       />
 
