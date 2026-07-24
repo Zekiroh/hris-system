@@ -25,12 +25,18 @@ using QuestPDF.Infrastructure;
 QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
+
 var jwtOptions = JwtOptions.FromConfiguration(builder.Configuration);
-var allowedCorsOrigins = CorsOptions.GetAllowedOrigins(builder.Configuration, builder.Environment);
+var allowedCorsOrigins = CorsOptions.GetAllowedOrigins(
+    builder.Configuration,
+    builder.Environment
+);
 
 // =====================
 // Services
 // =====================
+
+builder.Services.AddSingleton(jwtOptions);
 
 builder.Services.AddControllers();
 
@@ -77,10 +83,16 @@ builder.Services.AddCors(options =>
 });
 
 var connectionString = builder.Configuration.GetConnectionString("Default");
+
 if (string.IsNullOrWhiteSpace(connectionString))
-    throw new InvalidOperationException("ConnectionStrings:Default is missing. Set it via user-secrets.");
+{
+    throw new InvalidOperationException(
+        "ConnectionStrings:Default is missing. Set it via user-secrets."
+    );
+}
 
 var serverVersion = new MySqlServerVersion(new Version(8, 0, 45));
+
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseMySql(connectionString, serverVersion);
@@ -117,6 +129,7 @@ builder.Services.AddScoped<IClearanceService, ClearanceService>();
 builder.Services.AddScoped<IPerformanceEvaluationService, PerformanceEvaluationService>();
 
 builder.Services.AddScoped<IAnnouncementService, AnnouncementService>();
+
 // Daily Reports
 builder.Services.AddScoped<IDailyReportsService, DailyReportsService>();
 
@@ -136,7 +149,9 @@ builder.Services
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key)),
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtOptions.Key)
+            ),
             ValidateIssuer = true,
             ValidIssuer = jwtOptions.Issuer,
             ValidateAudience = true,
@@ -155,7 +170,10 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
 
-    var swaggerAssetsPath = Path.Combine(app.Environment.ContentRootPath, "SwaggerAssets");
+    var swaggerAssetsPath = Path.Combine(
+        app.Environment.ContentRootPath,
+        "SwaggerAssets"
+    );
 
     app.UseStaticFiles(new StaticFileOptions
     {
