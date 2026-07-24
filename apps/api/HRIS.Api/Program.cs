@@ -1,4 +1,5 @@
 using System.Text;
+using HRIS.Api.Configuration;
 using HRIS.Api.Data;
 using HRIS.Api.Features.AnnouncementManagement.Services;
 using HRIS.Api.Features.AssetManagement.Services;
@@ -25,9 +26,17 @@ QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var jwtOptions = JwtOptions.FromConfiguration(builder.Configuration);
+var allowedCorsOrigins = CorsOptions.GetAllowedOrigins(
+    builder.Configuration,
+    builder.Environment
+);
+
 // =====================
 // Services
 // =====================
+
+builder.Services.AddSingleton(jwtOptions);
 
 builder.Services.AddControllers();
 
@@ -67,17 +76,23 @@ builder.Services.AddCors(options =>
     options.AddPolicy("ClientCors", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173", "http://localhost:5174")
+            .WithOrigins(allowedCorsOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
 });
 
 var connectionString = builder.Configuration.GetConnectionString("Default");
+
 if (string.IsNullOrWhiteSpace(connectionString))
-    throw new InvalidOperationException("ConnectionStrings:Default is missing. Set it via user-secrets.");
+{
+    throw new InvalidOperationException(
+        "ConnectionStrings:Default is missing. Set it via user-secrets."
+    );
+}
 
 var serverVersion = new MySqlServerVersion(new Version(8, 0, 45));
+
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseMySql(connectionString, serverVersion);
@@ -114,6 +129,7 @@ builder.Services.AddScoped<IClearanceService, ClearanceService>();
 builder.Services.AddScoped<IPerformanceEvaluationService, PerformanceEvaluationService>();
 
 builder.Services.AddScoped<IAnnouncementService, AnnouncementService>();
+
 // Daily Reports
 builder.Services.AddScoped<IDailyReportsService, DailyReportsService>();
 
@@ -123,23 +139,23 @@ builder.Services.AddScoped<IDailyReportsService, DailyReportsService>();
 
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 
-var jwtKey = builder.Configuration["Jwt:Key"];
-if (string.IsNullOrWhiteSpace(jwtKey))
-    throw new InvalidOperationException("Jwt:Key is missing. Set it via user-secrets.");
-
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.RequireHttpsMetadata = false;
+        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
         options.SaveToken = true;
 
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-            ValidateIssuer = false,
-            ValidateAudience = false,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtOptions.Key)
+            ),
+            ValidateIssuer = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
             RequireExpirationTime = true,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
@@ -154,7 +170,10 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
 
-    var swaggerAssetsPath = Path.Combine(app.Environment.ContentRootPath, "SwaggerAssets");
+    var swaggerAssetsPath = Path.Combine(
+        app.Environment.ContentRootPath,
+        "SwaggerAssets"
+    );
 
     app.UseStaticFiles(new StaticFileOptions
     {

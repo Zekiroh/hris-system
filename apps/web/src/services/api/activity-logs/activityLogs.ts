@@ -1,4 +1,4 @@
-import { apiRequest } from '../client';
+import { API_BASE_URL, apiRequest } from '../client';
 
 export type ActivityLogItemDto = {
   id: number;
@@ -87,7 +87,6 @@ export async function exportActivityLogs(
   if (query.search?.trim()) params.set('search', query.search.trim());
 
   const qs = params.toString();
-  const baseUrl = import.meta.env.VITE_API_BASE_URL as string;
   const token = getAuthToken();
 
   const headers = new Headers();
@@ -96,7 +95,7 @@ export async function exportActivityLogs(
   }
 
   const response = await fetch(
-    `${baseUrl}/admin/activity-logs/export${qs ? `?${qs}` : ''}`,
+    `${API_BASE_URL}/admin/activity-logs/export${qs ? `?${qs}` : ''}`,
     {
       method: 'GET',
       headers,
