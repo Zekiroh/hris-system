@@ -40,6 +40,8 @@ public class AttendanceLogsService : IAttendanceLogsService
         var now = TimeOnly.FromDateTime(nowLocal);
         var holidayName = _holidayProvider.GetHolidayName(today);
 
+        await EnsureNoApprovedLeaveAsync(employee.Id, today, ct);
+
         var existing = await _context.AttendanceLogs
             .FirstOrDefaultAsync(x => x.EmployeeId == employee.Id && x.Date == today, ct);
 
@@ -115,6 +117,8 @@ public class AttendanceLogsService : IAttendanceLogsService
 
         var today = DateOnly.FromDateTime(nowLocal);
         var now = TimeOnly.FromDateTime(nowLocal);
+
+        await EnsureNoApprovedLeaveAsync(employee.Id, today, ct);
 
         var existing = await _context.AttendanceLogs
             .FirstOrDefaultAsync(x => x.EmployeeId == employee.Id && x.Date == today, ct);
@@ -210,6 +214,7 @@ public class AttendanceLogsService : IAttendanceLogsService
 
         var holidayName = _holidayProvider.GetHolidayName(today);
         var isHoliday = !string.IsNullOrWhiteSpace(holidayName);
+        var hasApprovedLeave = await HasApprovedLeaveAsync(employee.Id, today, ct);
 
         var shiftDay = await GetShiftDayForDate(
             employee.Id,
@@ -226,8 +231,10 @@ public class AttendanceLogsService : IAttendanceLogsService
         var item = todayLog == null ? null : MapToDto(todayLog);
 
         var availability = ResolveTimeInAvailability(nowLocal, today, shiftDay, holidayName);
-        var canTimeIn = availability.CanTimeIn;
-        var blockReason = availability.BlockReason;
+        var canTimeIn = hasApprovedLeave ? false : availability.CanTimeIn;
+        var blockReason = hasApprovedLeave
+            ? "Attendance is not allowed on an approved leave date."
+            : availability.BlockReason;
 
         if (item == null)
         {
@@ -529,6 +536,11 @@ public class AttendanceLogsService : IAttendanceLogsService
         }
 
         var assignments = await assignmentsQuery.ToListAsync(ct);
+        var approvedLeaveKeys = await GetApprovedLeaveKeysAsync(
+            assignments.Select(x => x.EmployeeId),
+            dateFrom,
+            dateTo,
+            ct);
         var absentKeys = new HashSet<(Guid EmployeeId, DateOnly Date)>();
 
         foreach (var assignment in assignments)
@@ -547,6 +559,12 @@ public class AttendanceLogsService : IAttendanceLogsService
                 }
 
                 if (actualLogKeys.Contains((assignment.EmployeeId, current)))
+                {
+                    current = current.AddDays(1);
+                    continue;
+                }
+
+                if (approvedLeaveKeys.Contains((assignment.EmployeeId, current)))
                 {
                     current = current.AddDays(1);
                     continue;
@@ -630,6 +648,11 @@ public class AttendanceLogsService : IAttendanceLogsService
         }
 
         var assignments = await assignmentsQuery.ToListAsync(ct);
+        var approvedLeaveKeys = await GetApprovedLeaveKeysAsync(
+            assignments.Select(x => x.EmployeeId),
+            dateFrom,
+            dateTo,
+            ct);
         var absentItems = new List<AttendanceLogDto>();
         var generatedKeys = new HashSet<(Guid EmployeeId, DateOnly Date)>();
 
@@ -649,6 +672,12 @@ public class AttendanceLogsService : IAttendanceLogsService
                 var key = (assignment.EmployeeId, current);
 
                 if (actualLogKeys.Contains(key) || generatedKeys.Contains(key))
+                {
+                    current = current.AddDays(1);
+                    continue;
+                }
+
+                if (approvedLeaveKeys.Contains(key))
                 {
                     current = current.AddDays(1);
                     continue;
@@ -785,6 +814,8 @@ public class AttendanceLogsService : IAttendanceLogsService
 
         var shiftDay = await GetEffectiveShiftDay(attendanceLog.EmployeeId, request.Date, ct);
 
+        await EnsureNoApprovedLeaveAsync(attendanceLog.EmployeeId, request.Date, ct);
+
         ValidateAttendanceTimeRange(request.TimeIn, request.TimeOut);
 
         attendanceLog.Date = request.Date;
@@ -870,6 +901,80 @@ public class AttendanceLogsService : IAttendanceLogsService
         }
 
         return baseQuery;
+    }
+
+    private async Task EnsureNoApprovedLeaveAsync(
+        Guid employeeId,
+        DateOnly workDate,
+        CancellationToken ct)
+    {
+        var hasApprovedLeave = await HasApprovedLeaveAsync(employeeId, workDate, ct);
+
+        if (hasApprovedLeave)
+            throw new ApiException(
+                "Attendance is not allowed on an approved leave date.",
+                StatusCodes.Status400BadRequest);
+    }
+
+    private async Task<bool> HasApprovedLeaveAsync(
+        Guid employeeId,
+        DateOnly workDate,
+        CancellationToken ct)
+    {
+        return await _context.LeaveRequests
+            .AsNoTracking()
+            .AnyAsync(
+                x =>
+                    x.EmployeeId == employeeId &&
+                    x.Status == "Approved" &&
+                    x.StartDate <= workDate &&
+                    x.EndDate >= workDate,
+                ct);
+    }
+
+    private async Task<HashSet<(Guid EmployeeId, DateOnly Date)>> GetApprovedLeaveKeysAsync(
+        IEnumerable<Guid> employeeIds,
+        DateOnly dateFrom,
+        DateOnly dateTo,
+        CancellationToken ct)
+    {
+        var scopedEmployeeIds = employeeIds
+            .Distinct()
+            .ToList();
+
+        if (scopedEmployeeIds.Count == 0)
+            return new HashSet<(Guid EmployeeId, DateOnly Date)>();
+
+        var approvedLeaves = await _context.LeaveRequests
+            .AsNoTracking()
+            .Where(x =>
+                scopedEmployeeIds.Contains(x.EmployeeId) &&
+                x.Status == "Approved" &&
+                x.StartDate <= dateTo &&
+                x.EndDate >= dateFrom)
+            .Select(x => new
+            {
+                x.EmployeeId,
+                x.StartDate,
+                x.EndDate
+            })
+            .ToListAsync(ct);
+
+        var keys = new HashSet<(Guid EmployeeId, DateOnly Date)>();
+
+        foreach (var leave in approvedLeaves)
+        {
+            var current = leave.StartDate < dateFrom ? dateFrom : leave.StartDate;
+            var end = leave.EndDate > dateTo ? dateTo : leave.EndDate;
+
+            while (current <= end)
+            {
+                keys.Add((leave.EmployeeId, current));
+                current = current.AddDays(1);
+            }
+        }
+
+        return keys;
     }
 
     private async Task<Employee> ResolveEmployee(ClaimsPrincipal user, CancellationToken ct)

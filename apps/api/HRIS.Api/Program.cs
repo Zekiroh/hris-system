@@ -1,26 +1,45 @@
 using System.Text;
+using HRIS.Api.Configuration;
 using HRIS.Api.Data;
+using HRIS.Api.Features.AnnouncementManagement.Services;
+using HRIS.Api.Features.AssetManagement.Services;
 using HRIS.Api.Features.Attendance.Services;
 using HRIS.Api.Features.Attendance.Services.Validation;
+using HRIS.Api.Features.ClearanceManagement.Services;
 using HRIS.Api.Features.Dashboard.Services;
 using HRIS.Api.Features.Employees.Services;
+using HRIS.Api.Features.GovernmentCompliance.Services;
 using HRIS.Api.Features.IAM.Services;
+using HRIS.Api.Features.LeaveManagement.Services;
+using HRIS.Api.Features.Payroll.Pdf;
+using HRIS.Api.Features.Payroll.Services;
+using HRIS.Api.Features.PerformanceManagement.Services;
 using HRIS.Api.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using QuestPDF.Infrastructure;
+
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var jwtOptions = JwtOptions.FromConfiguration(builder.Configuration);
+var allowedCorsOrigins = CorsOptions.GetAllowedOrigins(
+    builder.Configuration,
+    builder.Environment
+);
 
 // =====================
 // Services
 // =====================
 
+builder.Services.AddSingleton(jwtOptions);
+
 builder.Services.AddControllers();
 
-// Swagger/OpenAPI, Bearer support
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
 {
@@ -52,35 +71,32 @@ builder.Services.AddSwaggerGen(o =>
     });
 });
 
-// CORS (dev)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ClientCors", policy =>
     {
         policy
-            .WithOrigins(
-                "http://localhost:5173",
-                "http://localhost:5174"
-            )
+            .WithOrigins(allowedCorsOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
 });
 
-// Database
 var connectionString = builder.Configuration.GetConnectionString("Default");
+
 if (string.IsNullOrWhiteSpace(connectionString))
-    throw new InvalidOperationException("ConnectionStrings:Default is missing. Set it via user-secrets.");
+{
+    throw new InvalidOperationException(
+        "ConnectionStrings:Default is missing. Set it via user-secrets."
+    );
+}
 
 var serverVersion = new MySqlServerVersion(new Version(8, 0, 45));
+
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseMySql(connectionString, serverVersion);
 });
-
-// =====================
-// IAM Services
-// =====================
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IActivityLogger, ActivityLogger>();
@@ -88,24 +104,34 @@ builder.Services.AddScoped<IAdminUsersService, AdminUsersService>();
 
 builder.Services.AddHttpContextAccessor();
 
-// =====================
-// Employee Core Services
-// =====================
-
 builder.Services.AddScoped<EmployeesService>();
-
-// =====================
-// Attendance Services
-// =====================
 
 builder.Services.AddScoped<IShiftValidationService, ShiftValidationService>();
 builder.Services.AddScoped<IShiftsService, ShiftsService>();
 builder.Services.AddScoped<IShiftAssignmentsService, ShiftAssignmentsService>();
 builder.Services.AddScoped<IAttendanceHolidayProvider, AttendanceHolidayProvider>();
 builder.Services.AddScoped<IAttendanceLogsService, AttendanceLogsService>();
-
-// Overtime Request
 builder.Services.AddScoped<OvertimeRequestService>();
+
+builder.Services.AddScoped<ILeaveBalanceInitializer, LeaveBalanceInitializer>();
+builder.Services.AddScoped<ILeaveManagementService, LeaveManagementService>();
+
+builder.Services.AddScoped<IEmployeeCompensationService, EmployeeCompensationService>();
+builder.Services.AddScoped<IPayslipPdfGenerator, PayslipPdfGenerator>();
+builder.Services.AddScoped<IPayrollService, PayrollService>();
+
+builder.Services.AddScoped<IGovernmentComplianceService, GovernmentComplianceService>();
+
+builder.Services.AddScoped<IAssetService, AssetService>();
+
+builder.Services.AddScoped<IClearanceService, ClearanceService>();
+
+builder.Services.AddScoped<IPerformanceEvaluationService, PerformanceEvaluationService>();
+
+builder.Services.AddScoped<IAnnouncementService, AnnouncementService>();
+
+// Daily Reports
+builder.Services.AddScoped<IDailyReportsService, DailyReportsService>();
 
 // =====================
 // Dashboard Services
@@ -113,27 +139,23 @@ builder.Services.AddScoped<OvertimeRequestService>();
 
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 
-// =====================
-// JWT Auth (locked)
-// =====================
-
-var jwtKey = builder.Configuration["Jwt:Key"];
-if (string.IsNullOrWhiteSpace(jwtKey))
-    throw new InvalidOperationException("Jwt:Key is missing. Set it via user-secrets.");
-
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.RequireHttpsMetadata = false;
+        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
         options.SaveToken = true;
 
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-            ValidateIssuer = false,
-            ValidateAudience = false,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtOptions.Key)
+            ),
+            ValidateIssuer = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
             RequireExpirationTime = true,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
@@ -144,15 +166,14 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// =====================
-// Middleware
-// =====================
-
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
 
-    var swaggerAssetsPath = Path.Combine(app.Environment.ContentRootPath, "SwaggerAssets");
+    var swaggerAssetsPath = Path.Combine(
+        app.Environment.ContentRootPath,
+        "SwaggerAssets"
+    );
 
     app.UseStaticFiles(new StaticFileOptions
     {
@@ -165,9 +186,6 @@ if (app.Environment.IsDevelopment())
         options.InjectStylesheet("/swagger-assets/SwaggerDark.css");
     });
 }
-
-// NOTE: Local dev runs on http://localhost:5169 (no https), so skip redirect.
-// app.UseHttpsRedirection();
 
 app.UseCors("ClientCors");
 

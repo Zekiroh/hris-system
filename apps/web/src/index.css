@@ -1088,3 +1088,40 @@ input:-webkit-autofill:focus {
     background-color: #f0fdf4;
   }
 }
+
+
+/* === DAR-style modal overlay fix === */
+.pro-modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  margin: 0 !important;
+  padding: 16px !important;
+  z-index: 9999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow-y: auto !important;
+  background-color: rgba(0, 0, 0, 0.6) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+  backdrop-filter: blur(6px) !important;
+  box-sizing: border-box !important;
+}
+.pro-modal-overlay > .pro-modal,
+.pro-modal-overlay > * {
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+@media (max-width: 640px) {
+  .pro-modal-overlay {
+    align-items: flex-start !important;
+    padding-top: 24px !important;
+  }
+}
+/* === end modal overlay fix === */

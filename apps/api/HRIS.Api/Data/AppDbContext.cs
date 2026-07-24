@@ -9,6 +9,8 @@ public class AppDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();
+    public DbSet<DailyReport> DailyReports => Set<DailyReport>();
+    public DbSet<DailyReportTask> DailyReportTasks => Set<DailyReportTask>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
     public DbSet<Employee> Employees => Set<Employee>();
@@ -21,8 +23,34 @@ public class AppDbContext : DbContext
     public DbSet<AttendanceLog> AttendanceLogs => Set<AttendanceLog>();
 
     public DbSet<OvertimeRequest> OvertimeRequests => Set<OvertimeRequest>();
-
     public DbSet<OvertimeRequestItem> OvertimeRequestItems => Set<OvertimeRequestItem>();
+
+    public DbSet<LeaveRequest> LeaveRequests => Set<LeaveRequest>();
+    public DbSet<LeaveBalance> LeaveBalances => Set<LeaveBalance>();
+    public DbSet<LeaveBalanceTransaction> LeaveBalanceTransactions => Set<LeaveBalanceTransaction>();
+
+    public DbSet<EmployeeCompensation> EmployeeCompensations => Set<EmployeeCompensation>();
+    public DbSet<PayrollPeriod> PayrollPeriods => Set<PayrollPeriod>();
+    public DbSet<PayrollRecord> PayrollRecords => Set<PayrollRecord>();
+    public DbSet<PayrollRecordItem> PayrollRecordItems => Set<PayrollRecordItem>();
+
+    public DbSet<SssContributionBracket> SssContributionBrackets => Set<SssContributionBracket>();
+    public DbSet<PhilHealthContributionRule> PhilHealthContributionRules => Set<PhilHealthContributionRule>();
+    public DbSet<PagIbigContributionRule> PagIbigContributionRules => Set<PagIbigContributionRule>();
+    public DbSet<WithholdingTaxBracket> WithholdingTaxBrackets => Set<WithholdingTaxBracket>();
+
+    public DbSet<Asset> Assets => Set<Asset>();
+    public DbSet<AssetAssignment> AssetAssignments => Set<AssetAssignment>();
+    public DbSet<AssetReturn> AssetReturns => Set<AssetReturn>();
+    public DbSet<AssetReturnRequest> AssetReturnRequests => Set<AssetReturnRequest>();
+
+    public DbSet<EmployeeClearance> EmployeeClearances => Set<EmployeeClearance>();
+    public DbSet<EmployeeClearanceActivity> EmployeeClearanceActivities => Set<EmployeeClearanceActivity>();
+
+    public DbSet<PerformanceEvaluation> PerformanceEvaluations => Set<PerformanceEvaluation>();
+
+    public DbSet<Announcement> Announcements => Set<Announcement>();
+    public DbSet<AnnouncementRead> AnnouncementReads => Set<AnnouncementRead>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

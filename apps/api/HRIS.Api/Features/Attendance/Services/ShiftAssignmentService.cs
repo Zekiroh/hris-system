@@ -4,6 +4,7 @@ using HRIS.Api.Features.Attendance.DTOs;
 using HRIS.Api.Features.Attendance.Services.Validation;
 using HRIS.Api.Features.Common.Exceptions;
 using HRIS.Api.Features.IAM.Services;
+using HRIS.Api.Features.LeaveManagement.Services;
 using HRIS.Api.Models;
 using HRIS.Api.Utils;
 using Microsoft.EntityFrameworkCore;
@@ -15,15 +16,18 @@ public class ShiftAssignmentsService : IShiftAssignmentsService
     private readonly AppDbContext _context;
     private readonly IShiftValidationService _shiftValidationService;
     private readonly IActivityLogger _activityLogger;
+    private readonly ILeaveBalanceInitializer _leaveBalanceInitializer;
 
     public ShiftAssignmentsService(
         AppDbContext context,
         IShiftValidationService shiftValidationService,
-        IActivityLogger activityLogger)
+        IActivityLogger activityLogger,
+        ILeaveBalanceInitializer leaveBalanceInitializer)
     {
         _context = context;
         _shiftValidationService = shiftValidationService;
         _activityLogger = activityLogger;
+        _leaveBalanceInitializer = leaveBalanceInitializer;
     }
 
     public async Task<EmployeeShiftAssignmentDto> AssignAsync(
@@ -118,6 +122,10 @@ public class ShiftAssignmentsService : IShiftAssignmentsService
         _context.EmployeeShiftAssignments.Add(assignment);
 
         await _context.SaveChangesAsync(ct);
+
+        await _leaveBalanceInitializer.EnsureDefaultBalancesAsync(
+            request.EmployeeId,
+            ct);
 
         var employeeName = FormatEmployeeName(employee) ?? "Employee";
         var action = isReassignment ? "SHIFT_REASSIGNED" : "SHIFT_ASSIGNED";
