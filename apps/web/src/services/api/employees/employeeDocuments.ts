@@ -1,4 +1,4 @@
-import { apiRequest } from "../client";
+import { API_BASE_URL, apiRequest } from "../client";
 import {
   extractApiError,
   type EmployeeDocumentDto,
@@ -124,7 +124,6 @@ export async function downloadEmployeeDocument(
   employeeId: string,
   documentId: string
 ) {
-  const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
   const token = getAuthToken();
 
   const headers = new Headers();
@@ -133,7 +132,7 @@ export async function downloadEmployeeDocument(
   }
 
   const response = await fetch(
-    `${baseUrl}/employees/${employeeId}/documents/${documentId}`,
+    `${API_BASE_URL}/employees/${employeeId}/documents/${documentId}`,
     {
       method: "GET",
       headers,

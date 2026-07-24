@@ -1,4 +1,5 @@
 using System.Text;
+using HRIS.Api.Configuration;
 using HRIS.Api.Data;
 using HRIS.Api.Features.AnnouncementManagement.Services;
 using HRIS.Api.Features.AssetManagement.Services;
@@ -24,6 +25,8 @@ using QuestPDF.Infrastructure;
 QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
+var jwtOptions = JwtOptions.FromConfiguration(builder.Configuration);
+var allowedCorsOrigins = CorsOptions.GetAllowedOrigins(builder.Configuration, builder.Environment);
 
 // =====================
 // Services
@@ -67,7 +70,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("ClientCors", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173", "http://localhost:5174")
+            .WithOrigins(allowedCorsOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -123,23 +126,21 @@ builder.Services.AddScoped<IDailyReportsService, DailyReportsService>();
 
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 
-var jwtKey = builder.Configuration["Jwt:Key"];
-if (string.IsNullOrWhiteSpace(jwtKey))
-    throw new InvalidOperationException("Jwt:Key is missing. Set it via user-secrets.");
-
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.RequireHttpsMetadata = false;
+        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
         options.SaveToken = true;
 
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-            ValidateIssuer = false,
-            ValidateAudience = false,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key)),
+            ValidateIssuer = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
             RequireExpirationTime = true,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero

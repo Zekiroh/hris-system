@@ -11,6 +11,7 @@ import {
   type AuthUser,
   type LoginRole,
 } from "./AuthContext.shared";
+import { API_BASE_URL } from "../../services/api/config";
 
 type LoginResponse = AuthUser & { token: string };
 
@@ -19,8 +20,6 @@ type SharedSessionAuthPayload = {
   token: string;
   ts: number;
 };
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
 const AUTH_USER_KEY = "auth.user";
 const AUTH_TOKEN_KEY = "auth.token";

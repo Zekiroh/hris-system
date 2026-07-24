@@ -1,3 +1,4 @@
+using HRIS.Api.Configuration;
 using HRIS.Api.Models;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -13,24 +14,15 @@ public interface IJwtTokenService
 
 public sealed class JwtTokenService : IJwtTokenService
 {
-    private readonly IConfiguration _config;
+    private readonly JwtOptions _jwtOptions;
 
     public JwtTokenService(IConfiguration config)
     {
-        _config = config;
+        _jwtOptions = JwtOptions.FromConfiguration(config);
     }
 
     public string CreateToken(User user)
     {
-        var key = _config["Jwt:Key"];
-        if (string.IsNullOrWhiteSpace(key))
-            throw new InvalidOperationException("Jwt:Key is missing. Set it via user-secrets.");
-
-        var expiryMinutesRaw = _config["Jwt:ExpiryMinutes"];
-        var expiryMinutes = 60;
-        if (!string.IsNullOrWhiteSpace(expiryMinutesRaw) && int.TryParse(expiryMinutesRaw, out var parsed))
-            expiryMinutes = parsed;
-
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
@@ -44,14 +36,14 @@ public sealed class JwtTokenService : IJwtTokenService
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
+        var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.Key));
         var creds = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"],
-            audience: _config["Jwt:Audience"],
+            issuer: _jwtOptions.Issuer,
+            audience: _jwtOptions.Audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(expiryMinutes),
+            expires: DateTime.UtcNow.AddMinutes(_jwtOptions.ExpiryMinutes),
             signingCredentials: creds
         );
 

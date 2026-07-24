@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { apiRequest } from "../../../services/api/client";
+import { API_BASE_URL, apiRequest } from "../../../services/api/client";
 import { getAuthToken } from "../../../services/api/employees/employeeDocuments";
 import { normalizeDocumentError } from "../utils/employeeErrorHelpers";
 import { validateDocumentFile } from "../utils/documentValidation";
@@ -30,8 +30,6 @@ type DocumentPreviewPayload = {
   fileName: string;
 };
 
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
-
 async function fetchMyDocuments(): Promise<EmployeeDocumentDto[]> {
   const res = await apiRequest<EmployeeDocumentDto[]>("/employees/me/documents");
   return unwrapData<EmployeeDocumentDto[]>(res);
@@ -53,7 +51,7 @@ async function downloadMyDocument(documentId: string): Promise<Response> {
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const response = await fetch(
-    `${BASE_URL}/employees/me/documents/${documentId}`,
+    `${API_BASE_URL}/employees/me/documents/${documentId}`,
     { method: "GET", headers }
   );
 
