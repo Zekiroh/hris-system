@@ -5,7 +5,9 @@ namespace HRIS.Api.Features.Payroll.Services;
 
 public interface IPayrollService
 {
-    Task<PayrollPeriodDto> ProcessPayrollAsync(ProcessPayrollRequest request);
+    Task<PayrollPeriodDto> ProcessPayrollAsync(
+        ProcessPayrollRequest request,
+        CancellationToken cancellationToken = default);
 
     Task<PayrollPeriodDto> ReleasePayrollPeriodAsync(int periodId);
 

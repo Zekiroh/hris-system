@@ -10,7 +10,7 @@ export const formatCurrency = (value: number) =>
     }).format(Number.isFinite(value) ? value : 0);
 
 export const formatDate = (value?: string | null) => {
-    if (!value) return '?';
+    if (!value) return '—';
 
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return value.slice(0, 10);
@@ -65,4 +65,30 @@ export const extractEmployeeItems = (response: EmployeesResponse): EmployeeDto[]
     return payload && typeof payload === 'object' && 'items' in payload
         ? payload.items ?? []
         : [];
+};
+
+export const isReleased = (status?: string | null) =>
+    status?.trim().toLowerCase() === 'released';
+
+export const isProcessed = (status?: string | null) =>
+    status?.trim().toLowerCase() === 'processed';
+
+export const getRecordPeriodLabel = (record: {
+    payrollPeriodStartDate?: string | null;
+    payrollPeriodEndDate?: string | null;
+    payrollPeriodId: number;
+}) => {
+    if (record.payrollPeriodStartDate && record.payrollPeriodEndDate) {
+        return formatPeriod({
+            id: record.payrollPeriodId,
+            startDate: record.payrollPeriodStartDate,
+            endDate: record.payrollPeriodEndDate,
+            status: '',
+            processedAtUtc: null,
+            releasedAtUtc: null,
+            createdAtUtc: '',
+        });
+    }
+
+    return `Payroll Period #${record.payrollPeriodId}`;
 };

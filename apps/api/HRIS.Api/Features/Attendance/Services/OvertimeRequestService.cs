@@ -619,10 +619,7 @@ public class OvertimeRequestService
 
     private static int CalculateDurationMinutes(TimeOnly start, TimeOnly end)
     {
-        var startMinute = ToMinuteOfDay(start);
-        var endMinute = NormalizeEndMinute(start, end);
-
-        return endMinute - startMinute;
+        return AttendanceCalculationHelper.CalculateDurationMinutes(start, end);
     }
 
     private static int CalculateBreakOverlapMinutes(
@@ -631,48 +628,21 @@ public class OvertimeRequestService
         TimeOnly? breakStart,
         TimeOnly? breakEnd)
     {
-        if (!breakStart.HasValue || !breakEnd.HasValue)
-            return 0;
-
-        var actualStartMinute = ToMinuteOfDay(actualStart);
-        var actualEndMinute = NormalizeEndMinute(actualStart, actualEnd);
-        var breakStartMinute = ToMinuteOfDay(breakStart.Value);
-        var breakEndMinute = NormalizeEndMinute(breakStart.Value, breakEnd.Value);
-
-        if (actualEndMinute <= actualStartMinute)
-            return 0;
-
-        if (breakEndMinute <= breakStartMinute)
-            return 0;
-
-        if (breakStartMinute < actualStartMinute && breakEndMinute <= actualStartMinute)
-        {
-            breakStartMinute += MinutesPerDay;
-            breakEndMinute += MinutesPerDay;
-        }
-
-        var overlapStart = Math.Max(actualStartMinute, breakStartMinute);
-        var overlapEnd = Math.Min(actualEndMinute, breakEndMinute);
-
-        if (overlapEnd <= overlapStart)
-            return 0;
-
-        return overlapEnd - overlapStart;
+        return AttendanceCalculationHelper.CalculateBreakOverlapMinutes(
+            actualStart,
+            actualEnd,
+            breakStart,
+            breakEnd);
     }
 
     private static int NormalizeEndMinute(TimeOnly start, TimeOnly end)
     {
-        var startMinute = ToMinuteOfDay(start);
-        var endMinute = ToMinuteOfDay(end);
-
-        return endMinute <= startMinute
-            ? endMinute + MinutesPerDay
-            : endMinute;
+        return AttendanceCalculationHelper.NormalizeEndMinute(start, end);
     }
 
     private static int ToMinuteOfDay(TimeOnly time)
     {
-        return time.Hour * 60 + time.Minute;
+        return AttendanceCalculationHelper.ToMinuteOfDay(time);
     }
 
     private static int CountInclusiveDays(DateOnly dateFrom, DateOnly dateTo)
