@@ -102,7 +102,9 @@ export default function AppRoutes() {
           <Route path="my-daily-accomplishment" element={<DailyAccomplishment mode="user" />} />
 
           {/* User Pages */}
-          <Route path="my-payslips" element={<Payroll mode="user" />} />
+          <Route element={<RequireAuth allow={["USER"]} />}>
+            <Route path="my-payslips" element={<Payroll mode="user" />} />
+          </Route>
           <Route path="my-assets" element={<AssetManagement mode="user" />} />
         </Route>
       </Route>

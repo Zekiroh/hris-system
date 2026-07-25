@@ -111,6 +111,7 @@ builder.Services.AddScoped<IShiftsService, ShiftsService>();
 builder.Services.AddScoped<IShiftAssignmentsService, ShiftAssignmentsService>();
 builder.Services.AddScoped<IAttendanceHolidayProvider, AttendanceHolidayProvider>();
 builder.Services.AddScoped<IAttendanceLogsService, AttendanceLogsService>();
+builder.Services.AddScoped<IAttendancePayrollInputService, AttendancePayrollInputService>();
 builder.Services.AddScoped<OvertimeRequestService>();
 
 builder.Services.AddScoped<ILeaveBalanceInitializer, LeaveBalanceInitializer>();

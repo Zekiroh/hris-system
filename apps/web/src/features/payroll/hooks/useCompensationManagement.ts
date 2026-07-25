@@ -108,6 +108,11 @@ export const useCompensationManagement = () => {
             return;
         }
 
+        if (compensationForm.effectiveTo && compensationForm.effectiveTo < compensationForm.effectiveFrom) {
+            setCompensationError('Effective to date cannot be earlier than effective from date.');
+            return;
+        }
+
         setSavingCompensation(true);
 
         try {
