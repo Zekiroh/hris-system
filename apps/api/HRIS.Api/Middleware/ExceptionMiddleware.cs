@@ -42,6 +42,18 @@ public class ExceptionMiddleware
 
             await context.Response.WriteAsync(result);
         }
+        catch (ArgumentException ex)
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.Response.ContentType = "application/json";
+
+            var result = JsonSerializer.Serialize(new
+            {
+                message = ex.Message
+            });
+
+            await context.Response.WriteAsync(result);
+        }
         catch (KeyNotFoundException ex)
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;

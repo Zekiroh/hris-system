@@ -476,7 +476,19 @@ public class EmployeesService
                 CreatedAtUtc = DateTime.UtcNow
             };
 
+            var employmentStatusHistory = new EmploymentStatusHistory
+            {
+                EmployeeId = entity.Id,
+                PreviousEmploymentStatus = null,
+                NewEmploymentStatus = entity.EmploymentType,
+                PreviousIsActive = null,
+                NewIsActive = entity.IsActive,
+                ChangedAtUtc = entity.CreatedAtUtc,
+                ChangedByUserId = GetCurrentActorUserId()
+            };
+
             _db.Employees.Add(entity);
+            _db.EmploymentStatusHistories.Add(employmentStatusHistory);
 
             try
             {
@@ -510,6 +522,7 @@ public class EmployeesService
             catch (DbUpdateException ex) when (IsEmployeeNumberUniqueConflict(ex) && attempt < maxEmployeeNumberAttempts)
             {
                 _db.Entry(entity).State = EntityState.Detached;
+                _db.Entry(employmentStatusHistory).State = EntityState.Detached;
             }
         }
 
@@ -699,6 +712,7 @@ public class EmployeesService
         if (duplicateErrors.Count > 0)
             return (false, string.Join("|", duplicateErrors), null);
 
+        var previousEmploymentType = entity.EmploymentType;
         var previousIsActive = entity.IsActive;
 
         entity.FirstName = firstName;
@@ -729,6 +743,20 @@ public class EmployeesService
 
         entity.IsActive = req.IsActive;
         entity.UpdatedAtUtc = DateTime.UtcNow;
+
+        if (previousEmploymentType != entity.EmploymentType || previousIsActive != entity.IsActive)
+        {
+            _db.EmploymentStatusHistories.Add(new EmploymentStatusHistory
+            {
+                EmployeeId = entity.Id,
+                PreviousEmploymentStatus = previousEmploymentType,
+                NewEmploymentStatus = entity.EmploymentType,
+                PreviousIsActive = previousIsActive,
+                NewIsActive = entity.IsActive,
+                ChangedAtUtc = entity.UpdatedAtUtc.Value,
+                ChangedByUserId = GetCurrentActorUserId()
+            });
+        }
 
         await _db.SaveChangesAsync(ct);
 
@@ -783,8 +811,24 @@ public class EmployeesService
             .FirstOrDefaultAsync(e => e.Id == id, ct);
         if (entity is null) return (false, "Employee not found.", null);
 
+        var previousIsActive = entity.IsActive;
+
         entity.IsActive = req.IsActive;
         entity.UpdatedAtUtc = DateTime.UtcNow;
+
+        if (previousIsActive != entity.IsActive)
+        {
+            _db.EmploymentStatusHistories.Add(new EmploymentStatusHistory
+            {
+                EmployeeId = entity.Id,
+                PreviousEmploymentStatus = entity.EmploymentType,
+                NewEmploymentStatus = entity.EmploymentType,
+                PreviousIsActive = previousIsActive,
+                NewIsActive = entity.IsActive,
+                ChangedAtUtc = entity.UpdatedAtUtc.Value,
+                ChangedByUserId = GetCurrentActorUserId()
+            });
+        }
 
         await _db.SaveChangesAsync(ct);
 
@@ -829,11 +873,37 @@ public class EmployeesService
         if (!entity.IsActive)
             return (true, null);
 
+        var previousIsActive = entity.IsActive;
+
         entity.IsActive = false;
         entity.UpdatedAtUtc = DateTime.UtcNow;
 
+        _db.EmploymentStatusHistories.Add(new EmploymentStatusHistory
+        {
+            EmployeeId = entity.Id,
+            PreviousEmploymentStatus = entity.EmploymentType,
+            NewEmploymentStatus = entity.EmploymentType,
+            PreviousIsActive = previousIsActive,
+            NewIsActive = entity.IsActive,
+            ChangedAtUtc = entity.UpdatedAtUtc.Value,
+            ChangedByUserId = GetCurrentActorUserId()
+        });
+
         await _db.SaveChangesAsync(ct);
         return (true, null);
+    }
+
+    private long? GetCurrentActorUserId()
+    {
+        var userId =
+            _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? _httpContextAccessor.HttpContext?.User.FindFirst("sub")?.Value
+            ?? _httpContextAccessor.HttpContext?.User.FindFirst("userId")?.Value
+            ?? _httpContextAccessor.HttpContext?.User.FindFirst("id")?.Value;
+
+        return long.TryParse(userId, out var parsed)
+            ? parsed
+            : null;
     }
 
     private async Task<string> GenerateNextEmployeeNumberAsync(CancellationToken ct)

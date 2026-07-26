@@ -7,6 +7,7 @@ import type {
 
 export type Tab =
   | "configuration"
+  | "summary"
   | "sss"
   | "philhealth"
   | "pagibig"

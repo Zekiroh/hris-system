@@ -22,7 +22,11 @@ public class PayrollService : IPayrollService
 
     private const string PayrollItemTypeEarning = "Earning";
     private const string PayrollItemTypeDeduction = "Deduction";
+    private const string PayrollItemTypeEmployerContribution = "Employer Contribution";
     private const string BasicPayDescription = "Basic Pay";
+    private const string SssEmployerContributionDescription = "SSS Employer";
+    private const string PhilHealthEmployerContributionDescription = "PhilHealth Employer";
+    private const string PagIbigEmployerContributionDescription = "Pag-IBIG Employer";
 
     private const int MonthlyCutoffs = 2;
     private const int StandardMonthlyWorkingDays = 22;
@@ -206,6 +210,9 @@ public class PayrollService : IPayrollService
             var philHealthDeduction = RoundMoney(compliance.PhilHealthEmployeeShare);
             var pagIbigDeduction = RoundMoney(compliance.PagIbigEmployeeShare);
             var withholdingTaxDeduction = RoundMoney(compliance.WithholdingTax);
+            var sssEmployerContribution = RoundMoney(compliance.SssEmployerShare);
+            var philHealthEmployerContribution = RoundMoney(compliance.PhilHealthEmployerShare);
+            var pagIbigEmployerContribution = RoundMoney(compliance.PagIbigEmployerShare);
 
             var governmentComplianceDeductions = RoundMoney(
                 sssDeduction +
@@ -297,6 +304,27 @@ public class PayrollService : IPayrollService
                     Amount = pagIbigDeduction
                 });
             }
+
+            payrollRecord.Items.Add(new PayrollRecordItem
+            {
+                Type = PayrollItemTypeEmployerContribution,
+                Description = SssEmployerContributionDescription,
+                Amount = sssEmployerContribution
+            });
+
+            payrollRecord.Items.Add(new PayrollRecordItem
+            {
+                Type = PayrollItemTypeEmployerContribution,
+                Description = PhilHealthEmployerContributionDescription,
+                Amount = philHealthEmployerContribution
+            });
+
+            payrollRecord.Items.Add(new PayrollRecordItem
+            {
+                Type = PayrollItemTypeEmployerContribution,
+                Description = PagIbigEmployerContributionDescription,
+                Amount = pagIbigEmployerContribution
+            });
 
             if (withholdingTaxDeduction > 0)
             {
