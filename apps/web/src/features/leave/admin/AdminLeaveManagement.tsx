@@ -20,7 +20,6 @@ const AdminLeaveManagement = () => {
     leaveBalances,
     approveRequest,
     rejectRequest,
-    deleteRequest,
   } = useLeave();
 
   const [activeTab, setActiveTab] = useState<AdminTab>("request");
@@ -151,11 +150,6 @@ const AdminLeaveManagement = () => {
     setReviewRequest(null);
   };
 
-  const handleDeleteRequest = (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this leave request?")) return;
-    deleteRequest(id);
-  };
-
   const handleRequestSearchChange = (value: string) => {
     setRequestSearch(value);
     setRequestsPage(1);
@@ -253,7 +247,6 @@ const AdminLeaveManagement = () => {
                   )
                 }
                 onReview={handleOpenReview}
-                onDelete={handleDeleteRequest}
               />
             </div>
           )}
