@@ -83,6 +83,110 @@ export type CreateWithholdingTaxBracketRequestDto = Omit<
 export type UpdateWithholdingTaxBracketRequestDto =
   CreateWithholdingTaxBracketRequestDto;
 
+export type CompliancePeriodSummaryDto = {
+  payrollPeriodId: number;
+  payrollPeriodStartDate: string;
+  payrollPeriodEndDate: string;
+  payrollPeriodStatus: string;
+  payrollRecordCount: number;
+  grossPayTotal: number;
+  sssEmployeeTotal: number;
+  sssEmployerTotal?: number | null;
+  sssContributionTotal?: number | null;
+  missingSssNumberCount: number;
+  philHealthEmployeeTotal: number;
+  philHealthEmployerTotal?: number | null;
+  philHealthContributionTotal?: number | null;
+  missingPhilHealthNumberCount: number;
+  pagIbigEmployeeTotal: number;
+  pagIbigEmployerTotal?: number | null;
+  pagIbigContributionTotal?: number | null;
+  missingPagIbigNumberCount: number;
+};
+
+export type ComplianceMonitoringRowDto = {
+  payrollRecordId: number;
+  employeeId: string;
+  employeeNumber: string;
+  employeeName: string;
+  department: string;
+  position: string;
+  governmentNumber?: string | null;
+  grossPay: number;
+  employeeContribution: number;
+  employerContribution?: number | null;
+  totalContribution?: number | null;
+  payrollStatus: string;
+};
+
+export type ComplianceMonitoringResponseDto = {
+  summary?: CompliancePeriodSummaryDto | null;
+  items: ComplianceMonitoringRowDto[];
+};
+
+export type Bir2316TrackingStatus =
+  | "Pending"
+  | "Prepared"
+  | "Released"
+  | "Acknowledged";
+
+export type Bir2316TrackingDto = {
+  id: number;
+  employeeId: string;
+  employeeNumber: string;
+  employeeName: string;
+  department: string;
+  position: string;
+  tinNumber?: string | null;
+  taxYear: number;
+  annualTaxableCompensation: number;
+  annualWithholdingTax: number;
+  status: Bir2316TrackingStatus;
+  employeeDocumentId?: string | null;
+  employeeDocumentName?: string | null;
+  preparedAtUtc?: string | null;
+  releasedAtUtc?: string | null;
+  acknowledgedAtUtc?: string | null;
+  createdAtUtc: string;
+  updatedAtUtc?: string | null;
+};
+
+export type UpdateBir2316TrackingRequestDto = {
+  status: Bir2316TrackingStatus;
+  employeeDocumentId?: string | null;
+};
+
+export type EmploymentStatusHistoryDto = {
+  id: number;
+  employeeId: string;
+  employeeNumber: string;
+  employeeName: string;
+  department: string;
+  position: string;
+  previousEmploymentStatus?: string | null;
+  newEmploymentStatus: string;
+  previousIsActive?: boolean | null;
+  newIsActive: boolean;
+  changedAtUtc: string;
+  changedByUserId?: number | null;
+  changedByUserName?: string | null;
+  changedByUserEmail?: string | null;
+};
+
+type QueryValue = string | number | boolean | null | undefined;
+
+function withQuery(path: string, params: Record<string, QueryValue>) {
+  const query = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === null || value === undefined || value === "") return;
+    query.set(key, String(value));
+  });
+
+  const suffix = query.toString();
+  return suffix ? `${path}?${suffix}` : path;
+}
+
 export function getSssBrackets() {
   return apiRequest<SssContributionBracketDto[]>("/government-compliance/sss");
 }
@@ -195,5 +299,74 @@ export function updateWithholdingTaxBracket(
       method: "PUT",
       body: JSON.stringify(dto),
     }
+  );
+}
+
+export function getComplianceSummary(params: {
+  payrollPeriodId?: number | null;
+  search?: string;
+}) {
+  return apiRequest<CompliancePeriodSummaryDto | null>(
+    withQuery("/government-compliance/summary", params)
+  );
+}
+
+export function getSssMonitoring(params: {
+  payrollPeriodId?: number | null;
+  search?: string;
+}) {
+  return apiRequest<ComplianceMonitoringResponseDto>(
+    withQuery("/government-compliance/sss/monitoring", params)
+  );
+}
+
+export function getPhilHealthMonitoring(params: {
+  payrollPeriodId?: number | null;
+  search?: string;
+}) {
+  return apiRequest<ComplianceMonitoringResponseDto>(
+    withQuery("/government-compliance/philhealth/monitoring", params)
+  );
+}
+
+export function getPagIbigMonitoring(params: {
+  payrollPeriodId?: number | null;
+  search?: string;
+}) {
+  return apiRequest<ComplianceMonitoringResponseDto>(
+    withQuery("/government-compliance/pagibig/monitoring", params)
+  );
+}
+
+export function getBir2316Trackings(params: {
+  taxYear: number;
+  search?: string;
+}) {
+  return apiRequest<Bir2316TrackingDto[]>(
+    withQuery("/government-compliance/bir-2316", params)
+  );
+}
+
+export function updateBir2316Tracking(
+  id: number,
+  dto: UpdateBir2316TrackingRequestDto
+) {
+  return apiRequest<Bir2316TrackingDto>(
+    `/government-compliance/bir-2316/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(dto),
+    }
+  );
+}
+
+export function getEmploymentStatusHistory(params: {
+  employeeId?: string | null;
+  search?: string;
+  dateFrom?: string | null;
+  dateTo?: string | null;
+}) {
+  return apiRequest<EmploymentStatusHistoryDto[]>(
+    withQuery("/government-compliance/employment-history", params)
   );
 }

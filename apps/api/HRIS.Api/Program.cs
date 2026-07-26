@@ -122,6 +122,7 @@ builder.Services.AddScoped<IPayslipPdfGenerator, PayslipPdfGenerator>();
 builder.Services.AddScoped<IPayrollService, PayrollService>();
 
 builder.Services.AddScoped<IGovernmentComplianceService, GovernmentComplianceService>();
+builder.Services.AddScoped<IGovernmentComplianceReportingService, GovernmentComplianceReportingService>();
 
 builder.Services.AddScoped<IAssetService, AssetService>();
 

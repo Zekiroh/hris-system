@@ -71,6 +71,7 @@ const UserPayroll = () => {
     const latestDeductions = latestPayslip?.items.filter((item) => item.type.toLowerCase() === 'deduction') ?? [];
     const selectedEarnings = selectedPayslip?.items.filter((item) => item.type.toLowerCase() === 'earning') ?? [];
     const selectedDeductions = selectedPayslip?.items.filter((item) => item.type.toLowerCase() === 'deduction') ?? [];
+    const selectedEmployerContributions = selectedPayslip?.items.filter((item) => item.type.toLowerCase() === 'employer contribution') ?? [];
 
     return (
         <div className="space-y-6">
@@ -260,6 +261,7 @@ const UserPayroll = () => {
                 selectedPayslip={selectedPayslip}
                 selectedPayslipEarnings={selectedEarnings}
                 selectedPayslipDeductions={selectedDeductions}
+                selectedPayslipEmployerContributions={selectedEmployerContributions}
                 downloadingRecordId={downloadingRecordId}
                 onClose={() => setSelectedPayslip(null)}
                 onDownload={download}

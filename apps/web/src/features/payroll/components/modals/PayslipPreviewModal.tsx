@@ -7,6 +7,7 @@ type PayslipPreviewModalProps = {
     selectedPayslip: PayrollRecordDto | null;
     selectedPayslipEarnings: PayrollRecordItemDto[];
     selectedPayslipDeductions: PayrollRecordItemDto[];
+    selectedPayslipEmployerContributions: PayrollRecordItemDto[];
     downloadingRecordId: number | null;
     onClose: () => void;
     onDownload: (recordId: number) => void;
@@ -17,6 +18,7 @@ const PayslipPreviewModal = ({
     selectedPayslip,
     selectedPayslipEarnings,
     selectedPayslipDeductions,
+    selectedPayslipEmployerContributions,
     downloadingRecordId,
     onClose,
     onDownload,
@@ -79,6 +81,19 @@ const PayslipPreviewModal = ({
                             <div className="flex justify-between text-sm font-bold border-t border-gray-100 pt-1.5"><span>Total Deductions</span><span className="text-red-500">{formatCurrency(selectedPayslip.totalDeductions)}</span></div>
                         </div>
                     </div>
+                    {selectedPayslipEmployerContributions.length > 0 && (
+                        <div>
+                            <div className="flex items-baseline justify-between gap-3">
+                                <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 tracking-wider">Employer Contributions</h4>
+                                <span className="text-xs text-gray-400">Not deducted from net pay</span>
+                            </div>
+                            <div className="space-y-2">
+                                {selectedPayslipEmployerContributions.map((item) => (
+                                    <div key={item.id} className="flex justify-between gap-3 text-sm"><span className="text-gray-600">{item.description}</span><span className="font-medium text-gray-800">{formatCurrency(item.amount)}</span></div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     <div className="bg-emerald-500 text-white rounded-xl p-4 flex justify-between items-center">
                         <span className="font-bold">Net Pay</span>
                         <span className="font-bold text-xl">{formatCurrency(selectedPayslip.netPay)}</span>

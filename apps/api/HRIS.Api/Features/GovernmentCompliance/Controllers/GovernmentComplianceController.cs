@@ -11,10 +11,28 @@ namespace HRIS.Api.Features.GovernmentCompliance.Controllers;
 public sealed class GovernmentComplianceController : ControllerBase
 {
     private readonly IGovernmentComplianceService _governmentComplianceService;
+    private readonly IGovernmentComplianceReportingService _governmentComplianceReportingService;
 
-    public GovernmentComplianceController(IGovernmentComplianceService governmentComplianceService)
+    public GovernmentComplianceController(
+        IGovernmentComplianceService governmentComplianceService,
+        IGovernmentComplianceReportingService governmentComplianceReportingService)
     {
         _governmentComplianceService = governmentComplianceService;
+        _governmentComplianceReportingService = governmentComplianceReportingService;
+    }
+
+    [HttpGet("summary")]
+    public async Task<ActionResult<CompliancePeriodSummaryDto?>> GetComplianceSummary(
+        [FromQuery] int? payrollPeriodId,
+        [FromQuery] string? search,
+        CancellationToken cancellationToken)
+    {
+        var summary = await _governmentComplianceReportingService.GetComplianceSummaryAsync(
+            payrollPeriodId,
+            search,
+            cancellationToken);
+
+        return Ok(summary);
     }
 
     [HttpGet("sss")]
@@ -57,6 +75,20 @@ public sealed class GovernmentComplianceController : ControllerBase
         return Ok(bracket);
     }
 
+    [HttpGet("sss/monitoring")]
+    public async Task<ActionResult<ComplianceMonitoringResponseDto>> GetSssMonitoring(
+        [FromQuery] int? payrollPeriodId,
+        [FromQuery] string? search,
+        CancellationToken cancellationToken)
+    {
+        var result = await _governmentComplianceReportingService.GetSssMonitoringAsync(
+            payrollPeriodId,
+            search,
+            cancellationToken);
+
+        return Ok(result);
+    }
+
     [HttpGet("philhealth")]
     public async Task<ActionResult<IReadOnlyList<PhilHealthContributionRuleDto>>> GetPhilHealthRules(
         CancellationToken cancellationToken)
@@ -78,6 +110,20 @@ public sealed class GovernmentComplianceController : ControllerBase
         return Ok(rule);
     }
 
+    [HttpGet("philhealth/monitoring")]
+    public async Task<ActionResult<ComplianceMonitoringResponseDto>> GetPhilHealthMonitoring(
+        [FromQuery] int? payrollPeriodId,
+        [FromQuery] string? search,
+        CancellationToken cancellationToken)
+    {
+        var result = await _governmentComplianceReportingService.GetPhilHealthMonitoringAsync(
+            payrollPeriodId,
+            search,
+            cancellationToken);
+
+        return Ok(result);
+    }
+
     [HttpPut("philhealth/{id:int}")]
     public async Task<ActionResult<PhilHealthContributionRuleDto>> UpdatePhilHealthRule(
         int id,
@@ -95,6 +141,20 @@ public sealed class GovernmentComplianceController : ControllerBase
         }
 
         return Ok(rule);
+    }
+
+    [HttpGet("pagibig/monitoring")]
+    public async Task<ActionResult<ComplianceMonitoringResponseDto>> GetPagIbigMonitoring(
+        [FromQuery] int? payrollPeriodId,
+        [FromQuery] string? search,
+        CancellationToken cancellationToken)
+    {
+        var result = await _governmentComplianceReportingService.GetPagIbigMonitoringAsync(
+            payrollPeriodId,
+            search,
+            cancellationToken);
+
+        return Ok(result);
     }
 
     [HttpGet("pagibig")]
@@ -176,5 +236,56 @@ public sealed class GovernmentComplianceController : ControllerBase
         }
 
         return Ok(bracket);
+    }
+
+    [HttpGet("bir-2316")]
+    public async Task<ActionResult<IReadOnlyList<Bir2316TrackingDto>>> GetBir2316Trackings(
+        [FromQuery] int taxYear,
+        [FromQuery] string? search,
+        CancellationToken cancellationToken)
+    {
+        var result = await _governmentComplianceReportingService.GetBir2316TrackingsAsync(
+            taxYear,
+            search,
+            cancellationToken);
+
+        return Ok(result);
+    }
+
+    [HttpPut("bir-2316/{id:int}")]
+    public async Task<ActionResult<Bir2316TrackingDto>> UpdateBir2316Tracking(
+        int id,
+        UpdateBir2316TrackingRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _governmentComplianceReportingService.UpdateBir2316TrackingAsync(
+            id,
+            request,
+            cancellationToken);
+
+        if (result is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(result);
+    }
+
+    [HttpGet("employment-history")]
+    public async Task<ActionResult<IReadOnlyList<EmploymentStatusHistoryDto>>> GetEmploymentStatusHistory(
+        [FromQuery] Guid? employeeId,
+        [FromQuery] string? search,
+        [FromQuery] DateOnly? dateFrom,
+        [FromQuery] DateOnly? dateTo,
+        CancellationToken cancellationToken)
+    {
+        var result = await _governmentComplianceReportingService.GetEmploymentStatusHistoryAsync(
+            employeeId,
+            search,
+            dateFrom,
+            dateTo,
+            cancellationToken);
+
+        return Ok(result);
     }
 }

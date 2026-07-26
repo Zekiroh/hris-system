@@ -28,6 +28,7 @@ type ConfigurationTabProps = {
   configuration: ComplianceConfigurationState;
   configurationSummary: { label: string; value: number }[];
   configurationError: string | null;
+  configurationSuccess: string | null;
   isLoadingConfiguration: boolean;
   loadConfiguration: () => void | Promise<void>;
   openCreateConfigurationModal: (section: ConfigurationSection) => void;
@@ -45,6 +46,7 @@ export const ConfigurationTab = ({
   configuration,
   configurationSummary,
   configurationError,
+  configurationSuccess,
   isLoadingConfiguration,
   loadConfiguration,
   openCreateConfigurationModal,
@@ -58,7 +60,7 @@ export const ConfigurationTab = ({
           Government Compliance Configuration
         </h3>
         <p className="text-sm text-gray-500 mt-1">
-          Backend rule engine configuration for statutory deductions.
+          These backend-owned rules apply to future payroll processing only. Processed payroll is not recalculated.
         </p>
       </div>
       <button
@@ -79,6 +81,28 @@ export const ConfigurationTab = ({
       </div>
     )}
 
+    {configurationSuccess && (
+      <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-700">
+        {configurationSuccess}
+      </div>
+    )}
+
+    {isLoadingConfiguration && (
+      <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-500">
+        Loading current government compliance configuration...
+      </div>
+    )}
+
+    {!isLoadingConfiguration &&
+      configuration.sss.length === 0 &&
+      configuration.philhealth.length === 0 &&
+      configuration.pagibig.length === 0 &&
+      configuration.tax.length === 0 && (
+        <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-800">
+          No government compliance configuration exists yet. Use the supported Add actions below to create future-effective rules; no historical payroll will be changed.
+        </div>
+      )}
+
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {configurationSummary.map((item) => (
         <div
@@ -95,21 +119,14 @@ export const ConfigurationTab = ({
       ))}
     </div>
 
-    <div className="rounded-xl border border-gray-100 bg-gray-50 p-5">
-      <p className="text-sm text-gray-600">
-        This tab is now connected to the backend Government Compliance
-        configuration APIs. Monitoring, remittance, and reporting tabs remain
-        unchanged for the future reporting layer.
-      </p>
-    </div>
-
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {(["sss", "philhealth", "pagibig", "tax"] as ConfigurationSection[]).map(
         (section) => (
           <button
             key={section}
             onClick={() => openCreateConfigurationModal(section)}
-            className="btn btn-secondary justify-center"
+            disabled={isLoadingConfiguration}
+            className="btn btn-secondary justify-center disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
             Add {sectionLabels[section]}
@@ -138,7 +155,13 @@ export const ConfigurationTab = ({
             </tr>
           </thead>
           <tbody>
-            {configuration.sss.length === 0 ? (
+            {isLoadingConfiguration ? (
+              <tr>
+                <td colSpan={8} className="text-center text-gray-500">
+                  Loading SSS brackets...
+                </td>
+              </tr>
+            ) : configuration.sss.length === 0 ? (
               <tr>
                 <td colSpan={8} className="text-center text-gray-500">
                   No SSS brackets configured.
@@ -203,7 +226,13 @@ export const ConfigurationTab = ({
             </tr>
           </thead>
           <tbody>
-            {configuration.philhealth.length === 0 ? (
+            {isLoadingConfiguration ? (
+              <tr>
+                <td colSpan={9} className="text-center text-gray-500">
+                  Loading PhilHealth rules...
+                </td>
+              </tr>
+            ) : configuration.philhealth.length === 0 ? (
               <tr>
                 <td colSpan={9} className="text-center text-gray-500">
                   No PhilHealth rules configured.
@@ -272,7 +301,13 @@ export const ConfigurationTab = ({
             </tr>
           </thead>
           <tbody>
-            {configuration.pagibig.length === 0 ? (
+            {isLoadingConfiguration ? (
+              <tr>
+                <td colSpan={8} className="text-center text-gray-500">
+                  Loading Pag-IBIG rules...
+                </td>
+              </tr>
+            ) : configuration.pagibig.length === 0 ? (
               <tr>
                 <td colSpan={8} className="text-center text-gray-500">
                   No Pag-IBIG rules configured.
@@ -341,7 +376,13 @@ export const ConfigurationTab = ({
             </tr>
           </thead>
           <tbody>
-            {configuration.tax.length === 0 ? (
+            {isLoadingConfiguration ? (
+              <tr>
+                <td colSpan={9} className="text-center text-gray-500">
+                  Loading withholding tax brackets...
+                </td>
+              </tr>
+            ) : configuration.tax.length === 0 ? (
               <tr>
                 <td colSpan={9} className="text-center text-gray-500">
                   No withholding tax brackets configured.

@@ -77,6 +77,7 @@ const AdminPayroll = () => {
 
     const selectedPayslipEarnings = selectedPayslipRecord?.items.filter((item) => item.type.toLowerCase() === 'earning') ?? [];
     const selectedPayslipDeductions = selectedPayslipRecord?.items.filter((item) => item.type.toLowerCase() === 'deduction') ?? [];
+    const selectedPayslipEmployerContributions = selectedPayslipRecord?.items.filter((item) => item.type.toLowerCase() === 'employer contribution') ?? [];
 
     const openCreateCompensationModal = () => {
         prepareCreateCompensation();
@@ -239,6 +240,7 @@ const AdminPayroll = () => {
                 selectedPayslip={selectedPayslipRecord}
                 selectedPayslipEarnings={selectedPayslipEarnings}
                 selectedPayslipDeductions={selectedPayslipDeductions}
+                selectedPayslipEmployerContributions={selectedPayslipEmployerContributions}
                 downloadingRecordId={downloadingRecordId}
                 onClose={() => setShowPayslipPreview(false)}
                 onDownload={handleDownloadPayslipPdf}
