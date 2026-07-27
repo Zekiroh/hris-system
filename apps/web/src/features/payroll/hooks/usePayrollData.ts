@@ -2,16 +2,38 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     getPayrollPeriods,
     getPayrollRecords,
+    downloadPayslipPdf,
     processPayroll,
+    releasePayrollPeriod,
     type PayrollPeriodDto,
     type PayrollRecordDto,
 } from '../../../services/api/payroll/payroll';
 import { formatCurrency, formatPeriod } from '../config/helpers';
 import type { PayrollRecordRow } from '../config/types';
 
+const isSemiMonthlyPayrollPeriod = (startDate: string, endDate: string) => {
+    const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+    const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+
+    if (!startYear || !startMonth || !startDay || !endYear || !endMonth || !endDay) {
+        return false;
+    }
+
+    if (startYear !== endYear || startMonth !== endMonth) {
+        return false;
+    }
+
+    const lastDayOfMonth = new Date(Date.UTC(endYear, endMonth, 0)).getUTCDate();
+
+    return (startDay === 1 && endDay === 15)
+        || (startDay === 16 && endDay === lastDayOfMonth);
+};
+
 export const usePayrollData = () => {
     const [loadingPayroll, setLoadingPayroll] = useState(true);
     const [processingPayroll, setProcessingPayroll] = useState(false);
+    const [releasingPeriodId, setReleasingPeriodId] = useState<number | null>(null);
+    const [downloadingRecordId, setDownloadingRecordId] = useState<number | null>(null);
     const [payrollPeriods, setPayrollPeriods] = useState<PayrollPeriodDto[]>([]);
     const [payrollRecordsByPeriod, setPayrollRecordsByPeriod] = useState<Record<number, PayrollRecordDto[]>>({});
     const [processStartDate, setProcessStartDate] = useState('');
@@ -62,6 +84,7 @@ export const usePayrollData = () => {
                     netPay: formatCurrency(netPay),
                     status: period.status,
                     periodId: period.id,
+                    periodDto: period,
                     records,
                 };
             }),
@@ -69,6 +92,8 @@ export const usePayrollData = () => {
     );
 
     const latestPayrollRecords = payrollRecords[0]?.records ?? [];
+    const releasedPayrollRows = payrollRecords.filter((row) => row.status === 'Released');
+    const releasedPayslipRecords = releasedPayrollRows.flatMap((row) => row.records.filter((record) => record.status === 'Released'));
 
     const totals = useMemo(() => {
         const records = payrollRecords.flatMap((record) => record.records);
@@ -85,7 +110,7 @@ export const usePayrollData = () => {
         };
     }, [payrollRecords]);
 
-    const payslipList = latestPayrollRecords.map((record) => ({
+    const payslipList = releasedPayslipRecords.map((record) => ({
         name: record.employeeName,
         id: record.employeeNumber,
         netPay: formatCurrency(record.netPay),
@@ -104,6 +129,11 @@ export const usePayrollData = () => {
 
         if (processStartDate > processEndDate) {
             setPayrollError('Payroll start date cannot be later than end date.');
+            return;
+        }
+
+        if (!isSemiMonthlyPayrollPeriod(processStartDate, processEndDate)) {
+            setPayrollError('Payroll periods must be the 1st-15th or 16th-last day of a calendar month.');
             return;
         }
 
@@ -128,12 +158,61 @@ export const usePayrollData = () => {
         }
     }, [loadPayrollData, processEndDate, processStartDate]);
 
+    const handleReleasePayrollPeriod = useCallback(async (periodId: number) => {
+        const period = payrollPeriods.find((item) => item.id === periodId);
+
+        setPayrollError('');
+        setPayrollSuccess('');
+
+        if (!period || period.status !== 'Processed') {
+            setPayrollError('Only processed payroll periods can be released.');
+            return;
+        }
+
+        const confirmed = window.confirm('Release this payroll period? Released payslips become available for download.');
+        if (!confirmed) {
+            return;
+        }
+
+        setReleasingPeriodId(periodId);
+
+        try {
+            await releasePayrollPeriod(periodId);
+            setPayrollSuccess('Payroll period released successfully.');
+            await loadPayrollData();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unable to release payroll period.';
+            setPayrollError(message);
+        } finally {
+            setReleasingPeriodId(null);
+        }
+    }, [loadPayrollData, payrollPeriods]);
+
+    const handleDownloadPayslipPdf = useCallback(async (recordId: number) => {
+        setPayrollError('');
+        setDownloadingRecordId(recordId);
+
+        try {
+            await downloadPayslipPdf(recordId);
+            setPayrollSuccess('Payslip download started.');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unable to download payslip PDF.';
+            setPayrollError(message);
+        } finally {
+            setDownloadingRecordId(null);
+        }
+    }, []);
+
     return {
         loadingPayroll,
         processingPayroll,
+        releasingPeriodId,
+        downloadingRecordId,
         payrollPeriods,
         payrollRecords,
         latestPayrollRecords,
+        releasedPayrollRows,
+        releasedPayslipRecords,
         totals,
         payslipList,
         processStartDate,
@@ -143,6 +222,8 @@ export const usePayrollData = () => {
         setProcessStartDate,
         setProcessEndDate,
         handleProcessPayroll,
+        handleReleasePayrollPeriod,
+        handleDownloadPayslipPdf,
         loadPayrollData,
     };
 };

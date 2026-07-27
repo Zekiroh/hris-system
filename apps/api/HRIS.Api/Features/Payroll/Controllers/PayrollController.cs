@@ -19,9 +19,11 @@ public class PayrollController : ControllerBase
 
     [Authorize(Roles = "ADMIN,SUPER_ADMIN")]
     [HttpPost("process")]
-    public async Task<IActionResult> ProcessPayroll([FromBody] ProcessPayrollRequest request)
+    public async Task<IActionResult> ProcessPayroll(
+        [FromBody] ProcessPayrollRequest request,
+        CancellationToken cancellationToken)
     {
-        var result = await _service.ProcessPayrollAsync(request);
+        var result = await _service.ProcessPayrollAsync(request, cancellationToken);
         return Ok(result);
     }
 

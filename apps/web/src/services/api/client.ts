@@ -16,7 +16,7 @@ type ApiRequestError = Error & {
   };
 };
 
-function getAuthToken(): string | null {
+export function getAuthToken(): string | null {
   const directLocalToken = localStorage.getItem("auth.token");
   if (directLocalToken) return directLocalToken;
 
@@ -44,6 +44,18 @@ function getAuthToken(): string | null {
   }
 
   return null;
+}
+
+function getFileNameFromContentDisposition(value: string | null): string | null {
+  if (!value) return null;
+
+  const utf8Match = value.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1].trim().replace(/^"|"$/g, ""));
+  }
+
+  const filenameMatch = value.match(/filename="?([^";]+)"?/i);
+  return filenameMatch?.[1]?.trim() || null;
 }
 
 function extractErrorPayload(
@@ -153,4 +165,45 @@ export async function apiRequest<T>(
   }
 
   return JSON.parse(text) as T;
+}
+
+export async function apiFileRequest(
+  path: string,
+  options: RequestInit = {}
+): Promise<{ blob: Blob; fileName: string | null }> {
+  const token = getAuthToken();
+  const headers = new Headers(options.headers);
+
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  let res: Response;
+
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new Error("Network error. Please check your connection.");
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    const payload = extractErrorPayload(text, res.status);
+
+    const error = new Error(payload.message) as ApiRequestError;
+    error.response = {
+      status: res.status,
+      data: payload.data,
+    };
+
+    throw error;
+  }
+
+  return {
+    blob: await res.blob(),
+    fileName: getFileNameFromContentDisposition(res.headers.get("content-disposition")),
+  };
 }

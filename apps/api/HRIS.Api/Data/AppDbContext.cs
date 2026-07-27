@@ -38,6 +38,8 @@ public class AppDbContext : DbContext
     public DbSet<PhilHealthContributionRule> PhilHealthContributionRules => Set<PhilHealthContributionRule>();
     public DbSet<PagIbigContributionRule> PagIbigContributionRules => Set<PagIbigContributionRule>();
     public DbSet<WithholdingTaxBracket> WithholdingTaxBrackets => Set<WithholdingTaxBracket>();
+    public DbSet<Bir2316Tracking> Bir2316Trackings => Set<Bir2316Tracking>();
+    public DbSet<EmploymentStatusHistory> EmploymentStatusHistories => Set<EmploymentStatusHistory>();
 
     public DbSet<Asset> Assets => Set<Asset>();
     public DbSet<AssetAssignment> AssetAssignments => Set<AssetAssignment>();

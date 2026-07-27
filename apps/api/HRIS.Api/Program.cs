@@ -111,6 +111,7 @@ builder.Services.AddScoped<IShiftsService, ShiftsService>();
 builder.Services.AddScoped<IShiftAssignmentsService, ShiftAssignmentsService>();
 builder.Services.AddScoped<IAttendanceHolidayProvider, AttendanceHolidayProvider>();
 builder.Services.AddScoped<IAttendanceLogsService, AttendanceLogsService>();
+builder.Services.AddScoped<IAttendancePayrollInputService, AttendancePayrollInputService>();
 builder.Services.AddScoped<OvertimeRequestService>();
 
 builder.Services.AddScoped<ILeaveBalanceInitializer, LeaveBalanceInitializer>();
@@ -121,6 +122,7 @@ builder.Services.AddScoped<IPayslipPdfGenerator, PayslipPdfGenerator>();
 builder.Services.AddScoped<IPayrollService, PayrollService>();
 
 builder.Services.AddScoped<IGovernmentComplianceService, GovernmentComplianceService>();
+builder.Services.AddScoped<IGovernmentComplianceReportingService, GovernmentComplianceReportingService>();
 
 builder.Services.AddScoped<IAssetService, AssetService>();
 

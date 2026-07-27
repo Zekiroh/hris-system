@@ -7,6 +7,7 @@ import AssignAssetModal from './laptop-monitoring/AssignAssetModal';
 import ClearanceActivityModal from './clearance-management/ClearanceActivityModal';
 import NewClearanceModal from './clearance-management/NewClearanceModal';
 import ReturnReviewModal from './laptop-monitoring/ReturnReviewModal';
+import AddEvaluationModal from './performance-management/AddEvaluationModal';
 import AdminAnnouncementsTab from './announcement-management/AdminAnnouncementsTab';
 import AdminClearanceTab from './clearance-management/AdminClearanceTab';
 import AdminEvaluationTab from './performance-management/AdminEvaluationTab';
@@ -27,6 +28,7 @@ import { useAdminClearanceActivity } from './clearance-management/useAdminCleara
 import { useAdminClearanceData } from './clearance-management/useAdminClearanceData';
 import { useAdminClearanceWorkflow } from './clearance-management/useAdminClearanceWorkflow';
 import { useAdminPerformanceData } from './performance-management/useAdminPerformanceData';
+import { useEvaluationCreationWorkflow } from './performance-management/useEvaluationCreationWorkflow';
 import { useAssetAssignmentWorkflow } from './laptop-monitoring/useAssetAssignmentWorkflow';
 import { useAssetCreationWorkflow } from './laptop-monitoring/useAssetCreationWorkflow';
 import { useReturnReviewWorkflow } from './laptop-monitoring/useReturnReviewWorkflow';
@@ -36,6 +38,7 @@ const AdminAssetManagement = () => {
     const [showAddAsset, setShowAddAsset] = useState(false);
     const [showAddAnnouncement, setShowAddAnnouncement] = useState(false);
     const [showNewClearance, setShowNewClearance] = useState(false);
+    const [showAddEvaluation, setShowAddEvaluation] = useState(false);
     const {
         assets,
         returnRequests,
@@ -74,7 +77,20 @@ const AdminAssetManagement = () => {
         evaluations,
         isLoadingEvaluations,
         evaluationError,
+        loadEvaluations,
     } = useAdminPerformanceData();
+    const {
+        evaluationForm,
+        setEvaluationForm,
+        isSavingEvaluation,
+        evaluationFormError,
+        computeWeightedScore,
+        handleKpiScoreChange,
+        handleAddEvaluation,
+    } = useEvaluationCreationWorkflow({
+        loadEvaluations,
+        closeAddEvaluationModal: () => setShowAddEvaluation(false),
+    });
     const {
         selectedClearanceId,
         selectedClearanceEmployeeName,
@@ -314,6 +330,7 @@ const AdminAssetManagement = () => {
                             evaluations={sortedEvaluations}
                             isLoadingEvaluations={isLoadingEvaluations}
                             evaluationError={evaluationError}
+                            onNewEvaluation={() => setShowAddEvaluation(true)}
                         />
                     )}
 
@@ -393,6 +410,23 @@ const AdminAssetManagement = () => {
                     onFormChange={(field, value) =>
                         setClearanceForm(current => ({ ...current, [field]: value }))
                     }
+                />
+            )}
+
+            {showAddEvaluation && (
+                <AddEvaluationModal
+                    evaluationForm={evaluationForm}
+                    employees={activeEmployees}
+                    isLoadingEmployees={isLoadingEmployees}
+                    isSavingEvaluation={isSavingEvaluation}
+                    evaluationFormError={evaluationFormError}
+                    weightedScore={computeWeightedScore(evaluationForm.kpiScores)}
+                    onClose={() => setShowAddEvaluation(false)}
+                    onSubmit={handleAddEvaluation}
+                    onFormChange={(field, value) =>
+                        setEvaluationForm(current => ({ ...current, [field]: value }))
+                    }
+                    onKpiScoreChange={handleKpiScoreChange}
                 />
             )}
 

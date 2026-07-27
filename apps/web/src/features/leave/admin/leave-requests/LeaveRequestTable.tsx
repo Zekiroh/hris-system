@@ -1,4 +1,4 @@
-import { CalendarDays, Edit, Trash2 } from "lucide-react";
+import { CalendarDays, ClipboardPen } from "lucide-react";
 import type { LeaveRequest } from "../../context/LeaveContext.shared";
 import type { StatusBadgeMap } from "../LeaveTableTypes";
 import { formatLeaveDate, getAvatarInitial, getLeaveTypeColor, getLeaveTypeIcon } from "../LeaveTableUtils";
@@ -11,7 +11,6 @@ interface LeaveRequestTableProps {
   onPrev: () => void;
   onNext: () => void;
   onReview: (request: LeaveRequest) => void;
-  onDelete: (id: number) => void;
 }
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -36,7 +35,6 @@ const LeaveRequestTable = ({
   onPrev,
   onNext,
   onReview,
-  onDelete,
 }: LeaveRequestTableProps) => {
   const safePage = Math.max(1, page || 1);
   const safeTotalPages = Math.max(1, totalPages || 1);
@@ -165,34 +163,22 @@ const LeaveRequestTable = ({
                     <td>
                       {isPlaceholder ? (
                         <span className="text-gray-300">--</span>
+                      ) : r.status === "Pending" ? (
+                        <button
+                          onClick={() => onReview(r)}
+                          className="btn-ghost btn-icon text-blue-500 hover:bg-blue-50"
+                          title="Review Request"
+                        >
+                          <ClipboardPen className="w-4 h-4" />
+                        </button>
                       ) : (
-                        <div className="flex gap-1">
-                          {r.status === "Pending" ? (
-                            <button
-                              onClick={() => onReview(r)}
-                              className="btn-ghost btn-icon text-blue-500 hover:bg-blue-50"
-                              title="Review Request"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                          ) : (
-                            <button
-                              disabled
-                              className="btn-ghost btn-icon text-gray-300 cursor-not-allowed"
-                              title="Already reviewed"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                          )}
-
-                          <button
-                            onClick={() => onDelete(r.id)}
-                            className="btn-ghost btn-icon text-rose-500 hover:bg-rose-50"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                        <button
+                          disabled
+                          className="btn-ghost btn-icon text-gray-200 opacity-60 cursor-not-allowed"
+                          title="Already reviewed"
+                        >
+                          <ClipboardPen className="w-4 h-4" />
+                        </button>
                       )}
                     </td>
                   </tr>

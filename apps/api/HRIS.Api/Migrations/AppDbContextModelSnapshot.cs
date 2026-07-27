@@ -435,6 +435,62 @@ namespace HRIS.Api.Migrations
                     b.ToTable("attendance_logs", (string)null);
                 });
 
+            modelBuilder.Entity("HRIS.Api.Models.Bir2316Tracking", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("AcknowledgedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("EmployeeDocumentId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("PreparedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("ReleasedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int>("TaxYear")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeDocumentId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("TaxYear");
+
+                    b.HasIndex("EmployeeId", "TaxYear")
+                        .IsUnique();
+
+                    b.ToTable("Bir2316Trackings", t =>
+                        {
+                            t.HasCheckConstraint("CK_Bir2316Tracking_Status", "`Status` IN ('Pending', 'Prepared', 'Released', 'Acknowledged')");
+
+                            t.HasCheckConstraint("CK_Bir2316Tracking_TaxYear", "`TaxYear` >= 1900 AND `TaxYear` <= 9999");
+                        });
+                });
+
             modelBuilder.Entity("HRIS.Api.Models.DailyReport", b =>
                 {
                     b.Property<int>("Id")
@@ -1002,6 +1058,49 @@ namespace HRIS.Api.Migrations
                     b.HasIndex("EmployeeId", "IsActive");
 
                     b.ToTable("employee_shift_assignments", (string)null);
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.EmploymentStatusHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("ChangedAtUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("ChangedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("NewEmploymentStatus")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<bool>("NewIsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("PreviousEmploymentStatus")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<bool?>("PreviousIsActive")
+                        .HasColumnType("tinyint(1)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedAtUtc");
+
+                    b.HasIndex("ChangedByUserId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.ToTable("EmploymentStatusHistories");
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.LeaveBalance", b =>
@@ -2189,6 +2288,24 @@ namespace HRIS.Api.Migrations
                     b.Navigation("Employee");
                 });
 
+            modelBuilder.Entity("HRIS.Api.Models.Bir2316Tracking", b =>
+                {
+                    b.HasOne("HRIS.Api.Models.EmployeeDocument", "EmployeeDocument")
+                        .WithMany()
+                        .HasForeignKey("EmployeeDocumentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("HRIS.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("EmployeeDocument");
+                });
+
             modelBuilder.Entity("HRIS.Api.Models.DailyReport", b =>
                 {
                     b.HasOne("HRIS.Api.Models.Employee", "Employee")
@@ -2296,6 +2413,24 @@ namespace HRIS.Api.Migrations
                     b.Navigation("Employee");
 
                     b.Navigation("Shift");
+                });
+
+            modelBuilder.Entity("HRIS.Api.Models.EmploymentStatusHistory", b =>
+                {
+                    b.HasOne("HRIS.Api.Models.User", "ChangedByUser")
+                        .WithMany()
+                        .HasForeignKey("ChangedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("HRIS.Api.Models.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ChangedByUser");
+
+                    b.Navigation("Employee");
                 });
 
             modelBuilder.Entity("HRIS.Api.Models.LeaveBalance", b =>

@@ -15,7 +15,7 @@ public sealed class GovernmentComplianceService : IGovernmentComplianceService
     }
 
     public async Task<GovernmentComplianceCalculationResult> CalculateAsync(
-        decimal grossPay,
+        decimal monthlyGrossPay,
         DateOnly payrollDate,
         CancellationToken cancellationToken = default)
     {
@@ -25,8 +25,8 @@ public sealed class GovernmentComplianceService : IGovernmentComplianceService
                 b.IsActive &&
                 b.EffectiveFrom <= payrollDate &&
                 (b.EffectiveTo == null || b.EffectiveTo >= payrollDate) &&
-                grossPay >= b.SalaryFrom &&
-                (b.SalaryTo == null || grossPay <= b.SalaryTo))
+                monthlyGrossPay >= b.SalaryFrom &&
+                (b.SalaryTo == null || monthlyGrossPay <= b.SalaryTo))
             .OrderByDescending(b => b.EffectiveFrom)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -48,17 +48,6 @@ public sealed class GovernmentComplianceService : IGovernmentComplianceService
             .OrderByDescending(r => r.EffectiveFrom)
             .FirstOrDefaultAsync(cancellationToken);
 
-        var taxBracket = await _context.WithholdingTaxBrackets
-            .AsNoTracking()
-            .Where(b =>
-                b.IsActive &&
-                b.EffectiveFrom <= payrollDate &&
-                (b.EffectiveTo == null || b.EffectiveTo >= payrollDate) &&
-                grossPay >= b.CompensationFrom &&
-                (b.CompensationTo == null || grossPay <= b.CompensationTo))
-            .OrderByDescending(b => b.EffectiveFrom)
-            .FirstOrDefaultAsync(cancellationToken);
-
         var missingRules = new List<string>();
 
         if (sssBracket is null)
@@ -76,11 +65,6 @@ public sealed class GovernmentComplianceService : IGovernmentComplianceService
             missingRules.Add("Pag-IBIG rule");
         }
 
-        if (taxBracket is null)
-        {
-            missingRules.Add("withholding tax bracket");
-        }
-
         if (missingRules.Count > 0)
         {
             throw new InvalidOperationException(
@@ -90,15 +74,13 @@ public sealed class GovernmentComplianceService : IGovernmentComplianceService
         var activeSssBracket = sssBracket!;
         var activePhilHealthRule = philHealthRule!;
         var activePagIbigRule = pagIbigRule!;
-        var activeTaxBracket = taxBracket!;
-
         var result = new GovernmentComplianceCalculationResult
         {
             SssEmployeeShare = RoundMoney(activeSssBracket.EmployeeShare),
             SssEmployerShare = RoundMoney(activeSssBracket.EmployerShare)
         };
 
-        var totalPhilHealthContribution = grossPay * activePhilHealthRule.ContributionRate;
+        var totalPhilHealthContribution = monthlyGrossPay * activePhilHealthRule.ContributionRate;
 
         totalPhilHealthContribution = Math.Max(
             activePhilHealthRule.MinimumContribution,
@@ -114,8 +96,8 @@ public sealed class GovernmentComplianceService : IGovernmentComplianceService
         result.PhilHealthEmployerShare = RoundMoney(
             totalPhilHealthContribution * activePhilHealthRule.EmployerSharePercent);
 
-        var employeeShare = grossPay * activePagIbigRule.EmployeeRate;
-        var employerShare = grossPay * activePagIbigRule.EmployerRate;
+        var employeeShare = monthlyGrossPay * activePagIbigRule.EmployeeRate;
+        var employerShare = monthlyGrossPay * activePagIbigRule.EmployerRate;
 
         result.PagIbigEmployeeShare = RoundMoney(
             Math.Clamp(
@@ -129,9 +111,33 @@ public sealed class GovernmentComplianceService : IGovernmentComplianceService
                 activePagIbigRule.MinimumContribution,
                 activePagIbigRule.MaximumContribution));
 
+        var monthlyTaxableCompensation = Math.Max(
+            0m,
+            monthlyGrossPay -
+            result.SssEmployeeShare -
+            result.PhilHealthEmployeeShare -
+            result.PagIbigEmployeeShare);
+
+        var taxBracket = await _context.WithholdingTaxBrackets
+            .AsNoTracking()
+            .Where(b =>
+                b.IsActive &&
+                b.EffectiveFrom <= payrollDate &&
+                (b.EffectiveTo == null || b.EffectiveTo >= payrollDate) &&
+                monthlyTaxableCompensation >= b.CompensationFrom &&
+                (b.CompensationTo == null || monthlyTaxableCompensation <= b.CompensationTo))
+            .OrderByDescending(b => b.EffectiveFrom)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (taxBracket is null)
+        {
+            throw new InvalidOperationException(
+                $"Missing active withholding tax bracket for taxable compensation on {payrollDate:yyyy-MM-dd}.");
+        }
+
         result.WithholdingTax = RoundMoney(
-            activeTaxBracket.BaseTax +
-            ((grossPay - activeTaxBracket.ExcessOver) * activeTaxBracket.TaxRate));
+            taxBracket.BaseTax +
+            ((monthlyTaxableCompensation - taxBracket.ExcessOver) * taxBracket.TaxRate));
 
         return result;
     }

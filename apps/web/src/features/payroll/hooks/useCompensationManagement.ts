@@ -22,6 +22,21 @@ export const useCompensationManagement = () => {
     const [compensationError, setCompensationError] = useState('');
     const [compensationSuccess, setCompensationSuccess] = useState('');
 
+    const loadActiveEmployees = useCallback(async () => {
+        const allEmployees: EmployeeDto[] = [];
+
+        for (let page = 1; ; page += 1) {
+            const response = await getEmployees({ page, pageSize: 100, isActive: true });
+            const employeePage = extractEmployeeItems(response);
+
+            allEmployees.push(...employeePage);
+
+            if (employeePage.length < 100) {
+                return allEmployees;
+            }
+        }
+    }, []);
+
     const loadCompensationData = useCallback(async () => {
         setLoadingCompensations(true);
         setCompensationError('');
@@ -29,11 +44,11 @@ export const useCompensationManagement = () => {
         try {
             const [compensationResponse, employeeResponse] = await Promise.all([
                 getCompensations(),
-                getEmployees({ page: 1, pageSize: 100, isActive: true }),
+                loadActiveEmployees(),
             ]);
 
             setCompensations(compensationResponse);
-            setEmployees(extractEmployeeItems(employeeResponse));
+            setEmployees(employeeResponse);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unable to load compensation records.';
             setCompensationError(message);
@@ -42,7 +57,7 @@ export const useCompensationManagement = () => {
         } finally {
             setLoadingCompensations(false);
         }
-    }, []);
+    }, [loadActiveEmployees]);
 
     useEffect(() => {
         void loadCompensationData();
@@ -72,7 +87,7 @@ export const useCompensationManagement = () => {
         setEditingCompensation(compensation);
         setCompensationForm({
             employeeId: compensation.employeeId,
-            compensationType: compensation.compensationType || 'Monthly',
+            compensationType: 'Monthly',
             baseAmount: String(compensation.baseAmount),
             effectiveFrom: compensation.effectiveFrom?.slice(0, 10) || new Date().toISOString().slice(0, 10),
             effectiveTo: compensation.effectiveTo?.slice(0, 10) || '',
@@ -93,13 +108,8 @@ export const useCompensationManagement = () => {
             return;
         }
 
-        if (!compensationForm.compensationType.trim()) {
-            setCompensationError('Compensation type is required.');
-            return;
-        }
-
         if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-            setCompensationError('Base amount must be greater than zero.');
+            setCompensationError('Monthly base salary must be greater than zero.');
             return;
         }
 
@@ -108,12 +118,17 @@ export const useCompensationManagement = () => {
             return;
         }
 
+        if (compensationForm.effectiveTo && compensationForm.effectiveTo < compensationForm.effectiveFrom) {
+            setCompensationError('Effective to date cannot be earlier than effective from date.');
+            return;
+        }
+
         setSavingCompensation(true);
 
         try {
             if (editingCompensation) {
                 const dto: UpdateEmployeeCompensationRequestDto = {
-                    compensationType: compensationForm.compensationType,
+                    compensationType: 'Monthly',
                     baseAmount: parsedAmount,
                     effectiveFrom: compensationForm.effectiveFrom,
                     effectiveTo: compensationForm.effectiveTo || null,
@@ -125,7 +140,7 @@ export const useCompensationManagement = () => {
             } else {
                 const dto: CreateEmployeeCompensationRequestDto = {
                     employeeId: compensationForm.employeeId,
-                    compensationType: compensationForm.compensationType,
+                    compensationType: 'Monthly',
                     baseAmount: parsedAmount,
                     effectiveFrom: compensationForm.effectiveFrom,
                     effectiveTo: compensationForm.effectiveTo || null,

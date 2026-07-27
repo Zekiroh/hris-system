@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { AlertTriangle, CheckCircle, Shield } from "lucide-react";
 import {
   createPagIbigRule,
   createPhilHealthRule,
@@ -20,9 +21,8 @@ import type {
   WithholdingTaxBracketDto,
 } from "../../services/api/government-compliance/governmentCompliance";
 import { ConfigurationTab } from "./components/ConfigurationTab";
+import { ComplianceSummaryTab } from "./components/ComplianceSummaryTab";
 import { ConfigurationModal } from "./components/modals/ConfigurationModal";
-import { ReportModal } from "./components/modals/ReportModal";
-import { AlphalistModal } from "./components/modals/AlphalistModal";
 import { SssTab } from "./components/SssTab";
 import { PhilHealthTab } from "./components/PhilHealthTab";
 import { PagIbigTab } from "./components/PagIbigTab";
@@ -39,14 +39,6 @@ import {
   toOptionalNumber,
 } from "./config/helpers";
 import {
-  birData,
-  historyData,
-  pagibigData,
-  philhealthData,
-  remittanceSchedule,
-  sssData,
-  statCards,
-  statusBadge,
   tabs,
 } from "./config/presentation";
 import type {
@@ -58,9 +50,6 @@ import type {
 
 const GovernmentCompliance = () => {
   const [activeTab, setActiveTab] = useState<Tab>("configuration");
-  const [showReportModal, setShowReportModal] = useState(false);
-  const [showAlphalistModal, setShowAlphalistModal] = useState(false);
-  const [showHistoryReportModal, setShowHistoryReportModal] = useState(false);
   const [configuration, setConfiguration] =
     useState<ComplianceConfigurationState>(emptyConfiguration);
   const [isLoadingConfiguration, setIsLoadingConfiguration] = useState(false);
@@ -72,6 +61,9 @@ const GovernmentCompliance = () => {
   const [configurationSaveError, setConfigurationSaveError] = useState<
     string | null
   >(null);
+  const [configurationSuccess, setConfigurationSuccess] = useState<string | null>(
+    null,
+  );
   const [isSavingConfiguration, setIsSavingConfiguration] = useState(false);
 
   const configurationSummary = useMemo(
@@ -80,6 +72,36 @@ const GovernmentCompliance = () => {
       { label: "PhilHealth Rules", value: configuration.philhealth.length },
       { label: "Pag-IBIG Rules", value: configuration.pagibig.length },
       { label: "Tax Brackets", value: configuration.tax.length },
+    ],
+    [configuration],
+  );
+
+  const statCards = useMemo(
+    () => [
+      {
+        label: "SSS Rules",
+        value: configuration.sss.length,
+        icon: Shield,
+        gradient: "linear-gradient(135deg, #059669, #10b981)",
+      },
+      {
+        label: "PhilHealth Rules",
+        value: configuration.philhealth.length,
+        icon: CheckCircle,
+        gradient: "linear-gradient(135deg, #2563eb, #3b82f6)",
+      },
+      {
+        label: "Pag-IBIG Rules",
+        value: configuration.pagibig.length,
+        icon: Shield,
+        gradient: "linear-gradient(135deg, #d97706, #f59e0b)",
+      },
+      {
+        label: "Tax Brackets",
+        value: configuration.tax.length,
+        icon: AlertTriangle,
+        gradient: "linear-gradient(135deg, #4f46e5, #6366f1)",
+      },
     ],
     [configuration],
   );
@@ -117,6 +139,7 @@ const GovernmentCompliance = () => {
 
   const openCreateConfigurationModal = (section: ConfigurationSection) => {
     setConfigurationSaveError(null);
+    setConfigurationSuccess(null);
     setConfigurationModal({
       section,
       mode: "create",
@@ -133,6 +156,7 @@ const GovernmentCompliance = () => {
       | WithholdingTaxBracketDto,
   ) => {
     setConfigurationSaveError(null);
+    setConfigurationSuccess(null);
 
     if (section === "sss") {
       const sssRule = rule as SssContributionBracketDto;
@@ -293,10 +317,17 @@ const GovernmentCompliance = () => {
 
       setConfigurationModal(null);
       await loadConfiguration();
+      setConfigurationSuccess(
+        mode === "edit"
+          ? "Configuration was updated for future payroll processing."
+          : "Configuration was created for future payroll processing.",
+      );
     } catch (error) {
       console.error("Failed to save government compliance configuration.", error);
       setConfigurationSaveError(
-        "Unable to save configuration. Please verify the values and try again.",
+        error instanceof Error
+          ? error.message
+          : "Unable to save configuration. Please verify the values and try again.",
       );
     } finally {
       setIsSavingConfiguration(false);
@@ -338,10 +369,15 @@ const GovernmentCompliance = () => {
       }
 
       await loadConfiguration();
+      setConfigurationSuccess(
+        "Configuration was deactivated for future payroll processing.",
+      );
     } catch (error) {
       console.error("Failed to deactivate government compliance configuration.", error);
       setConfigurationError(
-        "Unable to deactivate configuration. Please try again.",
+        error instanceof Error
+          ? error.message
+          : "Unable to deactivate configuration. Please try again.",
       );
     }
   };
@@ -406,6 +442,7 @@ const GovernmentCompliance = () => {
               configuration={configuration}
               configurationSummary={configurationSummary}
               configurationError={configurationError}
+              configurationSuccess={configurationSuccess}
               isLoadingConfiguration={isLoadingConfiguration}
               loadConfiguration={loadConfiguration}
               openCreateConfigurationModal={openCreateConfigurationModal}
@@ -416,57 +453,29 @@ const GovernmentCompliance = () => {
 
           {/* SSS Tab */}
           {activeTab === "sss" && (
-            <SssTab
-              data={sssData}
-              remittanceSchedule={remittanceSchedule}
-              statusBadge={statusBadge}
-              onExportReports={() => setShowReportModal(true)}
-            />
+            <SssTab />
           )}
+
+          {activeTab === "summary" && <ComplianceSummaryTab />}
 
           {/* PhilHealth Tab */}
           {activeTab === "philhealth" && (
-            <PhilHealthTab
-              data={philhealthData}
-              statusBadge={statusBadge}
-              onExportReports={() => setShowReportModal(true)}
-            />
+            <PhilHealthTab />
           )}
           {/* Pag-IBIG Tab */}
           {activeTab === "pagibig" && (
-            <PagIbigTab
-              data={pagibigData}
-              statusBadge={statusBadge}
-              onExportReports={() => setShowReportModal(true)}
-            />
+            <PagIbigTab />
           )}
           {/* BIR 2316 Tab */}
           {activeTab === "bir" && (
-            <BirTab
-              data={birData}
-              statusBadge={statusBadge}
-              onExport={() => setShowReportModal(true)}
-              onAlphalist={() => setShowAlphalistModal(true)}
-            />
+            <BirTab />
           )}
           {/* Employment History Tab */}
           {activeTab === "history" && (
-            <HistoryTab
-              data={historyData}
-              statusBadge={statusBadge}
-              onGenerateReports={() => setShowHistoryReportModal(true)}
-            />
+            <HistoryTab />
           )}
         </div>
       </div>
-
-      <ReportModal
-        title="Generate Reports"
-        show={showReportModal}
-        onClose={() => setShowReportModal(false)}
-      />
-
-
 
       {configurationModal && (
         <ConfigurationModal
@@ -478,17 +487,6 @@ const GovernmentCompliance = () => {
           onChange={updateConfigurationFormValue}
         />
       )}
-
-      <AlphalistModal
-        show={showAlphalistModal}
-        onClose={() => setShowAlphalistModal(false)}
-      />
-
-      <ReportModal
-        title="Employment History Report"
-        show={showHistoryReportModal}
-        onClose={() => setShowHistoryReportModal(false)}
-      />
     </div>
   );
 };

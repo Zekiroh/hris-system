@@ -79,7 +79,7 @@ export const formatCurrency = (value?: number | null) => {
   }).format(value);
 };
 
-export const formatPercent = (value: number) => `${value}%`;
+export const formatPercent = (value: number) => `${(value * 100).toFixed(2)}%`;
 
 export const formatDate = (value?: string | null) => {
   if (!value) return "Open-ended";

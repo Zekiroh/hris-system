@@ -59,3 +59,11 @@ export type EvaluationRecord = {
     remarks: string;
     date: string;
 };
+
+export type EvaluationForm = {
+    employeeId: string;
+    reviewPeriod: string;
+    reviewerName: string;
+    kpiScores: Record<string, number>;
+    remarks: string;
+};

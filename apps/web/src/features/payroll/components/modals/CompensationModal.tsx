@@ -35,7 +35,14 @@ const CompensationModal = ({
             <div className="pro-modal max-w-lg">
                 <div className="pro-modal-header">
                     <h3>{editingCompensation ? 'Edit Compensation' : 'Add Compensation'}</h3>
-                    <button onClick={onClose} className="btn-ghost btn-icon"><X className="w-5 h-5 text-gray-400" /></button>
+                    <button
+                        onClick={onClose}
+                        disabled={savingCompensation}
+                        className="btn-ghost btn-icon disabled:opacity-50"
+                        title="Close compensation form"
+                    >
+                        <X className="w-5 h-5 text-gray-400" />
+                    </button>
                 </div>
                 <div className="pro-modal-body space-y-4">
                     {compensationError && (
@@ -46,11 +53,16 @@ const CompensationModal = ({
                     {!editingCompensation && (
                         <div>
                             <label className="pro-label">Employee</label>
-                            <select value={compensationForm.employeeId} onChange={(event) => setCompensationForm((current) => ({ ...current, employeeId: event.target.value }))} className="pro-select">
+                            <select
+                                value={compensationForm.employeeId}
+                                onChange={(event) => setCompensationForm((current) => ({ ...current, employeeId: event.target.value }))}
+                                className="pro-select"
+                                disabled={savingCompensation}
+                            >
                                 <option value="">Select employee</option>
                                 {employees.map((employee) => (
                                     <option key={employee.id} value={employee.id}>
-                                        {employee.employeeNumber} — {getEmployeeDisplayName(employee)}
+                                        {employee.employeeNumber} - {getEmployeeDisplayName(employee)}
                                     </option>
                                 ))}
                             </select>
@@ -63,37 +75,56 @@ const CompensationModal = ({
                             <p className="text-xs text-gray-500">{editingCompensation.employeeNumber}</p>
                         </div>
                     )}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="pro-label">Compensation Type</label>
-                            <select value={compensationForm.compensationType} onChange={(event) => setCompensationForm((current) => ({ ...current, compensationType: event.target.value }))} className="pro-select">
-                                <option value="Monthly">Monthly</option>
-                                <option value="Daily">Daily</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="pro-label">Base Amount</label>
-                            <input type="number" min="0" step="0.01" value={compensationForm.baseAmount} onChange={(event) => setCompensationForm((current) => ({ ...current, baseAmount: event.target.value }))} className="pro-input" placeholder="0.00" />
-                        </div>
+                    <div>
+                        <label className="pro-label">Monthly Base Salary</label>
+                        <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={compensationForm.baseAmount}
+                            onChange={(event) => setCompensationForm((current) => ({ ...current, baseAmount: event.target.value }))}
+                            className="pro-input"
+                            placeholder="0.00"
+                            disabled={savingCompensation}
+                        />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <label className="pro-label">Effective From</label>
-                            <input type="date" value={compensationForm.effectiveFrom} onChange={(event) => setCompensationForm((current) => ({ ...current, effectiveFrom: event.target.value }))} className="pro-input" />
+                            <input
+                                type="date"
+                                value={compensationForm.effectiveFrom}
+                                onChange={(event) => setCompensationForm((current) => ({ ...current, effectiveFrom: event.target.value }))}
+                                className="pro-input"
+                                disabled={savingCompensation}
+                            />
                         </div>
                         <div>
                             <label className="pro-label">Effective To</label>
-                            <input type="date" value={compensationForm.effectiveTo} onChange={(event) => setCompensationForm((current) => ({ ...current, effectiveTo: event.target.value }))} className="pro-input" />
+                            <input
+                                type="date"
+                                value={compensationForm.effectiveTo}
+                                onChange={(event) => setCompensationForm((current) => ({ ...current, effectiveTo: event.target.value }))}
+                                className="pro-input"
+                                disabled={savingCompensation}
+                            />
                         </div>
                     </div>
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                        <input type="checkbox" checked={compensationForm.isActive} onChange={(event) => setCompensationForm((current) => ({ ...current, isActive: event.target.checked }))} />
+                        <input
+                            type="checkbox"
+                            checked={compensationForm.isActive}
+                            onChange={(event) => setCompensationForm((current) => ({ ...current, isActive: event.target.checked }))}
+                            disabled={savingCompensation}
+                        />
                         Active compensation
                     </label>
                 </div>
                 <div className="pro-modal-footer">
-                    <button onClick={onClose} className="btn btn-secondary">Cancel</button>
-                    <button onClick={onSave} disabled={savingCompensation} className="btn btn-primary">{savingCompensation ? 'Saving...' : 'Save Compensation'}</button>
+                    <button onClick={onClose} disabled={savingCompensation} className="btn btn-secondary">Cancel</button>
+                    <button onClick={onSave} disabled={savingCompensation} className="btn btn-primary" title="Save employee compensation">
+                        {savingCompensation ? 'Saving...' : 'Save Compensation'}
+                    </button>
                 </div>
             </div>
         </div>

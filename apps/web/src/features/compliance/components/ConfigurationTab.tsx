@@ -16,7 +16,9 @@ import type {
   ComplianceConfigurationState,
   ConfigurationSection,
 } from "../config/types";
+import { useComplianceTablePagination } from "../config/pagination";
 import { ConfigurationStatusBadge } from "./ConfigurationStatusBadge";
+import { TablePagination, TablePlaceholderRows } from "./TablePagination";
 
 type ConfigurationRule =
   | SssContributionBracketDto
@@ -28,6 +30,7 @@ type ConfigurationTabProps = {
   configuration: ComplianceConfigurationState;
   configurationSummary: { label: string; value: number }[];
   configurationError: string | null;
+  configurationSuccess: string | null;
   isLoadingConfiguration: boolean;
   loadConfiguration: () => void | Promise<void>;
   openCreateConfigurationModal: (section: ConfigurationSection) => void;
@@ -45,12 +48,21 @@ export const ConfigurationTab = ({
   configuration,
   configurationSummary,
   configurationError,
+  configurationSuccess,
   isLoadingConfiguration,
   loadConfiguration,
   openCreateConfigurationModal,
   openEditConfigurationModal,
   deactivateConfigurationRule,
-}: ConfigurationTabProps) => (
+}: ConfigurationTabProps) => {
+  const sssPagination = useComplianceTablePagination(configuration.sss);
+  const philHealthPagination = useComplianceTablePagination(
+    configuration.philhealth,
+  );
+  const pagIbigPagination = useComplianceTablePagination(configuration.pagibig);
+  const taxPagination = useComplianceTablePagination(configuration.tax);
+
+  return (
   <div className="space-y-5">
     <div className="flex justify-between items-center gap-3 flex-wrap">
       <div>
@@ -58,7 +70,7 @@ export const ConfigurationTab = ({
           Government Compliance Configuration
         </h3>
         <p className="text-sm text-gray-500 mt-1">
-          Backend rule engine configuration for statutory deductions.
+          These backend-owned rules apply to future payroll processing only. Processed payroll is not recalculated.
         </p>
       </div>
       <button
@@ -79,6 +91,28 @@ export const ConfigurationTab = ({
       </div>
     )}
 
+    {configurationSuccess && (
+      <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-700">
+        {configurationSuccess}
+      </div>
+    )}
+
+    {isLoadingConfiguration && (
+      <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-500">
+        Loading current government compliance configuration...
+      </div>
+    )}
+
+    {!isLoadingConfiguration &&
+      configuration.sss.length === 0 &&
+      configuration.philhealth.length === 0 &&
+      configuration.pagibig.length === 0 &&
+      configuration.tax.length === 0 && (
+        <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-800">
+          No government compliance configuration exists yet. Use the supported Add actions below to create future-effective rules; no historical payroll will be changed.
+        </div>
+      )}
+
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {configurationSummary.map((item) => (
         <div
@@ -95,21 +129,14 @@ export const ConfigurationTab = ({
       ))}
     </div>
 
-    <div className="rounded-xl border border-gray-100 bg-gray-50 p-5">
-      <p className="text-sm text-gray-600">
-        This tab is now connected to the backend Government Compliance
-        configuration APIs. Monitoring, remittance, and reporting tabs remain
-        unchanged for the future reporting layer.
-      </p>
-    </div>
-
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {(["sss", "philhealth", "pagibig", "tax"] as ConfigurationSection[]).map(
         (section) => (
           <button
             key={section}
             onClick={() => openCreateConfigurationModal(section)}
-            className="btn btn-secondary justify-center"
+            disabled={isLoadingConfiguration}
+            className="btn btn-secondary justify-center disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
             Add {sectionLabels[section]}
@@ -119,6 +146,9 @@ export const ConfigurationTab = ({
     </div>
 
     <div className="space-y-4">
+      {!isLoadingConfiguration && configuration.sss.length === 0 && (
+        <p className="text-sm text-gray-500">No SSS brackets configured.</p>
+      )}
       <div className="overflow-x-auto rounded-xl border border-gray-100">
         <table className="pro-table">
           <thead>
@@ -138,14 +168,8 @@ export const ConfigurationTab = ({
             </tr>
           </thead>
           <tbody>
-            {configuration.sss.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="text-center text-gray-500">
-                  No SSS brackets configured.
-                </td>
-              </tr>
-            ) : (
-              configuration.sss.map((rule) => (
+            {!isLoadingConfiguration && (
+              sssPagination.pageItems.map((rule) => (
                 <tr key={rule.id}>
                   <td>{formatCurrency(rule.salaryFrom)}</td>
                   <td>{formatCurrency(rule.salaryTo)}</td>
@@ -179,10 +203,26 @@ export const ConfigurationTab = ({
                 </tr>
               ))
             )}
+            <TablePlaceholderRows
+              actualRowCount={
+                isLoadingConfiguration ? 0 : sssPagination.pageItems.length
+              }
+              columnCount={8}
+            />
           </tbody>
         </table>
       </div>
+      <TablePagination
+        currentPage={sssPagination.currentPage}
+        totalPages={sssPagination.totalPages}
+        loading={isLoadingConfiguration}
+        onPrevious={sssPagination.goToPreviousPage}
+        onNext={sssPagination.goToNextPage}
+      />
 
+      {!isLoadingConfiguration && configuration.philhealth.length === 0 && (
+        <p className="text-sm text-gray-500">No PhilHealth rules configured.</p>
+      )}
       <div className="overflow-x-auto rounded-xl border border-gray-100">
         <table className="pro-table">
           <thead>
@@ -203,14 +243,8 @@ export const ConfigurationTab = ({
             </tr>
           </thead>
           <tbody>
-            {configuration.philhealth.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="text-center text-gray-500">
-                  No PhilHealth rules configured.
-                </td>
-              </tr>
-            ) : (
-              configuration.philhealth.map((rule) => (
+            {!isLoadingConfiguration && (
+              philHealthPagination.pageItems.map((rule) => (
                 <tr key={rule.id}>
                   <td>{formatPercent(rule.contributionRate)}</td>
                   <td>{formatCurrency(rule.minimumContribution)}</td>
@@ -249,10 +283,28 @@ export const ConfigurationTab = ({
                 </tr>
               ))
             )}
+            <TablePlaceholderRows
+              actualRowCount={
+                isLoadingConfiguration
+                  ? 0
+                  : philHealthPagination.pageItems.length
+              }
+              columnCount={9}
+            />
           </tbody>
         </table>
       </div>
+      <TablePagination
+        currentPage={philHealthPagination.currentPage}
+        totalPages={philHealthPagination.totalPages}
+        loading={isLoadingConfiguration}
+        onPrevious={philHealthPagination.goToPreviousPage}
+        onNext={philHealthPagination.goToNextPage}
+      />
 
+      {!isLoadingConfiguration && configuration.pagibig.length === 0 && (
+        <p className="text-sm text-gray-500">No Pag-IBIG rules configured.</p>
+      )}
       <div className="overflow-x-auto rounded-xl border border-gray-100">
         <table className="pro-table">
           <thead>
@@ -272,14 +324,8 @@ export const ConfigurationTab = ({
             </tr>
           </thead>
           <tbody>
-            {configuration.pagibig.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="text-center text-gray-500">
-                  No Pag-IBIG rules configured.
-                </td>
-              </tr>
-            ) : (
-              configuration.pagibig.map((rule) => (
+            {!isLoadingConfiguration && (
+              pagIbigPagination.pageItems.map((rule) => (
                 <tr key={rule.id}>
                   <td>{formatPercent(rule.employeeRate)}</td>
                   <td>{formatPercent(rule.employerRate)}</td>
@@ -317,10 +363,28 @@ export const ConfigurationTab = ({
                 </tr>
               ))
             )}
+            <TablePlaceholderRows
+              actualRowCount={
+                isLoadingConfiguration ? 0 : pagIbigPagination.pageItems.length
+              }
+              columnCount={8}
+            />
           </tbody>
         </table>
       </div>
+      <TablePagination
+        currentPage={pagIbigPagination.currentPage}
+        totalPages={pagIbigPagination.totalPages}
+        loading={isLoadingConfiguration}
+        onPrevious={pagIbigPagination.goToPreviousPage}
+        onNext={pagIbigPagination.goToNextPage}
+      />
 
+      {!isLoadingConfiguration && configuration.tax.length === 0 && (
+        <p className="text-sm text-gray-500">
+          No withholding tax brackets configured.
+        </p>
+      )}
       <div className="overflow-x-auto rounded-xl border border-gray-100">
         <table className="pro-table">
           <thead>
@@ -341,14 +405,8 @@ export const ConfigurationTab = ({
             </tr>
           </thead>
           <tbody>
-            {configuration.tax.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="text-center text-gray-500">
-                  No withholding tax brackets configured.
-                </td>
-              </tr>
-            ) : (
-              configuration.tax.map((rule) => (
+            {!isLoadingConfiguration && (
+              taxPagination.pageItems.map((rule) => (
                 <tr key={rule.id}>
                   <td>{formatCurrency(rule.compensationFrom)}</td>
                   <td>{formatCurrency(rule.compensationTo)}</td>
@@ -383,9 +441,23 @@ export const ConfigurationTab = ({
                 </tr>
               ))
             )}
+            <TablePlaceholderRows
+              actualRowCount={
+                isLoadingConfiguration ? 0 : taxPagination.pageItems.length
+              }
+              columnCount={9}
+            />
           </tbody>
         </table>
       </div>
+      <TablePagination
+        currentPage={taxPagination.currentPage}
+        totalPages={taxPagination.totalPages}
+        loading={isLoadingConfiguration}
+        onPrevious={taxPagination.goToPreviousPage}
+        onNext={taxPagination.goToNextPage}
+      />
     </div>
   </div>
-);
+  );
+};
