@@ -5,6 +5,7 @@ import type {
     AssignAssetFormState,
     AnnouncementFormState,
     ClearanceFormState,
+    EvaluationForm,
     UserAssetTab,
 } from './assetManagementTypes';
 
@@ -81,11 +82,49 @@ export const returnRequestStatusBadge: Record<string, string> = {
 export const ratingBadge: Record<string, string> = {
     Excellent: 'badge-success',
     Good: 'badge-info',
+    Satisfactory: 'badge-info',
     'Needs Improvement': 'badge-warning',
+    Poor: 'badge-danger',
 };
 
 export const priorityBadge: Record<string, string> = {
     Normal: 'badge-neutral',
     Important: 'badge-warning',
     Urgent: 'badge-danger',
+};
+
+export type KpiCriterion = {
+    key: string;
+    label: string;
+    description: string;
+    weight: number; // percentage weight, should sum to 100 across all criteria
+};
+
+export const kpiCriteria: KpiCriterion[] = [
+    { key: 'jobKnowledge', label: 'Job Knowledge', description: 'Understanding of role responsibilities and required skills', weight: 20 },
+    { key: 'qualityOfWork', label: 'Quality of Work', description: 'Accuracy, thoroughness, and consistency of output', weight: 20 },
+    { key: 'productivity', label: 'Productivity', description: 'Volume of work completed within expected timeframes', weight: 15 },
+    { key: 'communication', label: 'Communication', description: 'Clarity and effectiveness in verbal and written communication', weight: 15 },
+    { key: 'teamwork', label: 'Teamwork & Collaboration', description: 'Ability to work well with others and support team goals', weight: 15 },
+    { key: 'initiative', label: 'Initiative & Problem Solving', description: 'Proactiveness in identifying and resolving issues', weight: 10 },
+    { key: 'attendance', label: 'Attendance & Punctuality', description: 'Reliability in attendance and adherence to schedule', weight: 5 },
+];
+
+export const initialEvaluationForm: EvaluationForm = {
+    employeeId: '',
+    reviewPeriod: '',
+    reviewerName: '',
+    kpiScores: kpiCriteria.reduce(
+        (acc, criterion) => ({ ...acc, [criterion.key]: 3 }),
+        {} as Record<string, number>
+    ),
+    remarks: '',
+};
+
+export const getRatingFromScore = (score: number): string => {
+    if (score >= 4.5) return 'Excellent';
+    if (score >= 3.5) return 'Good';
+    if (score >= 2.5) return 'Satisfactory';
+    if (score >= 1.5) return 'Needs Improvement';
+    return 'Poor';
 };
