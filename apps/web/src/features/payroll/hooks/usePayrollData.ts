@@ -11,6 +11,24 @@ import {
 import { formatCurrency, formatPeriod } from '../config/helpers';
 import type { PayrollRecordRow } from '../config/types';
 
+const isSemiMonthlyPayrollPeriod = (startDate: string, endDate: string) => {
+    const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+    const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+
+    if (!startYear || !startMonth || !startDay || !endYear || !endMonth || !endDay) {
+        return false;
+    }
+
+    if (startYear !== endYear || startMonth !== endMonth) {
+        return false;
+    }
+
+    const lastDayOfMonth = new Date(Date.UTC(endYear, endMonth, 0)).getUTCDate();
+
+    return (startDay === 1 && endDay === 15)
+        || (startDay === 16 && endDay === lastDayOfMonth);
+};
+
 export const usePayrollData = () => {
     const [loadingPayroll, setLoadingPayroll] = useState(true);
     const [processingPayroll, setProcessingPayroll] = useState(false);
@@ -111,6 +129,11 @@ export const usePayrollData = () => {
 
         if (processStartDate > processEndDate) {
             setPayrollError('Payroll start date cannot be later than end date.');
+            return;
+        }
+
+        if (!isSemiMonthlyPayrollPeriod(processStartDate, processEndDate)) {
+            setPayrollError('Payroll periods must be the 1st-15th or 16th-last day of a calendar month.');
             return;
         }
 

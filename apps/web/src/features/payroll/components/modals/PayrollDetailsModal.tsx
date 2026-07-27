@@ -1,6 +1,8 @@
 import { Download, X } from 'lucide-react';
 import { formatCurrency, isReleased } from '../../config/helpers';
+import { usePayrollTablePagination } from '../../config/pagination';
 import type { PayrollRecordRow } from '../../config/types';
+import TablePagination, { TablePlaceholderRows } from '../TablePagination';
 
 type PayrollDetailsModalProps = {
     open: boolean;
@@ -10,6 +12,8 @@ type PayrollDetailsModalProps = {
     onDownloadRecord: (recordId: number) => void;
 };
 
+const emptyPayrollRecords: PayrollRecordRow['records'] = [];
+
 const PayrollDetailsModal = ({
     open,
     record,
@@ -17,6 +21,15 @@ const PayrollDetailsModal = ({
     onClose,
     onDownloadRecord,
 }: PayrollDetailsModalProps) => {
+    const employeeRecords = record?.records ?? emptyPayrollRecords;
+    const {
+        currentPage,
+        totalPages,
+        pageItems: paginatedEmployeeRecords,
+        goToPreviousPage,
+        goToNextPage,
+    } = usePayrollTablePagination(employeeRecords);
+
     if (!open || !record) return null;
 
     return (
@@ -51,6 +64,10 @@ const PayrollDetailsModal = ({
                         </div>
                     </div>
 
+                    {record.records.length === 0 && (
+                        <p className="text-sm text-gray-500">No employee records found for this period.</p>
+                    )}
+
                     <div className="overflow-x-auto rounded-xl border border-gray-100">
                         <table className="pro-table">
                             <thead>
@@ -71,12 +88,8 @@ const PayrollDetailsModal = ({
                                 </tr>
                             </thead>
                             <tbody>
-                                {record.records.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={11} className="text-center py-8 text-sm text-gray-500">No employee records found for this period.</td>
-                                    </tr>
-                                ) : (
-                                    record.records.map((employeeRecord) => {
+                                {record.records.length > 0 && (
+                                    paginatedEmployeeRecords.map((employeeRecord) => {
                                         const earnings = employeeRecord.items.filter((item) => item.type.toLowerCase() === 'earning');
                                         const deductions = employeeRecord.items.filter((item) => item.type.toLowerCase() === 'deduction');
 
@@ -132,9 +145,19 @@ const PayrollDetailsModal = ({
                                         );
                                     })
                                 )}
+                                <TablePlaceholderRows
+                                    actualRowCount={paginatedEmployeeRecords.length}
+                                    columnCount={11}
+                                />
                             </tbody>
                         </table>
                     </div>
+                    <TablePagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPrevious={goToPreviousPage}
+                        onNext={goToNextPage}
+                    />
                 </div>
                 <div className="pro-modal-footer">
                     <button onClick={onClose} className="btn btn-primary">Close</button>

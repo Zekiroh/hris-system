@@ -3,6 +3,8 @@ import { Edit3, Plus, Search } from 'lucide-react';
 import type { EmployeeDto } from '../../../services/api/employees/employees';
 import type { EmployeeCompensationDto } from '../../../services/api/payroll/payroll';
 import { formatCurrency, formatDate, getEmployeeDisplayName } from '../config/helpers';
+import { usePayrollTablePagination } from '../config/pagination';
+import TablePagination, { TablePlaceholderRows } from './TablePagination';
 
 type CompensationTabProps = {
     loadingCompensations: boolean;
@@ -27,7 +29,6 @@ const CompensationTab = ({
 }: CompensationTabProps) => {
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Inactive'>('All');
-    const [typeFilter, setTypeFilter] = useState<'All' | 'Monthly' | 'Daily'>('All');
 
     const filteredCompensations = useMemo(() => {
         const query = search.trim().toLowerCase();
@@ -38,11 +39,18 @@ const CompensationTab = ({
                 || compensation.employeeNumber.toLowerCase().includes(query);
             const matchesStatus = statusFilter === 'All'
                 || (statusFilter === 'Active' ? compensation.isActive : !compensation.isActive);
-            const matchesType = typeFilter === 'All' || compensation.compensationType === typeFilter;
 
-            return matchesSearch && matchesStatus && matchesType;
+            return matchesSearch && matchesStatus;
         });
-    }, [compensations, search, statusFilter, typeFilter]);
+    }, [compensations, search, statusFilter]);
+
+    const {
+        currentPage,
+        totalPages,
+        pageItems: paginatedCompensations,
+        goToPreviousPage,
+        goToNextPage,
+    } = usePayrollTablePagination(filteredCompensations);
 
     return (
         <div className="space-y-5">
@@ -85,11 +93,11 @@ const CompensationTab = ({
 
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                 <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                     <input
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
-                        className="pro-input pl-9"
+                        className="pro-input pl-11"
                         placeholder="Search employee name or number"
                     />
                 </div>
@@ -98,29 +106,22 @@ const CompensationTab = ({
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
                 </select>
-                <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as typeof typeFilter)} className="pro-select lg:w-44">
-                    <option value="All">All Types</option>
-                    <option value="Monthly">Monthly</option>
-                    <option value="Daily">Daily</option>
-                </select>
             </div>
+
+            {loadingCompensations ? (
+                <p className="text-sm text-gray-500">Loading compensation records...</p>
+            ) : filteredCompensations.length === 0 ? (
+                <p className="text-sm text-gray-500">No compensation records found.</p>
+            ) : null}
 
             <div className="overflow-x-auto rounded-xl border border-gray-100">
                 <table className="pro-table">
                     <thead>
-                        <tr>{['Employee', 'Department', 'Position', 'Type', 'Base Amount', 'Effective From', 'Effective To', 'Current Status', 'Action'].map((header) => <th key={header}>{header}</th>)}</tr>
+                        <tr>{['Employee', 'Department', 'Position', 'Monthly Base Salary', 'Effective From', 'Effective To', 'Current Status', 'Action'].map((header) => <th key={header}>{header}</th>)}</tr>
                     </thead>
                     <tbody>
-                        {loadingCompensations ? (
-                            <tr>
-                                <td colSpan={9} className="text-center py-8 text-sm text-gray-500">Loading compensation records...</td>
-                            </tr>
-                        ) : filteredCompensations.length === 0 ? (
-                            <tr>
-                                <td colSpan={9} className="text-center py-8 text-sm text-gray-500">No compensation records found.</td>
-                            </tr>
-                        ) : (
-                            filteredCompensations.map((compensation) => (
+                        {!loadingCompensations && (
+                            paginatedCompensations.map((compensation) => (
                                 <tr key={compensation.id}>
                                     <td>
                                         <div className="font-semibold text-gray-800">{compensation.employeeName}</div>
@@ -128,7 +129,6 @@ const CompensationTab = ({
                                     </td>
                                     <td>{compensation.department || '—'}</td>
                                     <td>{compensation.position || '—'}</td>
-                                    <td>{compensation.compensationType}</td>
                                     <td className="font-bold">{formatCurrency(compensation.baseAmount)}</td>
                                     <td>{formatDate(compensation.effectiveFrom)}</td>
                                     <td>{formatDate(compensation.effectiveTo)}</td>
@@ -149,9 +149,21 @@ const CompensationTab = ({
                                 </tr>
                             ))
                         )}
+                        <TablePlaceholderRows
+                            actualRowCount={loadingCompensations ? 0 : paginatedCompensations.length}
+                            columnCount={8}
+                        />
                     </tbody>
                 </table>
             </div>
+
+            <TablePagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                loading={loadingCompensations}
+                onPrevious={goToPreviousPage}
+                onNext={goToNextPage}
+            />
 
             {employeesWithoutCompensation.length > 0 && (
                 <div className="rounded-xl border border-orange-100 bg-orange-50 p-4">

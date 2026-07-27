@@ -8,6 +8,8 @@ import {
   type Bir2316TrackingStatus,
 } from "../../../services/api/government-compliance/governmentCompliance";
 import { formatCurrency } from "../config/helpers";
+import { useComplianceTablePagination } from "../config/pagination";
+import { TablePagination, TablePlaceholderRows } from "./TablePagination";
 
 const statuses: Bir2316TrackingStatus[] = [
   "Pending",
@@ -39,6 +41,13 @@ export const BirTab = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const {
+    currentPage,
+    totalPages,
+    pageItems: paginatedItems,
+    goToPreviousPage,
+    goToNextPage,
+  } = useComplianceTablePagination(items, `${taxYear}-${submittedSearch}`);
 
   const summary = useMemo(
     () => ({
@@ -143,7 +152,7 @@ export const BirTab = () => {
           className="pro-input"
         />
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -151,7 +160,7 @@ export const BirTab = () => {
               if (event.key === "Enter") applySearch();
             }}
             disabled={isLoading}
-            className="pro-input pl-9"
+            className="pro-input pl-11"
             placeholder="Search employee or TIN"
           />
         </div>
@@ -192,6 +201,14 @@ export const BirTab = () => {
         </div>
       )}
 
+      {isLoading ? (
+        <p className="text-sm text-gray-500">Loading BIR 2316 tracking...</p>
+      ) : items.length === 0 ? (
+        <p className="text-sm text-gray-500">
+          No BIR 2316 tracking records found for this tax year.
+        </p>
+      ) : null}
+
       <div className="overflow-x-auto rounded-xl border border-gray-100">
         <table className="pro-table">
           <thead>
@@ -211,20 +228,8 @@ export const BirTab = () => {
             </tr>
           </thead>
           <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={8} className="py-8 text-center text-sm text-gray-500">
-                  Loading BIR 2316 tracking...
-                </td>
-              </tr>
-            ) : items.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="py-8 text-center text-sm text-gray-500">
-                  No BIR 2316 tracking records found for this tax year.
-                </td>
-              </tr>
-            ) : (
-              items.map((item) => (
+            {!isLoading && (
+              paginatedItems.map((item) => (
                 <tr key={item.id} className="align-top">
                   <td className="font-mono text-xs">{item.employeeNumber}</td>
                   <td>
@@ -297,9 +302,20 @@ export const BirTab = () => {
                 </tr>
               ))
             )}
+            <TablePlaceholderRows
+              actualRowCount={isLoading ? 0 : paginatedItems.length}
+              columnCount={8}
+            />
           </tbody>
         </table>
       </div>
+      <TablePagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        loading={isLoading}
+        onPrevious={goToPreviousPage}
+        onNext={goToNextPage}
+      />
     </div>
   );
 };

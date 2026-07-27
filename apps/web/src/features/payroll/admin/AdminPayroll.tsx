@@ -208,7 +208,11 @@ const AdminPayroll = () => {
                 processingPayroll={processingPayroll}
                 onStartDateChange={setProcessStartDate}
                 onEndDateChange={setProcessEndDate}
-                onClose={() => setShowProcessModal(false)}
+                onClose={() => {
+                    setShowProcessModal(false);
+                    setProcessStartDate('');
+                    setProcessEndDate('');
+                }}
                 onProcess={() => handleProcessPayroll(() => setShowProcessModal(false))}
             />
 
@@ -231,7 +235,10 @@ const AdminPayroll = () => {
                 open={showDetailsModal}
                 record={selectedRecord}
                 downloadingRecordId={downloadingRecordId}
-                onClose={() => setShowDetailsModal(false)}
+                onClose={() => {
+                    setShowDetailsModal(false);
+                    setSelectedRecord(null);
+                }}
                 onDownloadRecord={handleDownloadPayslipPdf}
             />
 
@@ -242,7 +249,10 @@ const AdminPayroll = () => {
                 selectedPayslipDeductions={selectedPayslipDeductions}
                 selectedPayslipEmployerContributions={selectedPayslipEmployerContributions}
                 downloadingRecordId={downloadingRecordId}
-                onClose={() => setShowPayslipPreview(false)}
+                onClose={() => {
+                    setShowPayslipPreview(false);
+                    setSelectedPayslipRecord(null);
+                }}
                 onDownload={handleDownloadPayslipPdf}
             />
         </div>
