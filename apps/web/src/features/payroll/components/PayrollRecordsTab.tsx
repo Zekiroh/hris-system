@@ -1,6 +1,8 @@
 import { CheckCircle2, Eye, Lock, PlayCircle } from 'lucide-react';
 import { formatCurrency, formatDate, isProcessed, isReleased } from '../config/helpers';
+import { usePayrollTablePagination } from '../config/pagination';
 import type { PayrollRecordRow } from '../config/types';
+import TablePagination, { TablePlaceholderRows } from './TablePagination';
 
 type PayrollRecordsTabProps = {
     loadingPayroll: boolean;
@@ -29,7 +31,16 @@ const PayrollRecordsTab = ({
     onProcessPayroll,
     onViewRecord,
     onReleasePeriod,
-}: PayrollRecordsTabProps) => (
+}: PayrollRecordsTabProps) => {
+    const {
+        currentPage,
+        totalPages,
+        pageItems: paginatedPayrollRecords,
+        goToPreviousPage,
+        goToNextPage,
+    } = usePayrollTablePagination(payrollRecords);
+
+    return (
     <div className="space-y-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -40,6 +51,12 @@ const PayrollRecordsTab = ({
                 <PlayCircle className="w-4 h-4" /> Process Payroll
             </button>
         </div>
+
+        {loadingPayroll ? (
+            <p className="text-sm text-gray-500">Loading payroll periods...</p>
+        ) : payrollRecords.length === 0 ? (
+            <p className="text-sm text-gray-500">No payroll periods found.</p>
+        ) : null}
 
         <div className="overflow-x-auto rounded-xl border border-gray-100">
             <table className="pro-table">
@@ -59,16 +76,8 @@ const PayrollRecordsTab = ({
                     </tr>
                 </thead>
                 <tbody>
-                    {loadingPayroll ? (
-                        <tr>
-                            <td colSpan={9} className="text-center py-8 text-sm text-gray-500">Loading payroll periods...</td>
-                        </tr>
-                    ) : payrollRecords.length === 0 ? (
-                        <tr>
-                            <td colSpan={9} className="text-center py-8 text-sm text-gray-500">No payroll periods found.</td>
-                        </tr>
-                    ) : (
-                        payrollRecords.map((row) => {
+                    {!loadingPayroll && (
+                        paginatedPayrollRecords.map((row) => {
                             const canRelease = isProcessed(row.status);
                             const released = isReleased(row.status);
                             return (
@@ -115,9 +124,21 @@ const PayrollRecordsTab = ({
                             );
                         })
                     )}
+                    <TablePlaceholderRows
+                        actualRowCount={loadingPayroll ? 0 : paginatedPayrollRecords.length}
+                        columnCount={9}
+                    />
                 </tbody>
             </table>
-        </div>
+            </div>
+
+        <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            loading={loadingPayroll}
+            onPrevious={goToPreviousPage}
+            onNext={goToNextPage}
+        />
 
         <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-5">
             <h4 className="text-sm font-bold text-gray-700 mb-3">Payroll Summary</h4>
@@ -128,6 +149,7 @@ const PayrollRecordsTab = ({
             </div>
         </div>
     </div>
-);
+    );
+};
 
 export default PayrollRecordsTab;

@@ -541,6 +541,14 @@ public sealed class GovernmentComplianceReportingService : IGovernmentCompliance
             {
                 record.EmployeeId,
                 record.GrossPay,
+                MandatoryEmployeeContributions = record.Items
+                    .Where(item =>
+                        item.Type == PayrollItemTypeDeduction &&
+                        (item.Description == SssDeductionDescription ||
+                         item.Description == PhilHealthDeductionDescription ||
+                         item.Description == PagIbigDeductionDescription))
+                    .Select(item => (decimal?)item.Amount)
+                    .Sum() ?? 0m,
                 WithholdingTax = record.Items
                     .Where(item => item.Type == PayrollItemTypeDeduction && item.Description == WithholdingTaxDeductionDescription)
                     .Select(item => (decimal?)item.Amount)
@@ -550,7 +558,7 @@ public sealed class GovernmentComplianceReportingService : IGovernmentCompliance
             .Select(group => new AnnualPayrollTotalsProjection
             {
                 EmployeeId = group.Key,
-                AnnualTaxableCompensation = group.Sum(record => record.GrossPay),
+                AnnualTaxableCompensation = group.Sum(record => record.GrossPay - record.MandatoryEmployeeContributions),
                 AnnualWithholdingTax = group.Sum(record => record.WithholdingTax)
             });
     }

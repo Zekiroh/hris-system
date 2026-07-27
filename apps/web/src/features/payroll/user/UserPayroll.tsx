@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { Download, Eye, RefreshCw, Search, WalletCards } from 'lucide-react';
 import type { PayrollRecordDto } from '../../../services/api/payroll/payroll';
 import { formatCurrency, formatDate, getRecordPeriodLabel } from '../config/helpers';
+import { usePayrollTablePagination } from '../config/pagination';
+import TablePagination, { TablePlaceholderRows } from '../components/TablePagination';
 import PayslipPreviewModal from '../components/modals/PayslipPreviewModal';
 import { useUserPayslips } from '../hooks/useUserPayslips';
 
@@ -66,6 +68,14 @@ const UserPayroll = () => {
         });
     }, [records, search, yearFilter]);
 
+    const {
+        currentPage,
+        totalPages,
+        pageItems: paginatedRecords,
+        goToPreviousPage,
+        goToNextPage,
+    } = usePayrollTablePagination(filteredRecords);
+
     const latestPayslip = records[0] ?? null;
     const latestEarnings = latestPayslip?.items.filter((item) => item.type.toLowerCase() === 'earning') ?? [];
     const latestDeductions = latestPayslip?.items.filter((item) => item.type.toLowerCase() === 'deduction') ?? [];
@@ -92,9 +102,11 @@ const UserPayroll = () => {
                 </div>
             )}
 
-            {loading ? (
+            {loading && (
                 <div className="pro-card p-10 text-center text-sm text-gray-500">Loading your released payslips...</div>
-            ) : records.length === 0 ? (
+            )}
+
+            {!loading && records.length === 0 && (
                 <div className="pro-card p-10 text-center">
                     <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
                         <WalletCards className="h-5 w-5" />
@@ -102,9 +114,10 @@ const UserPayroll = () => {
                     <h3 className="font-bold text-gray-800">No released payslips yet</h3>
                     <p className="mt-2 text-sm text-gray-500">Released payslips will appear here after payroll is released.</p>
                 </div>
-            ) : (
-                <>
-                    {latestPayslip && (
+            )}
+
+            <>
+                    {!loading && latestPayslip && (
                         <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
                             <div className="pro-card p-5 xl:col-span-2">
                                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -185,11 +198,11 @@ const UserPayroll = () => {
                             </div>
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                                 <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                                    <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                                     <input
                                         value={search}
                                         onChange={(event) => setSearch(event.target.value)}
-                                        className="pro-input pl-9 sm:w-64"
+                                        className="pro-input pl-11 sm:w-64"
                                         placeholder="Search period or year"
                                     />
                                 </div>
@@ -205,6 +218,12 @@ const UserPayroll = () => {
                             </div>
                         </div>
 
+                        {loading ? (
+                            <p className="px-5 pb-3 text-sm text-gray-500">Loading your released payslips...</p>
+                        ) : filteredRecords.length === 0 && (
+                            <p className="px-5 pb-3 text-sm text-gray-500">No payslips match your filters.</p>
+                        )}
+
                         <div className="overflow-x-auto">
                             <table className="pro-table">
                                 <thead>
@@ -213,12 +232,8 @@ const UserPayroll = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredRecords.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={9} className="py-8 text-center text-sm text-gray-500">No payslips match your filters.</td>
-                                        </tr>
-                                    ) : (
-                                        filteredRecords.map((record) => (
+                                    {!loading && filteredRecords.length > 0 && (
+                                        paginatedRecords.map((record) => (
                                             <tr key={record.id}>
                                                 <td className="font-medium whitespace-nowrap">{getRecordPeriodLabel(record)}</td>
                                                 <td>{formatDate(record.releasedAtUtc)}</td>
@@ -249,12 +264,22 @@ const UserPayroll = () => {
                                             </tr>
                                         ))
                                     )}
+                                    <TablePlaceholderRows
+                                        actualRowCount={loading ? 0 : paginatedRecords.length}
+                                        columnCount={9}
+                                    />
                                 </tbody>
                             </table>
                         </div>
+                        <TablePagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            loading={loading}
+                            onPrevious={goToPreviousPage}
+                            onNext={goToNextPage}
+                        />
                     </div>
-                </>
-            )}
+            </>
 
             <PayslipPreviewModal
                 open={selectedPayslip !== null}

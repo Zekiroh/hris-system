@@ -5,7 +5,7 @@ namespace HRIS.Api.Features.GovernmentCompliance.Services;
 public interface IGovernmentComplianceService
 {
     Task<GovernmentComplianceCalculationResult> CalculateAsync(
-        decimal grossPay,
+        decimal monthlyGrossPay,
         DateOnly payrollDate,
         CancellationToken cancellationToken = default);
 

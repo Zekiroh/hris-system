@@ -1,6 +1,8 @@
 import { RefreshCw } from 'lucide-react';
 import type { ThirteenthMonthPayDto } from '../../../services/api/payroll/payroll';
 import { formatCurrency } from '../config/helpers';
+import { usePayrollTablePagination } from '../config/pagination';
+import TablePagination, { TablePlaceholderRows } from './TablePagination';
 
 type ThirteenthMonthTabProps = {
     year: string;
@@ -26,7 +28,16 @@ const ThirteenthMonthTab = ({
     summary,
     onYearChange,
     onLoad,
-}: ThirteenthMonthTabProps) => (
+}: ThirteenthMonthTabProps) => {
+    const {
+        currentPage,
+        totalPages,
+        pageItems: paginatedRecords,
+        goToPreviousPage,
+        goToNextPage,
+    } = usePayrollTablePagination(records);
+
+    return (
     <div className="space-y-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -65,6 +76,14 @@ const ThirteenthMonthTab = ({
             </div>
         </div>
 
+        {loading ? (
+            <p className="text-sm text-gray-500">Loading 13th month computation...</p>
+        ) : !loaded ? (
+            <p className="text-sm text-gray-500">Choose a year and load the computation.</p>
+        ) : records.length === 0 ? (
+            <p className="text-sm text-gray-500">No 13th month pay records found for this year.</p>
+        ) : null}
+
         <div className="overflow-x-auto rounded-xl border border-gray-100">
             <table className="pro-table">
                 <thead>
@@ -80,20 +99,8 @@ const ThirteenthMonthTab = ({
                     </tr>
                 </thead>
                 <tbody>
-                    {loading ? (
-                        <tr>
-                            <td colSpan={6} className="text-center py-8 text-sm text-gray-500">Loading 13th month computation...</td>
-                        </tr>
-                    ) : !loaded ? (
-                        <tr>
-                            <td colSpan={6} className="text-center py-8 text-sm text-gray-500">Choose a year and load the computation.</td>
-                        </tr>
-                    ) : records.length === 0 ? (
-                        <tr>
-                            <td colSpan={6} className="text-center py-8 text-sm text-gray-500">No 13th month pay records found for this year.</td>
-                        </tr>
-                    ) : (
-                        records.map((record) => (
+                    {!loading && loaded && (
+                        paginatedRecords.map((record) => (
                             <tr key={`${record.employeeId}-${record.year}`}>
                                 <td className="font-medium">{record.employeeNumber}</td>
                                 <td>{record.employeeName}</td>
@@ -104,10 +111,22 @@ const ThirteenthMonthTab = ({
                             </tr>
                         ))
                     )}
+                    <TablePlaceholderRows
+                        actualRowCount={!loading && loaded ? paginatedRecords.length : 0}
+                        columnCount={6}
+                    />
                 </tbody>
             </table>
         </div>
+        <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            loading={loading}
+            onPrevious={goToPreviousPage}
+            onNext={goToNextPage}
+        />
     </div>
-);
+    );
+};
 
 export default ThirteenthMonthTab;

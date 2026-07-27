@@ -75,32 +75,18 @@ const CompensationModal = ({
                             <p className="text-xs text-gray-500">{editingCompensation.employeeNumber}</p>
                         </div>
                     )}
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div>
-                            <label className="pro-label">Compensation Type</label>
-                            <select
-                                value={compensationForm.compensationType}
-                                onChange={(event) => setCompensationForm((current) => ({ ...current, compensationType: event.target.value }))}
-                                className="pro-select"
-                                disabled={savingCompensation}
-                            >
-                                <option value="Monthly">Monthly</option>
-                                <option value="Daily">Daily</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="pro-label">Base Amount</label>
-                            <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={compensationForm.baseAmount}
-                                onChange={(event) => setCompensationForm((current) => ({ ...current, baseAmount: event.target.value }))}
-                                className="pro-input"
-                                placeholder="0.00"
-                                disabled={savingCompensation}
-                            />
-                        </div>
+                    <div>
+                        <label className="pro-label">Monthly Base Salary</label>
+                        <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={compensationForm.baseAmount}
+                            onChange={(event) => setCompensationForm((current) => ({ ...current, baseAmount: event.target.value }))}
+                            className="pro-input"
+                            placeholder="0.00"
+                            disabled={savingCompensation}
+                        />
                     </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>

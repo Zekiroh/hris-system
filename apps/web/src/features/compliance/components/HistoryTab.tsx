@@ -6,6 +6,8 @@ import {
   type EmploymentStatusHistoryDto,
 } from "../../../services/api/government-compliance/governmentCompliance";
 import { formatDate } from "../config/helpers";
+import { useComplianceTablePagination } from "../config/pagination";
+import { TablePagination, TablePlaceholderRows } from "./TablePagination";
 
 const formatActiveState = (value?: boolean | null) => {
   if (value === null || value === undefined) return "-";
@@ -22,6 +24,16 @@ export const HistoryTab = () => {
   const [items, setItems] = useState<EmploymentStatusHistoryDto[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const {
+    currentPage,
+    totalPages,
+    pageItems: paginatedItems,
+    goToPreviousPage,
+    goToNextPage,
+  } = useComplianceTablePagination(
+    items,
+    `${submittedSearch}-${submittedDateFrom}-${submittedDateTo}`,
+  );
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -85,7 +97,7 @@ export const HistoryTab = () => {
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_160px_160px_auto]">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -93,7 +105,7 @@ export const HistoryTab = () => {
               if (event.key === "Enter") applyFilters();
             }}
             disabled={isLoading}
-            className="pro-input pl-9"
+            className="pro-input pl-11"
             placeholder="Search employee, department, or position"
           />
         </div>
@@ -127,6 +139,16 @@ export const HistoryTab = () => {
         </div>
       )}
 
+      {isLoading ? (
+        <p className="text-sm text-gray-500">
+          Loading employment status history...
+        </p>
+      ) : items.length === 0 ? (
+        <p className="text-sm text-gray-500">
+          No employment status history records found.
+        </p>
+      ) : null}
+
       <div className="overflow-x-auto rounded-xl border border-gray-100">
         <table className="pro-table">
           <thead>
@@ -146,20 +168,8 @@ export const HistoryTab = () => {
             </tr>
           </thead>
           <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={8} className="py-8 text-center text-sm text-gray-500">
-                  Loading employment status history...
-                </td>
-              </tr>
-            ) : items.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="py-8 text-center text-sm text-gray-500">
-                  No employment status history records found.
-                </td>
-              </tr>
-            ) : (
-              items.map((item) => (
+            {!isLoading && (
+              paginatedItems.map((item) => (
                 <tr key={item.id}>
                   <td>{formatDate(item.changedAtUtc)}</td>
                   <td className="font-mono text-xs">{item.employeeNumber}</td>
@@ -188,9 +198,20 @@ export const HistoryTab = () => {
                 </tr>
               ))
             )}
+            <TablePlaceholderRows
+              actualRowCount={isLoading ? 0 : paginatedItems.length}
+              columnCount={8}
+            />
           </tbody>
         </table>
       </div>
+      <TablePagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        loading={isLoading}
+        onPrevious={goToPreviousPage}
+        onNext={goToNextPage}
+      />
     </div>
   );
 };

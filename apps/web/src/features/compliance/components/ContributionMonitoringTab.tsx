@@ -9,6 +9,8 @@ import {
   type PayrollPeriodDto,
 } from "../../../services/api/payroll/payroll";
 import { formatCurrency, formatDate } from "../config/helpers";
+import { useComplianceTablePagination } from "../config/pagination";
+import { TablePagination, TablePlaceholderRows } from "./TablePagination";
 
 type ContributionMonitoringTabProps = {
   title: string;
@@ -46,6 +48,16 @@ export const ContributionMonitoringTab = ({
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const {
+    currentPage,
+    totalPages,
+    pageItems: paginatedItems,
+    goToPreviousPage,
+    goToNextPage,
+  } = useComplianceTablePagination(
+    data.items,
+    `${selectedPeriodId}-${submittedSearch}`,
+  );
 
   const selectedPeriod = useMemo(
     () => periods.find((period) => period.id === selectedPeriodId),
@@ -147,7 +159,7 @@ export const ContributionMonitoringTab = ({
           ))}
         </select>
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -155,7 +167,7 @@ export const ContributionMonitoringTab = ({
               if (event.key === "Enter") applySearch();
             }}
             disabled={isLoading}
-            className="pro-input pl-9"
+            className="pro-input pl-11"
             placeholder="Search employee, department, or position"
           />
         </div>
@@ -192,6 +204,16 @@ export const ContributionMonitoringTab = ({
         </div>
       )}
 
+      {isLoading ? (
+        <p className="text-sm text-gray-500">
+          Loading payroll contribution records...
+        </p>
+      ) : data.items.length === 0 ? (
+        <p className="text-sm text-gray-500">
+          No payroll contribution records found.
+        </p>
+      ) : null}
+
       <div className="overflow-x-auto rounded-xl border border-gray-100">
         <table className="pro-table">
           <thead>
@@ -213,20 +235,8 @@ export const ContributionMonitoringTab = ({
             </tr>
           </thead>
           <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={10} className="py-8 text-center text-sm text-gray-500">
-                  Loading payroll contribution records...
-                </td>
-              </tr>
-            ) : data.items.length === 0 ? (
-              <tr>
-                <td colSpan={10} className="py-8 text-center text-sm text-gray-500">
-                  No payroll contribution records found.
-                </td>
-              </tr>
-            ) : (
-              data.items.map((row) => (
+            {!isLoading && (
+              paginatedItems.map((row) => (
                 <tr key={row.payrollRecordId}>
                   <td className="font-mono text-xs">{row.employeeNumber}</td>
                   <td className="!font-medium !text-gray-800">{row.employeeName}</td>
@@ -263,9 +273,20 @@ export const ContributionMonitoringTab = ({
                 </tr>
               ))
             )}
+            <TablePlaceholderRows
+              actualRowCount={isLoading ? 0 : paginatedItems.length}
+              columnCount={10}
+            />
           </tbody>
         </table>
       </div>
+      <TablePagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        loading={isLoading}
+        onPrevious={goToPreviousPage}
+        onNext={goToNextPage}
+      />
     </div>
   );
 };

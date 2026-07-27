@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 import { Download, Eye, Search } from 'lucide-react';
 import type { PayrollRecordDto } from '../../../services/api/payroll/payroll';
 import { formatCurrency, formatDate, getRecordPeriodLabel } from '../config/helpers';
+import { usePayrollTablePagination } from '../config/pagination';
 import type { PayrollRecordRow } from '../config/types';
+import TablePagination, { TablePlaceholderRows } from './TablePagination';
 
 type PayslipTabProps = {
     loadingPayroll: boolean;
@@ -47,6 +49,14 @@ const PayslipTab = ({
         });
     }, [departmentFilter, releasedRecords, search, selectedPeriodId]);
 
+    const {
+        currentPage,
+        totalPages,
+        pageItems: paginatedRecords,
+        goToPreviousPage,
+        goToNextPage,
+    } = usePayrollTablePagination(filteredRecords);
+
     return (
         <div className="space-y-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -64,11 +74,11 @@ const PayslipTab = ({
                     ))}
                 </select>
                 <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                     <input
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
-                        className="pro-input pl-9"
+                        className="pro-input pl-11"
                         placeholder="Search employee name or number"
                     />
                 </div>
@@ -79,6 +89,12 @@ const PayslipTab = ({
                     ))}
                 </select>
             </div>
+
+            {loadingPayroll ? (
+                <p className="text-sm text-gray-500">Loading released payslips...</p>
+            ) : filteredRecords.length === 0 ? (
+                <p className="text-sm text-gray-500">No released payslips found.</p>
+            ) : null}
 
             <div className="overflow-x-auto rounded-xl border border-gray-100">
                 <table className="pro-table">
@@ -99,16 +115,8 @@ const PayslipTab = ({
                         </tr>
                     </thead>
                     <tbody>
-                        {loadingPayroll ? (
-                            <tr>
-                                <td colSpan={10} className="text-center py-8 text-sm text-gray-500">Loading released payslips...</td>
-                            </tr>
-                        ) : filteredRecords.length === 0 ? (
-                            <tr>
-                                <td colSpan={10} className="text-center py-8 text-sm text-gray-500">No released payslips found.</td>
-                            </tr>
-                        ) : (
-                            filteredRecords.map((record) => (
+                        {!loadingPayroll && (
+                            paginatedRecords.map((record) => (
                                 <tr key={record.id}>
                                     <td className="font-medium">{record.employeeNumber}</td>
                                     <td>{record.employeeName}</td>
@@ -141,9 +149,21 @@ const PayslipTab = ({
                                 </tr>
                             ))
                         )}
+                        <TablePlaceholderRows
+                            actualRowCount={loadingPayroll ? 0 : paginatedRecords.length}
+                            columnCount={10}
+                        />
                     </tbody>
                 </table>
             </div>
+
+            <TablePagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                loading={loadingPayroll}
+                onPrevious={goToPreviousPage}
+                onNext={goToNextPage}
+            />
         </div>
     );
 };

@@ -32,6 +32,24 @@ public class PayrollService : IPayrollService
     private const int StandardMonthlyWorkingDays = 22;
     private const int StandardWorkingMinutesPerDay = 480;
 
+    private enum PayrollCutoff
+    {
+        First,
+        Final
+    }
+
+    private sealed class PayrollCutoffSnapshot
+    {
+        public decimal GrossPay { get; init; }
+        public decimal SssEmployeeShare { get; init; }
+        public decimal SssEmployerShare { get; init; }
+        public decimal PhilHealthEmployeeShare { get; init; }
+        public decimal PhilHealthEmployerShare { get; init; }
+        public decimal PagIbigEmployeeShare { get; init; }
+        public decimal PagIbigEmployerShare { get; init; }
+        public decimal WithholdingTax { get; init; }
+    }
+
     private readonly AppDbContext _context;
     private readonly IAttendancePayrollInputService _attendancePayrollInputService;
     private readonly IGovernmentComplianceService _governmentComplianceService;
@@ -61,6 +79,8 @@ public class PayrollService : IPayrollService
 
         if (request.StartDate > request.EndDate)
             throw new InvalidOperationException("Payroll start date cannot be later than end date.");
+
+        var payrollCutoff = GetPayrollCutoff(request.StartDate, request.EndDate);
 
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
 
@@ -124,6 +144,10 @@ public class PayrollService : IPayrollService
             .Select(compensation => compensation.EmployeeId)
             .Distinct()
             .ToList();
+
+        var priorCutoffSnapshots = payrollCutoff == PayrollCutoff.Final
+            ? await GetFirstCutoffSnapshotsAsync(request, employeeIds, cancellationToken)
+            : new Dictionary<Guid, PayrollCutoffSnapshot>();
 
         var attendanceInputs = await _attendancePayrollInputService.GetPayrollInputsAsync(
             employeeIds,
@@ -201,18 +225,45 @@ public class PayrollService : IPayrollService
 
             var grossPay = RoundMoney(basicPay + overtimePay);
 
-            var compliance = await _governmentComplianceService.CalculateAsync(
-                grossPay,
+            priorCutoffSnapshots.TryGetValue(compensation.EmployeeId, out var priorCutoffSnapshot);
+
+            var monthlyGrossPay = payrollCutoff == PayrollCutoff.First
+                ? RoundMoney(grossPay * MonthlyCutoffs)
+                : RoundMoney((priorCutoffSnapshot?.GrossPay ?? 0m) + grossPay);
+
+            var monthlyCompliance = await _governmentComplianceService.CalculateAsync(
+                monthlyGrossPay,
                 request.EndDate,
                 cancellationToken);
 
-            var sssDeduction = RoundMoney(compliance.SssEmployeeShare);
-            var philHealthDeduction = RoundMoney(compliance.PhilHealthEmployeeShare);
-            var pagIbigDeduction = RoundMoney(compliance.PagIbigEmployeeShare);
-            var withholdingTaxDeduction = RoundMoney(compliance.WithholdingTax);
-            var sssEmployerContribution = RoundMoney(compliance.SssEmployerShare);
-            var philHealthEmployerContribution = RoundMoney(compliance.PhilHealthEmployerShare);
-            var pagIbigEmployerContribution = RoundMoney(compliance.PagIbigEmployerShare);
+            var sssDeduction = GetCutoffAmount(
+                monthlyCompliance.SssEmployeeShare,
+                priorCutoffSnapshot?.SssEmployeeShare ?? 0m,
+                payrollCutoff);
+            var philHealthDeduction = GetCutoffAmount(
+                monthlyCompliance.PhilHealthEmployeeShare,
+                priorCutoffSnapshot?.PhilHealthEmployeeShare ?? 0m,
+                payrollCutoff);
+            var pagIbigDeduction = GetCutoffAmount(
+                monthlyCompliance.PagIbigEmployeeShare,
+                priorCutoffSnapshot?.PagIbigEmployeeShare ?? 0m,
+                payrollCutoff);
+            var withholdingTaxDeduction = GetCutoffAmount(
+                monthlyCompliance.WithholdingTax,
+                priorCutoffSnapshot?.WithholdingTax ?? 0m,
+                payrollCutoff);
+            var sssEmployerContribution = GetCutoffAmount(
+                monthlyCompliance.SssEmployerShare,
+                priorCutoffSnapshot?.SssEmployerShare ?? 0m,
+                payrollCutoff);
+            var philHealthEmployerContribution = GetCutoffAmount(
+                monthlyCompliance.PhilHealthEmployerShare,
+                priorCutoffSnapshot?.PhilHealthEmployerShare ?? 0m,
+                payrollCutoff);
+            var pagIbigEmployerContribution = GetCutoffAmount(
+                monthlyCompliance.PagIbigEmployerShare,
+                priorCutoffSnapshot?.PagIbigEmployerShare ?? 0m,
+                payrollCutoff);
 
             var governmentComplianceDeductions = RoundMoney(
                 sssDeduction +
@@ -601,6 +652,95 @@ public class PayrollService : IPayrollService
                 })
                 .ToList()
         };
+    }
+
+    private static PayrollCutoff GetPayrollCutoff(DateOnly startDate, DateOnly endDate)
+    {
+        if (startDate.Year != endDate.Year || startDate.Month != endDate.Month)
+        {
+            throw new InvalidOperationException(
+                "Payroll periods must stay within a single calendar month.");
+        }
+
+        if (startDate.Day == 1 && endDate.Day == 15)
+        {
+            return PayrollCutoff.First;
+        }
+
+        var lastDayOfMonth = DateTime.DaysInMonth(endDate.Year, endDate.Month);
+
+        if (startDate.Day == 16 && endDate.Day == lastDayOfMonth)
+        {
+            return PayrollCutoff.Final;
+        }
+
+        throw new InvalidOperationException(
+            "Payroll periods must be the first cutoff (1st-15th) or final cutoff (16th-last day) of a calendar month.");
+    }
+
+    private async Task<Dictionary<Guid, PayrollCutoffSnapshot>> GetFirstCutoffSnapshotsAsync(
+        ProcessPayrollRequest request,
+        IReadOnlyCollection<Guid> employeeIds,
+        CancellationToken cancellationToken)
+    {
+        var firstCutoffStartDate = new DateOnly(request.StartDate.Year, request.StartDate.Month, 1);
+        var firstCutoffEndDate = new DateOnly(request.StartDate.Year, request.StartDate.Month, 15);
+
+        var firstCutoffPeriod = await _context.PayrollPeriods
+            .AsNoTracking()
+            .FirstOrDefaultAsync(period =>
+                period.StartDate == firstCutoffStartDate &&
+                period.EndDate == firstCutoffEndDate &&
+                (period.Status == PayrollStatuses.Processed || period.Status == PayrollStatuses.Released),
+                cancellationToken);
+
+        if (firstCutoffPeriod is null)
+        {
+            throw new InvalidOperationException(
+                $"Process the first cutoff ({firstCutoffStartDate:yyyy-MM-dd} to {firstCutoffEndDate:yyyy-MM-dd}) before the final cutoff.");
+        }
+
+        var firstCutoffRecords = await _context.PayrollRecords
+            .AsNoTracking()
+            .Include(record => record.Items)
+            .Where(record =>
+                record.PayrollPeriodId == firstCutoffPeriod.Id &&
+                employeeIds.Contains(record.EmployeeId))
+            .ToListAsync(cancellationToken);
+
+        return firstCutoffRecords.ToDictionary(
+            record => record.EmployeeId,
+            record => new PayrollCutoffSnapshot
+            {
+                GrossPay = record.GrossPay,
+                SssEmployeeShare = GetPayrollItemAmount(record, PayrollItemTypeDeduction, "SSS"),
+                SssEmployerShare = GetPayrollItemAmount(record, PayrollItemTypeEmployerContribution, SssEmployerContributionDescription),
+                PhilHealthEmployeeShare = GetPayrollItemAmount(record, PayrollItemTypeDeduction, "PhilHealth"),
+                PhilHealthEmployerShare = GetPayrollItemAmount(record, PayrollItemTypeEmployerContribution, PhilHealthEmployerContributionDescription),
+                PagIbigEmployeeShare = GetPayrollItemAmount(record, PayrollItemTypeDeduction, "Pag-IBIG"),
+                PagIbigEmployerShare = GetPayrollItemAmount(record, PayrollItemTypeEmployerContribution, PagIbigEmployerContributionDescription),
+                WithholdingTax = GetPayrollItemAmount(record, PayrollItemTypeDeduction, "Withholding Tax")
+            });
+    }
+
+    private static decimal GetPayrollItemAmount(
+        PayrollRecord record,
+        string itemType,
+        string description)
+    {
+        return record.Items
+            .Where(item => item.Type == itemType && item.Description == description)
+            .Sum(item => item.Amount);
+    }
+
+    private static decimal GetCutoffAmount(
+        decimal monthlyAmount,
+        decimal previouslyRecordedAmount,
+        PayrollCutoff payrollCutoff)
+    {
+        return payrollCutoff == PayrollCutoff.First
+            ? RoundMoney(monthlyAmount / MonthlyCutoffs)
+            : RoundMoney(monthlyAmount - previouslyRecordedAmount);
     }
 
     private static decimal GetDailyRate(EmployeeCompensation compensation)
